@@ -18,7 +18,8 @@ from folivox.book import Block, BlockKind, Book, Section, one_line
 from folivox.readers.headings import split_by_headings
 
 MARGIN = 0.08  # share of page height treated as header / footer zone
-_PAGE_NUM = re.compile(r"^[\s\-–—]*(?:стр\.?|page|с\.)?\s*\d{1,4}(?:\s*(?:/|из|of)\s*\d{1,4})?[\s\-–—]*$", re.I)
+_PAGE_NUM = re.compile(r"^[\s\-–—]*(?:стр\.?|page|с\.)?\s*\d{1,4}(?:\s*(?:/|из|of)\s*\d{1,4})?[\s\-–—]*$",
+                       re.IGNORECASE)
 _SENTENCE_END = re.compile(r"[.!?…»\"”)\]:]$")
 
 

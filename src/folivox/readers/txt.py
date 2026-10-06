@@ -11,7 +11,7 @@ from folivox.readers.headings import heading_level, split_by_headings
 
 def decode(data: bytes) -> str:
     for enc in ("utf-8-sig", "utf-16"):
-        if enc == "utf-16" and not data[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        if enc == "utf-16" and data[:2] not in (b"\xff\xfe", b"\xfe\xff"):
             continue
         try:
             return data.decode(enc)

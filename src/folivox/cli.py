@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -106,7 +105,7 @@ def _version(value: bool):
 
 
 @app.callback()
-def _root(version: Optional[bool] = typer.Option(None, "--version", callback=_version, is_eager=True,
+def _root(version: bool | None = typer.Option(None, "--version", callback=_version, is_eager=True,
                                                  help="Показать версию")):
     pass
 

@@ -8,7 +8,7 @@ from pathlib import Path
 from folivox.book import Book, one_line
 from folivox.readers.headings import split_by_headings
 
-_HEADING_STYLE = re.compile(r"^(?:heading|заголовок|überschrift|titre)\s*(\d)$", re.I)
+_HEADING_STYLE = re.compile(r"^(?:heading|заголовок|überschrift|titre)\s*(\d)$", re.IGNORECASE)
 
 
 def _style_level(paragraph) -> int:

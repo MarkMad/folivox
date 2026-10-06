@@ -149,8 +149,9 @@ def test_unsupported(tmp_path):
 def test_chapters_flatten_depth():
     from folivox.book import Block
 
-    b = Book(sections=[Section("Часть 1", children=[Section("Глава 1", [Block(BlockKind.PARAGRAPH, "a")],
-                                                             children=[Section("Сцена", [Block(BlockKind.PARAGRAPH, "b")])])])])
+    p = BlockKind.PARAGRAPH
+    scene = Section("Сцена", [Block(p, "b")])
+    b = Book(sections=[Section("Часть 1", children=[Section("Глава 1", [Block(p, "a")], children=[scene])])])
     ch = b.chapters(max_depth=2)
     assert len(ch) == 1
     assert [x.text for x in ch[0].blocks] == ["a", "Сцена", "b"]

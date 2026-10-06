@@ -16,11 +16,11 @@ _ORDINALS = (
 _NUM = rf"(?:\d{{1,3}}|[IVXLCDM]{{1,7}}|{_ORDINALS})"
 
 # Level 1: parts / books. Level 2: chapters.
-_PART = re.compile(rf"^(?:часть|книга|том|раздел|part|book)\s+{_NUM}\b\.?", re.I)
-_CHAPTER = re.compile(rf"^(?:глава|chapter)\s+{_NUM}\b\.?", re.I)
+_PART = re.compile(rf"^(?:часть|книга|том|раздел|part|book)\s+{_NUM}\b\.?", re.IGNORECASE)
+_CHAPTER = re.compile(rf"^(?:глава|chapter)\s+{_NUM}\b\.?", re.IGNORECASE)
 _STANDALONE = re.compile(r"^(?:пролог|эпилог|предисловие|послесловие|вступление|введение|заключение|"
-                         r"от автора|prologue|epilogue|introduction|preface|afterword)\.?$", re.I)
-_ORDINAL_CHAPTER = re.compile(rf"^(?:{_ORDINALS})\s+глава\.?$", re.I)
+                         r"от автора|prologue|epilogue|introduction|preface|afterword)\.?$", re.IGNORECASE)
+_ORDINAL_CHAPTER = re.compile(rf"^(?:{_ORDINALS})\s+глава\.?$", re.IGNORECASE)
 
 MAX_HEADING_LEN = 80
 

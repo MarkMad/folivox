@@ -39,9 +39,9 @@ def _strip_noise(soup: BeautifulSoup) -> None:
         if getattr(el, "decomposed", False):
             continue
         types = _epub_type(el)
-        if types & NOTE_TYPES and el.name != "a":
-            el.decompose()
-        elif el.name == "a" and (types & {"noteref", "footnote-ref"} or _looks_like_noteref(el)):
+        is_note = types & NOTE_TYPES and el.name != "a"
+        is_ref = el.name == "a" and (types & {"noteref", "footnote-ref"} or _looks_like_noteref(el))
+        if is_note or is_ref:
             el.decompose()
     for sup in soup.find_all("sup"):
         if sup.find("a") is not None or re.fullmatch(r"\s*[\d*†‡]+\s*", sup.get_text()):
@@ -229,7 +229,7 @@ def read_epub(path: Path) -> Book:
 
 
 def _same(a: str, b: str) -> bool:
-    norm = lambda s: re.sub(r"[\W_]+", "", s.lower())  # noqa: E731
+    norm = lambda s: re.sub(r"[\W_]+", "", s.lower())
     return norm(a) == norm(b) or (len(norm(b)) > 3 and norm(a).startswith(norm(b)))
 
 

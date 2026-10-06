@@ -54,7 +54,7 @@ def _drop_title_page(book: Book) -> None:
     """Remove leading untitled paragraphs that only repeat the title / author."""
     if not book.sections or book.sections[0].title or book.sections[0].children:
         return
-    norm = lambda s: "".join(ch for ch in s.lower() if ch.isalnum())  # noqa: E731
+    norm = lambda s: "".join(ch for ch in s.lower() if ch.isalnum())
     known = {norm(book.title), *(norm(a) for a in book.authors)}
     known.add(norm(book.author + book.title))
     first = book.sections[0]

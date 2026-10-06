@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterator
 
 # Average Russian narration speed with pauses, characters (incl. spaces) per second.
 # Measured on CosyVoice 3 zero-shot output; used only for estimates.
@@ -142,8 +142,8 @@ def _flatten_blocks(sec: Section) -> list[Block]:
     return blocks
 
 
-_WS = re.compile(r"[ \t\r\f\v  -   　]+")
-_INVISIBLE = re.compile(r"[­​-‍⁠﻿]")
+_WS = re.compile(r"[ \t\r\f\v\u00a0\u2000-\u200a\u202f\u205f\u3000]+")
+_INVISIBLE = re.compile(r"[\u00ad\u200b-\u200d\u2060\ufeff]")
 
 
 def clean_text(s: str) -> str:

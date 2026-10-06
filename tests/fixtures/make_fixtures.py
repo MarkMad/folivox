@@ -35,7 +35,7 @@ JPEG = _jpeg()
 
 
 def fb2() -> None:
-    p = lambda t: f"<p>{t}</p>"  # noqa: E731
+    p = lambda t: f"<p>{t}</p>"
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
 <description><title-info>
