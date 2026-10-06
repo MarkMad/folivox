@@ -71,6 +71,17 @@ def cer(reference: str, hypothesis: str) -> float:
 MIN_CPS, MAX_CPS = 7.0, 28.0
 
 
+def threshold_for(reference: str, base: float) -> float:
+    """Short colloquial lines («Не-а.», «Покажь.») are where Whisper itself errs most:
+    one wrong letter is already 20–30 % CER, so retakes would only burn time."""
+    n = len(canonical(reference))
+    if n < 15:
+        return max(base, 0.35)
+    if n < 40:
+        return max(base, 0.15)
+    return base
+
+
 def score(reference: str, hypothesis: str, duration: float) -> float:
     """Lower is better. CER plus a penalty for implausible speaking rate."""
     s = cer(reference, strip_hallucinations(hypothesis, reference))

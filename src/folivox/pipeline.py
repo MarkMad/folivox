@@ -121,7 +121,7 @@ def _limit(chunks, preview: int | None, copts: ChunkOptions):
 
 
 def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions, events: Events) -> None:
-    from folivox.qa import score
+    from folivox.qa import score, threshold_for
     from folivox.tts.engine import Prefetcher
 
     pending = journal.pending()
@@ -154,7 +154,7 @@ def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions
                 attempts.append(sc)
                 if best is None or (sc is not None and sc < best[0]):
                     best = (sc if sc is not None else 0.0, audio, hyp, dur, syn.sample_rate)
-                if sc is None or sc <= opts.qa_threshold:
+                if sc is None or sc <= threshold_for(chunk.source, opts.qa_threshold):
                     break
             sc, audio, hyp, dur, sr = best
             save(journal.audio_path(chunk.key), audio, sr)

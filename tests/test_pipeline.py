@@ -120,3 +120,11 @@ def test_whisper_hallucinations_ignored():
     # kept when the book really says it
     assert strip_hallucinations("Продолжение следует.", "Продолжение следует.") == "Продолжение следует."
     assert strip_hallucinations("Текст. Субтитры сделал DimaTorzok", "Текст.") == "Текст."
+
+
+def test_threshold_relaxed_for_short_lines():
+    from folivox.qa import threshold_for
+
+    assert threshold_for("Не-а.", 0.08) == 0.35
+    assert threshold_for("Ладно. Зайди. Разуйся только.", 0.08) == 0.15
+    assert threshold_for("Это обычное длинное предложение, в нём больше сорока букв точно.", 0.08) == 0.08
