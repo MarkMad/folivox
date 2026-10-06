@@ -32,7 +32,7 @@ class Pauses:
 
 @dataclass
 class ChunkOptions:
-    max_chars: int = 220
+    max_chars: int = 400
     min_chars: int = 30
     stress: str = "yo"
     pauses: Pauses = field(default_factory=Pauses)

@@ -177,7 +177,7 @@ def render(
     mp3: bool = typer.Option(False, "--mp3", help="MP3 по главам вместо одного m4b"),
     work_dir: Path | None = typer.Option(None, "--work-dir", help="Папка кэша (по умолчанию <output>.folivox)"),
     depth: int = typer.Option(2, "--depth", help="Глубина разбиения на главы"),
-    max_chars: int = typer.Option(220, "--max-chars", help="Максимальная длина фрагмента для модели"),
+    max_chars: int = typer.Option(400, "--max-chars", help="Максимальная длина фрагмента для модели"),
     stress: str = typer.Option("yo", "--stress", help="none | yo (только ё) | all (ударения, эксперимент)"),
     speed: float = typer.Option(1.0, "--speed", help="Темп речи"),
     qa: bool = typer.Option(True, "--qa/--no-qa", help="Проверять каждый фрагмент через Whisper"),

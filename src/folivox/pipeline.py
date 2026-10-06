@@ -27,7 +27,7 @@ class RenderOptions:
     chapters: str | None = None  # "1-3,5" (1-based)
     preview: int | None = None  # only the first N characters of each selected chapter
     depth: int = 2
-    max_chars: int = 220
+    max_chars: int = 400
     stress: str = "yo"
     speed: float = 1.0
     device: str = "auto"

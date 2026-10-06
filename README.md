@@ -51,7 +51,7 @@ Useful options (`folivox render --help` for all):
 |---|---|---|
 | `--voice-text` | `.txt` next to the sample, else Whisper | transcript of the voice sample |
 | `--chapters` | all | `1-3,5` |
-| `--max-chars` | 220 | longest fragment sent to the model at once |
+| `--max-chars` | 400 | longest fragment sent to the model at once |
 | `--stress` | `yo` | `none`, `yo` (restore ё), `all` (acute stress marks, experimental) |
 | `--llm` | `rl` | `rl` or `base` CosyVoice 3 LLM weights |
 | `--takes` | 3 | max takes per fragment when Whisper finds a mismatch |
