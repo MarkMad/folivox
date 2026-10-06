@@ -21,7 +21,7 @@ from folivox.book import CHARS_PER_SECOND, Book, Section
 app = typer.Typer(add_completion=False, no_args_is_help=True, rich_markup_mode="rich",
                   help="Folivox — локальная озвучка книг (FB2, EPUB, DOCX, PDF, TXT) в аудиокнигу m4b.")
 console = Console()
-COMMANDS = {"render", "inspect", "voices", "--help", "-h", "--version"}
+COMMANDS = {"render", "inspect", "--help", "-h", "--version"}
 
 
 def fmt_duration(seconds: float) -> str:
