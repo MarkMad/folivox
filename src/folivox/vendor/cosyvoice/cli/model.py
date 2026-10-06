@@ -109,19 +109,19 @@ class CosyVoiceModel:
             if isinstance(text, Generator):
                 assert (self.__class__.__name__ != 'CosyVoiceModel') and not hasattr(self.llm, 'vllm'), 'streaming input text is only implemented for CosyVoice2/3 and do not support vllm!'
                 token_generator = self.llm.inference_bistream(text=text,
-                                                              prompt_text=prompt_text.to(self.device),
-                                                              prompt_text_len=torch.tensor([prompt_text.shape[1]], dtype=torch.int32).to(self.device),
-                                                              prompt_speech_token=llm_prompt_speech_token.to(self.device),
-                                                              prompt_speech_token_len=torch.tensor([llm_prompt_speech_token.shape[1]], dtype=torch.int32).to(self.device),
-                                                              embedding=llm_embedding.to(self.device))
+                                                              prompt_text=prompt_text.to(getattr(self, "llm_device", self.device)),
+                                                              prompt_text_len=torch.tensor([prompt_text.shape[1]], dtype=torch.int32).to(getattr(self, "llm_device", self.device)),
+                                                              prompt_speech_token=llm_prompt_speech_token.to(getattr(self, "llm_device", self.device)),
+                                                              prompt_speech_token_len=torch.tensor([llm_prompt_speech_token.shape[1]], dtype=torch.int32).to(getattr(self, "llm_device", self.device)),
+                                                              embedding=llm_embedding.to(getattr(self, "llm_device", self.device)))
             else:
-                token_generator = self.llm.inference(text=text.to(self.device),
-                                                     text_len=torch.tensor([text.shape[1]], dtype=torch.int32).to(self.device),
-                                                     prompt_text=prompt_text.to(self.device),
-                                                     prompt_text_len=torch.tensor([prompt_text.shape[1]], dtype=torch.int32).to(self.device),
-                                                     prompt_speech_token=llm_prompt_speech_token.to(self.device),
-                                                     prompt_speech_token_len=torch.tensor([llm_prompt_speech_token.shape[1]], dtype=torch.int32).to(self.device),
-                                                     embedding=llm_embedding.to(self.device),
+                token_generator = self.llm.inference(text=text.to(getattr(self, "llm_device", self.device)),
+                                                     text_len=torch.tensor([text.shape[1]], dtype=torch.int32).to(getattr(self, "llm_device", self.device)),
+                                                     prompt_text=prompt_text.to(getattr(self, "llm_device", self.device)),
+                                                     prompt_text_len=torch.tensor([prompt_text.shape[1]], dtype=torch.int32).to(getattr(self, "llm_device", self.device)),
+                                                     prompt_speech_token=llm_prompt_speech_token.to(getattr(self, "llm_device", self.device)),
+                                                     prompt_speech_token_len=torch.tensor([llm_prompt_speech_token.shape[1]], dtype=torch.int32).to(getattr(self, "llm_device", self.device)),
+                                                     embedding=llm_embedding.to(getattr(self, "llm_device", self.device)),
                                                      uuid=uuid)
             for i in token_generator:
                 if i in self.silent_tokens:
@@ -449,7 +449,9 @@ class CosyVoice3Model(CosyVoice2Model):
             if speed != 1.0:
                 assert token_offset == 0 and finalize is True, 'speed change only support non-stream inference mode'
                 tts_mel = F.interpolate(tts_mel, size=int(tts_mel.shape[2] / speed), mode='linear')
-            tts_speech, _ = self.hift.inference(speech_feat=tts_mel, finalize=finalize)
+            # Folivox: the vocoder may live on another device (CPU when the rest runs on MPS)
+            hift_device = next(self.hift.parameters()).device
+            tts_speech, _ = self.hift.inference(speech_feat=tts_mel.to(hift_device), finalize=finalize)
             tts_speech = tts_speech[:, self.hift_cache_dict[uuid]['speech_offset']:]
             self.hift_cache_dict[uuid]['speech_offset'] += tts_speech.shape[1]
         return tts_speech
