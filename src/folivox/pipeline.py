@@ -32,6 +32,7 @@ class RenderOptions:
     depth: int = 2
     max_chars: int = 400
     stress: str = "yo"
+    lang: str | None = None  # book language (ISO 639-1); None → from the book metadata / detection
     speed: float = 1.0
     device: str = "auto"
     llm: str = "rl"  # "rl" (fewer content errors, per upstream eval) or "base"
@@ -92,7 +93,8 @@ def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, event
     selected = parse_selection(opts.chapters, len(chapters))
     events.stage("plan", f"Разметка текста: {len(selected)} из {len(chapters)} глав")
     copts = ChunkOptions(max_chars=opts.max_chars, min_chars=opts.chunk.min_chars, stress=opts.stress,
-                         pauses=opts.chunk.pauses, speak_headings=opts.chunk.speak_headings)
+                         lang=opts.lang or book.lang or "ru", pauses=opts.chunk.pauses,
+                         speak_headings=opts.chunk.speak_headings)
     planned = [(chapters[i].title, _limit(plan_chapter(chapters[i], copts), opts.preview, copts))
                for i in selected]
     settings = f"{SYNTH_VERSION}|llm={opts.llm}|speed={opts.speed}"
@@ -140,7 +142,8 @@ def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: 
 
     best = None
     attempts: list[float | None] = []
-    limit = threshold_for(source, opts.qa_threshold)
+    lang = opts.lang or "ru"
+    limit = threshold_for(source, opts.qa_threshold, lang)
     for attempt in range(max(1, opts.max_takes if asr else 1)):
         syn = prefetch.synthesize(key, text, _seed(key, attempt), speed=opts.speed)
         audio = postprocess(syn.audio, syn.sample_rate)
@@ -148,14 +151,14 @@ def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: 
         sc = hyp = None
         if asr is not None:
             hyp = asr.transcribe(audio, syn.sample_rate) if dur > 0.05 else ""
-            sc = score(source, hyp, dur)
+            sc = score(source, hyp, dur, lang)
         attempts.append(sc)
         if best is None or (sc is not None and sc < best[0]):
             best = (sc if sc is not None else 0.0, audio, hyp)
         if sc is None or sc <= limit:
             return best[0], best[1], best[2], attempts
 
-    parts = sentences(text)
+    parts = sentences(text, lang)
     if len(parts) < 2 or depth >= 2:
         return best[0], best[1], best[2], attempts
     # split into two halves of similar length at a sentence boundary
@@ -171,7 +174,7 @@ def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: 
     sr = prefetch.engine.sample_rate
     audio = np.concatenate([results[0][1], np.zeros(int(sr * SPLIT_PAUSE), np.float32), results[1][1]])
     joined = f"{results[0][2] or ''} {results[1][2] or ''}".strip()
-    split_score = score(source, joined, len(audio) / sr) if asr is not None else 0.0
+    split_score = score(source, joined, len(audio) / sr, lang) if asr is not None else 0.0
     attempts += results[0][3] + results[1][3]
     if split_score < best[0]:
         return split_score, audio, joined, attempts
@@ -247,6 +250,9 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
     from folivox.tts.voice import load_voice
 
     events = events or Events()
+    from folivox import lang as languages
+
+    opts.lang = languages.get(opts.lang or book.lang or "ru").code
     journal = Journal(opts.resolved_work_dir())
     try:
         asr = None
@@ -254,7 +260,7 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
             from folivox.qa.asr import Transcriber
 
             events.stage("asr", "Загрузка Whisper для проверки")
-            asr = Transcriber()
+            asr = Transcriber(language=opts.lang)
         voice = load_voice(opts.voice_wav, opts.voice_text,
                            transcribe=asr.transcribe_file if asr else None)
         for w in voice.warnings:

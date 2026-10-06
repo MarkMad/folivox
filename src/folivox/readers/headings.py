@@ -13,13 +13,25 @@ _ORDINALS = (
     "первый|второй|третий|четв[её]ртый|пятый|шестой|седьмой|восьмой|девятый|десятый|"
     "последняя|последний|заключительная"
 )
-_NUM = rf"(?:\d{{1,3}}|[IVXLCDM]{{1,7}}|{_ORDINALS})"
+_EN_NUMBERS = ("one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|"
+               "sixteen|seventeen|eighteen|nineteen|twenty")
+_NUM = rf"(?:\d{{1,3}}|[IVXLCDM]{{1,7}}|{_ORDINALS}|{_EN_NUMBERS})"
+_CJK_NUM = r"[0-9０-９一二三四五六七八九十百千零〇两]{1,6}"
 
-# Level 1: parts / books. Level 2: chapters.
-_PART = re.compile(rf"^(?:часть|книга|том|раздел|part|book)\s+{_NUM}\b\.?", re.IGNORECASE)
-_CHAPTER = re.compile(rf"^(?:глава|chapter)\s+{_NUM}\b\.?", re.IGNORECASE)
-_STANDALONE = re.compile(r"^(?:пролог|эпилог|предисловие|послесловие|вступление|введение|заключение|"
-                         r"от автора|prologue|epilogue|introduction|preface|afterword)\.?$", re.IGNORECASE)
+
+def _words(attr: str) -> str:
+    from folivox import lang
+
+    words = {w for language in lang.available() for w in getattr(language, attr)}
+    return "|".join(sorted((re.escape(w) for w in words), key=len, reverse=True))
+
+
+# Level 1: parts / books. Level 2: chapters. Built from the words of every language module.
+_PART = re.compile(rf"^(?:{_words('part_words')})\s+{_NUM}\b\.?|^第{_CJK_NUM}[部卷篇]|^제\s*\d+\s*부",
+                   re.IGNORECASE)
+_CHAPTER = re.compile(rf"^(?:{_words('chapter_words')})\s+{_NUM}\b\.?|^第{_CJK_NUM}[章回节話话]|^제\s*\d+\s*장",
+                      re.IGNORECASE)
+_STANDALONE = re.compile(rf"^(?:{_words('standalone_words')})\.?$", re.IGNORECASE)
 _ORDINAL_CHAPTER = re.compile(rf"^(?:{_ORDINALS})\s+глава\.?$", re.IGNORECASE)
 
 MAX_HEADING_LEN = 80

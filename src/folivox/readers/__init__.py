@@ -47,6 +47,13 @@ def read_book(path: str | Path) -> Book:
         book.title = path.name.split(".")[0]
     book.sections = [s for s in book.sections if not s.is_empty() or s.title]
     _drop_title_page(book)
+    from folivox.lang import normalize_code
+
+    book.lang = normalize_code(book.lang)
+    if not book.lang:
+        from folivox.lang.detect import detect
+
+        book.lang = detect(" ".join(b.text for ch in book.chapters(1)[:5] for b in ch.blocks[:200]))
     return book
 
 

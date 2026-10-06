@@ -155,7 +155,7 @@ def read_epub(path: Path) -> Book:
     book.title = one_line(titles[0][0]) if titles else ""
     book.authors = [one_line(a[0]) for a in eb.get_metadata("DC", "creator") if a[0].strip()]
     lang = eb.get_metadata("DC", "language")
-    book.lang = (lang[0][0] if lang else "ru")[:2].lower()
+    book.lang = lang[0][0] if lang else ""
     date = eb.get_metadata("DC", "date")
     book.year = (date[0][0] if date else "")[:4]
     desc = eb.get_metadata("DC", "description")

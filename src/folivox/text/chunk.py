@@ -11,11 +11,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from razdel import sentenize
-
+from folivox import lang as languages
 from folivox.book import Block, BlockKind, Chapter
-from folivox.text import stress
-from folivox.text.normalize import dialogue, has_speech, normalize
+from folivox.lang import has_speech
+from folivox.text.stress import strip_marks
 
 
 @dataclass
@@ -35,6 +34,7 @@ class ChunkOptions:
     max_chars: int = 400
     min_chars: int = 30
     stress: str = "yo"
+    lang: str = "ru"
     pauses: Pauses = field(default_factory=Pauses)
     speak_headings: bool = True
 
@@ -48,24 +48,29 @@ class Chunk:
     kind: str = "p"
 
 
-_LOWER_START = re.compile(r"^[\s—–-]*[а-яё]")
-_CLAUSE_SPLIT = re.compile(r"(?<=[,;:])\s+|\s+(?=—\s)")
+_CLAUSE_SPLIT = re.compile(r"(?<=[,;:])\s+|\s+(?=—\s)|(?<=[，；：、])")
 
 
-def sentences(text: str) -> list[str]:
-    """razdel sentences, re-joined where a dialogue attribution was split off.
+def sentences(text: str, lang: str = "ru") -> list[str]:
+    """Sentences of the language module, re-joined where a dialogue attribution was split off.
 
     «Ты куда? — спросила соседка.» stays one sentence.
     """
+    language = languages.get(lang)
     out: list[str] = []
-    for s in (x.text.strip() for x in sentenize(text)):
+    for s in language.sentences(text):
         if not s:
             continue
-        if out and (_LOWER_START.match(s) or not has_speech(s)):
-            out[-1] = f"{out[-1]} {s}"
+        if out and (language.is_continuation(s) or not has_speech(s)):
+            out[-1] = f"{out[-1]}{_sep(out[-1])}{s}"
         else:
             out.append(s)
     return out
+
+
+def _sep(prev: str) -> str:
+    """No space after CJK full-width punctuation."""
+    return "" if prev and prev[-1] in "。！？，；：、」』）" else " "
 
 
 def split_long(sentence: str, max_chars: int) -> list[str]:
@@ -122,6 +127,8 @@ def _poem_text(stanza: str) -> str:
 def plan_chapter(chapter: Chapter, opts: ChunkOptions | None = None) -> list[Chunk]:
     opts = opts or ChunkOptions()
     p = opts.pauses
+    language = languages.get(opts.lang)
+    normalize, dialogue = language.normalize, language.dialogue
     raw: list[tuple[str, float, str]] = []  # (text, pause, kind)
 
     if opts.speak_headings:
@@ -145,7 +152,7 @@ def plan_chapter(chapter: Chapter, opts: ChunkOptions | None = None) -> list[Chu
         if b.kind in (BlockKind.EPIGRAPH, BlockKind.AUTHOR) and not (nxt and nxt.kind in (
                 BlockKind.EPIGRAPH, BlockKind.AUTHOR)):
             end_pause = p.heading
-        parts = pack(sentences(text), opts.max_chars, opts.min_chars)
+        parts = pack(sentences(text, opts.lang), opts.max_chars, opts.min_chars)
         for j, part in enumerate(parts):
             raw.append((dialogue(part), end_pause if j == len(parts) - 1 else p.sentence, b.kind.value))
 
@@ -153,8 +160,8 @@ def plan_chapter(chapter: Chapter, opts: ChunkOptions | None = None) -> list[Chu
     for text, pause, kind in raw:
         if not has_speech(text):
             continue
-        tts = stress.apply(text, opts.stress)
-        chunks.append(Chunk(len(chunks), tts, stress.strip_marks(tts), pause, kind))
+        tts = language.stress(text, opts.stress)
+        chunks.append(Chunk(len(chunks), tts, strip_marks(tts), pause, kind))
     if chunks:
         chunks[-1].pause_after = p.chapter_end
     return chunks

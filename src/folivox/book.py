@@ -65,7 +65,7 @@ class Chapter:
 class Book:
     title: str = ""
     authors: list[str] = field(default_factory=list)
-    lang: str = "ru"
+    lang: str = ""  # ISO 639-1; detected from the text when the file has no metadata
     annotation: str = ""
     year: str = ""
     cover: bytes | None = None
