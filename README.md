@@ -59,6 +59,16 @@ Useful options (`folivox render --help` for all):
 | `--device` | `auto` | `cuda`, `mps`, `cpu` |
 | `--work-dir` | `<output>.folivox/` | cache and journal; delete it when done |
 
+### Voices
+
+```bash
+folivox voices                                  # list voices (bundled + yours)
+folivox book.fb2 --voice russlib                # pick a voice by id (default: russlib)
+folivox voices add anna anna.wav --text anna.txt --gender f   # add your own (stays on this machine)
+```
+
+Bundled voices are public domain / CC0 only; `folivox voices` shows each voice's source and license.
+
 ### The voice sample
 
 Use 6–15 seconds of **clean** speech (no music, no noise, no reverb), WAV or FLAC, with an exact

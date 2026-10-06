@@ -32,3 +32,4 @@ build/
 *.folivox/
 # synthetic test fixtures are allowed
 !tests/fixtures/**
+!src/folivox/voices/*.flac

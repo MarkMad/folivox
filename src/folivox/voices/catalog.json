@@ -1,0 +1,12 @@
+[
+  {
+    "id": "russlib",
+    "name": "Русский женский (LibriVox, RussLib)",
+    "gender": "f",
+    "lang": "ru",
+    "transcript": "Вражду и плен старинный свой пусть волны финские забудут и тщетной злобою не будут тревожить вечный сон Петра!",
+    "source": "LibriVox reader 4091 «RussLib», A. S. Pushkin, «Медный всадник» (LibriVox book 2145), via Russian LibriSpeech (OpenSLR 96)",
+    "license": "Public domain",
+    "url": "https://librivox.org/reader/4091"
+  }
+]

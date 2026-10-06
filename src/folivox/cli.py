@@ -21,7 +21,7 @@ from folivox.book import CHARS_PER_SECOND, Book, Section
 app = typer.Typer(add_completion=False, no_args_is_help=True, rich_markup_mode="rich",
                   help="Folivox — локальная озвучка книг (FB2, EPUB, DOCX, PDF, TXT) в аудиокнигу m4b.")
 console = Console()
-COMMANDS = {"render", "inspect", "--help", "-h", "--version"}
+COMMANDS = {"render", "inspect", "voices", "--help", "-h", "--version"}
 
 
 def fmt_duration(seconds: float) -> str:
@@ -166,8 +166,9 @@ class RichEvents:
 @app.command()
 def render(
     book_path: Path = typer.Argument(..., help="Файл книги (FB2, EPUB, DOCX, PDF, TXT)", show_default=False),
-    voice: Path = typer.Option(..., "--voice", "-v", envvar="FOLIVOX_VOICE",
-                               help="Образец голоса: WAV/FLAC 6–15 с чистой речи"),
+    voice: str = typer.Option("", "--voice", "-v", envvar="FOLIVOX_VOICE",
+                              help="Голос из каталога (folivox voices) или файл WAV/FLAC 6–15 с чистой речи",
+                              show_default="russlib"),
     voice_text: str | None = typer.Option(None, "--voice-text", envvar="FOLIVOX_VOICE_TEXT",
                                              help="Расшифровка образца (текст или .txt). "
                                                   "По умолчанию — .txt рядом с образцом или Whisper"),
@@ -198,10 +199,11 @@ def render(
     if stress not in MODES:
         console.print(f"[red]--stress: одно из {', '.join(MODES)}[/]")
         raise typer.Exit(2)
+    voice_path, voice_text = _resolve_voice(voice, voice_text)
     book = _load(book_path)
     if output is None:
         output = book_path.with_suffix("" if mp3 else ".m4b")
-    opts = RenderOptions(output=output, voice_wav=voice, voice_text=voice_text, work_dir=work_dir,
+    opts = RenderOptions(output=output, voice_wav=voice_path, voice_text=voice_text, work_dir=work_dir,
                          chapters=chapters, preview=preview, depth=depth, max_chars=max_chars, stress=stress,
                          speed=speed,
                          device=device, threads=threads, model_dir=str(model_dir) if model_dir else None, qa=qa,
@@ -235,6 +237,87 @@ def _version(value: bool):
     if value:
         console.print(f"folivox {__version__}")
         raise typer.Exit()
+
+
+def _resolve_voice(voice: str, voice_text: str | None) -> tuple[Path, str | None]:
+    """Catalog id or path → (audio file, transcript)."""
+    from folivox import voices as catalog
+
+    voice = voice or catalog.DEFAULT_VOICE
+    entry = catalog.find(voice)
+    if entry is not None:
+        return entry.path, voice_text or entry.transcript
+    path = Path(voice).expanduser()
+    if not path.exists():
+        known = ", ".join(v.id for v in catalog.all_voices())
+        console.print(f"[red]Голос {voice!r} не найден.[/] В каталоге: {known}. Или укажите путь к WAV/FLAC.")
+        raise typer.Exit(2)
+    return path, voice_text
+
+
+voices_app = typer.Typer(help="Каталог голосов", no_args_is_help=False, invoke_without_command=True)
+app.add_typer(voices_app, name="voices")
+
+
+@voices_app.callback()
+def voices_list(ctx: typer.Context):
+    """Показать доступные голоса."""
+    if ctx.invoked_subcommand:
+        return
+    from folivox import voices as catalog
+
+    t = Table(title="Голоса")
+    for col in ("id", "Название", "Пол", "Язык", "Длит.", "Лицензия", "Где"):
+        t.add_column(col)
+    for v in catalog.all_voices():
+        try:
+            from folivox.tts.voice import audio_duration
+
+            dur = f"{audio_duration(v.path):.1f} с"
+        except Exception:  # noqa: BLE001
+            dur = "?"
+        star = " *" if v.id == catalog.DEFAULT_VOICE else ""
+        t.add_row(v.id + star, v.name, {"f": "ж", "m": "м"}.get(v.gender, "—"), v.lang, dur, v.license or "—",
+                  "встроенный" if v.bundled else "мой")
+    console.print(t)
+    console.print(f"[dim]* голос по умолчанию. Свои голоса: {catalog.user_voices_dir()}[/]")
+
+
+@voices_app.command("add")
+def voices_add(
+    voice_id: str = typer.Argument(..., help="Имя: латиница, цифры, - и _"),
+    audio: Path = typer.Argument(..., help="WAV/FLAC/MP3 с образцом 6–15 с"),
+    text: str | None = typer.Option(None, "--text", help="Расшифровка (текст или .txt); иначе Whisper"),
+    name: str = typer.Option("", "--name", help="Человекочитаемое название"),
+    gender: str = typer.Option("", "--gender", help="f | m"),
+    lang: str = typer.Option("ru", "--lang", help="Язык образца"),
+    license: str = typer.Option("", "--license", help="Лицензия/происхождение образца"),
+    force: bool = typer.Option(False, "--force", help="Перезаписать существующий"),
+):
+    """Добавить свой голос в каталог (хранится только на этом компьютере)."""
+    from folivox import voices as catalog
+    from folivox.tts.voice import load_voice
+
+    transcribe = None
+    if not text and not audio.with_suffix(".txt").exists():
+        from folivox.qa.asr import Transcriber
+
+        transcribe = Transcriber(language=lang).transcribe_file
+    v = load_voice(audio, text, transcribe=transcribe)
+    for w in v.warnings:
+        console.print(f"[yellow]⚠ {w}[/]")
+    entry = catalog.add(voice_id, audio, v.transcript, name=name, gender=gender, lang=lang, license=license,
+                        overwrite=force)
+    console.print(f"[green]Добавлен голос[/] {entry.id}: «{entry.transcript}»")
+
+
+@voices_app.command("remove")
+def voices_remove(voice_id: str = typer.Argument(...)):
+    """Удалить свой голос из каталога."""
+    from folivox import voices as catalog
+
+    catalog.remove(voice_id)
+    console.print(f"Удалён {voice_id}")
 
 
 @app.callback()
