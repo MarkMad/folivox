@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -128,3 +129,56 @@ def test_threshold_relaxed_for_short_lines():
     assert threshold_for("Не-а.", 0.08) == 0.35
     assert threshold_for("Ладно. Зайди. Разуйся только.", 0.08) == 0.15
     assert threshold_for("Это обычное длинное предложение, в нём больше сорока букв точно.", 0.08) == 0.08
+
+
+class _FakeSynth:
+    def __init__(self, audio, sample_rate):
+        self.audio, self.sample_rate, self.seconds = audio, sample_rate, 0.0
+
+
+class _FakeEngine:
+    sample_rate = 1000
+
+
+class _DropsLastSentence:
+    """Stub engine: «speaks» each char as 60 ms of tone; drops the last sentence of long inputs."""
+
+    engine = _FakeEngine()
+
+    def __init__(self):
+        self.calls = []
+
+    def synthesize(self, key, text, seed, speed=1.0):
+        from folivox.text.chunk import sentences
+
+        self.calls.append(text)
+        spoken = text
+        parts = sentences(text)
+        if len(text) > 60 and len(parts) > 1:
+            spoken = " ".join(parts[:-1])
+        n = int(len(spoken) * 0.06 * 1000)
+        audio = (0.5 * np.sin(np.arange(n) / 3)).astype(np.float32)
+        audio = np.concatenate([audio, np.zeros(50, np.float32)])
+        self.last = spoken
+        return _FakeSynth(audio, 1000)
+
+
+class _EchoASR:
+    def __init__(self, synth):
+        self.synth = synth
+
+    def transcribe(self, audio, sr):
+        return self.synth.last
+
+
+def test_failed_fragment_is_split_at_sentence_boundary():
+    from folivox.pipeline import RenderOptions, _best_take
+
+    synth = _DropsLastSentence()
+    opts = RenderOptions(output=Path("x.m4b"), voice_wav=Path("v.wav"), max_takes=2)
+    text = "Первое предложение довольно длинное. Второе тоже не короткое. А третье потеряется."
+    sc, audio, hyp, attempts = _best_take(synth, _EchoASR(synth), opts, "k", text, text)
+    assert hyp.endswith("А третье потеряется.")
+    assert sc <= 0.08
+    assert len(attempts) > 2  # two failed full takes, then the halves
+    assert any(len(c) < len(text) for c in synth.calls)

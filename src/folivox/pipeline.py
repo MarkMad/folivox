@@ -5,8 +5,11 @@ from __future__ import annotations
 import hashlib
 import re
 import time
+import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
+
+import numpy as np
 
 from folivox.audio import postprocess, save
 from folivox.audio.assemble import BookMeta, ChapterAudio, build_chapter, write_m4b, write_mp3s
@@ -102,7 +105,7 @@ LOOKAHEAD = 2  # fragments whose LLM tokens are generated ahead of time
 
 
 def _seed(key: str, attempt: int) -> int:
-    return int(key[:8], 16) + attempt * 7919
+    return zlib.crc32(key.encode()) + attempt * 7919
 
 
 def _limit(chunks, preview: int | None, copts: ChunkOptions):
@@ -120,8 +123,62 @@ def _limit(chunks, preview: int | None, copts: ChunkOptions):
     return out
 
 
-def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions, events: Events) -> None:
+SPLIT_PAUSE = 0.25  # seconds between the halves of a fragment split after failed takes
+
+
+def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: str, depth: int = 0):
+    """Synthesise ``text`` up to ``opts.max_takes`` times, keep the best take by QA score.
+
+    If every take fails QA and the fragment has several sentences, split it in two at a
+    sentence boundary and render the halves separately: CosyVoice tends to drop the last
+    sentence of long, list-like paragraphs, and shorter inputs fix that reliably.
+    Returns (score, audio, asr_text, per-attempt scores).
+    """
     from folivox.qa import score, threshold_for
+    from folivox.text.chunk import sentences
+    from folivox.text.stress import strip_marks
+
+    best = None
+    attempts: list[float | None] = []
+    limit = threshold_for(source, opts.qa_threshold)
+    for attempt in range(max(1, opts.max_takes if asr else 1)):
+        syn = prefetch.synthesize(key, text, _seed(key, attempt), speed=opts.speed)
+        audio = postprocess(syn.audio, syn.sample_rate)
+        dur = len(audio) / syn.sample_rate
+        sc = hyp = None
+        if asr is not None:
+            hyp = asr.transcribe(audio, syn.sample_rate) if dur > 0.05 else ""
+            sc = score(source, hyp, dur)
+        attempts.append(sc)
+        if best is None or (sc is not None and sc < best[0]):
+            best = (sc if sc is not None else 0.0, audio, hyp)
+        if sc is None or sc <= limit:
+            return best[0], best[1], best[2], attempts
+
+    parts = sentences(text)
+    if len(parts) < 2 or depth >= 2:
+        return best[0], best[1], best[2], attempts
+    # split into two halves of similar length at a sentence boundary
+    total, acc, cut = sum(len(x) for x in parts), 0, 1
+    for i, part in enumerate(parts[:-1], 1):
+        acc += len(part)
+        if acc >= total / 2:
+            cut = i
+            break
+    halves = [" ".join(parts[:cut]), " ".join(parts[cut:])]
+    results = [_best_take(prefetch, asr, opts, f"{key}/{i}", h, strip_marks(h), depth + 1)
+               for i, h in enumerate(halves)]
+    sr = prefetch.engine.sample_rate
+    audio = np.concatenate([results[0][1], np.zeros(int(sr * SPLIT_PAUSE), np.float32), results[1][1]])
+    joined = f"{results[0][2] or ''} {results[1][2] or ''}".strip()
+    split_score = score(source, joined, len(audio) / sr) if asr is not None else 0.0
+    attempts += results[0][3] + results[1][3]
+    if split_score < best[0]:
+        return split_score, audio, joined, attempts
+    return best[0], best[1], best[2], attempts
+
+
+def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions, events: Events) -> None:
     from folivox.tts.engine import Prefetcher
 
     pending = journal.pending()
@@ -141,22 +198,9 @@ def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions
             for nxt in todo[pos: pos + 1 + LOOKAHEAD]:
                 prefetch.submit(nxt.key, nxt.text, _seed(nxt.key, 0))
             events.chunk_started(chunk)
-            best = None
-            attempts: list[float | None] = []
-            for attempt in range(max(1, opts.max_takes if asr else 1)):
-                syn = prefetch.synthesize(chunk.key, chunk.text, _seed(chunk.key, attempt), speed=opts.speed)
-                audio = postprocess(syn.audio, syn.sample_rate)
-                dur = len(audio) / syn.sample_rate
-                sc = hyp = None
-                if asr is not None:
-                    hyp = asr.transcribe(audio, syn.sample_rate) if dur > 0.05 else ""
-                    sc = score(chunk.source, hyp, dur)
-                attempts.append(sc)
-                if best is None or (sc is not None and sc < best[0]):
-                    best = (sc if sc is not None else 0.0, audio, hyp, dur, syn.sample_rate)
-                if sc is None or sc <= threshold_for(chunk.source, opts.qa_threshold):
-                    break
-            sc, audio, hyp, dur, sr = best
+            sc, audio, hyp, attempts = _best_take(prefetch, asr, opts, chunk.key, chunk.text, chunk.source)
+            sr = engine.sample_rate
+            dur = len(audio) / sr
             save(journal.audio_path(chunk.key), audio, sr)
             now = time.time()
             # wall time since the previous fragment: with prefetching, stage times overlap
