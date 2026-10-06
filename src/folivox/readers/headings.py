@@ -89,5 +89,5 @@ def split_by_headings(paragraphs: list[str], levels: list[int] | None = None,
 
 
 def _is_subtitle(s: str) -> bool:
-    return len(s) <= 60 and not re.search(r"[.!?…:;,]$", s) and len(s.split()) <= 8 and \
+    return len(s) <= 60 and not re.search(r"[.!?…:;,。！？，；：]$", s) and len(s.split()) <= 8 and \
         not s.startswith(("—", "–", "-"))

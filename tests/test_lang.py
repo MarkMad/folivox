@@ -94,3 +94,19 @@ def test_speaking_rate_per_language():
     # 20 CJK characters in 4 s is normal Chinese narration, far too slow for Russian letters
     ref = "他走进房间坐在窗边看着外面的雨一直下个不停"
     assert score(ref, ref, 4.0, "zh") == 0
+
+
+def test_txt_reader_detects_language_and_cjk_chapters(tmp_path):
+    from folivox.readers import read_book
+
+    p = tmp_path / "book.txt"
+    p.write_text("第一章\n\n他走进房间，坐在窗边。外面下着雨。\n\n第二章\n\n第二天早上，他七点起床。\n",
+                 encoding="utf-8")
+    book = read_book(p)
+    assert book.lang == "zh"
+    assert [c.title for c in book.chapters()] == ["第一章", "第二章"]
+    p.write_text("Chapter One\n\nIt was a bright cold day in April, and the clocks were striking.\n\n"
+                 "Chapter Two\n\nThe next morning he woke up and went out of the house.\n", encoding="utf-8")
+    book = read_book(p)
+    assert book.lang == "en"
+    assert [c.title for c in book.chapters()] == ["Chapter One", "Chapter Two"]

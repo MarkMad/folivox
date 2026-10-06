@@ -55,7 +55,9 @@ def read_book(path: str | Path) -> Book:
     if not book.lang:
         from folivox.lang.detect import detect
 
-        book.lang = detect(" ".join(b.text for ch in book.chapters(1)[:5] for b in ch.blocks[:200]))
+        chapters = book.chapters(1)[:5]
+        book.lang = detect(" ".join([book.title, *(c.title for c in chapters),
+                                     *(b.text for ch in chapters for b in ch.blocks[:200])]))
     return book
 
 
