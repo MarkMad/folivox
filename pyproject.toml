@@ -79,3 +79,4 @@ extend-exclude = ["src/folivox/vendor"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning:importlib._bootstrap"]
