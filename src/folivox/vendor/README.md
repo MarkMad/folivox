@@ -16,3 +16,7 @@ Only the inference path is kept. Modifications by Folivox:
 - `CosyVoice3.__init__` loads only the inference part of the model yaml.
 
 Model weights are **not** vendored; they are downloaded on first run.
+- `utils/file_utils.py` no longer calls `logging.basicConfig(level=DEBUG)` at import;
+- `hifigan/` vocoder input is moved to the vocoder's device and the LLM may run on its own device
+  (`model.llm_device`), enabling the MPS hybrid mode (LLM + vocoder on CPU, flow on GPU);
+- `CosyVoice3(..., llm_file=...)` selects base (`llm.pt`) or RL (`llm.rl.pt`) weights.

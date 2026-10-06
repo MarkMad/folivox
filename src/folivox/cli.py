@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from pathlib import Path
 
 import typer
@@ -96,6 +97,136 @@ def inspect(
             row.append(first[:60] + ("…" if len(first) > 60 else ""))
         t.add_row(*row)
     console.print(t)
+
+
+class RichEvents:
+    """Console progress for :func:`folivox.pipeline.render`."""
+
+    def __init__(self, verbose: bool = False):
+        from rich.progress import (
+            BarColumn,
+            MofNCompleteColumn,
+            Progress,
+            TaskProgressColumn,
+            TextColumn,
+            TimeElapsedColumn,
+            TimeRemainingColumn,
+        )
+
+        self.verbose = verbose
+        self.progress = Progress(TextColumn("[bold]{task.description}"), BarColumn(), TaskProgressColumn(),
+                                 MofNCompleteColumn(), TextColumn("симв."), TimeElapsedColumn(), TextColumn("·"),
+                                 TimeRemainingColumn(), TextColumn("{task.fields[info]}"), console=console,
+                                 transient=False)
+        self.task = None
+        self.audio = self.synth = 0.0
+        self.retakes = self.flagged = 0
+
+    def stage(self, name, detail=""):
+        console.log(f"[cyan]{detail or name}[/]")
+
+    def warning(self, message):
+        console.log(f"[yellow]⚠ {message}[/]")
+
+    def plan(self, total_chars, done_chars, total_chunks, pending_chunks):
+        console.log(f"Фрагментов: {num(total_chunks)}, осталось {num(pending_chunks)}; "
+                    f"текст {num(total_chars)} симв. (готово {num(done_chars)})")
+        if pending_chunks:
+            self.progress.start()
+            self.task = self.progress.add_task("Озвучка", total=total_chars, completed=done_chars, info="")
+
+    def chunk_started(self, chunk):
+        pass
+
+    def chunk_done(self, chunk, take, attempts):
+        self.audio += take.duration
+        self.synth += take.synth_seconds
+        if len(attempts) > 1:
+            self.retakes += len(attempts) - 1
+        rtf = self.synth / self.audio if self.audio else 0
+        info = f"RTF {rtf:.2f} · аудио {fmt_duration(self.audio)}"
+        if self.retakes:
+            info += f" · перезаписей {self.retakes}"
+        if self.task is not None:
+            self.progress.update(self.task, advance=len(chunk.source), info=info)
+        if self.verbose or (take.score is not None and len(attempts) > 1):
+            sc = ", ".join("—" if a is None else f"{a:.2f}" for a in attempts)
+            self.progress.console.log(f"[dim]гл.{chunk.chapter + 1} #{chunk.idx}[/] [{sc}] {chunk.text[:70]}")
+
+    def chapter_built(self, index, title, duration):
+        if self.task is not None and self.progress.live.is_started:
+            self.progress.stop()
+        console.log(f"[green]✓[/] {title} — {fmt_duration(duration)}")
+
+    def close(self):
+        if self.progress.live.is_started:
+            self.progress.stop()
+
+
+@app.command()
+def render(
+    book_path: Path = typer.Argument(..., help="Файл книги (FB2, EPUB, DOCX, PDF, TXT)", show_default=False),
+    voice: Path = typer.Option(..., "--voice", "-v", envvar="FOLIVOX_VOICE",
+                               help="Образец голоса: WAV/FLAC 6–15 с чистой речи"),
+    voice_text: str | None = typer.Option(None, "--voice-text", envvar="FOLIVOX_VOICE_TEXT",
+                                             help="Расшифровка образца (текст или .txt). "
+                                                  "По умолчанию — .txt рядом с образцом или Whisper"),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Итоговый .m4b (или папка для --mp3)"),
+    chapters: str | None = typer.Option(None, "--chapters", "-c", help="Какие главы: 1-3,5"),
+    mp3: bool = typer.Option(False, "--mp3", help="MP3 по главам вместо одного m4b"),
+    work_dir: Path | None = typer.Option(None, "--work-dir", help="Папка кэша (по умолчанию <output>.folivox)"),
+    depth: int = typer.Option(2, "--depth", help="Глубина разбиения на главы"),
+    max_chars: int = typer.Option(220, "--max-chars", help="Максимальная длина фрагмента для модели"),
+    stress: str = typer.Option("yo", "--stress", help="none | yo (только ё) | all (ударения, эксперимент)"),
+    speed: float = typer.Option(1.0, "--speed", help="Темп речи"),
+    qa: bool = typer.Option(True, "--qa/--no-qa", help="Проверять каждый фрагмент через Whisper"),
+    takes: int = typer.Option(3, "--takes", help="Максимум дублей на фрагмент при ошибке распознавания"),
+    llm: str = typer.Option("rl", "--llm", help="Веса LLM: rl (меньше ошибок в тексте) | base"),
+    device: str = typer.Option("auto", "--device", help="auto | cpu | cuda | mps"),
+    threads: int | None = typer.Option(None, "--threads", help="Потоков CPU для PyTorch"),
+    model_dir: Path | None = typer.Option(None, "--model-dir", envvar="FOLIVOX_MODEL_DIR",
+                                             help="Папка с весами CosyVoice 3 (иначе скачаются)"),
+    bitrate: str = typer.Option("64k", "--bitrate", help="Битрейт AAC"),
+    verbose: bool = typer.Option(False, "--verbose", help="Печатать каждый фрагмент"),
+):
+    """Озвучить книгу в аудиокнигу (m4b с главами и обложкой)."""
+    from folivox.pipeline import RenderOptions
+    from folivox.pipeline import render as run_render
+    from folivox.text.stress import MODES
+
+    if stress not in MODES:
+        console.print(f"[red]--stress: одно из {', '.join(MODES)}[/]")
+        raise typer.Exit(2)
+    book = _load(book_path)
+    if output is None:
+        output = book_path.with_suffix("" if mp3 else ".m4b")
+    opts = RenderOptions(output=output, voice_wav=voice, voice_text=voice_text, work_dir=work_dir,
+                         chapters=chapters, depth=depth, max_chars=max_chars, stress=stress, speed=speed,
+                         device=device, threads=threads, model_dir=str(model_dir) if model_dir else None, qa=qa,
+                         max_takes=takes, mp3=mp3, bitrate=bitrate, llm=llm)
+    console.print(f"[bold]{book.title}[/] — {book.author or 'автор неизвестен'}; "
+                  f"оценка аудио ≈ {fmt_duration(book.estimated_seconds)}")
+    events = RichEvents(verbose)
+    t0 = time.time()
+    try:
+        result = run_render(book, opts, events)
+    except KeyboardInterrupt:
+        events.close()
+        console.print("\n[yellow]Остановлено. Прогресс сохранён — запустите ту же команду, чтобы продолжить.[/]")
+        raise typer.Exit(130) from None
+    except Exception as e:  # noqa: BLE001
+        events.close()
+        from folivox.tts.voice import VoiceError
+
+        if isinstance(e, (VoiceError, ValueError, FileNotFoundError, RuntimeError)):
+            console.print(f"[red]Ошибка:[/] {e}")
+            raise typer.Exit(1) from None
+        raise
+    events.close()
+    console.print(f"[bold green]Готово:[/] {result}  (за {fmt_duration(time.time() - t0)})")
+    if events.audio:
+        console.print(f"Синтез: {fmt_duration(events.synth)} на {fmt_duration(events.audio)} аудио, "
+                      f"RTF {events.synth / events.audio:.2f}")
 
 
 def _version(value: bool):

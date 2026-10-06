@@ -65,6 +65,11 @@ Homepage = "https://github.com/vatavale/folivox"
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.5"]
+# what the unit tests need beyond the core (no torch)
+test = ["numpy<2", "soundfile>=0.12", "scipy>=1.10"]
+
+[tool.uv]
+default-groups = ["dev", "test"]
 
 [build-system]
 requires = ["hatchling"]

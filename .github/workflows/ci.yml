@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.10"
+      - uses: FedericoCarboni/setup-ffmpeg@v3
+      # Core + test deps only: readers, text processing, journal, assembly. No model inference.
+      - run: uv sync --no-default-groups --group dev --group test
+      - run: uv run ruff check src tests
+      - run: uv run pytest -q
+        env:
+          PYTHONUTF8: "1"

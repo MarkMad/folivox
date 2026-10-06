@@ -6,11 +6,12 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
 from folivox.tts.voice import Voice
-from folivox.tts.weights import resolve_model_dir
+from folivox.tts.weights import ensure_llm, resolve_model_dir
 
 # CosyVoice 3 expects an instruction prefix in front of the prompt transcript.
 SYSTEM_PROMPT = "You are a helpful assistant.<|endofprompt|>"
@@ -38,7 +39,7 @@ def pick_device(requested: str = "auto") -> str:
 
 class CosyVoiceEngine:
     def __init__(self, model_dir: str | None = None, device: str = "auto", threads: int | None = None,
-                 fp16: bool = False):
+                 fp16: bool = False, llm: str = "rl"):
         os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
         import torch
 
@@ -51,7 +52,9 @@ class CosyVoiceEngine:
         t0 = time.time()
         from folivox.vendor.cosyvoice.cli.cosyvoice import CosyVoice3
 
-        self._cv = CosyVoice3(self.model_dir, fp16=fp16 and self.device == "cuda")
+        self.llm = llm
+        llm_file = ensure_llm(Path(self.model_dir), llm)
+        self._cv = CosyVoice3(self.model_dir, fp16=fp16 and self.device == "cuda", llm_file=llm_file)
         if self.device not in ("cpu", "cuda"):
             self._move(self.device)
         self.sample_rate: int = self._cv.sample_rate

@@ -1,0 +1,142 @@
+"""Assemble chunk audio into chapters and the final audiobook (m4b with chapters, or mp3s)."""
+
+from __future__ import annotations
+
+import shutil
+import subprocess
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
+
+import numpy as np
+
+from folivox.audio import load
+
+LOUDNORM = "loudnorm=I=-18:TP=-1.5:LRA=11"
+
+
+class FFmpegMissing(RuntimeError):
+    pass
+
+
+def ffmpeg() -> str:
+    exe = shutil.which("ffmpeg")
+    if not exe:
+        raise FFmpegMissing("ffmpeg не найден. Установите: macOS — brew install ffmpeg; "
+                            "Windows — winget install ffmpeg; Linux — apt install ffmpeg")
+    return exe
+
+
+def run(args: list[str]) -> None:
+    proc = subprocess.run([ffmpeg(), "-hide_banner", "-loglevel", "error", "-y", *args],
+                          capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError(f"ffmpeg завершился с ошибкой:\n{proc.stderr.strip()}")
+
+
+@dataclass
+class ChapterAudio:
+    title: str
+    path: Path
+    duration: float
+
+
+def build_chapter(parts: list[tuple[Path, float]], out: Path, sample_rate: int, lead_in: float = 0.3) -> float:
+    """Concatenate chunk files with the given trailing pauses, loudness-normalise, write FLAC."""
+    import soundfile as sf
+
+    pieces = [np.zeros(int(sample_rate * lead_in), np.float32)]
+    for path, pause in parts:
+        audio, sr = load(path)
+        if sr != sample_rate:
+            raise ValueError(f"{path}: sample rate {sr} != {sample_rate}")
+        pieces += [audio, np.zeros(int(sample_rate * pause), np.float32)]
+    audio = np.concatenate(pieces)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        raw = Path(tmp) / "raw.wav"
+        sf.write(str(raw), audio, sample_rate, subtype="PCM_16")
+        run(["-i", str(raw), "-af", LOUDNORM, "-ar", str(sample_rate), "-ac", "1", "-c:a", "flac",
+             str(out.with_suffix(".tmp.flac"))])
+    out.with_suffix(".tmp.flac").replace(out)
+    return len(audio) / sample_rate
+
+
+def _concat_path(p: Path) -> str:
+    return p.resolve().as_posix().replace("'", "'\\''")
+
+
+def _escape_meta(s: str) -> str:
+    for ch in ("\\", "=", ";", "#", "\n"):
+        s = s.replace(ch, "\\" + ch)
+    return s
+
+
+@dataclass
+class BookMeta:
+    title: str
+    author: str = ""
+    year: str = ""
+    comment: str = ""
+    narrator: str = ""
+
+
+def write_m4b(chapters: list[ChapterAudio], out: Path, meta: BookMeta, cover: bytes | None = None,
+              bitrate: str = "64k") -> None:
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmpd = Path(tmp)
+        lst = tmpd / "list.txt"
+        lst.write_text("".join(f"file '{_concat_path(c.path)}'\n" for c in chapters), encoding="utf-8")
+        md = [";FFMETADATA1", f"title={_escape_meta(meta.title)}", f"album={_escape_meta(meta.title)}",
+              f"artist={_escape_meta(meta.author)}", f"album_artist={_escape_meta(meta.author)}",
+              "genre=Audiobook", "encoder=Folivox"]
+        if meta.year:
+            md.append(f"date={meta.year}")
+        if meta.comment:
+            md.append(f"comment={_escape_meta(meta.comment[:1000])}")
+        if meta.narrator:
+            md.append(f"composer={_escape_meta(meta.narrator)}")
+        t = 0
+        for c in chapters:
+            start, t = t, t + int(round(c.duration * 1000))
+            md += ["[CHAPTER]", "TIMEBASE=1/1000", f"START={start}", f"END={t}", f"title={_escape_meta(c.title)}"]
+        (tmpd / "meta.txt").write_text("\n".join(md) + "\n", encoding="utf-8")
+
+        args = ["-f", "concat", "-safe", "0", "-i", str(lst), "-i", str(tmpd / "meta.txt")]
+        maps = ["-map", "0:a", "-map_metadata", "1", "-map_chapters", "1"]
+        if cover:
+            cov = tmpd / "cover.jpg"
+            cov.write_bytes(cover)
+            args += ["-i", str(cov)]
+            maps += ["-map", "2:v", "-c:v", "mjpeg", "-disposition:v:0", "attached_pic"]
+        tmp_out = tmpd / "book.m4b"
+        run([*args, *maps, "-c:a", "aac", "-b:a", bitrate, "-ac", "1", "-movflags", "+faststart",
+             "-f", "mp4", str(tmp_out)])
+        shutil.move(str(tmp_out), out)
+
+
+def write_mp3s(chapters: list[ChapterAudio], out_dir: Path, meta: BookMeta, cover: bytes | None = None,
+               bitrate: str = "96k") -> list[Path]:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    paths = []
+    width = len(str(len(chapters)))
+    with tempfile.TemporaryDirectory() as tmp:
+        cov = None
+        if cover:
+            cov = Path(tmp) / "cover.jpg"
+            cov.write_bytes(cover)
+        for i, c in enumerate(chapters, 1):
+            safe = "".join(ch for ch in c.title if ch not in '<>:"/\\|?*').strip()[:80] or f"Глава {i}"
+            p = out_dir / f"{i:0{width}d} - {safe}.mp3"
+            args = ["-i", str(c.path)]
+            maps = ["-map", "0:a"]
+            if cov:
+                args += ["-i", str(cov)]
+                maps += ["-map", "1:v", "-c:v", "mjpeg", "-disposition:v:0", "attached_pic"]
+            run([*args, *maps, "-c:a", "libmp3lame", "-b:a", bitrate, "-ac", "1", "-id3v2_version", "3",
+                 "-metadata", f"title={c.title}", "-metadata", f"album={meta.title}",
+                 "-metadata", f"artist={meta.author}", "-metadata", f"track={i}/{len(chapters)}",
+                 "-metadata", "genre=Audiobook", str(p)])
+            paths.append(p)
+    return paths

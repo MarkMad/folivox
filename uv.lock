@@ -504,6 +504,12 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
 ]
+test = [
+    { name = "numpy" },
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "soundfile" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -546,6 +552,11 @@ provides-extras = ["tts", "qa", "all"]
 dev = [
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.5" },
+]
+test = [
+    { name = "numpy", specifier = "<2" },
+    { name = "scipy", specifier = ">=1.10" },
+    { name = "soundfile", specifier = ">=0.12" },
 ]
 
 [[package]]

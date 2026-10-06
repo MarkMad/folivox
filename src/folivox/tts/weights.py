@@ -39,6 +39,20 @@ def resolve_model_dir(explicit: str | os.PathLike | None = None, download: bool 
     return download_weights(p)
 
 
+LLM_FILES = {"base": "llm.pt", "rl": "llm.rl.pt"}
+
+
+def ensure_llm(model_dir: Path, variant: str) -> str:
+    """Return the LLM weights file name for ``variant``, downloading the RL file on demand."""
+    name = LLM_FILES[variant]
+    if not (model_dir / name).exists():
+        from huggingface_hub import hf_hub_download
+
+        print(f"Скачиваю {name} (~2 ГБ) …", flush=True)
+        hf_hub_download(REPO_ID, name, local_dir=str(model_dir))
+    return name
+
+
 def download_weights(target: Path) -> Path:
     from huggingface_hub import snapshot_download
 
