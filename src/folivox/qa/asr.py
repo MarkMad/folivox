@@ -1,11 +1,22 @@
-"""Whisper transcription backends: mlx-whisper on Apple Silicon, faster-whisper elsewhere."""
+"""Speech recognition backends for QA (see :data:`ASR`).
+
+Local: mlx-whisper on Apple Silicon, faster-whisper elsewhere. Optional: any OpenAI-compatible
+``/audio/transcriptions`` endpoint with the user's own key (audio leaves the machine).
+"""
 
 from __future__ import annotations
 
+import io
+import json
+import os
 import platform
 import sys
+import urllib.request
+import uuid
 
 import numpy as np
+
+from folivox.providers import Registry
 
 MLX_MODEL = "mlx-community/whisper-large-v3-turbo"
 FW_MODEL = "large-v3-turbo"
@@ -15,56 +26,138 @@ class ASRUnavailable(RuntimeError):
     pass
 
 
-def _resample_16k(audio: np.ndarray, sr: int) -> np.ndarray:
-    if sr == 16000:
+def _resample(audio: np.ndarray, sr: int, target: int = 16000) -> np.ndarray:
+    if sr == target:
         return audio.astype(np.float32)
     from math import gcd
 
     from scipy.signal import resample_poly
 
-    g = gcd(sr, 16000)
-    return resample_poly(audio, 16000 // g, sr // g).astype(np.float32)
+    g = gcd(sr, target)
+    return resample_poly(audio, target // g, sr // g).astype(np.float32)
 
 
-class Transcriber:
-    def __init__(self, backend: str = "auto", model: str | None = None, language: str = "ru"):
+_resample_16k = _resample
+
+
+class ASR:
+    """Transcribes float32 mono audio into text in ``language``."""
+
+    name = ""
+
+    def __init__(self, language: str = "ru"):
         self.language = language
-        if backend == "auto":
-            backend = "mlx" if sys.platform == "darwin" and platform.machine() == "arm64" else "faster-whisper"
-        self.backend = backend
-        if backend == "mlx":
-            try:
-                import mlx_whisper  # noqa: F401
-            except ImportError as e:
-                raise ASRUnavailable("mlx-whisper не установлен: pip install 'folivox[qa]'") from e
-            self.model = model or MLX_MODEL
-        elif backend == "faster-whisper":
-            try:
-                from faster_whisper import WhisperModel
-            except ImportError as e:
-                raise ASRUnavailable("faster-whisper не установлен: pip install 'folivox[qa]'") from e
-            import torch
-
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            self.model = model or FW_MODEL
-            self._fw = WhisperModel(self.model, device=device, compute_type="float16" if device == "cuda" else "int8")
-        else:
-            raise ValueError(f"unknown ASR backend {backend!r}")
 
     def transcribe(self, audio: np.ndarray, sample_rate: int, prompt: str | None = None) -> str:
-        x = _resample_16k(audio, sample_rate)
-        if self.backend == "mlx":
-            import mlx_whisper
-
-            r = mlx_whisper.transcribe(x, path_or_hf_repo=self.model, language=self.language,
-                                       condition_on_previous_text=False, initial_prompt=prompt, verbose=None)
-            return r["text"].strip()
-        segments, _ = self._fw.transcribe(x, language=self.language, beam_size=1, condition_on_previous_text=False,
-                                          initial_prompt=prompt, vad_filter=False)
-        return " ".join(s.text.strip() for s in segments).strip()
+        raise NotImplementedError
 
     def transcribe_file(self, path) -> str:
         import soundfile as sf
 
         audio, sr = sf.read(str(path), dtype="float32", always_2d=True)
         return self.transcribe(audio.mean(axis=1), sr)
+
+
+class MLXWhisper(ASR):
+    name = "mlx-whisper"
+
+    def __init__(self, language: str = "ru", model: str | None = None):
+        super().__init__(language)
+        try:
+            import mlx_whisper  # noqa: F401
+        except ImportError as e:
+            raise ASRUnavailable("mlx-whisper is not installed: pip install 'folivox[qa]'") from e
+        self.model = model or MLX_MODEL
+
+    def transcribe(self, audio, sample_rate, prompt=None):
+        import mlx_whisper
+
+        r = mlx_whisper.transcribe(_resample(audio, sample_rate), path_or_hf_repo=self.model,
+                                   language=self.language, condition_on_previous_text=False,
+                                   initial_prompt=prompt, verbose=None)
+        return r["text"].strip()
+
+
+class FasterWhisper(ASR):
+    name = "faster-whisper"
+
+    def __init__(self, language: str = "ru", model: str | None = None, device: str | None = None):
+        super().__init__(language)
+        try:
+            from faster_whisper import WhisperModel
+        except ImportError as e:
+            raise ASRUnavailable("faster-whisper is not installed: pip install 'folivox[qa]'") from e
+        if device is None:
+            try:
+                import torch
+
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+            except ImportError:
+                device = "cpu"
+        self.model = model or FW_MODEL
+        self._fw = WhisperModel(self.model, device=device, compute_type="float16" if device == "cuda" else "int8")
+
+    def transcribe(self, audio, sample_rate, prompt=None):
+        segments, _ = self._fw.transcribe(_resample(audio, sample_rate), language=self.language, beam_size=1,
+                                          condition_on_previous_text=False, initial_prompt=prompt, vad_filter=False)
+        return " ".join(s.text.strip() for s in segments).strip()
+
+
+class OpenAIASR(ASR):
+    """OpenAI-compatible transcription API. Costs money per minute; uses the user's own key."""
+
+    name = "openai"
+
+    def __init__(self, language: str = "ru", model: str = "gpt-4o-transcribe",
+                 base_url: str = "https://api.openai.com/v1", api_key_env: str = "OPENAI_API_KEY"):
+        from folivox.config import api_key
+
+        super().__init__(language)
+        self.model, self.base_url = model, base_url.rstrip("/")
+        self.key = api_key(api_key_env, "openai ASR")
+
+    def transcribe(self, audio, sample_rate, prompt=None):
+        import soundfile as sf
+
+        buf = io.BytesIO()
+        sf.write(buf, _resample(audio, sample_rate), 16000, format="WAV", subtype="PCM_16")
+        fields = {"model": self.model, "language": self.language, "response_format": "json"}
+        if prompt:
+            fields["prompt"] = prompt
+        body, ctype = _multipart(fields, ("file", "audio.wav", buf.getvalue()))
+        req = urllib.request.Request(f"{self.base_url}/audio/transcriptions", data=body, method="POST",
+                                     headers={"Authorization": f"Bearer {self.key}", "Content-Type": ctype})
+        with urllib.request.urlopen(req, timeout=120) as r:
+            return json.loads(r.read())["text"].strip()
+
+
+def _multipart(fields: dict, file: tuple[str, str, bytes]) -> tuple[bytes, str]:
+    boundary = uuid.uuid4().hex
+    out = io.BytesIO()
+    for k, v in fields.items():
+        out.write(f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode())
+    name, filename, data = file
+    out.write(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"; filename="{filename}"\r\n'
+              f"Content-Type: application/octet-stream\r\n\r\n".encode())
+    out.write(data + f"\r\n--{boundary}--\r\n".encode())
+    return out.getvalue(), f"multipart/form-data; boundary={boundary}"
+
+
+def auto(language: str = "ru", **kwargs) -> ASR:
+    """mlx-whisper on Apple Silicon, faster-whisper elsewhere."""
+    if sys.platform == "darwin" and platform.machine() == "arm64" and not os.environ.get("FOLIVOX_NO_MLX"):
+        return MLXWhisper(language, **kwargs)
+    return FasterWhisper(language, **kwargs)
+
+
+def Transcriber(backend: str = "auto", model: str | None = None, language: str = "ru") -> ASR:  # noqa: N802
+    """Backward-compatible constructor."""
+    return ASR_PROVIDERS.create(backend, language=language, model=model)
+
+
+ASR_PROVIDERS: Registry = Registry("asr", default="auto")
+ASR_PROVIDERS.register("auto", auto, "mlx-whisper on Apple Silicon, faster-whisper elsewhere")
+ASR_PROVIDERS.register("mlx-whisper", MLXWhisper, f"Whisper ({MLX_MODEL}) on Apple Silicon", needs="folivox[qa]")
+ASR_PROVIDERS.register("faster-whisper", FasterWhisper, f"Whisper {FW_MODEL} via CTranslate2", needs="folivox[qa]")
+ASR_PROVIDERS.register("openai", OpenAIASR, "OpenAI-compatible transcription API (your key, paid)", local=False,
+                       needs="OPENAI_API_KEY")

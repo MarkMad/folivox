@@ -25,6 +25,7 @@ dependencies = [
     "num2words>=0.5.13",
     "razdel>=0.5",
     "platformdirs>=4",
+    "tomli>=2; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]

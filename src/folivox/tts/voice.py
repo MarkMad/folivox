@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 
+from folivox.i18n import _
+
 MIN_SECONDS, MAX_SECONDS = 3.0, 30.0
 GOOD_RANGE = (6.0, 15.0)
 
@@ -31,7 +33,7 @@ class Voice:
     def warnings(self) -> list[str]:
         out = []
         if not GOOD_RANGE[0] <= self.duration <= GOOD_RANGE[1]:
-            out.append(f"Образец голоса длится {self.duration:.1f} с; лучше всего работает 6–15 с чистой речи.")
+            out.append(_("The voice sample is {d:.1f} s long; 6–15 s of clean speech works best.", d=self.duration))
         return out
 
 
@@ -46,15 +48,15 @@ def load_voice(wav: str | Path, transcript: str | None = None, transcribe=None) 
     """``transcript`` may be text, a path to a .txt file, or None (sibling .txt, else ``transcribe(wav)``)."""
     wav = Path(wav).expanduser()
     if not wav.exists():
-        raise VoiceError(f"Файл голоса не найден: {wav}")
+        raise VoiceError(_("Voice file not found: {path}", path=wav))
     try:
         duration = audio_duration(wav)
     except Exception as e:  # noqa: BLE001
-        raise VoiceError(f"Не удалось прочитать аудио {wav}: {e}") from e
+        raise VoiceError(_("Cannot read audio {path}: {error}", path=wav, error=e)) from e
     if duration < MIN_SECONDS:
-        raise VoiceError(f"Образец голоса слишком короткий ({duration:.1f} с), нужно 6–15 с.")
+        raise VoiceError(_("The voice sample is too short ({d:.1f} s); 6–15 s is needed.", d=duration))
     if duration > MAX_SECONDS:
-        raise VoiceError(f"Образец голоса слишком длинный ({duration:.1f} с), обрежьте до 6–15 с.")
+        raise VoiceError(_("The voice sample is too long ({d:.1f} s); trim it to 6–15 s.", d=duration))
 
     text = None
     if transcript:
@@ -65,5 +67,5 @@ def load_voice(wav: str | Path, transcript: str | None = None, transcribe=None) 
     elif transcribe is not None:
         text = transcribe(wav)
     if not text or not text.strip():
-        raise VoiceError("Нужна расшифровка образца голоса: --voice-text \"…\" или файл рядом с .wav")
+        raise VoiceError(_("A transcript of the voice sample is needed: --voice-text \"…\" or a .txt next to it"))
     return Voice(wav, " ".join(text.split()), duration)

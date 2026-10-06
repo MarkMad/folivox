@@ -6,24 +6,17 @@ import logging
 import os
 import time
 import uuid
-from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 
+from folivox.tts.base import Prefetcher, Synthesis, TTSEngine  # noqa: F401 — re-exported
 from folivox.tts.voice import Voice
 from folivox.tts.weights import ensure_llm, resolve_model_dir
 
 # CosyVoice 3 expects an instruction prefix in front of the prompt transcript.
 SYSTEM_PROMPT = "You are a helpful assistant.<|endofprompt|>"
 MODEL_ID = "Fun-CosyVoice3-0.5B-2512"
-
-
-@dataclass
-class Synthesis:
-    audio: np.ndarray  # float32 mono
-    sample_rate: int
-    seconds: float  # wall time spent
 
 
 def pick_device(requested: str = "auto") -> str:
@@ -38,7 +31,10 @@ def pick_device(requested: str = "auto") -> str:
     return "cpu"
 
 
-class CosyVoiceEngine:
+class CosyVoiceEngine(TTSEngine):
+    name = "cosyvoice3"
+    languages = ("ru", "en", "zh", "ja", "ko", "de", "es", "fr", "it")
+
     def __init__(self, model_dir: str | None = None, device: str = "auto", threads: int | None = None,
                  fp16: bool = False, llm: str = "rl"):
         os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
@@ -134,39 +130,5 @@ class CosyVoiceEngine:
             with m.lock:
                 m.hift_cache_dict.pop(uid, None)
 
-    def synthesize(self, text: str, voice: Voice, seed: int = 0, speed: float = 1.0) -> Synthesis:
-        tokens, t_llm = self.generate_tokens(text, voice, seed)
-        audio, t_wav = self.tokens_to_audio(tokens, voice, speed)
-        return Synthesis(audio, self.sample_rate, t_llm + t_wav)
-
-
-class Prefetcher:
-    """Runs the LLM stage for upcoming fragments in a background thread.
-
-    On Apple Silicon the LLM runs on CPU and the flow on the GPU, so generating tokens for
-    fragment *i+1* while fragment *i* goes through flow + vocoder hides most of the LLM time.
-    """
-
-    def __init__(self, engine: CosyVoiceEngine, voice: Voice):
-        from concurrent.futures import ThreadPoolExecutor
-
-        self.engine, self.voice = engine, voice
-        self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="folivox-llm")
-        self.futures: dict[tuple[str, int], object] = {}
-
-    def submit(self, key: str, text: str, seed: int):
-        k = (key, seed)
-        if k not in self.futures:
-            self.futures[k] = self.pool.submit(self.engine.generate_tokens, text, self.voice, seed)
-        return self.futures[k]
-
-    def synthesize(self, key: str, text: str, seed: int, speed: float = 1.0) -> Synthesis:
-        tokens, t_llm = self.submit(key, text, seed).result()
-        self.futures.pop((key, seed), None)
-        audio, t_wav = self.engine.tokens_to_audio(tokens, self.voice, speed)
-        return Synthesis(audio, self.engine.sample_rate, t_llm + t_wav)
-
-    def close(self) -> None:
-        for fut in self.futures.values():
-            fut.cancel()
-        self.pool.shutdown(wait=True)
+    prepare = generate_tokens
+    finish = tokens_to_audio

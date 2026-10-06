@@ -83,7 +83,13 @@ class Book:
 
     @property
     def estimated_seconds(self) -> float:
-        return self.chars / CHARS_PER_SECOND
+        from folivox import lang as languages
+
+        try:
+            cps = languages.get(self.lang or "ru").chars_per_second
+        except ValueError:
+            cps = CHARS_PER_SECOND
+        return self.chars / cps
 
     def chapters(self, max_depth: int = 2) -> list[Chapter]:
         """Flatten the section tree into audio chapters.
@@ -92,19 +98,23 @@ class Book:
         reached. A parent's title and own blocks (e.g. a part title with an epigraph) are
         prepended to its first child chapter so nothing is lost and nothing is duplicated.
         """
+        from folivox import lang as languages
+
+        language = languages.get(self.lang or "ru")
         out: list[Chapter] = []
 
         def visit(sec: Section, depth: int, pending_headings: list[str], pending_blocks: list[Block],
                   title_prefix: list[str]):
-            heads = pending_headings + ([bare_number_title(sec.title)] if sec.title else [])
+            heads = pending_headings + ([bare_number_title(sec.title, self.lang)] if sec.title else [])
             if not sec.children or depth >= max_depth:
                 blocks = pending_blocks + sec.blocks
                 for c in sec.children:
                     blocks += _flatten_blocks(c)
                 if not blocks and not heads:
                     return
-                names = title_prefix + ([bare_number_title(sec.title)] if sec.title else [])
-                title = ". ".join(names) if names else ("Вступление" if not out else f"Глава {len(out) + 1}")
+                names = title_prefix + ([bare_number_title(sec.title, self.lang)] if sec.title else [])
+                title = ". ".join(names) if names else (
+                    language.intro_label if not out else language.chapter_label.format(n=len(out) + 1))
                 out.append(Chapter(title=title, blocks=blocks, headings=heads))
                 return
             first = True
@@ -127,9 +137,13 @@ class Book:
 _BARE_NUMBER = re.compile(r"^\s*(\d{1,3}|[IVXLCDM]{1,7})\s*\.?\s*$")
 
 
-def bare_number_title(title: str) -> str:
-    """"7" or "VII" → "Глава 7" / "Глава VII"; other titles unchanged."""
-    return f"Глава {title.strip().rstrip('.')}" if _BARE_NUMBER.match(title) else title
+def bare_number_title(title: str, lang: str = "ru") -> str:
+    """"7" or "VII" → "Глава 7" / "Chapter VII" (in the book language); other titles unchanged."""
+    if not _BARE_NUMBER.match(title):
+        return title
+    from folivox.lang import get
+
+    return get(lang or "ru").chapter_label.format(n=title.strip().rstrip("."))
 
 
 def _flatten_blocks(sec: Section) -> list[Block]:

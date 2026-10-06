@@ -1,0 +1,49 @@
+{
+  "_comment": "Short calm narration for generating reference voices: frequent words only, no names, numbers, abbreviations, foreign words, homographs or dialogue; 2-3 sentences, 10-15 s.",
+  "ru": [
+    "Утром над рекой поднялся лёгкий туман. Старый мост медленно выступал из белой дымки, и где-то за деревьями негромко пела птица.",
+    "Мы долго шли по тихой лесной дороге. Солнце уже клонилось к закату, и длинные тени ложились на тёплую траву.",
+    "В маленьком доме у озера было тепло и спокойно. На столе стояла чашка горячего чая, а за окном медленно падал мягкий снег.",
+    "Она открыла книгу и начала читать вслух. Голос звучал ровно и спокойно, и слова одно за другим складывались в простую историю."
+  ],
+  "en": [
+    "In the morning a light mist rose above the river. The old bridge slowly appeared out of the white haze, and somewhere beyond the trees a bird was singing softly.",
+    "We walked for a long time along a quiet forest road. The sun was already going down, and long shadows lay across the warm grass.",
+    "It was warm and peaceful in the little house by the lake. A cup of hot tea stood on the table, and outside the window soft snow was slowly falling."
+  ],
+  "de": [
+    "Am Morgen stieg über dem Fluss ein leichter Nebel auf. Die alte Brücke tauchte langsam aus dem weißen Dunst auf, und irgendwo hinter den Bäumen sang leise ein Vogel.",
+    "Wir gingen lange auf einem stillen Waldweg. Die Sonne stand schon tief, und lange Schatten lagen auf dem warmen Gras.",
+    "In dem kleinen Haus am See war es warm und ruhig. Auf dem Tisch stand eine Tasse heißer Tee, und draußen fiel langsam weicher Schnee."
+  ],
+  "fr": [
+    "Le matin, une brume légère s'éleva au-dessus de la rivière. Le vieux pont sortait lentement de la brume blanche, et quelque part derrière les arbres, un oiseau chantait doucement.",
+    "Nous avons longtemps marché sur un chemin calme dans la forêt. Le soleil descendait déjà, et de longues ombres s'étendaient sur l'herbe tiède.",
+    "Dans la petite maison au bord du lac, il faisait chaud et calme. Une tasse de thé fumait sur la table, et dehors la neige tombait doucement."
+  ],
+  "es": [
+    "Por la mañana, una niebla ligera se levantó sobre el río. El viejo puente aparecía despacio entre la bruma blanca, y en algún lugar detrás de los árboles cantaba un pájaro.",
+    "Caminamos mucho tiempo por un camino tranquilo del bosque. El sol ya bajaba, y las sombras largas caían sobre la hierba tibia.",
+    "En la pequeña casa junto al lago hacía calor y había calma. Sobre la mesa había una taza de té caliente, y fuera caía despacio una nieve suave."
+  ],
+  "it": [
+    "La mattina una nebbia leggera si alzò sopra il fiume. Il vecchio ponte usciva lentamente dalla foschia bianca, e da qualche parte dietro gli alberi cantava piano un uccello.",
+    "Camminammo a lungo su una strada tranquilla nel bosco. Il sole stava già tramontando, e lunghe ombre si stendevano sull'erba tiepida.",
+    "Nella piccola casa vicino al lago faceva caldo e c'era silenzio. Sul tavolo c'era una tazza di tè caldo, e fuori dalla finestra cadeva lenta una neve morbida."
+  ],
+  "zh": [
+    "清晨，河面上升起了一层薄雾。古老的石桥慢慢从白色的雾气中显露出来，树林后面传来轻轻的鸟鸣。",
+    "我们沿着安静的林间小路走了很久。太阳已经西斜，长长的影子落在温暖的草地上。",
+    "湖边的小屋里温暖而安静。桌上放着一杯热茶，窗外柔软的雪花慢慢地飘落。"
+  ],
+  "ja": [
+    "朝、川の上にうすい霧が立ちのぼった。古い橋が白いもやの中からゆっくりと姿をあらわし、木々の向こうで小鳥が静かに鳴いていた。",
+    "私たちは静かな森の道を長いあいだ歩いた。日はもう傾きはじめ、長い影があたたかい草の上にのびていた。",
+    "湖のほとりの小さな家は、あたたかくて静かだった。机の上には熱いお茶があり、窓の外ではやわらかな雪がゆっくりと降っていた。"
+  ],
+  "ko": [
+    "아침이 되자 강 위로 옅은 안개가 피어올랐다. 오래된 다리가 하얀 안개 속에서 천천히 모습을 드러냈고, 나무 너머 어딘가에서 새가 조용히 노래했다.",
+    "우리는 조용한 숲길을 오랫동안 걸었다. 해는 이미 기울고 있었고, 긴 그림자가 따뜻한 풀 위에 드리워졌다.",
+    "호숫가의 작은 집 안은 따뜻하고 고요했다. 탁자 위에는 뜨거운 차 한 잔이 놓여 있었고, 창밖에는 부드러운 눈이 천천히 내리고 있었다."
+  ]
+}

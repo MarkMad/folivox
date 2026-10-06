@@ -7,6 +7,7 @@ from folivox.lang import CJKLanguage, register
 
 class Korean(CJKLanguage):
     code, name, native = "ko", "Korean", "한국어"
+    chapter_label, intro_label = "제{n}장", "서문"
     cps = (3.0, 12.0)
     chapter_words = ()
     hallucinations = (r"시청해\s*주셔서 감사합니다\W*", r"구독과 좋아요[^.!?]*[.!?]?")

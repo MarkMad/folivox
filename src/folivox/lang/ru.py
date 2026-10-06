@@ -9,6 +9,7 @@ from folivox.lang import Language, register
 
 class Russian(Language):
     code, name, native = "ru", "Russian", "Русский"
+    chapter_label, intro_label = "Глава {n}", "Вступление"
     cps = (7.0, 23.0)  # measured: normal narration 15–18.5, dropped sentence tails 21–24
     part_words = ("часть", "книга", "том", "раздел")
     chapter_words = ("глава",)

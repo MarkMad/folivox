@@ -9,6 +9,7 @@ from folivox.lang import CJKLanguage, register
 
 class Japanese(CJKLanguage):
     code, name, native = "ja", "Japanese", "日本語"
+    chapter_label, intro_label = "第{n}章", "序章"
     cps = (3.0, 12.0)
     hallucinations = (r"ご視聴ありがとうございました\W*", r"(?:チャンネル登録|字幕)[^。！？]*[。！？]?")
 

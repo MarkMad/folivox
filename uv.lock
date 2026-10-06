@@ -444,6 +444,7 @@ dependencies = [
     { name = "python-docx" },
     { name = "razdel" },
     { name = "rich" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "typer" },
 ]
 
@@ -540,6 +541,7 @@ requires-dist = [
     { name = "scipy", marker = "extra == 'tts'", specifier = ">=1.10" },
     { name = "soundfile", marker = "extra == 'tts'", specifier = ">=0.12" },
     { name = "tiktoken", marker = "extra == 'tts'", specifier = ">=0.7" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2" },
     { name = "torch", marker = "extra == 'tts'", specifier = ">=2.3,<2.6" },
     { name = "torchaudio", marker = "extra == 'tts'", specifier = ">=2.3,<2.6" },
     { name = "transformers", marker = "extra == 'tts'", specifier = "==4.51.3" },

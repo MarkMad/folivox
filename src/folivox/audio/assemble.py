@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 
 from folivox.audio import load
+from folivox.i18n import _
 
 LOUDNORM = "loudnorm=I=-18:TP=-1.5:LRA=11"
 
@@ -22,8 +23,8 @@ class FFmpegMissing(RuntimeError):
 def ffmpeg() -> str:
     exe = shutil.which("ffmpeg")
     if not exe:
-        raise FFmpegMissing("ffmpeg не найден. Установите: macOS — brew install ffmpeg; "
-                            "Windows — winget install ffmpeg; Linux — apt install ffmpeg")
+        raise FFmpegMissing(_("ffmpeg not found. Install it: macOS — brew install ffmpeg; "
+                              "Windows — winget install ffmpeg; Linux — apt install ffmpeg"))
     return exe
 
 
@@ -31,7 +32,7 @@ def run(args: list[str]) -> None:
     proc = subprocess.run([ffmpeg(), "-hide_banner", "-loglevel", "error", "-y", *args],
                           capture_output=True, text=True)
     if proc.returncode != 0:
-        raise RuntimeError(f"ffmpeg завершился с ошибкой:\n{proc.stderr.strip()}")
+        raise RuntimeError(_("ffmpeg failed:") + "\n" + proc.stderr.strip())
 
 
 @dataclass
@@ -127,7 +128,7 @@ def write_mp3s(chapters: list[ChapterAudio], out_dir: Path, meta: BookMeta, cove
             cov = Path(tmp) / "cover.jpg"
             cov.write_bytes(cover)
         for i, c in enumerate(chapters, 1):
-            safe = "".join(ch for ch in c.title if ch not in '<>:"/\\|?*').strip()[:80] or f"Глава {i}"
+            safe = "".join(ch for ch in c.title if ch not in '<>:"/\\|?*').strip()[:80] or f"{i:03d}"
             p = out_dir / f"{i:0{width}d} - {safe}.mp3"
             args = ["-i", str(c.path)]
             maps = ["-map", "0:a"]

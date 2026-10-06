@@ -22,6 +22,10 @@ class Language:
     native: str = ""  # self-name, for UI
     # plausible narration speed in canonical characters per second (QA rejects takes outside)
     cps: tuple[float, float] = (7.0, 23.0)
+    chars_per_second: float = 14.0  # source characters per second of audio, for estimates
+    # titles for untitled chapters, in the book language
+    chapter_label: str = "Chapter {n}"
+    intro_label: str = "Introduction"
     # chapter headings in plain text: words before a number ("Chapter 3"), standalone words ("Prologue")
     part_words: tuple[str, ...] = ()
     chapter_words: tuple[str, ...] = ()
@@ -85,6 +89,7 @@ class LatinLanguage(Language):
 
 class CJKLanguage(Language):
     cps = (2.5, 10.0)
+    chars_per_second = 5.0
 
     def sentences(self, text: str) -> list[str]:
         parts = re.split(r"(?<=[。！？!?…])(?![。！？!?…」』”）)])\s*", text)

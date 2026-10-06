@@ -9,6 +9,7 @@ from folivox.lang import LatinLanguage, register
 
 class English(LatinLanguage):
     code, name, native = "en", "English", "English"
+    chapter_label, intro_label = "Chapter {n}", "Introduction"
     part_words = ("part", "book", "volume")
     chapter_words = ("chapter",)
     standalone_words = ("prologue", "epilogue", "introduction", "preface", "foreword", "afterword", "interlude")

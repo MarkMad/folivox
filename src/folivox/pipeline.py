@@ -14,6 +14,7 @@ import numpy as np
 from folivox.audio import postprocess, save
 from folivox.audio.assemble import BookMeta, ChapterAudio, build_chapter, write_m4b, write_mp3s
 from folivox.book import Book
+from folivox.i18n import _
 from folivox.journal import Journal, PlannedChunk, Take
 from folivox.text.chunk import ChunkOptions, plan_chapter
 
@@ -35,7 +36,9 @@ class RenderOptions:
     lang: str | None = None  # book language (ISO 639-1); None → from the book metadata / detection
     speed: float = 1.0
     device: str = "auto"
-    llm: str = "rl"  # "rl" (fewer content errors, per upstream eval) or "base"
+    tts: str = "cosyvoice3"  # provider name in folivox.tts.ENGINES
+    asr: str = "auto"  # provider name in folivox.qa.asr.ASR_PROVIDERS
+    llm: str = "rl"  # CosyVoice LLM weights: "rl" (fewer content errors, per upstream eval) or "base"
     threads: int | None = None
     model_dir: str | None = None
     qa: bool = True
@@ -77,27 +80,29 @@ def parse_selection(spec: str | None, count: int) -> list[int]:
             continue
         m = re.fullmatch(r"(\d+)?\s*-\s*(\d+)?|(\d+)", part)
         if not m:
-            raise ValueError(f"Неверный номер главы: {part!r}")
+            raise ValueError(_("Invalid chapter number: {part!r}", part=part))
         if m.group(3):
             a = b = int(m.group(3))
         else:
             a, b = int(m.group(1) or 1), int(m.group(2) or count)
         out.update(i - 1 for i in range(a, b + 1) if 1 <= i <= count)
     if not out:
-        raise ValueError(f"В книге нет глав {spec!r} (всего {count})")
+        raise ValueError(_("The book has no chapters {spec!r} (there are {count})", spec=spec, count=count))
     return sorted(out)
 
 
 def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, events: Events) -> list[str]:
     chapters = book.chapters(opts.depth)
     selected = parse_selection(opts.chapters, len(chapters))
-    events.stage("plan", f"Разметка текста: {len(selected)} из {len(chapters)} глав")
+    events.stage("plan", _("Preparing text: {n} of {total} chapters", n=len(selected), total=len(chapters)))
     copts = ChunkOptions(max_chars=opts.max_chars, min_chars=opts.chunk.min_chars, stress=opts.stress,
                          lang=opts.lang or book.lang or "ru", pauses=opts.chunk.pauses,
                          speak_headings=opts.chunk.speak_headings)
     planned = [(chapters[i].title, _limit(plan_chapter(chapters[i], copts), opts.preview, copts))
                for i in selected]
     settings = f"{SYNTH_VERSION}|llm={opts.llm}|speed={opts.speed}"
+    if opts.tts != "cosyvoice3":  # keep cache keys of existing CosyVoice renders valid
+        settings = f"{opts.tts}|speed={opts.speed}"
     journal.set_plan(planned, voice_id, settings)
     journal.set_meta(book_title=book.title, chapters_selected=[i + 1 for i in selected], settings=settings)
     return [t for t, _ in planned]
@@ -182,7 +187,7 @@ def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: 
 
 
 def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions, events: Events) -> None:
-    from folivox.tts.engine import Prefetcher
+    from folivox.tts.base import Prefetcher
 
     pending = journal.pending()
     st = journal.stats()
@@ -221,22 +226,22 @@ def assemble(journal: Journal, book: Book, opts: RenderOptions, sample_rate: int
     for ci, title in journal.chapters():
         chunks = journal.chunks(ci)
         if not chunks or not all(journal.is_done(c.key) for c in chunks):
-            events.warning(f"Глава «{title}» озвучена не полностью — пропускаю")
+            events.warning(_("Chapter “{title}” is not fully rendered — skipping", title=title))
             continue
         sig = hashlib.sha1("|".join(f"{c.key}:{c.pause}" for c in chunks).encode()).hexdigest()
         path = work / "chapters" / f"{ci + 1:03d}.flac"
         if journal.meta(f"chapter_sig_{ci}") == sig and path.exists():
             dur = journal.meta(f"chapter_dur_{ci}")
         else:
-            events.stage("chapter", f"Сборка главы {ci + 1}: {title}")
+            events.stage("chapter", _("Building chapter {n}: {title}", n=ci + 1, title=title))
             dur = build_chapter([(journal.audio_path(c.key), c.pause) for c in chunks], path, sample_rate)
             journal.set_meta(**{f"chapter_sig_{ci}": sig, f"chapter_dur_{ci}": dur})
         built.append(ChapterAudio(title, path, dur))
         events.chapter_built(ci, title, dur)
     if not built:
-        raise RuntimeError("Нечего собирать: ни одна глава не озвучена полностью")
+        raise RuntimeError(_("Nothing to assemble: no chapter is fully rendered"))
     meta = BookMeta(book.title, book.author, book.year, book.annotation, opts.narrator)
-    events.stage("encode", f"Кодирование {'MP3' if opts.mp3 else 'M4B'}")
+    events.stage("encode", _("Encoding {fmt}", fmt="MP3" if opts.mp3 else "M4B"))
     if opts.mp3:
         out_dir = opts.output if opts.output.suffix == "" else opts.output.with_suffix("")
         write_mp3s(built, out_dir, meta, book.cover)
@@ -245,8 +250,15 @@ def assemble(journal: Journal, book: Book, opts: RenderOptions, sample_rate: int
     return opts.output
 
 
+def _engine_options(opts: RenderOptions) -> dict:
+    if opts.tts == "cosyvoice3":
+        return {"model_dir": opts.model_dir, "device": opts.device, "threads": opts.threads, "llm": opts.llm}
+    return {"device": opts.device}
+
+
 def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Path:
-    from folivox.tts.engine import CosyVoiceEngine
+    from folivox.qa.asr import ASR_PROVIDERS
+    from folivox.tts import ENGINES
     from folivox.tts.voice import load_voice
 
     events = events or Events()
@@ -257,20 +269,18 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
     try:
         asr = None
         if opts.qa:
-            from folivox.qa.asr import Transcriber
-
-            events.stage("asr", "Загрузка Whisper для проверки")
-            asr = Transcriber(language=opts.lang)
+            events.stage("asr", _("Loading speech recognition for QA ({name})", name=opts.asr))
+            asr = ASR_PROVIDERS.create(opts.asr, language=opts.lang)
         voice = load_voice(opts.voice_wav, opts.voice_text,
                            transcribe=asr.transcribe_file if asr else None)
         for w in voice.warnings:
             events.warning(w)
         plan(book, opts, journal, voice.id, events)
         if journal.pending():
-            events.stage("model", "Загрузка CosyVoice 3")
+            events.stage("model", _("Loading TTS model ({name})", name=opts.tts))
             t0 = time.time()
-            engine = CosyVoiceEngine(opts.model_dir, opts.device, opts.threads, llm=opts.llm)
-            events.stage("model", f"Модель загружена за {time.time() - t0:.0f} с ({engine.device})")
+            engine = ENGINES.create(opts.tts, **_engine_options(opts))
+            events.stage("model", _("Model loaded in {s:.0f} s ({device})", s=time.time() - t0, device=engine.device))
             sample_rate = engine.sample_rate
             synthesize_pending(journal, engine, voice, asr, opts, events)
         else:

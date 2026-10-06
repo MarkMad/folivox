@@ -15,6 +15,8 @@ from pathlib import Path
 
 from platformdirs import user_data_dir
 
+from folivox.i18n import _
+
 PACKAGE_DIR = Path(__file__).parent
 DEFAULT_VOICE = "russlib"
 TARGET_SR = 24000
@@ -71,6 +73,17 @@ def find(voice_id: str) -> VoiceEntry | None:
     return next((v for v in all_voices() if v.id == voice_id), None)
 
 
+def default_for(lang: str, gender: str | None = None) -> VoiceEntry:
+    """Default voice for a book language: the bundled default if it matches, else the first voice
+    in that language (bundled before user voices), else the global default (cross-lingual cloning
+    works, but the accent of the sample carries over)."""
+    candidates = [v for v in bundled() + user() if v.lang == lang and (not gender or v.gender == gender)]
+    preferred = [v for v in candidates if v.id == DEFAULT_VOICE]
+    if preferred or candidates:
+        return (preferred or candidates)[0]
+    return find(DEFAULT_VOICE)
+
+
 _ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,40}$")
 
 
@@ -83,10 +96,10 @@ def add(voice_id: str, audio: Path, transcript: str, *, name: str = "", gender: 
     from folivox.audio import trim_silence
 
     if not _ID.match(voice_id):
-        raise ValueError("Имя голоса: латиница в нижнем регистре, цифры, «-» и «_», до 40 символов")
+        raise ValueError(_("Voice id: lowercase latin letters, digits, '-' and '_', up to 40 characters"))
     target = user_voices_dir() / voice_id
     if target.exists() and not overwrite:
-        raise FileExistsError(f"Голос {voice_id!r} уже есть (используйте --force)")
+        raise FileExistsError(_("Voice {id!r} already exists (use --force)", id=voice_id))
     data, sr = sf.read(str(audio), dtype="float32", always_2d=True)
     data = data.mean(axis=1)
     if sr != TARGET_SR:
@@ -114,5 +127,5 @@ def add(voice_id: str, audio: Path, transcript: str, *, name: str = "", gender: 
 def remove(voice_id: str) -> None:
     target = user_voices_dir() / voice_id
     if not target.exists():
-        raise FileNotFoundError(f"Пользовательского голоса {voice_id!r} нет")
+        raise FileNotFoundError(_("No user voice {id!r}", id=voice_id))
     shutil.rmtree(target)

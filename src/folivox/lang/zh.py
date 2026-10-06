@@ -46,6 +46,7 @@ def zh_int(n: int) -> str:
 
 class Chinese(CJKLanguage):
     code, name, native = "zh", "Chinese", "中文"
+    chapter_label, intro_label = "第{n}章", "序"
     cps = (2.5, 9.0)
     hallucinations = (r"(?:字幕|字幕由|中文字幕)[^。！？]*[。！？]?", r"(?:请不吝)?点赞\s*订阅[^。！？]*[。！？]?")
 

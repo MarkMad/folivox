@@ -7,6 +7,8 @@ from pathlib import Path
 
 from platformdirs import user_data_dir
 
+from folivox.i18n import _
+
 REPO_ID = "FunAudioLLM/Fun-CosyVoice3-0.5B-2512"
 REQUIRED = ["cosyvoice3.yaml", "llm.pt", "flow.pt", "hift.pt", "campplus.onnx", "speech_tokenizer_v3.onnx",
             "CosyVoice-BlankEN/config.json"]
@@ -29,13 +31,14 @@ def resolve_model_dir(explicit: str | os.PathLike | None = None, download: bool 
         if cand:
             p = Path(cand).expanduser()
             if not is_complete(p):
-                raise FileNotFoundError(f"В {p} нет полного набора весов CosyVoice 3 (нужны: {', '.join(REQUIRED)})")
+                raise FileNotFoundError(_("{path} has no complete set of CosyVoice 3 weights (needed: {files})",
+                                          path=p, files=", ".join(REQUIRED)))
             return p
     p = default_model_dir()
     if is_complete(p):
         return p
     if not download:
-        raise FileNotFoundError(f"Веса не найдены в {p}")
+        raise FileNotFoundError(_("Weights not found in {path}", path=p))
     return download_weights(p)
 
 
@@ -48,7 +51,7 @@ def ensure_llm(model_dir: Path, variant: str) -> str:
     if not (model_dir / name).exists():
         from huggingface_hub import hf_hub_download
 
-        print(f"Скачиваю {name} (~2 ГБ) …", flush=True)
+        print(_("Downloading {name} (~2 GB)…", name=name), flush=True)
         hf_hub_download(REPO_ID, name, local_dir=str(model_dir))
     return name
 
@@ -57,8 +60,9 @@ def download_weights(target: Path) -> Path:
     from huggingface_hub import snapshot_download
 
     target.mkdir(parents=True, exist_ok=True)
-    print(f"Скачиваю веса CosyVoice 3 (~4.5 ГБ) из huggingface.co/{REPO_ID} в {target} …", flush=True)
+    print(_("Downloading CosyVoice 3 weights (~4.5 GB) from huggingface.co/{repo} to {path}…", repo=REPO_ID,
+            path=target), flush=True)
     snapshot_download(REPO_ID, local_dir=str(target), allow_patterns=ALLOW)
     if not is_complete(target):
-        raise RuntimeError(f"Загрузка весов не завершена: {target}")
+        raise RuntimeError(_("Weights download incomplete: {path}", path=target))
     return target
