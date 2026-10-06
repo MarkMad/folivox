@@ -67,8 +67,9 @@ def cer(reference: str, hypothesis: str) -> float:
 
 
 # Plausible narration speed, canonical characters per second. Outside → likely a broken take
-# (swallowed words, long silence, babbling) even if Whisper is forgiving.
-MIN_CPS, MAX_CPS = 7.0, 28.0
+# (swallowed words, long silence, babbling) even if Whisper is forgiving. Normal narration
+# measured at 15–18.5 chars/s; dropped sentence tails show up as 21–24.
+MIN_CPS, MAX_CPS = 7.0, 23.0
 
 
 def threshold_for(reference: str, base: float) -> float:
