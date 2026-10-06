@@ -97,8 +97,7 @@ def pack(sents: list[str], max_chars: int, min_chars: int) -> list[str]:
         pieces += split_long(s, max_chars)
     out: list[str] = []
     for p in pieces:
-        if out and (len(out[-1]) < min_chars or len(p) < min_chars or
-                    len(out[-1]) + 1 + len(p) <= max_chars * 0.6) and len(out[-1]) + 1 + len(p) <= max_chars:
+        if out and len(out[-1]) + 1 + len(p) <= max_chars:
             out[-1] = f"{out[-1]} {p}"
         else:
             out.append(p)
