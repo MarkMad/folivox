@@ -1,0 +1,6 @@
+Folivox
+Copyright 2026 vatavale
+
+This product includes software developed by Alibaba Inc / FunAudioLLM (CosyVoice,
+Apache-2.0), Shivam Mehta (Matcha-TTS, MIT) and OpenAI (Whisper audio frontend, MIT).
+See src/folivox/vendor/README.md for details.

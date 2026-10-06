@@ -1,0 +1,34 @@
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+
+# never commit model weights, renders, books or voice samples
+/pretrained_models/
+/models/
+*.pt
+*.onnx
+*.safetensors
+*.bin
+*.wav
+*.mp3
+*.m4a
+*.m4b
+*.flac
+*.ogg
+*.fb2
+*.epub
+*.pdf
+*.docx
+*.mobi
+/work/
+/renders/
+/voices/
+*.folivox/
+# synthetic test fixtures are allowed
+!tests/fixtures/**
