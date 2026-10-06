@@ -108,3 +108,15 @@ def test_assemble_m4b(tmp_path):
     assert [c["tags"]["title"] for c in info["chapters"]] == ["Глава первая", "Глава вторая; «с кавычками»"]
     assert info["format"]["tags"]["title"] == "Тестовая книга"
     assert 5.5 < float(info["format"]["duration"]) < 7.5
+
+
+def test_whisper_hallucinations_ignored():
+    from folivox.qa import strip_hallucinations
+
+    ref = "А уже понимание. Догадывалась Ульяна, каким будет ответ."
+    hyp = "А уже понимание. Догадывалась Ульяна, каким будет ответ. Продолжение следует..."
+    assert strip_hallucinations(hyp, ref) == "А уже понимание. Догадывалась Ульяна, каким будет ответ."
+    assert score(ref, hyp, 4.0) == 0
+    # kept when the book really says it
+    assert strip_hallucinations("Продолжение следует.", "Продолжение следует.") == "Продолжение следует."
+    assert strip_hallucinations("Текст. Субтитры сделал DimaTorzok", "Текст.") == "Текст."

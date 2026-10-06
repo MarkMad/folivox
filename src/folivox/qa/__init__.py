@@ -18,6 +18,34 @@ def canonical(text: str) -> str:
     return " ".join(text.split())
 
 
+# Phrases Whisper hallucinates on silence / at the end of Russian audio (subtitle credits).
+HALLUCINATIONS = [
+    r"продолжение следует\W*",
+    r"субтитры (?:сделал|делал|создавал|подготовил)\w*[^.!?]*[.!?]?",
+    r"редактор субтитров[^.!?]*[.!?]?",
+    r"корректор [а-яё.]+\s*[а-яё]+\W*",
+    r"спасибо за (?:просмотр|внимание)\W*",
+    r"подписывайтесь на (?:наш )?канал\W*",
+    r"ставьте лайки?\W*",
+    r"до (?:новых )?встречи?\W*",
+]
+_HALLU = [re.compile(rf"\s*{h}\s*$", re.IGNORECASE) for h in HALLUCINATIONS]
+
+
+def strip_hallucinations(hypothesis: str, reference: str) -> str:
+    """Drop trailing Whisper hallucinations that are not part of the reference text."""
+    ref = reference.lower()
+    changed = True
+    while changed:
+        changed = False
+        for rx in _HALLU:
+            m = rx.search(hypothesis)
+            if m and m.group(0).strip().lower().rstrip(".!?…") not in ref:
+                hypothesis = hypothesis[: m.start()]
+                changed = True
+    return hypothesis.strip()
+
+
 def levenshtein(a: str, b: str) -> int:
     if len(a) < len(b):
         a, b = b, a
@@ -45,7 +73,7 @@ MIN_CPS, MAX_CPS = 7.0, 28.0
 
 def score(reference: str, hypothesis: str, duration: float) -> float:
     """Lower is better. CER plus a penalty for implausible speaking rate."""
-    s = cer(reference, hypothesis)
+    s = cer(reference, strip_hallucinations(hypothesis, reference))
     n = len(canonical(reference))
     if duration > 0 and n >= 20:
         cps = n / duration
