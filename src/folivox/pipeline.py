@@ -25,6 +25,7 @@ class RenderOptions:
     voice_text: str | None = None
     work_dir: Path | None = None
     chapters: str | None = None  # "1-3,5" (1-based)
+    preview: int | None = None  # only the first N characters of each selected chapter
     depth: int = 2
     max_chars: int = 220
     stress: str = "yo"
@@ -89,48 +90,82 @@ def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, event
     events.stage("plan", f"Разметка текста: {len(selected)} из {len(chapters)} глав")
     copts = ChunkOptions(max_chars=opts.max_chars, min_chars=opts.chunk.min_chars, stress=opts.stress,
                          pauses=opts.chunk.pauses, speak_headings=opts.chunk.speak_headings)
-    planned = [(chapters[i].title, plan_chapter(chapters[i], copts)) for i in selected]
+    planned = [(chapters[i].title, _limit(plan_chapter(chapters[i], copts), opts.preview, copts))
+               for i in selected]
     settings = f"{SYNTH_VERSION}|llm={opts.llm}|speed={opts.speed}"
     journal.set_plan(planned, voice_id, settings)
     journal.set_meta(book_title=book.title, chapters_selected=[i + 1 for i in selected], settings=settings)
     return [t for t, _ in planned]
 
 
+LOOKAHEAD = 2  # fragments whose LLM tokens are generated ahead of time
+
+
+def _seed(key: str, attempt: int) -> int:
+    return int(key[:8], 16) + attempt * 7919
+
+
+def _limit(chunks, preview: int | None, copts: ChunkOptions):
+    """Keep fragments until ``preview`` characters are covered; end with a chapter pause."""
+    if not preview:
+        return chunks
+    out, n = [], 0
+    for c in chunks:
+        if n >= preview:
+            break
+        out.append(c)
+        n += len(c.source)
+    if out:
+        out[-1].pause_after = copts.pauses.chapter_end
+    return out
+
+
 def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions, events: Events) -> None:
     from folivox.qa import score
+    from folivox.tts.engine import Prefetcher
 
     pending = journal.pending()
     st = journal.stats()
     events.plan(st["total_chars"], st["done_chars"], len(journal.chunks()), len(pending))
-    seen: set[str] = set()
-    for chunk in pending:
-        if chunk.key in seen or journal.is_done(chunk.key):  # same sentence twice in a book
-            continue
-        seen.add(chunk.key)
-        events.chunk_started(chunk)
-        best = None
-        attempts: list[float | None] = []
-        synth_total = 0.0
-        seed0 = int(chunk.key[:8], 16)
-        for attempt in range(max(1, opts.max_takes if asr else 1)):
-            syn = engine.synthesize(chunk.text, voice, seed=seed0 + attempt * 7919, speed=opts.speed)
-            synth_total += syn.seconds
-            audio = postprocess(syn.audio, syn.sample_rate)
-            dur = len(audio) / syn.sample_rate
-            sc = hyp = None
-            if asr is not None:
-                hyp = asr.transcribe(audio, syn.sample_rate) if dur > 0.05 else ""
-                sc = score(chunk.source, hyp, dur)
-            attempts.append(sc)
-            if best is None or (sc is not None and sc < best[0]):
-                best = (sc if sc is not None else 0.0, audio, hyp, dur, syn.sample_rate)
-            if sc is None or sc <= opts.qa_threshold:
-                break
-        sc, audio, hyp, dur, sr = best
-        save(journal.audio_path(chunk.key), audio, sr)
-        take = Take(chunk.key, dur, sc if asr is not None else None, hyp, len(attempts), synth_total)
-        journal.record(take)
-        events.chunk_done(chunk, take, attempts)
+    todo: list[PlannedChunk] = []
+    keys: set[str] = set()
+    for c in pending:  # the same sentence may occur twice in a book
+        if c.key not in keys:
+            keys.add(c.key)
+            todo.append(c)
+
+    prefetch = Prefetcher(engine, voice)
+    try:
+        clock = time.time()
+        for pos, chunk in enumerate(todo):
+            for nxt in todo[pos: pos + 1 + LOOKAHEAD]:
+                prefetch.submit(nxt.key, nxt.text, _seed(nxt.key, 0))
+            events.chunk_started(chunk)
+            best = None
+            attempts: list[float | None] = []
+            for attempt in range(max(1, opts.max_takes if asr else 1)):
+                syn = prefetch.synthesize(chunk.key, chunk.text, _seed(chunk.key, attempt), speed=opts.speed)
+                audio = postprocess(syn.audio, syn.sample_rate)
+                dur = len(audio) / syn.sample_rate
+                sc = hyp = None
+                if asr is not None:
+                    hyp = asr.transcribe(audio, syn.sample_rate) if dur > 0.05 else ""
+                    sc = score(chunk.source, hyp, dur)
+                attempts.append(sc)
+                if best is None or (sc is not None and sc < best[0]):
+                    best = (sc if sc is not None else 0.0, audio, hyp, dur, syn.sample_rate)
+                if sc is None or sc <= opts.qa_threshold:
+                    break
+            sc, audio, hyp, dur, sr = best
+            save(journal.audio_path(chunk.key), audio, sr)
+            now = time.time()
+            # wall time since the previous fragment: with prefetching, stage times overlap
+            take = Take(chunk.key, dur, sc if asr is not None else None, hyp, len(attempts), now - clock)
+            clock = now
+            journal.record(take)
+            events.chunk_done(chunk, take, attempts)
+    finally:
+        prefetch.close()
 
 
 def assemble(journal: Journal, book: Book, opts: RenderOptions, sample_rate: int, events: Events) -> Path:

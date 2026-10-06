@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -88,17 +89,84 @@ class CosyVoiceEngine:
         self._speakers[voice.id] = inp
         return voice.id
 
-    def synthesize(self, text: str, voice: Voice, seed: int = 0, speed: float = 1.0) -> Synthesis:
+    def generate_tokens(self, text: str, voice: Voice, seed: int = 0) -> tuple[list[int], float]:
+        """Stage 1 (LLM): text → speech tokens. Thread-safe w.r.t. :meth:`tokens_to_audio`."""
         import torch
 
         spk = self.prepare_voice(voice)
-        fe = self._cv.frontend
-        tokens, tokens_len = fe._extract_text_token(text)
-        model_input = {**self._speakers[spk], "text": tokens, "text_len": tokens_len}
+        m = self._cv.model
+        tokens, _ = self._cv.frontend._extract_text_token(text)
+        inp = self._speakers[spk]
+        uid = str(uuid.uuid4())
+        with m.lock:
+            m.tts_speech_token_dict[uid], m.llm_end_dict[uid] = [], False
         torch.manual_seed(seed)
-        np.random.seed(seed % (2**32))
         t0 = time.time()
-        with torch.inference_mode():
-            parts = [out["tts_speech"] for out in self._cv.model.tts(**model_input, stream=False, speed=speed)]
-        audio = torch.cat(parts, dim=1).squeeze(0).float().cpu().numpy() if parts else np.zeros(0, np.float32)
-        return Synthesis(audio.astype(np.float32), self.sample_rate, time.time() - t0)
+        try:
+            with torch.inference_mode():
+                m.llm_job(tokens, inp["prompt_text"], inp["llm_prompt_speech_token"], inp["llm_embedding"], uid)
+            return list(m.tts_speech_token_dict[uid]), time.time() - t0
+        finally:
+            with m.lock:
+                m.tts_speech_token_dict.pop(uid, None)
+                m.llm_end_dict.pop(uid, None)
+
+    def tokens_to_audio(self, speech_tokens: list[int], voice: Voice, speed: float = 1.0) -> tuple[np.ndarray, float]:
+        """Stage 2 (flow + vocoder): speech tokens → waveform."""
+        import torch
+
+        spk = self.prepare_voice(voice)
+        m = self._cv.model
+        inp = self._speakers[spk]
+        if not speech_tokens:
+            return np.zeros(0, np.float32), 0.0
+        uid = str(uuid.uuid4())
+        with m.lock:
+            m.hift_cache_dict[uid] = None
+        t0 = time.time()
+        try:
+            with torch.inference_mode():
+                wav = m.token2wav(token=torch.tensor(speech_tokens).unsqueeze(0),
+                                  prompt_token=inp["flow_prompt_speech_token"], prompt_feat=inp["prompt_speech_feat"],
+                                  embedding=inp["flow_embedding"], token_offset=0, uuid=uid, finalize=True, speed=speed)
+            return wav.squeeze(0).float().cpu().numpy().astype(np.float32), time.time() - t0
+        finally:
+            with m.lock:
+                m.hift_cache_dict.pop(uid, None)
+
+    def synthesize(self, text: str, voice: Voice, seed: int = 0, speed: float = 1.0) -> Synthesis:
+        tokens, t_llm = self.generate_tokens(text, voice, seed)
+        audio, t_wav = self.tokens_to_audio(tokens, voice, speed)
+        return Synthesis(audio, self.sample_rate, t_llm + t_wav)
+
+
+class Prefetcher:
+    """Runs the LLM stage for upcoming fragments in a background thread.
+
+    On Apple Silicon the LLM runs on CPU and the flow on the GPU, so generating tokens for
+    fragment *i+1* while fragment *i* goes through flow + vocoder hides most of the LLM time.
+    """
+
+    def __init__(self, engine: CosyVoiceEngine, voice: Voice):
+        from concurrent.futures import ThreadPoolExecutor
+
+        self.engine, self.voice = engine, voice
+        self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="folivox-llm")
+        self.futures: dict[tuple[str, int], object] = {}
+
+    def submit(self, key: str, text: str, seed: int):
+        k = (key, seed)
+        if k not in self.futures:
+            self.futures[k] = self.pool.submit(self.engine.generate_tokens, text, self.voice, seed)
+        return self.futures[k]
+
+    def synthesize(self, key: str, text: str, seed: int, speed: float = 1.0) -> Synthesis:
+        tokens, t_llm = self.submit(key, text, seed).result()
+        self.futures.pop((key, seed), None)
+        audio, t_wav = self.engine.tokens_to_audio(tokens, self.voice, speed)
+        return Synthesis(audio, self.engine.sample_rate, t_llm + t_wav)
+
+    def close(self) -> None:
+        for fut in self.futures.values():
+            fut.cancel()
+        self.pool.shutdown(wait=True)

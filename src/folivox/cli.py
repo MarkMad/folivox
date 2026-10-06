@@ -173,6 +173,7 @@ def render(
                                                   "По умолчанию — .txt рядом с образцом или Whisper"),
     output: Path | None = typer.Option(None, "--output", "-o", help="Итоговый .m4b (или папка для --mp3)"),
     chapters: str | None = typer.Option(None, "--chapters", "-c", help="Какие главы: 1-3,5"),
+    preview: int | None = typer.Option(None, "--preview", help="Только первые N символов каждой главы (проба)"),
     mp3: bool = typer.Option(False, "--mp3", help="MP3 по главам вместо одного m4b"),
     work_dir: Path | None = typer.Option(None, "--work-dir", help="Папка кэша (по умолчанию <output>.folivox)"),
     depth: int = typer.Option(2, "--depth", help="Глубина разбиения на главы"),
@@ -201,7 +202,8 @@ def render(
     if output is None:
         output = book_path.with_suffix("" if mp3 else ".m4b")
     opts = RenderOptions(output=output, voice_wav=voice, voice_text=voice_text, work_dir=work_dir,
-                         chapters=chapters, depth=depth, max_chars=max_chars, stress=stress, speed=speed,
+                         chapters=chapters, preview=preview, depth=depth, max_chars=max_chars, stress=stress,
+                         speed=speed,
                          device=device, threads=threads, model_dir=str(model_dir) if model_dir else None, qa=qa,
                          max_takes=takes, mp3=mp3, bitrate=bitrate, llm=llm)
     console.print(f"[bold]{book.title}[/] — {book.author or 'автор неизвестен'}; "
