@@ -166,6 +166,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
           <div style="min-width:0;flex:1"><div id="av-fname" class="vname"></div><canvas id="av-wave" class="vwave" style="margin-top:2px"></canvas>
             <div id="av-dur" class="vmeta"></div></div>
           <button type="button" id="av-trim" class="chip" hidden>Trim to 15 s</button><button type="button" id="av-clear" class="chip">Remove</button></div>
+        <label class="consent" id="av-dn-row" hidden><input type="checkbox" id="av-dn"><span><b>Reduce background noise</b> <span id="av-dn-state" class="mute"></span><br><small>Gentle and for steady noise only (hiss, hum, fans). Play the sample with and without it and keep what sounds natural.</small></span></label>
       </div>
       <div class="av-right">
         <label class="f">Name<input id="av-name" type="text" placeholder="e.g. Anna" autocomplete="off"></label>
@@ -429,7 +430,8 @@ function analyse(mono, sr) {
 function setSample(mono, sr, name) {
   const st = analyse(mono, sr), gain = st.peak > 1e-4 ? Math.min(40, 0.9 / st.peak) : 1;
   if (Math.abs(gain - 1) > 0.05) { mono = mono.map(x => x * gain); }
-  av = { mono, sr, name, gain, snr: st.snr, silent: st.peak <= 1e-4 }; const n = 64, step = Math.max(1, Math.floor(mono.length / n)), peaks = [];
+  av = { mono, sr, name, gain, snr: st.snr, silent: st.peak <= 1e-4, orig: { mono, snr: st.snr, gain }, clean: null };
+  $("#av-dn").checked = false; $("#av-dn-state").textContent = ""; $("#av-dn-row").hidden = av.silent; const n = 64, step = Math.max(1, Math.floor(mono.length / n)), peaks = [];
   for (let i = 0; i < n; i++) { let m = 0; for (let j = i * step; j < Math.min(mono.length, (i + 1) * step); j++) m = Math.max(m, Math.abs(mono[j])); peaks.push(m); }
   const top = Math.max(...peaks) || 1; av.peaks = peaks.map(p => Math.round(100 * p / top));
   av.blobUrl && URL.revokeObjectURL(av.blobUrl); av.blobUrl = URL.createObjectURL(wavBlob(mono, sr));
@@ -440,11 +442,34 @@ function showSample(progress = 0) {
   const [cls, msg] = sec < 3 ? ["stop", "too short — at least 3 s"] : sec > 30 ? ["stop", "too long — at most 30 s"] : sec < 6 ? ["bad", "short — 6–15 s works best"] : sec > 15 ? ["bad", "long — 6–15 s works best"] : ["ok", "good length"];
   const noise = av.silent ? ["stop", "no sound recorded — check the microphone"] : av.snr < 15 ? ["bad", "noisy — record closer to the microphone or in a quieter room"]
     : av.snr < 25 ? ["bad", "some background noise"] : ["ok", "clean"];
-  d.innerHTML = `${sec.toFixed(1)} s · <span class="${cls}">${msg}</span><br>${av.gain > 1.5 ? `level raised ×${av.gain.toFixed(1)} · ` : ""}<span class="${noise[0]}">${noise[1]}</span>`;
+  d.innerHTML = `${sec.toFixed(1)} s · <span class="${cls}">${msg}</span><br>${av.gain > 1.5 ? `level raised ×${av.gain.toFixed(1)} · ` : ""}<span class="${noise[0]}">${noise[1]}</span>${av.snr < 25 && !av.silent && !$("#av-dn").checked ? ` · <a href="#" id="av-try-dn">try noise reduction</a>` : ""}`;
+  const tryDn = $("#av-try-dn"); if (tryDn) tryDn.onclick = (ev) => { ev.preventDefault(); $("#av-dn").click(); };
   const cv = $("#av-wave"), dpr = window.devicePixelRatio || 1, W = Math.round(cv.clientWidth * dpr), H = Math.round(26 * dpr); if (!W) return;
   cv.width = W; cv.height = H; const g = cv.getContext("2d"), step = W / av.peaks.length;
   av.peaks.forEach((p, i) => { const h = Math.max(2 * dpr, H * p / 100); g.fillStyle = i / av.peaks.length < progress ? css("--accent") : css("--seg-pending"); g.fillRect(i * step, (H - h) / 2, Math.max(1, step * 0.62), h); });
 }
+// noise reduction is computed on the server (on demand) and can be switched on and off to compare
+function useVersion(v) {
+  av.mono = v.mono; av.snr = v.snr; av.gain = v.gain; av.blobUrl && URL.revokeObjectURL(av.blobUrl); av.blobUrl = URL.createObjectURL(wavBlob(av.mono, av.sr));
+  if (avPlayer) avPlayer.pause(); showSample(); checkAdd();
+}
+$("#av-dn").onchange = async (e) => {
+  const state = $("#av-dn-state");
+  if (!e.target.checked) { state.textContent = ""; return useVersion(av.orig); }
+  if (!av.clean) {
+    e.target.disabled = true; state.textContent = "— cleaning…";
+    try {
+      const fd = new FormData(); fd.append("file", wavBlob(av.orig.mono, av.sr), "voice.wav");
+      const r = await fetch("/api/denoise", { method: "POST", headers: { "X-Folivox-Token": TOKEN }, body: fd });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
+      const ctx = new AudioContext({ sampleRate: av.sr }), buf = await ctx.decodeAudioData(await r.arrayBuffer()); ctx.close();
+      const mono = buf.getChannelData(0).slice(), st = analyse(mono, av.sr), gain = st.peak > 1e-4 ? Math.min(40, 0.9 / st.peak) : 1;
+      av.clean = { mono: mono.map(x => x * gain), snr: st.snr, gain };
+    } catch (err) { e.target.checked = false; e.target.disabled = false; state.innerHTML = `<span class="err">— ${esc(err.message)}</span>`; return; }
+    e.target.disabled = false;
+  }
+  state.textContent = `— voice-to-noise ${av.orig.snr.toFixed(0)} → ${av.clean.snr.toFixed(0)} dB`; useVersion(av.clean);
+};
 $("#av-play").onclick = () => {
   if (avPlayer && !avPlayer.paused) { avPlayer.pause(); return; }
   avPlayer = new Audio(av.blobUrl); const b = $("#av-play");

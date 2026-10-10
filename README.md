@@ -128,6 +128,12 @@ Use 6–15 seconds of **clean** speech (no music, no noise, no reverb), WAV or F
 transcript. The model copies everything about the sample — timbre, pace, microphone, room — so a
 calm, evenly read sentence works best.
 
+Steady background noise (hiss, hum, a fan) can be reduced gently before the voice is added:
+tick **Reduce background noise** in `folivox ui` (play the sample with and without it), or use
+`folivox voices add … --denoise` (needs `pip install "folivox[denoise]"`; included in `folivox[all]`).
+It is spectral gating with a noise profile from the quietest part of the recording, deliberately mild so the
+voice does not get a metallic ring; it cannot fix a noisy room, re-record closer to the microphone for that.
+
 **Clone only your own voice or a voice you have explicit permission to use.** Imitating real
 people without consent can be illegal and is harmful. Folivox ships no celebrity or third-party
 voices.

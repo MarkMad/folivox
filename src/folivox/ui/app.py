@@ -13,7 +13,7 @@ from pathlib import Path
 from platformdirs import user_data_dir
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
 from folivox import config
@@ -237,6 +237,27 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             shutil.rmtree(tmp, ignore_errors=True)
         return JSONResponse({**_voice_json(entry), "warnings": v.warnings})
 
+    async def denoise(request: Request):
+        """WAV in → WAV out with steady background noise reduced (for the A/B check before adding a voice)."""
+        import io
+
+        import soundfile as sf
+
+        from folivox.audio.denoise import reduce_noise
+
+        form = await request.form()
+        f = form.get("file")
+        if f is None or not hasattr(f, "read"):
+            raise ApiError("No audio file in the request")
+        data, sr = sf.read(io.BytesIO(await f.read()), dtype="float32", always_2d=True)
+        try:
+            cleaned = await asyncio.to_thread(reduce_noise, data.mean(axis=1), sr)
+        except RuntimeError as e:
+            raise ApiError(str(e), 501) from None
+        out = io.BytesIO()
+        sf.write(out, cleaned, sr, format="WAV", subtype="PCM_16")
+        return Response(out.getvalue(), media_type="audio/wav")
+
     async def delete_voice(request: Request):
         voice_id = request.path_params["voice_id"]
         v = next((x for x in catalog.user() if x.id == voice_id), None)
@@ -451,6 +472,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/favorites", put_favorites, methods=["PUT"]),
         Route("/api/voices", list_voices),
         Route("/api/voices", add_voice, methods=["POST"]),
+        Route("/api/denoise", denoise, methods=["POST"]),
         Route("/api/voices/{voice_id}/sample", voice_sample),
         Route("/api/voices/{voice_id}", delete_voice, methods=["DELETE"]),
         Route("/api/jobs", start_job, methods=["POST"]),

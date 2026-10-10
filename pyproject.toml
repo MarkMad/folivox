@@ -56,15 +56,18 @@ qa = [
     "mlx-whisper>=0.4; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "faster-whisper>=1.0; sys_platform != 'darwin' or platform_machine != 'arm64'",
 ]
+# Optional noise reduction for voice samples.
+denoise = ["noisereduce>=3"]
 # Local web interface: `folivox ui`.
 ui = [
+    "noisereduce>=3",
     "starlette>=0.37",
     "uvicorn>=0.30",
     "python-multipart>=0.0.9",
     "tomli-w>=1.0",
     "keyring>=25",   # API keys entered in the UI go to the OS keychain, never to a file
 ]
-all = ["folivox[tts,qa,ui]"]
+all = ["folivox[tts,qa,ui,denoise]"]
 
 [project.scripts]
 folivox = "folivox.cli:main"

@@ -385,6 +385,8 @@ def voices_add(
     lang: str = typer.Option("ru", "--lang", help="Language of the sample (ru en de …)."),
     license: str = typer.Option("", "--license", help="License / origin of the sample."),
     force: bool = typer.Option(False, "--force", help="Overwrite an existing voice with the same id."),
+    denoise: bool = typer.Option(False, "--denoise/--no-denoise", show_default=False,
+                                 help="Reduce steady background noise in the sample first (off)."),
 ):
     """Add your own voice to the catalog (stays on this computer)."""
     from folivox import voices as catalog
@@ -399,8 +401,21 @@ def voices_add(
     v = load_voice(audio, text, transcribe=transcribe)
     for w in v.warnings:
         console.print(f"[yellow]⚠ {w}[/]")
-    entry = catalog.add(voice_id, audio, v.transcript, name=name, gender=gender, lang=lang, license=license,
-                        overwrite=force)
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="folivox-voice-") as tmp:
+        source = audio
+        if denoise:
+            import soundfile as sf
+
+            from folivox.audio.denoise import reduce_noise
+
+            data, sr = sf.read(str(audio), dtype="float32", always_2d=True)
+            source = Path(tmp) / "denoised.wav"
+            sf.write(str(source), reduce_noise(data.mean(axis=1), sr), sr)
+            console.print("Background noise reduced.")
+        entry = catalog.add(voice_id, source, v.transcript, name=name, gender=gender, lang=lang, license=license,
+                            overwrite=force)
     console.print(f"[green]Voice added:[/] {entry.id}: «{entry.transcript}»")
 
 
