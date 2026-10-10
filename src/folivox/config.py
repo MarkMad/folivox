@@ -20,7 +20,7 @@ Example::
     python = "~/.local/share/tts-bench/qwen3tts/.venv/bin/python"
     model = "~/.local/share/tts-bench/qwen3tts/models/VoiceDesign"
 
-API keys are never read from this file — only from environment variables.
+API keys are never read from this file — only from environment variables or the OS keychain.
 """
 
 from __future__ import annotations
@@ -75,10 +75,42 @@ def provider(kind: str, cli_value: str | None = None) -> str | None:
     return cli_value or os.environ.get(f"FOLIVOX_{kind.upper()}") or load().get("providers", {}).get(kind)
 
 
+KEYCHAIN_SERVICE = "folivox"
+
+
+def keychain_get(name: str) -> str | None:
+    """A key saved in the OS keychain (optional ``keyring`` package; the web UI stores keys there)."""
+    try:
+        import keyring
+
+        return keyring.get_password(KEYCHAIN_SERVICE, name) or None
+    except Exception:  # noqa: BLE001 — no keyring installed or no backend: fall back to the environment only
+        return None
+
+
+def keychain_set(name: str, value: str) -> None:
+    import keyring
+
+    keyring.set_password(KEYCHAIN_SERVICE, name, value)
+
+
+def keychain_delete(name: str) -> None:
+    import keyring
+
+    try:
+        keyring.delete_password(KEYCHAIN_SERVICE, name)
+    except keyring.errors.PasswordDeleteError:
+        pass
+
+
 def api_key(env_names: list[str] | str, provider_name: str) -> str:
+    """Environment variable first, then the OS keychain. Never the config file."""
     names = [env_names] if isinstance(env_names, str) else env_names
     for n in names:
         if os.environ.get(n):
             return os.environ[n]
-    raise ValueError(f"{provider_name}: set the API key in the environment variable {names[0]} "
-                     f"(it is used at your own cost and never stored by Folivox)")
+    for n in names:
+        if value := keychain_get(n):
+            return value
+    raise ValueError(f"{provider_name}: set the API key in the environment variable {names[0]} or save it in the "
+                     f"web interface (`folivox ui`); it is used at your own cost and never stored in a file")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import secrets
 import shutil
 import uuid
@@ -307,6 +308,48 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         return JSONResponse({"kinds": kinds, "config_path": str(config.config_path()),
                              "output_dir": str(Path.home() / "Audiobooks")})
 
+    def key_names() -> list[dict]:
+        """Env var names the cloud providers read: the defaults plus any ``api_key_env`` in the config."""
+        owners: dict[str, list[str]] = {}
+        for kind, reg in _registries().items():
+            for p in reg.providers():
+                if not p.local and p.needs.isupper():
+                    owners.setdefault(config.section(f"{kind}.{p.name}").get("api_key_env", p.needs), []).append(
+                        f"{kind}/{p.name}")
+        return [{"name": n, "used_by": u} for n, u in sorted(owners.items())]
+
+    def mask(value: str) -> str:
+        return "•" * 8 + value[-4:] if len(value) > 8 else "•" * 8
+
+    async def get_keys(request: Request):
+        out = []
+        for k in key_names():
+            stored = config.keychain_get(k["name"])
+            out.append({**k, "env": bool(os.environ.get(k["name"])), "saved": bool(stored),
+                        "masked": mask(stored) if stored else ""})
+        return JSONResponse({"keys": out})  # the full value never leaves the server
+
+    async def put_key(request: Request):
+        name = request.path_params["name"]
+        if name not in {k["name"] for k in key_names()}:
+            raise ApiError("Unknown key name", 404)
+        value = str((await request.json()).get("value", "")).strip()
+        if not value:
+            raise ApiError("Empty key")
+        try:
+            config.keychain_set(name, value)
+        except Exception as e:  # noqa: BLE001
+            raise ApiError(f"Cannot use the OS keychain: {type(e).__name__}") from None
+        return await get_keys(request)
+
+    async def delete_key(request: Request):
+        name = request.path_params["name"]
+        try:
+            config.keychain_delete(name)
+        except Exception as e:  # noqa: BLE001
+            raise ApiError(f"Cannot use the OS keychain: {type(e).__name__}") from None
+        return await get_keys(request)
+
     async def put_settings(request: Request):
         import tomli_w
 
@@ -360,6 +403,9 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/jobs/{job_id}/chapters/{n:int}", job_chapter),
         Route("/api/settings", get_settings),
         Route("/api/settings", put_settings, methods=["PUT"]),
+        Route("/api/keys", get_keys),
+        Route("/api/keys/{name}", put_key, methods=["PUT"]),
+        Route("/api/keys/{name}", delete_key, methods=["DELETE"]),
     ]
     app = Starlette(routes=routes, exception_handlers={ApiError: api_error, ValueError: bad_request,
                                                       TypeError: bad_request, KeyError: bad_request})

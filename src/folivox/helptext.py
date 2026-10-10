@@ -68,7 +68,8 @@ override with [cyan]FOLIVOX_CONFIG[/]).
   model = "some/model"
   api_key_env = "OPENROUTER_API_KEY"
 
-API keys are read only from environment variables; the config refuses [cyan]api_key[/] fields.
+API keys come from environment variables or the OS keychain (save them in [cyan]folivox ui[/]); the config
+refuses [cyan]api_key[/] fields, so keys never land in a file.
 
 Environment: FOLIVOX_VOICE, FOLIVOX_VOICE_TEXT, FOLIVOX_MODEL_DIR, FOLIVOX_TTS, FOLIVOX_ASR,
 FOLIVOX_VOICEGEN, FOLIVOX_LLM, FOLIVOX_CONFIG.

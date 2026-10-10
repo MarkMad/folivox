@@ -148,3 +148,55 @@ def test_session_survives_reload_and_restart(client, tmp_path):
 def test_session_with_vanished_book_is_dropped(client):
     client.put("/api/session", json={"book_id": "gone"})
     assert client.get("/api/session").json() is None
+
+
+@pytest.fixture
+def keychain(monkeypatch):
+    keyring = pytest.importorskip("keyring")
+    from keyring.backend import KeyringBackend
+
+    class Memory(KeyringBackend):
+        priority = 1
+
+        def __init__(self):
+            self.data = {}
+
+        def get_password(self, service, username):
+            return self.data.get((service, username))
+
+        def set_password(self, service, username, password):
+            self.data[(service, username)] = password
+
+        def delete_password(self, service, username):
+            if (service, username) not in self.data:
+                raise keyring.errors.PasswordDeleteError("missing")
+            del self.data[(service, username)]
+
+    previous = keyring.get_keyring()
+    keyring.set_keyring(Memory())
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    yield
+    keyring.set_keyring(previous)
+
+
+def test_api_keys_in_keychain_are_masked_and_used(client, keychain, monkeypatch):
+    from folivox import config
+
+    keys = client.get("/api/keys").json()["keys"]
+    openai = next(k for k in keys if k["name"] == "OPENAI_API_KEY")
+    assert not openai["saved"] and openai["used_by"]
+    secret = "sk-test-1234567890abcd"
+    r = client.put("/api/keys/OPENAI_API_KEY", json={"value": secret})
+    assert r.status_code == 200
+    assert secret not in r.text and "abcd" in r.text  # only the last 4 characters come back
+    assert secret not in client.get("/api/keys").text
+    assert config.api_key("OPENAI_API_KEY", "x") == secret  # providers find it without an env var
+    monkeypatch.setenv("OPENAI_API_KEY", "from-env")
+    assert config.api_key("OPENAI_API_KEY", "x") == "from-env"  # the environment wins
+    assert client.delete("/api/keys/OPENAI_API_KEY").status_code == 200
+    assert not next(k for k in client.get("/api/keys").json()["keys"] if k["name"] == "OPENAI_API_KEY")["saved"]
+
+
+def test_api_key_rejects_unknown_names_and_empty_values(client, keychain):
+    assert client.put("/api/keys/HOME", json={"value": "x"}).status_code == 404
+    assert client.put("/api/keys/OPENAI_API_KEY", json={"value": "  "}).status_code == 400

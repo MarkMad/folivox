@@ -101,6 +101,8 @@ label.f { display:flex; flex-direction:column; gap:3px; font-size:13px; color:va
   <div id="settings" class="grid"></div>
   <div class="row" style="margin-top:10px"><button id="save-settings">Save</button><span id="settings-msg" class="mute"></span></div>
   <p class="mute"><small id="settings-note"></small></p>
+  <h2 style="margin-top:18px">API keys <small class="mute" style="text-transform:none;letter-spacing:0">for cloud providers · stored in your OS keychain, never in a file</small></h2>
+  <div id="keys"></div>
 </section>
 </main>
 
@@ -282,6 +284,23 @@ async function loadSettings() {
   $("#settings-note").textContent = "Cloud providers run at your own cost and send text or audio off this computer. API keys come from environment variables only. Config: " + s.config_path;
   $("#o-output_dir").placeholder = s.output_dir;
 }
+async function loadKeys() {
+  const { keys } = await api("/api/keys");
+  $("#keys").innerHTML = keys.map(k => `<div class="voice" data-key="${esc(k.name)}">
+    <div style="min-width:190px"><b>${esc(k.name)}</b><br><small class="mute">${esc(k.used_by.join(", "))}</small></div>
+    <div class="grow">${k.env ? `<small>set in the environment</small> ` : ""}${k.saved ? `<small class="mute">saved: <code>${esc(k.masked)}</code></small>` : (k.env ? "" : `<small class="warn">not set</small>`)}</div>
+    <input type="password" autocomplete="off" placeholder="${k.saved ? "replace key" : "paste key"}" style="width:220px">
+    <button data-save>Save</button>${k.saved ? `<button data-remove>Remove</button>` : ""}</div>`).join("") || `<p class="mute"><small>No cloud providers installed.</small></p>`;
+  document.querySelectorAll("#keys [data-key]").forEach(row => {
+    const name = row.dataset.key, input = row.querySelector("input");
+    row.querySelector("[data-save]").onclick = async () => {
+      if (!input.value.trim()) return;
+      try { await api("/api/keys/" + name, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: input.value }) }); input.value = ""; loadKeys(); }
+      catch (e) { alert(e.message); } };
+    const rm = row.querySelector("[data-remove]");
+    if (rm) rm.onclick = async () => { if (confirm("Remove the saved " + name + "?")) { await api("/api/keys/" + name, { method: "DELETE" }); loadKeys(); } };
+  });
+}
 $("#save-settings").onclick = async () => {
   const providers = {}; document.querySelectorAll("#settings select").forEach(s => providers[s.dataset.kind] = s.value);
   try { await api("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ providers }) }); $("#settings-msg").textContent = "Saved."; }
@@ -303,7 +322,7 @@ async function reconcile() {
   } catch (e) { online = false; $("#offline").hidden = false; }
 }
 (async () => {
-  try { await loadSettings(); await restoreSession(); await reconcile(); setInterval(reconcile, 4000); }
+  try { await loadSettings(); loadKeys().catch(() => {}); await restoreSession(); await reconcile(); setInterval(reconcile, 4000); }
   catch (e) { document.body.insertAdjacentHTML("afterbegin", `<p class="err" style="padding:16px">${esc(e.message)} — open the URL printed by <code>folivox ui</code> (it contains the access token).</p>`); }
 })();
 </script>

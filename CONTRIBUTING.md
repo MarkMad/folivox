@@ -80,7 +80,7 @@ lazily, so optional dependencies are only needed when the provider is used):
 | Text LLM | `folivox.llm.LLMS` | `folivox.llm.LLM.complete(prompt)` |
 
 Factory keyword arguments come from the `[<kind>.<name>]` table of the user's `config.toml`. API
-keys are read only from environment variables (`folivox.config.api_key`). A separate package can
+keys come from environment variables or the OS keychain (`folivox.config.api_key`), never from the config file. A separate package can
 register providers through an entry point:
 
 ```toml

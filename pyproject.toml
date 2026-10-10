@@ -62,6 +62,7 @@ ui = [
     "uvicorn>=0.30",
     "python-multipart>=0.0.9",
     "tomli-w>=1.0",
+    "keyring>=25",   # API keys entered in the UI go to the OS keychain, never to a file
 ]
 all = ["folivox[tts,qa,ui]"]
 

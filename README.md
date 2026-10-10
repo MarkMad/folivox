@@ -165,8 +165,9 @@ model = "some/model"
 api_key_env = "OPENROUTER_API_KEY"
 ```
 
-API keys are read **only from environment variables** (the config refuses `api_key` fields), so
-they never end up in a file you might share. Cloud providers run at your own cost, and your text
+API keys are read from environment variables, or from your **OS keychain** when you save them in
+the web interface (`folivox ui` → Providers → API keys). The config file refuses `api_key` fields, so
+keys never end up in a file you might share. Cloud providers run at your own cost, and your text
 or audio leaves your computer.
 
 > **Commercial voice output.** Some providers' terms restrict using their outputs to build
