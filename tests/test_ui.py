@@ -129,3 +129,22 @@ def test_settings_roundtrip(client, tmp_path):
     r = client.put("/api/settings", json={"providers": {"llm": llm_names[-1]}})
     assert r.status_code == 200 and r.json()["kinds"]["llm"]["selected"] == llm_names[-1]
     assert client.put("/api/settings", json={"providers": {"llm": "nope"}}).status_code == 400
+
+
+def test_session_survives_reload_and_restart(client, tmp_path):
+    assert client.get("/api/session").json() is None
+    b = upload(client)
+    saved = {"book_id": b["book_id"], "chapters": [2], "voice": "", "lang": "en", "depth": 2,
+             "options": {"o-speed": "0.9"}}
+    assert client.put("/api/session", json=saved).status_code == 200
+    assert client.get("/api/session").json() == saved
+    # a brand new server on the same data dir (a restart) re-reads the book from disk
+    app2 = create_app(token=TOKEN, port=8765, data_dir=tmp_path / "ui", render=fake_render)
+    c2 = TestClient(app2, base_url="http://127.0.0.1:8765", headers={"X-Folivox-Token": TOKEN})
+    assert c2.get("/api/session").json() == saved
+    assert c2.get(f"/api/books/{b['book_id']}/chapters").json()["chapters"]
+
+
+def test_session_with_vanished_book_is_dropped(client):
+    client.put("/api/session", json={"book_id": "gone"})
+    assert client.get("/api/session").json() is None

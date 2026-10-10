@@ -41,6 +41,7 @@ label.f { display:flex; flex-direction:column; gap:3px; font-size:13px; color:va
 </head>
 <body>
 <main>
+<div id="offline" class="err" hidden style="padding:8px 12px;border:1px solid var(--err);border-radius:8px">Cannot reach the Folivox server — is <code>folivox ui</code> still running? This page will reconnect by itself.</div>
 <h1>Folivox <small>local audiobook generator — everything stays on this computer</small></h1>
 
 <section id="s-book"><h2>1 · Book</h2>
@@ -133,11 +134,12 @@ async function upload(file) {
   try { setBook(await api("/api/books", { method: "POST", body: fd })); }
   catch (e) { $("#book-info").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 }
-function setBook(b) {
+function setBook(b, keep, lang) {
   book = b;
   $("#book-info").innerHTML = `<b style="color:var(--ink)">${esc(b.title)}</b> — ${esc(b.author || "unknown author")} · ${esc(b.lang_name)} · ${esc(b.format.toUpperCase())}${b.year ? " · " + esc(b.year) : ""} · ${num(b.chars)} characters · ≈ ${fmt(b.estimated_seconds)}`;
   $("#lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}" ${c === b.lang ? "selected" : ""}>${n}</option>`).join("");
-  renderChapters();
+  if (lang) $("#lang").value = lang;
+  renderChapters(keep);
   ["#s-chapters", "#s-voice", "#s-run"].forEach(s => $(s).classList.remove("disabled"));
   loadVoices();
 }
@@ -146,6 +148,7 @@ function renderChapters(keep) {
   t.innerHTML = `<tr><th></th><th class="n">#</th><th>Chapter</th><th class="n">Characters</th><th class="n">≈ Time</th></tr>` +
     book.chapters.map(c => `<tr><td><input type="checkbox" data-n="${c.n}" ${!keep || keep.has(c.n) ? "checked" : ""}></td><td class="n">${c.n}</td><td>${esc(c.title)}</td><td class="n">${num(c.chars)}</td><td class="n">${fmt(c.seconds)}</td></tr>`).join("");
   t.querySelectorAll("input").forEach(i => i.onchange = selInfo); selInfo();
+  saveSession();
 }
 const selected = () => [...document.querySelectorAll("#chapters input:checked")].map(i => +i.dataset.n);
 function selInfo() {
@@ -181,6 +184,26 @@ $("#voice-form").onsubmit = async (e) => {
     msg.textContent = "Added " + v.id + (v.warnings.length ? " — " + v.warnings.join(" ") : ""); voice = v.id; e.target.reset(); loadVoices(); }
   catch (err) { msg.className = "err"; msg.textContent = err.message; }
 };
+
+// ---- session: the server remembers the selection, so reload / restart shows the same screen ----------
+let saveTimer = null, restoring = false;
+function saveSession() {
+  if (restoring || !book) return; clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => api("/api/session", { method: "PUT", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ book_id: book.book_id, chapters: selected(), voice, lang: $("#lang").value, depth: +$("#depth").value || 2,
+                           options: Object.fromEntries([...document.querySelectorAll("[id^=o-]")].map(e => [e.id, e.value])) }) }).catch(() => {}), 400);
+}
+document.addEventListener("change", saveSession);
+async function restoreSession() {
+  const s = await api("/api/session"); if (!s) return;
+  restoring = true;
+  try {
+    $("#depth").value = s.depth || 2;
+    book = await api(`/api/books/${s.book_id}/chapters?depth=${s.depth || 2}&lang=${s.lang || ""}`);
+    voice = s.voice || ""; setBook(book, new Set(s.chapters || []), s.lang);
+    for (const [id, v] of Object.entries(s.options || {})) { const e = document.getElementById(id); if (e) e.value = v; }
+  } finally { restoring = false; }
+}
 
 // ---- jobs -------------------------------------------------------------------------------------
 function options() {
@@ -260,10 +283,22 @@ $("#save-settings").onclick = async () => {
   catch (e) { $("#settings-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 };
 
-// ---- resume view after a page reload ----------------------------------------------------------
+// ---- the backend is the source of truth: reattach after reload, reconcile periodically -----------
+let online = true;
+async function reconcile() {
+  try {
+    const cur = await api("/api/jobs/current");
+    if (!online) { online = true; $("#offline").hidden = true; }
+    if (!cur) {  // the server has no job: it was restarted while the page showed one
+      if (job && !job.final) { end(); log("The server restarted; this job is gone.", "warn"); $("#run-msg").textContent = "Server restarted. Progress is saved — press Render to resume."; }
+      return;
+    }
+    const stale = !job || job.id !== cur.id || (cur.state !== "running" && !job.final);
+    if (stale) { attach(cur); if (cur.state === "running") $("#run-msg").textContent = "Showing the job that is running on the server."; }
+  } catch (e) { online = false; $("#offline").hidden = false; }
+}
 (async () => {
-  try { await loadSettings(); const cur = await api("/api/jobs/current");
-    if (cur && cur.state === "running") { attach(cur); $("#run-msg").textContent = "A job is already running — showing its progress."; } }
+  try { await loadSettings(); await restoreSession(); await reconcile(); setInterval(reconcile, 4000); }
   catch (e) { document.body.insertAdjacentHTML("afterbegin", `<p class="err" style="padding:16px">${esc(e.message)} — open the URL printed by <code>folivox ui</code> (it contains the access token).</p>`); }
 })();
 </script>

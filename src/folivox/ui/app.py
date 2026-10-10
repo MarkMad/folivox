@@ -38,9 +38,20 @@ class State:
         self.manager = JobManager(render)
 
     def book(self, book_id: str) -> dict:
+        """The uploaded book; re-read from disk after a server restart."""
         if book_id not in self.books:
-            raise ApiError("Unknown book; upload it again", 404)
+            from folivox.readers import read_book
+
+            folder = self.data_dir / "uploads" / Path(book_id).name
+            files = [p for p in folder.iterdir() if p.is_file()] if folder.is_dir() else []
+            if not files:
+                raise ApiError("Unknown book; upload it again", 404)
+            self.books[book_id] = {"book": read_book(files[0]), "path": files[0]}
         return self.books[book_id]
+
+    @property
+    def session_file(self) -> Path:
+        return self.data_dir / "session.json"
 
 
 def _chapters(book, depth: int) -> list[dict]:
@@ -122,6 +133,23 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                 raise ApiError(str(e)) from None
         depth = int(request.query_params.get("depth", 2))
         return JSONResponse(_book_summary(request.path_params["book_id"], book, depth))
+
+    async def get_session(request: Request):
+        """What the page had selected, so a reload (or a restart) shows the same screen."""
+        try:
+            data = json.loads(state.session_file.read_text(encoding="utf-8"))
+            state.book(data.get("book_id", ""))  # drop a session whose book is gone
+        except (OSError, ValueError, ApiError):
+            data = None
+        return JSONResponse(data)
+
+    async def put_session(request: Request):
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise ApiError("Session must be an object")
+        state.data_dir.mkdir(parents=True, exist_ok=True)
+        state.session_file.write_text(json.dumps(body), encoding="utf-8")
+        return JSONResponse({"ok": True})
 
     async def list_voices(request: Request):
         lang = request.query_params.get("lang")
@@ -318,6 +346,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/", index),
         Route("/api/books", upload_book, methods=["POST"]),
         Route("/api/books/{book_id}/chapters", book_chapters),
+        Route("/api/session", get_session),
+        Route("/api/session", put_session, methods=["PUT"]),
         Route("/api/voices", list_voices),
         Route("/api/voices", add_voice, methods=["POST"]),
         Route("/api/voices/{voice_id}/sample", voice_sample),
