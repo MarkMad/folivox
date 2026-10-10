@@ -73,8 +73,30 @@ def _book_summary(book_id: str, book, depth: int = 2) -> dict:
             "chars": book.chars, "estimated_seconds": book.estimated_seconds, "chapters": _chapters(book, depth)}
 
 
+_PEAKS: dict[tuple[str, float], dict] = {}
+
+
+def _wave(path: Path, bars: int = 64) -> dict:
+    """Waveform thumbnail of a voice sample: ``{peaks: [0..100]*bars, seconds}`` (empty without soundfile)."""
+    try:
+        key = (str(path), path.stat().st_mtime)
+        if key not in _PEAKS:
+            import numpy as np
+            import soundfile as sf
+
+            data, sr = sf.read(str(path), dtype="float32", always_2d=True)
+            mono = np.abs(data).max(axis=1)
+            chunks = np.array_split(mono, bars)
+            peaks = np.array([c.max() if c.size else 0.0 for c in chunks])
+            peaks = peaks / (peaks.max() or 1.0)
+            _PEAKS[key] = {"peaks": [int(round(100 * p)) for p in peaks], "seconds": round(len(mono) / sr, 1)}
+        return _PEAKS[key]
+    except Exception:  # noqa: BLE001 — a thumbnail is a nicety
+        return {"peaks": [], "seconds": 0}
+
+
 def _voice_json(v) -> dict:
-    return {"id": v.id, "name": v.name, "gender": v.gender, "lang": v.lang, "license": v.license,
+    return {**_wave(v.path), "id": v.id, "name": v.name, "gender": v.gender, "lang": v.lang, "license": v.license,
             "bundled": v.bundled, "default": v.id == catalog.DEFAULT_VOICE, "transcript": v.transcript}
 
 
@@ -154,8 +176,10 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
 
     async def list_voices(request: Request):
         lang = request.query_params.get("lang")
-        out = [_voice_json(v) for v in catalog.all_voices() if not lang or v.lang == lang]
-        return JSONResponse({"voices": out, "user_dir": str(catalog.user_voices_dir())})
+        voices = [v for v in catalog.all_voices() if not lang or v.lang == lang]
+        auto = {code: catalog.default_for(code).id for code in sorted({v.lang for v in catalog.all_voices()})}
+        return JSONResponse({"voices": [_voice_json(v) for v in voices], "auto": auto,
+                             "user_dir": str(catalog.user_voices_dir())})
 
     async def voice_sample(request: Request):
         v = catalog.find(request.path_params["voice_id"])

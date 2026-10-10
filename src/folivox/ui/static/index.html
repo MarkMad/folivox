@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Folivox</title>
 <style>
-:root { --bg:#f6f5f2; --card:#fff; --ink:#1d1c1a; --mute:#6b6a66; --line:#e3e1db; --accent:#2f6f5e; --accent-ink:#fff; --warn:#a4561a; --err:#b3261e; }
+:root { color-scheme:light dark; --bg:#f6f5f2; --card:#fff; --ink:#1d1c1a; --mute:#6b6a66; --line:#e3e1db; --accent:#2f6f5e; --accent-ink:#fff; --warn:#a4561a; --err:#b3261e; }
 @media (prefers-color-scheme: dark) { :root { --bg:#161615; --card:#201f1d; --ink:#ecebe7; --mute:#9a9892; --line:#34332f; --accent:#5fb39b; --accent-ink:#10201b; --warn:#e0a060; --err:#f2938b; } }
 * { box-sizing: border-box; }
 body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
@@ -14,7 +14,7 @@ h1 { font-size: 22px; margin: 0 0 4px; } h1 small { color:var(--mute); font-weig
 section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin:16px 0; }
 section > h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--mute); margin:0 0 10px; }
 section.disabled { opacity:.45; pointer-events:none; }
-button, select, input[type=text], input[type=number] { font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:5px 10px; }
+button, select, input[type=text], input[type=number], input[type=search], input[type=password] { font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:5px 10px; }
 button { cursor:pointer; } button.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
 button:disabled { opacity:.5; cursor:default; }
 .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; } .grow { flex:1; }
@@ -79,6 +79,28 @@ label.f { display:flex; flex-direction:column; gap:3px; font-size:13px; color:va
 #log { max-height:180px; margin-top:6px; }
 @media (max-width:640px) { .hero { grid-template-columns:1fr; } .lane { grid-template-columns:1fr 36px 24px; } .lane canvas { grid-column:1 / -1; grid-row:2; } }
 @media (prefers-reduced-motion: reduce) { .wave i, .stage, .overall > div { animation:none !important; transition:none !important; } .feed div { animation:none; } }
+
+/* ---- voices ---- */
+.vbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px; } .vbar input { flex:1; min-width:220px; }
+.chips { display:flex; gap:6px; flex-wrap:wrap; } #vlangs { margin-bottom:10px; }
+.chip { font-size:12.5px; padding:3px 11px; border-radius:99px; border:1px solid var(--line); background:transparent; color:var(--mute); cursor:pointer; }
+.chip:hover { color:var(--ink); } .chip.on { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); } .chip small { opacity:.7; margin-left:3px; }
+.vgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; max-height:430px; overflow:auto; padding:3px; margin:-3px; }
+.vcard { position:relative; display:grid; grid-template-columns:40px 1fr; gap:4px 12px; align-items:start; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; transition:border-color .2s, box-shadow .2s, transform .2s; }
+.vcard:hover { border-color:var(--mute); } .vcard:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.vcard.sel { border-color:var(--accent); box-shadow:0 0 0 3px var(--glow); } .vcard.off { opacity:.62; }
+.vplay { width:40px; height:40px; border-radius:50%; padding:0; line-height:1; border:1px solid var(--line); font-size:14px; background:var(--bg); }
+.vcard.sel .vplay, .vcard.playing .vplay { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+.vname { font-weight:600; font-size:14.5px; display:flex; gap:6px; align-items:center; min-width:0; } .vname span.n { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.vmeta { font-size:12px; color:var(--mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.vwave { grid-column:1 / -1; width:100%; height:26px; display:block; margin-top:4px; }
+.vtext { grid-column:1 / -1; font-size:12.5px; color:var(--mute); line-height:1.35; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.vbadge { font-size:10.5px; font-weight:500; padding:1px 7px; border-radius:99px; background:var(--bg); color:var(--mute); text-transform:uppercase; letter-spacing:.04em; flex:none; }
+.vbadge.mine { background:var(--glow); color:var(--seg-done); } .vbadge.warn { color:var(--warn); }
+.vcheck { position:absolute; top:9px; right:11px; color:var(--accent); font-weight:700; opacity:0; transition:opacity .2s; } .vcard.sel .vcheck { opacity:1; }
+.vdel { position:absolute; bottom:8px; right:8px; padding:0 7px; font-size:12px; opacity:0; border-radius:6px; } .vcard:hover .vdel { opacity:1; }
+.vcard.auto { background:linear-gradient(135deg,var(--glow),transparent 70%); }
+.vempty { grid-column:1 / -1; text-align:center; padding:26px 8px; color:var(--mute); }
 </style>
 </head>
 <body>
@@ -99,7 +121,11 @@ label.f { display:flex; flex-direction:column; gap:3px; font-size:13px; color:va
 </section>
 
 <section id="s-voice" class="disabled"><h2>3 · Voice</h2>
-  <div id="voices"></div>
+  <div class="vbar"><input id="vq" type="search" placeholder="Search voices — name, id, text of the sample" autocomplete="off">
+    <div class="chips" id="vgender"></div></div>
+  <div class="chips" id="vlangs"></div>
+  <div class="vgrid" id="voices" role="radiogroup" aria-label="Voice"></div>
+  <div class="mute" id="vcount" style="margin-top:6px"><small></small></div>
   <details style="margin-top:10px"><summary>Add your own voice (6–15 s of clean speech)</summary>
     <form id="voice-form" class="grid">
       <label class="f">Id (a-z, 0-9, - _)<input name="id" type="text" required pattern="[a-z0-9][a-z0-9_-]*"></label>
@@ -223,21 +249,85 @@ async function reflow() {
 }
 $("#depth").onchange = reflow; $("#lang").onchange = reflow;
 
-// ---- voices -----------------------------------------------------------------------------------
+// ---- voices: a searchable, filterable gallery with waveform thumbnails -------------------------------
+let VOICES = [], AUTO = {}, vf = { q: "", lang: null, gender: "", manual: false }, vplayer = null;
 async function loadVoices() {
-  const { voices } = await api("/api/voices");
-  const mine = voices.filter(v => v.lang === book.lang), other = voices.filter(v => v.lang !== book.lang);
-  const row = (v) => `<div class="voice"><input type="radio" name="voice" value="${esc(v.id)}" ${v.id === voice ? "checked" : ""}>
-    <div class="grow"><b>${esc(v.name)}</b> <span class="mute">${esc(v.id)} · ${esc(v.lang)}${v.gender ? " · " + v.gender : ""}${v.license ? " · " + esc(v.license) : ""}${v.bundled ? "" : " · mine"}</span></div>
-    <audio controls preload="none" src="${tok("/api/voices/" + encodeURIComponent(v.id) + "/sample")}"></audio>
-    ${v.bundled ? "" : `<button data-del="${esc(v.id)}" title="Remove">✕</button>`}</div>`;
-  $("#voices").innerHTML = `<div class="voice"><input type="radio" name="voice" value="" ${voice === "" ? "checked" : ""}><div class="grow"><b>Automatic</b> <span class="mute">a catalog voice in the book's language</span></div></div>` +
-    mine.map(row).join("") + (other.length ? `<details><summary>Other languages (${other.length}) — the accent may carry over</summary>${other.map(row).join("")}</details>` : "");
-  document.querySelectorAll("#voices input[type=radio]").forEach(r => r.onchange = () => voice = r.value);
-  document.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
-    if (confirm("Remove voice " + b.dataset.del + "?")) { await api("/api/voices/" + b.dataset.del, { method: "DELETE" }); if (voice === b.dataset.del) voice = ""; loadVoices(); } });
+  const r = await api("/api/voices"); VOICES = r.voices; AUTO = r.auto;
+  if (!vf.manual || (vf.lang !== "all" && !VOICES.some(v => v.lang === vf.lang))) vf.lang = VOICES.some(v => v.lang === book.lang) ? book.lang : "all";
   $("#voice-lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}" ${c === book.lang ? "selected" : ""}>${n}</option>`).join("");
+  renderVoices();
 }
+const GENDER = { f: "female", m: "male" };
+function voiceMatches(v) {
+  if (vf.lang !== "all" && v.lang !== vf.lang) return false;
+  if (vf.gender && v.gender !== vf.gender) return false;
+  const q = vf.q.trim().toLowerCase();
+  return !q || [v.name, v.id, v.transcript, v.license, LANGS[v.lang]].some(x => (x || "").toLowerCase().includes(q));
+}
+function renderVoices() {
+  // language chips: the book's language first, then the rest by number of voices
+  const counts = {}; VOICES.forEach(v => counts[v.lang] = (counts[v.lang] || 0) + 1);
+  const langs = Object.keys(counts).sort((a, b) => (b === book.lang) - (a === book.lang) || counts[b] - counts[a] || a.localeCompare(b));
+  $("#vlangs").innerHTML = [`<button class="chip ${vf.lang === "all" ? "on" : ""}" data-lang="all">All languages<small>${VOICES.length}</small></button>`]
+    .concat(langs.map(c => `<button class="chip ${vf.lang === c ? "on" : ""}" data-lang="${c}">${esc(LANGS[c] || c)}${c === book.lang ? " · book" : ""}<small>${counts[c]}</small></button>`)).join("");
+  const genders = [...new Set(VOICES.map(v => v.gender).filter(Boolean))];
+  $("#vgender").innerHTML = genders.length > 1 ? [["", "Any"], ...genders.map(g => [g, GENDER[g] || g])].map(([g, n]) => `<button class="chip ${vf.gender === g ? "on" : ""}" data-g="${g}">${n}</button>`).join("") : "";
+  const shown = VOICES.filter(voiceMatches);
+  const autoId = AUTO[book.lang] || AUTO[Object.keys(AUTO)[0]], autoV = VOICES.find(v => v.id === autoId);
+  const showAuto = !vf.q.trim() && (vf.lang === "all" || vf.lang === book.lang) && !vf.gender;
+  const card = (v, auto) => `<div class="vcard ${auto ? "auto" : ""} ${(auto ? voice === "" : voice === v.id) ? "sel" : ""} ${v.lang !== book.lang && !auto ? "off" : ""}" role="radio" tabindex="0" aria-checked="${auto ? voice === "" : voice === v.id}" data-id="${auto ? "" : esc(v.id)}">
+    <button class="vplay" data-play="${esc(v.id)}" aria-label="Play a sample of ${esc(v.name)}">▶</button>
+    <div style="min-width:0"><div class="vname"><span class="n">${auto ? "Automatic" : esc(v.name)}</span>${auto ? "" : v.bundled ? "" : `<span class="vbadge mine">mine</span>`}${!auto && v.lang !== book.lang ? `<span class="vbadge warn" title="The accent of the sample may carry over">${esc(v.lang)}</span>` : ""}</div>
+      <div class="vmeta">${auto ? `best match for the book → ${esc(v.name)}` : [esc(v.id), esc(LANGS[v.lang] || v.lang), GENDER[v.gender] || "", v.seconds ? v.seconds + " s" : "", esc(v.license)].filter(Boolean).join(" · ")}</div></div>
+    <canvas class="vwave" data-wave="${esc(v.id)}"></canvas>
+    <div class="vtext">${esc(v.transcript)}</div>
+    <span class="vcheck">✓</span>${!auto && !v.bundled ? `<button class="vdel" data-del="${esc(v.id)}" title="Remove this voice">✕</button>` : ""}</div>`;
+  $("#voices").innerHTML = (showAuto && autoV ? card(autoV, true) : "") + shown.map(v => card(v, false)).join("") ||
+    "";
+  if (!shown.length) {
+    const q = vf.q.trim().toLowerCase(), elsewhere = VOICES.filter(v => (!vf.gender || v.gender === vf.gender) && (!q || [v.name, v.id, v.transcript].some(x => (x || "").toLowerCase().includes(q)))).length;
+    $("#voices").innerHTML += `<div class="vempty">No voices match${vf.lang !== "all" ? ` in ${esc(LANGS[vf.lang] || vf.lang)}` : ""}. ${vf.lang !== "all" && elsewhere ? `<a href="#" id="vall">Show ${elsewhere} in other languages</a> or ` : ""}add your own below.</div>`;
+  }
+  $("#vcount").firstChild.textContent = `${shown.length} of ${VOICES.length} voices` + (voice && !shown.some(v => v.id === voice) ? ` · selected: ${(VOICES.find(v => v.id === voice) || {}).name || voice} (hidden by the filter)` : "");
+  document.querySelectorAll("#voices .vwave").forEach(c => drawWave(c, 0));
+}
+function drawWave(cv, progress) {
+  const v = VOICES.find(x => x.id === cv.dataset.wave); if (!v || !v.peaks.length) return;
+  const dpr = window.devicePixelRatio || 1, W = Math.round(cv.clientWidth * dpr), H = Math.round(26 * dpr); if (!W) return;
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const g = cv.getContext("2d"), n = v.peaks.length, step = W / n, bw = Math.max(1, step * 0.62), on = css("--accent"), off = css("--seg-pending");
+  g.clearRect(0, 0, W, H);
+  v.peaks.forEach((p, i) => { const h = Math.max(2 * dpr, H * p / 100); g.fillStyle = i / n < progress ? on : off; g.fillRect(i * step, (H - h) / 2, bw, h); });
+}
+function pickVoice(id) { voice = id; renderVoices(); saveSession(); }
+function playVoice(id) {
+  if (vplayer && vplayer.vid === id && !vplayer.paused) { vplayer.pause(); return; }
+  if (vplayer) vplayer.pause();
+  vplayer = new Audio(tok(`/api/voices/${encodeURIComponent(id)}/sample`)); vplayer.vid = id;
+  const cards = () => [...document.querySelectorAll(`.vcard`)].filter(c => c.querySelector(`[data-play="${CSS.escape(id)}"]`));
+  const mark = (on) => cards().forEach(c => { c.classList.toggle("playing", on); c.querySelector(".vplay").textContent = on ? "❚❚" : "▶"; });
+  vplayer.onplay = () => mark(true);
+  vplayer.onpause = vplayer.onended = () => { mark(false); cards().forEach(c => drawWave(c.querySelector(".vwave"), 0)); };
+  vplayer.ontimeupdate = () => cards().forEach(c => drawWave(c.querySelector(".vwave"), vplayer.currentTime / (vplayer.duration || 1)));
+  vplayer.play();
+}
+$("#voices").addEventListener("click", async (e) => {
+  const play = e.target.closest("[data-play]"), del = e.target.closest("[data-del]"), card = e.target.closest(".vcard");
+  if (e.target.id === "vall") { e.preventDefault(); vf.lang = "all"; vf.manual = true; return renderVoices(); }
+  if (play) { e.stopPropagation(); return playVoice(play.dataset.play); }
+  if (del) { e.stopPropagation(); if (confirm("Remove voice " + del.dataset.del + "?")) { await api("/api/voices/" + del.dataset.del, { method: "DELETE" }); if (voice === del.dataset.del) voice = ""; loadVoices(); saveSession(); } return; }
+  if (card) pickVoice(card.dataset.id);
+});
+$("#voices").addEventListener("keydown", (e) => {
+  const card = e.target.closest(".vcard"); if (!card || e.target.tagName === "BUTTON") return;
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickVoice(card.dataset.id); }
+  if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault();
+    const all = [...document.querySelectorAll(".vcard")], i = all.indexOf(card), j = Math.max(0, Math.min(all.length - 1, i + (e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : -1))); all[j].focus(); }
+});
+$("#vlangs").addEventListener("click", (e) => { const b = e.target.closest("[data-lang]"); if (b) { vf.lang = b.dataset.lang; vf.manual = true; renderVoices(); } });
+$("#vgender").addEventListener("click", (e) => { const b = e.target.closest("[data-g]"); if (b) { vf.gender = b.dataset.g; renderVoices(); } });
+$("#vq").addEventListener("input", (e) => { vf.q = e.target.value; renderVoices(); });
+window.addEventListener("resize", () => document.querySelectorAll("#voices .vwave").forEach(c => drawWave(c, 0)));
 $("#voice-form").onsubmit = async (e) => {
   e.preventDefault(); const msg = $("#voice-msg"); msg.className = "mute"; msg.textContent = "Adding (may transcribe with Whisper)…";
   try { const v = await api("/api/voices", { method: "POST", body: new FormData(e.target) });

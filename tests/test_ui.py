@@ -234,3 +234,11 @@ def test_reveal_only_for_finished_jobs(client, tmp_path, monkeypatch):
     assert client.post(f"/api/jobs/{job}/reveal").status_code == 404  # fake render wrote no output file
     (out / "tale.m4b").write_bytes(b"x")
     assert client.post(f"/api/jobs/{job}/reveal").status_code == 200 and calls
+
+
+def test_voices_carry_waveform_and_auto_choice(client):
+    r = client.get("/api/voices").json()
+    v = r["voices"][0]
+    assert {"peaks", "seconds", "transcript", "lang"} <= set(v)
+    assert len(v["peaks"]) == 64 and max(v["peaks"]) == 100  # soundfile is part of the test group
+    assert r["auto"]["ru"] in {x["id"] for x in r["voices"]}
