@@ -160,6 +160,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
           <div class="av-or">or</div><button type="button" id="av-rec" class="rec">● Record with the microphone</button><input id="av-file" type="file" accept="audio/*" hidden></div>
         <div id="av-script" class="av-script" hidden><small class="mute">READ ALOUD, CALMLY</small><div id="av-script-text"></div></div>
         <div id="av-rec-ui" class="av-rec" hidden><span class="dotrec"></span><span id="av-timer">0:00</span><div class="meter"><i id="av-meter"></i></div><button type="button" id="av-stop" class="primary">■ Stop</button></div>
+        <div id="av-hint" class="mute" hidden><small></small></div>
         <div id="av-sample" class="av-sample" hidden>
           <button type="button" id="av-play" class="vplay">▶</button>
           <div style="min-width:0;flex:1"><div id="av-fname" class="vname"></div><canvas id="av-wave" class="vwave" style="margin-top:2px"></canvas>
@@ -417,8 +418,18 @@ async function useFile(file, defaultName) {
     if (!$("#av-name").value) { $("#av-name").value = defaultName || file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " "); nameChanged(); }
   } catch (e) { $("#av-msg").innerHTML = `<span class="err">Cannot read this audio file in the browser. Try WAV, MP3 or FLAC.</span>`; }
 }
+// Loudness is evened out here: the sample is scaled to a 0.9 peak (what the server does too), so the preview is audible.
+// Gain cannot fix a noisy room, so the background level is measured and reported.
+function analyse(mono, sr) {
+  const n = Math.max(1, Math.round(sr * 0.02)), rms = []; let peak = 0;
+  for (let i = 0; i + n <= mono.length; i += n) { let e = 0; for (let j = i; j < i + n; j++) { const x = mono[j]; e += x * x; if (Math.abs(x) > peak) peak = Math.abs(x); } rms.push(Math.sqrt(e / n)); }
+  rms.sort((a, b) => a - b); const at = (q) => rms[Math.min(rms.length - 1, Math.floor(q * rms.length))] || 0;
+  return { peak, snr: 20 * Math.log10((at(0.9) + 1e-6) / (at(0.1) + 1e-5)) };
+}
 function setSample(mono, sr, name) {
-  av = { mono, sr, name }; const n = 64, step = Math.max(1, Math.floor(mono.length / n)), peaks = [];
+  const st = analyse(mono, sr), gain = st.peak > 1e-4 ? Math.min(40, 0.9 / st.peak) : 1;
+  if (Math.abs(gain - 1) > 0.05) { mono = mono.map(x => x * gain); }
+  av = { mono, sr, name, gain, snr: st.snr, silent: st.peak <= 1e-4 }; const n = 64, step = Math.max(1, Math.floor(mono.length / n)), peaks = [];
   for (let i = 0; i < n; i++) { let m = 0; for (let j = i * step; j < Math.min(mono.length, (i + 1) * step); j++) m = Math.max(m, Math.abs(mono[j])); peaks.push(m); }
   const top = Math.max(...peaks) || 1; av.peaks = peaks.map(p => Math.round(100 * p / top));
   av.blobUrl && URL.revokeObjectURL(av.blobUrl); av.blobUrl = URL.createObjectURL(wavBlob(mono, sr));
@@ -427,7 +438,9 @@ function setSample(mono, sr, name) {
 function showSample(progress = 0) {
   const sec = av.mono.length / av.sr, d = $("#av-dur"); $("#av-trim").hidden = sec <= 15;
   const [cls, msg] = sec < 3 ? ["stop", "too short — at least 3 s"] : sec > 30 ? ["stop", "too long — at most 30 s"] : sec < 6 ? ["bad", "short — 6–15 s works best"] : sec > 15 ? ["bad", "long — 6–15 s works best"] : ["ok", "good length"];
-  d.innerHTML = `${sec.toFixed(1)} s · <span class="${cls}">${msg}</span>`;
+  const noise = av.silent ? ["stop", "no sound recorded — check the microphone"] : av.snr < 15 ? ["bad", "noisy — record closer to the microphone or in a quieter room"]
+    : av.snr < 25 ? ["bad", "some background noise"] : ["ok", "clean"];
+  d.innerHTML = `${sec.toFixed(1)} s · <span class="${cls}">${msg}</span><br>${av.gain > 1.5 ? `level raised ×${av.gain.toFixed(1)} · ` : ""}<span class="${noise[0]}">${noise[1]}</span>`;
   const cv = $("#av-wave"), dpr = window.devicePixelRatio || 1, W = Math.round(cv.clientWidth * dpr), H = Math.round(26 * dpr); if (!W) return;
   cv.width = W; cv.height = H; const g = cv.getContext("2d"), step = W / av.peaks.length;
   av.peaks.forEach((p, i) => { const h = Math.max(2 * dpr, H * p / 100); g.fillStyle = i / av.peaks.length < progress ? css("--accent") : css("--seg-pending"); g.fillRect(i * step, (H - h) / 2, Math.max(1, step * 0.62), h); });
@@ -450,17 +463,18 @@ function wavBlob(mono, sr) {
 // recording from the microphone, with a sentence to read (so the transcript is known)
 $("#av-rec").onclick = async () => {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: true } });
     const ctx = new AudioContext(), src = ctx.createMediaStreamSource(stream), an = ctx.createAnalyser(); an.fftSize = 512; src.connect(an);
     const rec = new MediaRecorder(stream), chunks = []; rec.ondataavailable = (e) => chunks.push(e.data);
-    avRec = { stream, ctx, rec, chunks, t0: Date.now(), timer: null, cancel: false };
-    rec.onstop = async () => { clearInterval(avRec.timer); stream.getTracks().forEach(t => t.stop()); const cancel = avRec.cancel; ctx.close(); $("#av-rec-ui").hidden = true;
+    avRec = { stream, ctx, rec, chunks, t0: Date.now(), timer: null, cancel: false, loud: 0 };
+    rec.onstop = async () => { clearInterval(avRec.timer); stream.getTracks().forEach(t => t.stop()); const cancel = avRec.cancel; ctx.close(); $("#av-rec-ui").hidden = true; $("#av-hint").hidden = true;
       if (cancel) { avRec = null; return; } const blob = new Blob(chunks); avRec = null; await useFile(new File([blob], "recording.webm"), "My voice"); $("#av-sample").querySelector("#av-fname").textContent = "Recording"; };
     const lang = $("#av-lang").value, text = SCRIPTS[lang] || SCRIPTS.en, data = new Uint8Array(an.fftSize);
     $("#av-script-text").textContent = text; $("#av-script").hidden = false; if (!$("#av-text").value) $("#av-text").value = text; avDirty = true;
     $("#av-drop").hidden = true; $("#av-rec-ui").hidden = false; $("#av-msg").textContent = "";
     avRec.timer = setInterval(() => { const s = (Date.now() - avRec.t0) / 1000; $("#av-timer").textContent = `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-      an.getByteTimeDomainData(data); let peak = 0; for (const x of data) peak = Math.max(peak, Math.abs(x - 128)); $("#av-meter").style.width = Math.min(100, peak / 90 * 100) + "%"; if (s >= 15) stopRec(); }, 100);
+      an.getByteTimeDomainData(data); let peak = 0; for (const x of data) peak = Math.max(peak, Math.abs(x - 128)); $("#av-meter").style.width = Math.min(100, peak / 90 * 100) + "%"; avRec.loud = Math.max(avRec.loud * 0.97, peak / 128);
+      const hint = s > 1.5 && avRec.loud < 0.12 ? "Very quiet — speak closer to the microphone." : ""; $("#av-hint").hidden = !hint; $("#av-hint").firstChild.textContent = hint; if (s >= 15) stopRec(); }, 100);
     rec.start();
   } catch (e) { $("#av-msg").innerHTML = `<span class="err">Cannot use the microphone (${esc(e.name)}). Allow access in the browser, or upload a file.</span>`; }
 };
@@ -474,7 +488,7 @@ $("#av-gender").onclick = (e) => { const b = e.target.closest("button"); if (!b)
 ["#av-consent", "#av-text"].forEach(i => $(i).addEventListener("input", checkAdd));
 function checkAdd() {
   const sec = av ? av.mono.length / av.sr : 0, idOk = /^[a-z0-9][a-z0-9_-]{0,40}$/.test($("#av-id").value);
-  $("#av-submit").disabled = !(av && sec >= 3 && sec <= 30 && idOk && $("#av-consent").checked);
+  $("#av-submit").disabled = !(av && !av.silent && sec >= 3 && sec <= 30 && idOk && $("#av-consent").checked);
 }
 $("#av-submit").onclick = async () => {
   const msg = $("#av-msg"), btn = $("#av-submit"); msg.className = "mute"; btn.disabled = true;
