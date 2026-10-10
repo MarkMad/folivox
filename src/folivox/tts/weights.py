@@ -115,6 +115,14 @@ def resolve_model_dir(explicit: str | os.PathLike | None = None, download: bool 
 LLM_FILES = {"base": "llm.pt", "rl": "llm.rl.pt"}
 
 
+def needs_download(explicit: str | os.PathLike | None = None, llm: str = "rl") -> bool:
+    """True when starting the engine would download weights (so the UI can say so up front)."""
+    if explicit or os.environ.get(ENV):
+        return False  # a user-provided folder is never downloaded into (an incomplete one is an error)
+    p = default_model_dir()
+    return not is_complete(p) or not (p / LLM_FILES.get(llm, "llm.pt")).exists()
+
+
 def ensure_llm(model_dir: Path, variant: str) -> str:
     """Return the LLM weights file name for ``variant``, downloading the RL file on demand."""
     name = LLM_FILES[variant]

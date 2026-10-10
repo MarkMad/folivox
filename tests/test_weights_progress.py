@@ -29,3 +29,17 @@ def test_watch_reports_progress_and_final_total(tmp_path, monkeypatch):
 def test_no_hook_is_silent(tmp_path):
     with weights._watch("w", tmp_path, ["a.bin"]):
         pass
+
+
+def test_needs_download(tmp_path, monkeypatch):
+    monkeypatch.delenv(weights.ENV, raising=False)
+    monkeypatch.setattr(weights, "default_model_dir", lambda: tmp_path / "m")
+    assert weights.needs_download(None, "rl")  # nothing there yet
+    for f in weights.REQUIRED:
+        (tmp_path / "m" / f).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / "m" / f).write_bytes(b"x")
+    assert not weights.needs_download(None, "base")
+    assert weights.needs_download(None, "rl")  # the RL llm file is fetched separately
+    (tmp_path / "m" / "llm.rl.pt").write_bytes(b"x")
+    assert not weights.needs_download(None, "rl")
+    assert not weights.needs_download(str(tmp_path / "custom"), "rl")  # user folders are never downloaded into

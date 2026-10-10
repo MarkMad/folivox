@@ -289,9 +289,13 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
             events.warning(w)
         plan(book, opts, journal, voice.id, events)
         if journal.pending():
-            events.stage("model", f"Loading TTS model ({opts.tts})")
-            t0 = time.time()
             from folivox.tts import weights
+
+            if opts.tts == "cosyvoice3" and weights.needs_download(opts.model_dir, opts.llm):
+                events.stage("download", "Preparing the model download (first run)")
+            else:
+                events.stage("model", f"Loading TTS model into memory ({opts.tts})")
+            t0 = time.time()
 
             with weights.reporting(events.download):
                 engine = ENGINES.create(opts.tts, **_engine_options(opts))
