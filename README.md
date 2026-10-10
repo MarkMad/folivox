@@ -82,6 +82,17 @@ longer explanations (`voices`, `providers`, `config`, `languages`, `resuming`, `
 | | `--work-dir` | `<output>.folivox/` | cache and journal; delete it when done |
 | | `--verbose` | | print every fragment |
 
+### Web interface
+
+```bash
+uv tool install "folivox[all]"   # `all` includes the `ui` extra
+folivox ui                       # http://127.0.0.1:8765, local only; the URL contains an access token
+```
+
+Pick a book, choose chapters and a voice (with audition), render a short preview, then the whole
+book with live progress; stop and resume at any time. It uses the same pipeline, cache and config as
+the CLI. See [docs/ui.md](docs/ui.md).
+
 ### Voices
 
 ```bash

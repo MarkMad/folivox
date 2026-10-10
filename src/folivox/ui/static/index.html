@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Folivox</title>
+<style>
+:root { --bg:#f6f5f2; --card:#fff; --ink:#1d1c1a; --mute:#6b6a66; --line:#e3e1db; --accent:#2f6f5e; --accent-ink:#fff; --warn:#a4561a; --err:#b3261e; }
+@media (prefers-color-scheme: dark) { :root { --bg:#161615; --card:#201f1d; --ink:#ecebe7; --mute:#9a9892; --line:#34332f; --accent:#5fb39b; --accent-ink:#10201b; --warn:#e0a060; --err:#f2938b; } }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+main { max-width: 860px; margin: 0 auto; padding: 24px 16px 80px; }
+h1 { font-size: 22px; margin: 0 0 4px; } h1 small { color:var(--mute); font-weight:400; font-size:14px; }
+section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin:16px 0; }
+section > h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--mute); margin:0 0 10px; }
+section.disabled { opacity:.45; pointer-events:none; }
+button, select, input[type=text], input[type=number] { font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:5px 10px; }
+button { cursor:pointer; } button.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+button:disabled { opacity:.5; cursor:default; }
+.row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; } .grow { flex:1; }
+.mute { color:var(--mute); } .err { color:var(--err); } .warn { color:var(--warn); } small { font-size:13px; }
+#drop { border:2px dashed var(--line); border-radius:8px; padding:22px; text-align:center; color:var(--mute); cursor:pointer; }
+#drop.over { border-color:var(--accent); color:var(--ink); }
+table { width:100%; border-collapse:collapse; } td, th { padding:4px 6px; text-align:left; border-bottom:1px solid var(--line); font-size:14px; }
+td.n, th.n { text-align:right; color:var(--mute); white-space:nowrap; }
+.chapters { max-height:300px; overflow:auto; border:1px solid var(--line); border-radius:6px; }
+.voice { display:flex; gap:10px; align-items:center; padding:6px 4px; border-bottom:1px solid var(--line); }
+.voice audio { height:30px; width:200px; }
+.progress { height:10px; background:var(--line); border-radius:5px; overflow:hidden; margin:10px 0 4px; }
+.progress > div { height:100%; width:0; background:var(--accent); transition:width .3s; }
+#log { font:12px/1.5 ui-monospace,Menlo,monospace; max-height:180px; overflow:auto; background:var(--bg); border-radius:6px; padding:8px; margin-top:8px; white-space:pre-wrap; }
+details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px 16px; margin-top:10px; }
+label.f { display:flex; flex-direction:column; gap:3px; font-size:13px; color:var(--mute); } label.f input, label.f select { color:var(--ink); }
+.built { display:flex; gap:10px; align-items:center; padding:3px 0; } .built audio { height:30px; flex:1; max-width:420px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Folivox <small>local audiobook generator — everything stays on this computer</small></h1>
+
+<section id="s-book"><h2>1 · Book</h2>
+  <div id="drop">Drop an FB2, EPUB, DOCX, PDF or TXT file here, or click to choose<input id="file" type="file" hidden accept=".fb2,.zip,.epub,.docx,.pdf,.txt"></div>
+  <div id="book-info" class="mute" style="margin-top:10px"></div>
+</section>
+
+<section id="s-chapters" class="disabled"><h2>2 · Chapters</h2>
+  <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:6px">Language <select id="lang"></select></label>
+    <label class="f" style="flex-direction:row;align-items:center;gap:6px">Split depth <input id="depth" type="number" min="1" max="6" value="2" style="width:60px"></label>
+    <button id="all">All</button><button id="none">None</button><span id="sel-info" class="mute grow"></span></div>
+  <div class="chapters" style="margin-top:10px"><table id="chapters"></table></div>
+</section>
+
+<section id="s-voice" class="disabled"><h2>3 · Voice</h2>
+  <div id="voices"></div>
+  <details style="margin-top:10px"><summary>Add your own voice (6–15 s of clean speech)</summary>
+    <form id="voice-form" class="grid">
+      <label class="f">Id (a-z, 0-9, - _)<input name="id" type="text" required pattern="[a-z0-9][a-z0-9_-]*"></label>
+      <label class="f">Name<input name="name" type="text"></label>
+      <label class="f">Sex<select name="gender"><option value="">—</option><option value="f">f</option><option value="m">m</option></select></label>
+      <label class="f">Language of the sample<select name="lang" id="voice-lang"></select></label>
+      <label class="f">Audio file<input name="file" type="file" accept="audio/*" required></label>
+      <label class="f">Transcript (empty = Whisper)<input name="transcript" type="text"></label>
+      <div class="row" style="grid-column:1/-1"><button class="primary">Add voice</button><span id="voice-msg" class="mute"></span></div>
+    </form>
+    <p class="mute"><small>Clone only your own voice or one you have permission to use.</small></p>
+  </details>
+</section>
+
+<section id="s-run" class="disabled"><h2>4 · Render</h2>
+  <details><summary>Options</summary>
+    <div class="grid">
+      <label class="f">Speed<input id="o-speed" type="number" step="0.05" min="0.5" max="1.5" value="1"></label>
+      <label class="f">Max fragment (chars)<input id="o-max_chars" type="number" value="400"></label>
+      <label class="f">Stress (Russian)<select id="o-stress"><option>yo</option><option>none</option><option>all</option></select></label>
+      <label class="f">QA takes<input id="o-takes" type="number" min="1" max="10" value="3"></label>
+      <label class="f">Quality check<select id="o-qa"><option value="1">on (speech recognition)</option><option value="0">off (faster)</option></select></label>
+      <label class="f">Output<select id="o-mp3"><option value="0">one m4b</option><option value="1">mp3 per chapter</option></select></label>
+      <label class="f">Output folder<input id="o-output_dir" type="text" placeholder="~/Audiobooks"></label>
+      <label class="f">Device<select id="o-device"><option>auto</option><option>cpu</option><option>cuda</option><option>mps</option></select></label>
+    </div></details>
+  <div class="row" style="margin-top:12px">
+    <button id="preview">▶ Preview (first 600 chars)</button>
+    <button id="render" class="primary">Render audiobook</button>
+    <button id="cancel" disabled>Stop (resume later)</button>
+    <span id="run-msg" class="mute grow"></span>
+  </div>
+  <div class="progress"><div id="bar"></div></div>
+  <div id="stats" class="mute"><small></small></div>
+  <div id="built"></div>
+  <div id="log" hidden></div>
+</section>
+
+<section><h2>Providers</h2>
+  <div id="settings" class="grid"></div>
+  <div class="row" style="margin-top:10px"><button id="save-settings">Save</button><span id="settings-msg" class="mute"></span></div>
+  <p class="mute"><small id="settings-note"></small></p>
+</section>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const TOKEN = new URLSearchParams(location.search).get("token") || "";
+const fmt = (s) => { s = Math.round(s); const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60;
+  return h ? `${h} h ${String(m).padStart(2,"0")} min` : `${m} min ${String(x).padStart(2,"0")} s`; };
+const num = (n) => n.toLocaleString("en").replace(/,/g, " ");
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const tok = (url) => url + (url.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(TOKEN);
+async function api(url, opts = {}) {
+  opts.headers = { "X-Folivox-Token": TOKEN, ...(opts.headers || {}) };
+  const r = await fetch(url, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+const LANGS = {ru:"Русский",en:"English",de:"Deutsch",fr:"Français",es:"Español",it:"Italiano",zh:"中文",ja:"日本語",ko:"한국어"};
+let book = null, voice = "", job = null, es = null;
+
+// ---- book -------------------------------------------------------------------------------------
+$("#drop").onclick = () => $("#file").click();
+$("#file").onchange = (e) => e.target.files[0] && upload(e.target.files[0]);
+["dragover","dragenter"].forEach(t => $("#drop").addEventListener(t, (e) => { e.preventDefault(); $("#drop").classList.add("over"); }));
+["dragleave","drop"].forEach(t => $("#drop").addEventListener(t, (e) => { e.preventDefault(); $("#drop").classList.remove("over"); }));
+$("#drop").addEventListener("drop", (e) => e.dataTransfer.files[0] && upload(e.dataTransfer.files[0]));
+async function upload(file) {
+  $("#book-info").textContent = "Reading " + file.name + "…";
+  const fd = new FormData(); fd.append("file", file);
+  try { setBook(await api("/api/books", { method: "POST", body: fd })); }
+  catch (e) { $("#book-info").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
+function setBook(b) {
+  book = b;
+  $("#book-info").innerHTML = `<b style="color:var(--ink)">${esc(b.title)}</b> — ${esc(b.author || "unknown author")} · ${esc(b.lang_name)} · ${esc(b.format.toUpperCase())}${b.year ? " · " + esc(b.year) : ""} · ${num(b.chars)} characters · ≈ ${fmt(b.estimated_seconds)}`;
+  $("#lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}" ${c === b.lang ? "selected" : ""}>${n}</option>`).join("");
+  renderChapters();
+  ["#s-chapters", "#s-voice", "#s-run"].forEach(s => $(s).classList.remove("disabled"));
+  loadVoices();
+}
+function renderChapters(keep) {
+  const t = $("#chapters");
+  t.innerHTML = `<tr><th></th><th class="n">#</th><th>Chapter</th><th class="n">Characters</th><th class="n">≈ Time</th></tr>` +
+    book.chapters.map(c => `<tr><td><input type="checkbox" data-n="${c.n}" ${!keep || keep.has(c.n) ? "checked" : ""}></td><td class="n">${c.n}</td><td>${esc(c.title)}</td><td class="n">${num(c.chars)}</td><td class="n">${fmt(c.seconds)}</td></tr>`).join("");
+  t.querySelectorAll("input").forEach(i => i.onchange = selInfo); selInfo();
+}
+const selected = () => [...document.querySelectorAll("#chapters input:checked")].map(i => +i.dataset.n);
+function selInfo() {
+  const s = new Set(selected()); const secs = book.chapters.filter(c => s.has(c.n)).reduce((a, c) => a + c.seconds, 0);
+  $("#sel-info").textContent = `${s.size} of ${book.chapters.length} chapters · ≈ ${fmt(secs)}`;
+}
+$("#all").onclick = () => { document.querySelectorAll("#chapters input").forEach(i => i.checked = true); selInfo(); };
+$("#none").onclick = () => { document.querySelectorAll("#chapters input").forEach(i => i.checked = false); selInfo(); };
+async function reflow() {
+  const r = await api(`/api/books/${book.book_id}/chapters?depth=${+$("#depth").value || 2}&lang=${$("#lang").value}`);
+  book = r; renderChapters(); loadVoices();
+}
+$("#depth").onchange = reflow; $("#lang").onchange = reflow;
+
+// ---- voices -----------------------------------------------------------------------------------
+async function loadVoices() {
+  const { voices } = await api("/api/voices");
+  const mine = voices.filter(v => v.lang === book.lang), other = voices.filter(v => v.lang !== book.lang);
+  const row = (v) => `<div class="voice"><input type="radio" name="voice" value="${esc(v.id)}" ${v.id === voice ? "checked" : ""}>
+    <div class="grow"><b>${esc(v.name)}</b> <span class="mute">${esc(v.id)} · ${esc(v.lang)}${v.gender ? " · " + v.gender : ""}${v.license ? " · " + esc(v.license) : ""}${v.bundled ? "" : " · mine"}</span></div>
+    <audio controls preload="none" src="${tok("/api/voices/" + encodeURIComponent(v.id) + "/sample")}"></audio>
+    ${v.bundled ? "" : `<button data-del="${esc(v.id)}" title="Remove">✕</button>`}</div>`;
+  $("#voices").innerHTML = `<div class="voice"><input type="radio" name="voice" value="" ${voice === "" ? "checked" : ""}><div class="grow"><b>Automatic</b> <span class="mute">a catalog voice in the book's language</span></div></div>` +
+    mine.map(row).join("") + (other.length ? `<details><summary>Other languages (${other.length}) — the accent may carry over</summary>${other.map(row).join("")}</details>` : "");
+  document.querySelectorAll("#voices input[type=radio]").forEach(r => r.onchange = () => voice = r.value);
+  document.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+    if (confirm("Remove voice " + b.dataset.del + "?")) { await api("/api/voices/" + b.dataset.del, { method: "DELETE" }); if (voice === b.dataset.del) voice = ""; loadVoices(); } });
+  $("#voice-lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}" ${c === book.lang ? "selected" : ""}>${n}</option>`).join("");
+}
+$("#voice-form").onsubmit = async (e) => {
+  e.preventDefault(); const msg = $("#voice-msg"); msg.className = "mute"; msg.textContent = "Adding (may transcribe with Whisper)…";
+  try { const v = await api("/api/voices", { method: "POST", body: new FormData(e.target) });
+    msg.textContent = "Added " + v.id + (v.warnings.length ? " — " + v.warnings.join(" ") : ""); voice = v.id; e.target.reset(); loadVoices(); }
+  catch (err) { msg.className = "err"; msg.textContent = err.message; }
+};
+
+// ---- jobs -------------------------------------------------------------------------------------
+function options() {
+  const v = (id) => $("#o-" + id).value;
+  return { speed: +v("speed"), max_chars: +v("max_chars"), stress: v("stress"), takes: +v("takes"), qa: v("qa") === "1",
+           mp3: v("mp3") === "1", output_dir: v("output_dir"), device: v("device"), depth: +$("#depth").value || 2 };
+}
+async function start(kind) {
+  const chapters = selected();
+  if (!chapters.length) { $("#run-msg").textContent = "Select at least one chapter."; return; }
+  $("#run-msg").textContent = "";
+  try { attach(await api("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind, book_id: book.book_id, voice, chapters, options: options() }) })); }
+  catch (e) { $("#run-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
+$("#preview").onclick = () => start("preview"); $("#render").onclick = () => start("render");
+$("#cancel").onclick = async () => { $("#cancel").disabled = true; await api(`/api/jobs/${job.id}/cancel`, { method: "POST" }); };
+function busy(on) { ["#preview", "#render"].forEach(s => $(s).disabled = on); $("#cancel").disabled = !on; }
+const log = (text, cls = "") => { const l = $("#log"); l.hidden = false; const d = document.createElement("div"); d.className = cls; d.textContent = text; l.append(d); l.scrollTop = l.scrollHeight; };
+function attach(j) {
+  job = j; busy(true); $("#log").innerHTML = ""; $("#built").innerHTML = ""; $("#bar").style.width = "0"; $("#stats").firstChild.textContent = "";
+  if (es) es.close();
+  es = new EventSource(tok(`/api/jobs/${j.id}/events`));
+  es.onmessage = (m) => handle(JSON.parse(m.data));
+  es.onerror = () => { if (job && job.final) es.close(); };
+}
+function handle(ev) {
+  const stats = $("#stats").firstChild;
+  switch (ev.type) {
+    case "stage": log(ev.detail); break;
+    case "warning": log("⚠ " + ev.message, "warn"); break;
+    case "plan": log(`Fragments: ${ev.total_chunks}, left ${ev.pending_chunks}`); setBar(ev.done_chars, ev.total_chars); break;
+    case "progress": setBar(ev.done_chars, ev.total_chars);
+      stats.textContent = `chapter ${ev.chapter} · RTF ${ev.rtf.toFixed(2)} · audio ${fmt(ev.audio)}${ev.retakes ? " · retakes " + ev.retakes : ""}`; break;
+    case "chapter": log(`✓ ${ev.title} — ${fmt(ev.duration)}`);
+      $("#built").insertAdjacentHTML("beforeend", `<div class="built"><span class="mute">${ev.index}.</span><span style="min-width:120px">${esc(ev.title)}</span><audio controls preload="none" src="${tok(`/api/jobs/${job.id}/chapters/${ev.index}`)}"></audio></div>`); break;
+    case "done": end(); log("Done: " + ev.result); $("#run-msg").textContent = job.kind === "preview" ? "Preview ready — play it below." : "Done: " + ev.result; setBar(1, 1); break;
+    case "cancelled": end(); log("Stopped. Progress is saved — press Render again to continue."); $("#run-msg").textContent = "Stopped; progress saved."; break;
+    case "error": end(); log("Error: " + ev.message, "err"); $("#run-msg").innerHTML = `<span class="err">${esc(ev.message)}</span>`; break;
+  }
+}
+function end() { job.final = true; busy(false); if (es) es.close(); }
+function setBar(done, total) { $("#bar").style.width = (total ? Math.min(100, 100 * done / total) : 0) + "%"; }
+
+// ---- settings ---------------------------------------------------------------------------------
+async function loadSettings() {
+  const s = await api("/api/settings");
+  $("#settings").innerHTML = Object.entries(s.kinds).map(([k, v]) => `<label class="f">${k}<select data-kind="${k}">${v.providers.map(p =>
+    `<option value="${esc(p.name)}" ${p.name === v.selected ? "selected" : ""}>${esc(p.name)}${p.local ? "" : " (cloud)"}</option>`).join("")}</select></label>`).join("");
+  $("#settings-note").textContent = "Cloud providers run at your own cost and send text or audio off this computer. API keys come from environment variables only. Config: " + s.config_path;
+  $("#o-output_dir").placeholder = s.output_dir;
+}
+$("#save-settings").onclick = async () => {
+  const providers = {}; document.querySelectorAll("#settings select").forEach(s => providers[s.dataset.kind] = s.value);
+  try { await api("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ providers }) }); $("#settings-msg").textContent = "Saved."; }
+  catch (e) { $("#settings-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+};
+
+// ---- resume view after a page reload ----------------------------------------------------------
+(async () => {
+  try { await loadSettings(); const cur = await api("/api/jobs/current");
+    if (cur && cur.state === "running") { attach(cur); $("#run-msg").textContent = "A job is already running — showing its progress."; } }
+  catch (e) { document.body.insertAdjacentHTML("afterbegin", `<p class="err" style="padding:16px">${esc(e.message)} — open the URL printed by <code>folivox ui</code> (it contains the access token).</p>`); }
+})();
+</script>
+</body>
+</html>

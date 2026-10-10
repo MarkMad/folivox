@@ -1,6 +1,10 @@
 # Proposal: `folivox ui` — a local web interface
 
-Status: **proposal**, nothing is implemented yet.
+Status: **v1 implemented** (Starlette + vanilla JS, as proposed). What exists: book upload and chapter
+selection, voice catalog with audition and upload/removal of your own voices, preview, render with live
+progress (SSE), stop/resume, playback of built chapters, provider settings. Not done yet: voice design in
+the UI, queued jobs, a generated Options screen (the options are hand-written in `static/index.html`),
+and the "audition on a sentence from the book" render. Code: `src/folivox/ui/`, tests: `tests/test_ui.py`.
 
 ## Goal
 

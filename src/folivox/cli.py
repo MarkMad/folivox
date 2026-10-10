@@ -25,7 +25,7 @@ app = typer.Typer(add_completion=False, no_args_is_help=False, invoke_without_co
                   rich_markup_mode="rich", epilog=MAIN_EPILOG, context_settings={"help_option_names": ["-h", "--help"]},
                   help="Turn e-books (FB2, EPUB, DOCX, PDF, TXT) into m4b audiobooks, locally.")
 console = Console()
-COMMANDS = {"render", "inspect", "voices", "providers", "help", "--help", "-h", "--version"}
+COMMANDS = {"render", "inspect", "voices", "providers", "help", "ui", "--help", "-h", "--version"}
 
 # Option panels of `folivox render --help`
 P_INPUT, P_VOICE, P_TEXT, P_QA = "Input", "Voice", "Text", "Quality control"
@@ -523,6 +523,23 @@ def providers():
     console.print(f"[dim]* selected. Config: {config.config_path()}[/]")
 
 
+@app.command("ui", help="Start the local web interface (127.0.0.1 only; needs folivox[ui]).",
+             rich_help_panel="Main commands", epilog="[bold]Example[/]\n\n  [cyan]folivox ui --port 9000 --no-open[/]")
+def ui(port: int = typer.Option(8765, "--port", help="Port to listen on (127.0.0.1 only)."),
+       open_browser: bool = typer.Option(True, "--open/--no-open", show_default=False,
+                                         help="Open the browser automatically (on).")):
+    """Start the local web interface."""
+    try:
+        import starlette  # noqa: F401
+        import uvicorn  # noqa: F401
+    except ImportError:
+        console.print("[red]The web interface needs extra packages:[/] pip install \"folivox[ui]\"")
+        raise typer.Exit(1) from None
+    from folivox.ui import run
+
+    run(port=port, open_browser=open_browser)
+
+
 @app.command("help", help="Explain a topic: voices, providers, config, languages, resuming, quality.",
              rich_help_panel="Help")
 def help_topic(topic: str | None = typer.Argument(None, help="Topic name; omit to list topics.", show_default=False)):
@@ -554,6 +571,7 @@ def _root(ctx: typer.Context,
     t = Table(box=None, show_header=False, padding=(0, 2), title="Commands", title_justify="left")
     rows = [("folivox BOOK [options]", "render a book (short for `render`)"),
             ("folivox inspect BOOK", "chapters, size, estimated duration"),
+            ("folivox ui", "local web interface in your browser"),
             ("folivox voices", "list, add, design voices"),
             ("folivox providers", "TTS / ASR / LLM backends and config"),
             ("folivox help [topic]", "voices · providers · config · languages · resuming · quality")]

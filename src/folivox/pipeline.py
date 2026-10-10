@@ -52,8 +52,16 @@ class RenderOptions:
         return self.work_dir or self.output.with_name(self.output.stem + ".folivox")
 
 
+class Cancelled(Exception):
+    """Raised by :func:`render` when ``Events.cancelled()`` returns True; progress is saved in the journal."""
+
+
 class Events:
     """Override what you need. All methods are called from the rendering thread."""
+
+    def cancelled(self) -> bool:
+        """Polled between fragments; return True to stop cleanly (resume later by running again)."""
+        return False
 
     def stage(self, name: str, detail: str = "") -> None: ...
 
@@ -202,6 +210,8 @@ def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions
     try:
         clock = time.time()
         for pos, chunk in enumerate(todo):
+            if events.cancelled():
+                raise Cancelled
             for nxt in todo[pos: pos + 1 + LOOKAHEAD]:
                 prefetch.submit(nxt.key, nxt.text, _seed(nxt.key, 0))
             events.chunk_started(chunk)
