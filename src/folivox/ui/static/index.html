@@ -27,6 +27,11 @@ td.n, th.n { text-align:right; color:var(--mute); white-space:nowrap; }
 .voice { display:flex; gap:10px; align-items:center; padding:6px 4px; border-bottom:1px solid var(--line); }
 .voice audio { height:30px; width:200px; }
 .progress { height:10px; background:var(--line); border-radius:5px; overflow:hidden; margin:10px 0 4px; }
+.progress.busy > div { width:35% !important; animation:slide 1.4s ease-in-out infinite; }
+@keyframes slide { 0% { margin-left:-35%; } 100% { margin-left:100%; } }
+#phase { display:flex; gap:8px; align-items:center; min-height:22px; }
+#phase .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); animation:pulse 1s ease-in-out infinite; }
+#phase.idle .dot { display:none; } @keyframes pulse { 50% { opacity:.25; } }
 .progress > div { height:100%; width:0; background:var(--accent); transition:width .3s; }
 #log { font:12px/1.5 ui-monospace,Menlo,monospace; max-height:180px; overflow:auto; background:var(--bg); border-radius:6px; padding:8px; margin-top:8px; white-space:pre-wrap; }
 details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px 16px; margin-top:10px; }
@@ -84,7 +89,8 @@ label.f { display:flex; flex-direction:column; gap:3px; font-size:13px; color:va
     <button id="cancel" disabled>Stop (resume later)</button>
     <span id="run-msg" class="mute grow"></span>
   </div>
-  <div class="progress"><div id="bar"></div></div>
+  <div id="phase" class="idle"><span class="dot"></span><span id="phase-text" class="mute"></span></div>
+  <div class="progress" id="progress"><div id="bar"></div></div>
   <div id="stats" class="mute"><small></small></div>
   <div id="built"></div>
   <div id="log" hidden></div>
@@ -195,19 +201,21 @@ $("#cancel").onclick = async () => { $("#cancel").disabled = true; await api(`/a
 function busy(on) { ["#preview", "#render"].forEach(s => $(s).disabled = on); $("#cancel").disabled = !on; }
 const log = (text, cls = "") => { const l = $("#log"); l.hidden = false; const d = document.createElement("div"); d.className = cls; d.textContent = text; l.append(d); l.scrollTop = l.scrollHeight; };
 function attach(j) {
-  job = j; busy(true); $("#log").innerHTML = ""; $("#built").innerHTML = ""; $("#bar").style.width = "0"; $("#stats").firstChild.textContent = "";
+  job = j; haveProgress = false; lastEvent = Date.now(); setPhase("Starting"); clearInterval(ticker); ticker = setInterval(tick, 1000); busy(true); $("#log").innerHTML = ""; $("#built").innerHTML = ""; $("#bar").style.width = "0"; $("#stats").firstChild.textContent = "";
   if (es) es.close();
   es = new EventSource(tok(`/api/jobs/${j.id}/events`));
   es.onmessage = (m) => handle(JSON.parse(m.data));
   es.onerror = () => { if (job && job.final) es.close(); };
 }
 function handle(ev) {
+  lastEvent = Date.now();
   const stats = $("#stats").firstChild;
   switch (ev.type) {
-    case "stage": log(ev.detail); break;
+    case "stage": log(ev.detail); setPhase(ev.detail.startsWith("Model loaded") ? "Synthesising the first fragment" : ev.detail); break;
     case "warning": log("⚠ " + ev.message, "warn"); break;
     case "plan": log(`Fragments: ${ev.total_chunks}, left ${ev.pending_chunks}`); setBar(ev.done_chars, ev.total_chars); break;
-    case "progress": setBar(ev.done_chars, ev.total_chars);
+    case "fragment": setPhase(`Synthesising chapter ${ev.chapter}: «${ev.text}»`); break;
+    case "progress": haveProgress = true; setBar(ev.done_chars, ev.total_chars);
       stats.textContent = `chapter ${ev.chapter} · RTF ${ev.rtf.toFixed(2)} · audio ${fmt(ev.audio)}${ev.retakes ? " · retakes " + ev.retakes : ""}`; break;
     case "chapter": log(`✓ ${ev.title} — ${fmt(ev.duration)}`);
       $("#built").insertAdjacentHTML("beforeend", `<div class="built"><span class="mute">${ev.index}.</span><span style="min-width:120px">${esc(ev.title)}</span><audio controls preload="none" src="${tok(`/api/jobs/${job.id}/chapters/${ev.index}`)}"></audio></div>`); break;
@@ -216,7 +224,20 @@ function handle(ev) {
     case "error": end(); log("Error: " + ev.message, "err"); $("#run-msg").innerHTML = `<span class="err">${esc(ev.message)}</span>`; break;
   }
 }
-function end() { job.final = true; busy(false); if (es) es.close(); }
+function end() { job.final = true; busy(false); if (es) es.close(); clearInterval(ticker); $("#phase").classList.add("idle"); $("#progress").classList.remove("busy"); }
+// A long step (loading the model, the first fragment) emits no events: show what is going on and that it is alive.
+let ticker = null, phase = "", phaseSince = 0, lastEvent = 0, haveProgress = false;
+const HINTS = { "Loading TTS model": "loading model weights — the first run downloads them (several GB), later runs take 1–2 min",
+                "Loading speech recognition": "loading the speech recognition model",
+                "Preparing text": "splitting the text into fragments" };
+function setPhase(text) { phase = text; phaseSince = Date.now(); $("#phase").classList.remove("idle"); tick(); }
+function tick() {
+  if (!job || job.final) return;
+  const el = Math.round((Date.now() - phaseSince) / 1000), quiet = Math.round((Date.now() - lastEvent) / 1000);
+  const hint = Object.entries(HINTS).find(([k]) => phase.startsWith(k));
+  $("#phase-text").textContent = `${phase} · ${el} s` + (hint ? ` (${hint[1]})` : "") + (quiet > 30 && !hint ? ` · no update for ${quiet} s` : "");
+  $("#progress").classList.toggle("busy", !haveProgress);
+}
 function setBar(done, total) { $("#bar").style.width = (total ? Math.min(100, 100 * done / total) : 0) + "%"; }
 
 // ---- settings ---------------------------------------------------------------------------------

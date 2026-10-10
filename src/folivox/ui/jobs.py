@@ -33,6 +33,9 @@ class UIEvents(Events):
         self.job.emit("plan", total_chars=total_chars, done_chars=done_chars, total_chunks=total_chunks,
                       pending_chunks=pending_chunks)
 
+    def chunk_started(self, chunk):
+        self.job.emit("fragment", chapter=chunk.chapter + 1, text=chunk.text[:80])
+
     def chunk_done(self, chunk, take, attempts):
         self.audio += take.duration
         self.synth += take.synth_seconds
