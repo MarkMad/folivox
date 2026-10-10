@@ -281,7 +281,7 @@ async function loadSettings() {
   const s = await api("/api/settings");
   $("#settings").innerHTML = Object.entries(s.kinds).map(([k, v]) => `<label class="f">${k}<select data-kind="${k}">${v.providers.map(p =>
     `<option value="${esc(p.name)}" ${p.name === v.selected ? "selected" : ""}>${esc(p.name)}${p.local ? "" : " (cloud)"}</option>`).join("")}</select></label>`).join("");
-  $("#settings-note").textContent = "Cloud providers run at your own cost and send text or audio off this computer. API keys come from environment variables only. Config: " + s.config_path;
+  $("#settings-note").textContent = "Cloud providers run at your own cost and send text or audio off this computer. Config: " + s.config_path;
   $("#o-output_dir").placeholder = s.output_dir;
 }
 async function loadKeys() {
