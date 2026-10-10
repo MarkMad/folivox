@@ -1,0 +1,102 @@
+"""Texts for ``folivox`` (quick start), ``folivox help <topic>`` and the --help epilogs."""
+
+from __future__ import annotations
+
+QUICKSTART = """\
+[bold]1.[/] Look at the book:        [cyan]folivox inspect book.epub[/]
+[bold]2.[/] Try 30 seconds of it:    [cyan]folivox book.epub --preview 400 -c 1[/]
+[bold]3.[/] Render the whole book:   [cyan]folivox book.epub -o book.m4b[/]
+
+Press Ctrl+C at any time; run the same command again to continue where it stopped."""
+
+MAIN_EPILOG = """\
+[bold]Examples[/]
+
+  [cyan]folivox inspect book.fb2[/]                       chapter tree, size, estimated duration
+  [cyan]folivox book.fb2 -v me.wav -o book.m4b[/]         render with your own voice sample
+  [cyan]folivox book.fb2 -c 1-3,5 --preview 500[/]        quick test: chapters 1–3 and 5, 500 chars each
+  [cyan]folivox book.pdf --mp3 -o out/[/]                 one mp3 per chapter
+  [cyan]folivox voices[/]                                 voices you can use with --voice
+
+[dim]`folivox BOOK` is short for `folivox render BOOK`.  More: `folivox help` lists topics.[/]"""
+
+RENDER_EPILOG = """\
+[bold]Examples[/]
+
+  [cyan]folivox render book.fb2[/]                                  default voice for the book language
+  [cyan]folivox render book.fb2 -v me.wav --voice-text me.txt[/]    clone a voice from a 6–15 s sample
+  [cyan]folivox render book.epub -c 1-2 --preview 600[/]            test run: 600 chars of chapters 1–2
+  [cyan]folivox render book.txt --lang de --speed 0.95 --no-qa[/]   German, slightly slower, no QA pass
+  [cyan]folivox render book.fb2 --asr faster-whisper[/]               pick a QA provider
+
+[dim]Interrupted? Run the same command again.  More: folivox help resuming | voices | quality[/]"""
+
+TOPICS: dict[str, tuple[str, str]] = {
+    "voices": ("Choosing and adding voices", """\
+Without [cyan]--voice[/] Folivox picks a catalog voice in the book's language.
+
+  [cyan]folivox voices[/]                              list the catalog (bundled + yours)
+  [cyan]folivox book.fb2 --voice russlib[/]            use a catalog voice by id
+  [cyan]folivox book.fb2 --voice me.wav[/]             use a WAV/FLAC file directly
+  [cyan]folivox voices add anna anna.wav --text anna.txt --gender f[/]
+  [cyan]folivox voices design anna --describe "calm native female narrator"[/]   generate one
+  [cyan]folivox voices sample-text book.fb2[/]         passages that are easy for a generator to read
+
+A good sample is 6–15 s of clean, evenly read speech with an exact transcript (pass it with
+[cyan]--voice-text[/], or put a .txt next to the audio; otherwise Whisper transcribes it).
+Clone only your own voice or one you have permission to use."""),
+    "providers": ("Pluggable backends", """\
+TTS, speech recognition (QA), voice generators and text LLMs are providers selected by name.
+
+  [cyan]folivox providers[/]                           what exists and what is selected
+
+Choose per run ([cyan]--tts[/], [cyan]--asr[/], [cyan]--llm[/]…), with [cyan]FOLIVOX_TTS[/] / [cyan]FOLIVOX_ASR[/] /
+[cyan]FOLIVOX_VOICEGEN[/] / [cyan]FOLIVOX_LLM[/], or permanently in the config file (see [cyan]folivox help config[/]).
+Cloud providers run at your own cost and send your text or audio off your computer."""),
+    "config": ("Configuration file and environment", """\
+File: [cyan]config.toml[/] in the user config directory (path shown by [cyan]folivox providers[/];
+override with [cyan]FOLIVOX_CONFIG[/]).
+
+  [providers]
+  llm = "ollama"
+
+  [llm.ollama]
+  model = "gemma4:31b-it-qat"
+
+  [llm.openai]
+  base_url = "https://openrouter.ai/api/v1"
+  model = "some/model"
+  api_key_env = "OPENROUTER_API_KEY"
+
+API keys are read only from environment variables; the config refuses [cyan]api_key[/] fields.
+
+Environment: FOLIVOX_VOICE, FOLIVOX_VOICE_TEXT, FOLIVOX_MODEL_DIR, FOLIVOX_TTS, FOLIVOX_ASR,
+FOLIVOX_VOICEGEN, FOLIVOX_LLM, FOLIVOX_CONFIG.
+Precedence: command line > environment > config file > built-in default."""),
+    "languages": ("Supported languages", """\
+Russian, English, German, French, Spanish, Italian, Chinese, Japanese, Korean
+(codes: ru en de fr es it zh ja ko).
+
+The language comes from the book metadata (FB2/EPUB/DOCX) or is detected from the text and
+titles; [cyan]--lang[/] overrides it. [cyan]folivox inspect[/] shows what was detected.
+Russian gets the most work: numbers, dates and units with case agreement, ё restoration
+([cyan]--stress[/]), dialogue pauses. Other languages get basic normalisation and sentence splitting.
+A voice sample in another language than the book may carry its accent over."""),
+    "resuming": ("Interrupting and resuming", """\
+Every synthesised fragment is cached in the work directory (default [cyan]<output>.folivox/[/]) and
+recorded in a journal.
+
+  • Ctrl+C is safe. Run the same command again to continue.
+  • Edit the book text and re-run: only changed fragments are re-synthesised.
+  • Changing the voice, speed or TTS settings starts those fragments over.
+  • Delete the work directory when the book is done (or to start from scratch).
+  • [cyan]--work-dir[/] puts the cache elsewhere, e.g. on a bigger disk."""),
+    "quality": ("Quality control (QA)", """\
+Each fragment is re-transcribed with speech recognition and compared with the source text. On a
+mismatch the fragment is synthesised again (up to [cyan]--takes[/] times) and the best take is kept.
+
+  [cyan]--no-qa[/]        skip the check: faster, but no retakes
+  [cyan]--takes N[/]      more takes = fewer artefacts, slower
+  [cyan]--verbose[/]      print every fragment with its scores
+  [cyan]--max-chars N[/]  shorter fragments are safer for the model, longer ones sound smoother"""),
+}

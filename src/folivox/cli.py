@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sys
 import time
+from enum import Enum
 from pathlib import Path
 
 import typer
@@ -18,19 +19,42 @@ from rich.tree import Tree
 
 from folivox import __version__
 from folivox.book import Book, Section
-from folivox.i18n import _
+from folivox.helptext import MAIN_EPILOG, QUICKSTART, RENDER_EPILOG, TOPICS
 
-app = typer.Typer(add_completion=False, no_args_is_help=True, rich_markup_mode="rich",
-                  help=_("Folivox — turn e-books (FB2, EPUB, DOCX, PDF, TXT) into m4b audiobooks, locally."))
+app = typer.Typer(add_completion=False, no_args_is_help=False, invoke_without_command=True,
+                  rich_markup_mode="rich", epilog=MAIN_EPILOG, context_settings={"help_option_names": ["-h", "--help"]},
+                  help="Turn e-books (FB2, EPUB, DOCX, PDF, TXT) into m4b audiobooks, locally.")
 console = Console()
-COMMANDS = {"render", "inspect", "voices", "providers", "--help", "-h", "--version"}
+COMMANDS = {"render", "inspect", "voices", "providers", "help", "--help", "-h", "--version"}
+
+# Option panels of `folivox render --help`
+P_INPUT, P_VOICE, P_TEXT, P_QA = "Input", "Voice", "Text", "Quality control"
+P_PROVIDERS, P_PERF, P_OUT = "Providers", "Performance", "Output"
+
+
+class Stress(str, Enum):
+    none = "none"
+    yo = "yo"
+    all = "all"
+
+
+class LlmWeights(str, Enum):
+    rl = "rl"
+    base = "base"
+
+
+class Device(str, Enum):
+    auto = "auto"
+    cpu = "cpu"
+    cuda = "cuda"
+    mps = "mps"
 
 
 def fmt_duration(seconds: float) -> str:
     seconds = int(round(seconds))
     h, rem = divmod(seconds, 3600)
     m, s = divmod(rem, 60)
-    return _("{h} h {m:02d} min", h=h, m=m) if h else _("{m} min {s:02d} s", m=m, s=s)
+    return f"{h} h {m:02d} min" if h else f"{m} min {s:02d} s"
 
 
 def num(n: int) -> str:
@@ -41,7 +65,7 @@ def _load(path: Path, lang: str | None = None) -> Book:
     from folivox.readers import UnsupportedFormat, read_book
 
     if not path.exists():
-        console.print(f"[red]{_('File not found:')}[/] {path}")
+        console.print(f"[red]File not found:[/] {path}")
         raise typer.Exit(2)
     try:
         book = read_book(path)
@@ -73,34 +97,36 @@ def _lang_name(code: str) -> str:
         return code or "—"
 
 
-@app.command(help=_("Show the book structure, chapters and estimated audio length."))
+@app.command(help="Show the book structure, chapters and estimated audio length.", rich_help_panel="Main commands",
+             epilog="[bold]Example[/]\n\n  [cyan]folivox inspect book.epub --depth 1 --text[/]")
 def inspect(
-    book_path: Path = typer.Argument(..., help=_("Book file"), show_default=False),
-    depth: int = typer.Option(2, "--depth", help=_("Chapter split depth (1 — top level only)")),
-    lang: str | None = typer.Option(None, "--lang", help=_("Book language (default: from metadata / detected)")),
-    text: bool = typer.Option(False, "--text", help=_("Show the beginning of every chapter")),
+    book_path: Path = typer.Argument(..., help="Book file (FB2, EPUB, DOCX, PDF, TXT)."),
+    depth: int = typer.Option(2, "--depth", help="How deep to split the book into chapters (1 = top level only)."),
+    lang: str | None = typer.Option(None, "--lang", show_default="from book / detected",
+                                    help="Book language: ru en de fr es it zh ja ko."),
+    text: bool = typer.Option(False, "--text", help="Add a column with the beginning of every chapter."),
 ):
     """Show the book structure, chapters and estimated audio length."""
     book = _load(book_path, lang)
     meta = Table.grid(padding=(0, 2))
-    meta.add_row(_("Title"), book.title)
-    meta.add_row(_("Author"), book.author or "—")
-    meta.add_row(_("Language"), _lang_name(book.lang))
-    meta.add_row(_("Format"), book.source_format.upper())
+    meta.add_row("Title", book.title)
+    meta.add_row("Author", book.author or "—")
+    meta.add_row("Language", _lang_name(book.lang))
+    meta.add_row("Format", book.source_format.upper())
     if book.year:
-        meta.add_row(_("Year"), book.year)
-    meta.add_row(_("Cover"), _("yes ({kb} KB)", kb=len(book.cover) // 1024) if book.cover else _("no"))
+        meta.add_row("Year", book.year)
+    meta.add_row("Cover", f"yes ({len(book.cover) // 1024} KB)" if book.cover else "no")
     words = sum(len(b.text.split()) for ch in book.chapters(depth) for b in ch.blocks)
-    meta.add_row(_("Size"), _("{chars} characters, {words} words", chars=num(book.chars), words=num(words)))
-    meta.add_row(_("Audio (estimate)"), f"≈ {fmt_duration(book.estimated_seconds)}")
+    meta.add_row("Size", f"{num(book.chars)} characters, {num(words)} words")
+    meta.add_row("Audio (estimate)", f"≈ {fmt_duration(book.estimated_seconds)}")
     console.print(meta)
     console.print()
 
     tree = Tree(f"[bold]{book.title}[/]")
 
     def add(node, sec: Section):
-        label = sec.title or f"[dim]{_('(untitled)')}[/]"
-        n = node.add(f"{label} [dim]· {num(sec.chars)} {_('chars')}[/]")
+        label = sec.title or "[dim](untitled)[/]"
+        n = node.add(f"{label} [dim]· {num(sec.chars)} chars[/]")
         for c in sec.children:
             add(n, c)
 
@@ -111,13 +137,13 @@ def inspect(
 
     chapters = book.chapters(depth)
     cps = book.chars / book.estimated_seconds if book.estimated_seconds else 14.0
-    t = Table(title=_("Audiobook chapters ({n})", n=len(chapters)), show_lines=False)
+    t = Table(title=f"Audiobook chapters ({len(chapters)})", show_lines=False)
     t.add_column("#", justify="right")
-    t.add_column(_("Chapter"))
-    t.add_column(_("Characters"), justify="right")
-    t.add_column(_("≈ Time"), justify="right")
+    t.add_column("Chapter")
+    t.add_column("Characters", justify="right")
+    t.add_column("≈ Time", justify="right")
     if text:
-        t.add_column(_("Beginning"))
+        t.add_column("Beginning")
     for i, ch in enumerate(chapters, 1):
         row = [str(i), ch.title, num(ch.chars), fmt_duration(ch.chars / cps)]
         if text:
@@ -143,7 +169,7 @@ class RichEvents:
 
         self.verbose = verbose
         self.progress = Progress(TextColumn("[bold]{task.description}"), BarColumn(), TaskProgressColumn(),
-                                 MofNCompleteColumn(), TextColumn(_("chars")), TimeElapsedColumn(), TextColumn("·"),
+                                 MofNCompleteColumn(), TextColumn("chars"), TimeElapsedColumn(), TextColumn("·"),
                                  TimeRemainingColumn(), TextColumn("{task.fields[info]}"), console=console,
                                  transient=False)
         self.task = None
@@ -157,12 +183,11 @@ class RichEvents:
         console.log(f"[yellow]⚠ {message}[/]")
 
     def plan(self, total_chars, done_chars, total_chunks, pending_chunks):
-        console.log(_("Fragments: {total}, left {pending}; text {chars} chars (done {done})",
-                      total=num(total_chunks), pending=num(pending_chunks), chars=num(total_chars),
-                      done=num(done_chars)))
+        console.log(f"Fragments: {num(total_chunks)}, left {num(pending_chunks)}; "
+                    f"text {num(total_chars)} chars (done {num(done_chars)})")
         if pending_chunks:
             self.progress.start()
-            self.task = self.progress.add_task(_("Rendering"), total=total_chars, completed=done_chars, info="")
+            self.task = self.progress.add_task("Rendering", total=total_chars, completed=done_chars, info="")
 
     def chunk_started(self, chunk):
         pass
@@ -173,14 +198,14 @@ class RichEvents:
         if len(attempts) > 1:
             self.retakes += len(attempts) - 1
         rtf = self.synth / self.audio if self.audio else 0
-        info = _("RTF {rtf:.2f} · audio {audio}", rtf=rtf, audio=fmt_duration(self.audio))
+        info = f"RTF {rtf:.2f} · audio {fmt_duration(self.audio)}"
         if self.retakes:
-            info += _(" · retakes {n}", n=self.retakes)
+            info += f" · retakes {self.retakes}"
         if self.task is not None:
             self.progress.update(self.task, advance=len(chunk.source), info=info)
         if self.verbose or (take.score is not None and len(attempts) > 1):
             sc = ", ".join("—" if a is None else f"{a:.2f}" for a in attempts)
-            self.progress.console.log(f"[dim]{_('ch.')}{chunk.chapter + 1} #{chunk.idx}[/] [{sc}] {chunk.text[:70]}")
+            self.progress.console.log(f"[dim]ch.{chunk.chapter + 1} #{chunk.idx}[/] [{sc}] {chunk.text[:70]}")
 
     def chapter_built(self, index, title, duration):
         if self.task is not None and self.progress.live.is_started:
@@ -192,86 +217,97 @@ class RichEvents:
             self.progress.stop()
 
 
-@app.command(help=_("Render a book into an audiobook (m4b with chapters and cover)."))
+@app.command(help="Render a book into an audiobook (m4b with chapters and cover).", epilog=RENDER_EPILOG,
+             rich_help_panel="Main commands")
 def render(
-    book_path: Path = typer.Argument(..., help=_("Book file (FB2, EPUB, DOCX, PDF, TXT)"), show_default=False),
-    voice: str = typer.Option("", "--voice", "-v", envvar="FOLIVOX_VOICE",
-                              help=_("Voice id from the catalog (folivox voices) or a WAV/FLAC file with 6–15 s "
-                                     "of clean speech"), show_default=_("by book language")),
-    voice_text: str | None = typer.Option(None, "--voice-text", envvar="FOLIVOX_VOICE_TEXT",
-                                          help=_("Transcript of the sample (text or .txt). Default: .txt next to "
-                                                 "the sample, else Whisper")),
-    output: Path | None = typer.Option(None, "--output", "-o", help=_("Output .m4b (or a folder with --mp3)")),
-    lang: str | None = typer.Option(None, "--lang", help=_("Book language: ru en de fr es it zh ja ko "
-                                                             "(default: from metadata / detected)")),
-    chapters: str | None = typer.Option(None, "--chapters", "-c", help=_("Which chapters: 1-3,5")),
-    preview: int | None = typer.Option(None, "--preview", help=_("Only the first N characters of each chapter")),
-    mp3: bool = typer.Option(False, "--mp3", help=_("MP3 per chapter instead of one m4b")),
-    work_dir: Path | None = typer.Option(None, "--work-dir", help=_("Cache folder (default <output>.folivox)")),
-    depth: int = typer.Option(2, "--depth", help=_("Chapter split depth")),
-    max_chars: int = typer.Option(400, "--max-chars", help=_("Longest fragment sent to the model")),
-    stress: str = typer.Option("yo", "--stress", help=_("Russian: none | yo (restore ё) | all (stress marks, "
-                                                        "experimental)")),
-    speed: float = typer.Option(1.0, "--speed", help=_("Speaking rate")),
-    qa: bool = typer.Option(True, "--qa/--no-qa", help=_("Check every fragment with speech recognition")),
-    takes: int = typer.Option(3, "--takes", help=_("Max takes per fragment when QA finds a mismatch")),
-    tts: str | None = typer.Option(None, "--tts", help=_("TTS provider (folivox providers)"),
-                                   show_default="cosyvoice3"),
-    asr: str | None = typer.Option(None, "--asr", help=_("Speech recognition provider for QA"),
-                                   show_default="auto"),
-    llm: str = typer.Option("rl", "--llm", help=_("CosyVoice LLM weights: rl (fewer text errors) | base")),
-    device: str = typer.Option("auto", "--device", help="auto | cpu | cuda | mps"),
-    threads: int | None = typer.Option(None, "--threads", help=_("PyTorch CPU threads")),
+    book_path: Path = typer.Argument(..., help="Book file (FB2, EPUB, DOCX, PDF, TXT)."),
+    lang: str | None = typer.Option(None, "--lang", rich_help_panel=P_INPUT, show_default="from book / detected",
+                                    help="Book language: ru en de fr es it zh ja ko."),
+    chapters: str | None = typer.Option(None, "--chapters", "-c", rich_help_panel=P_INPUT, show_default="all",
+                                        help="Chapters to render, e.g. 1-3,5 (numbers from `folivox inspect`)."),
+    depth: int = typer.Option(2, "--depth", rich_help_panel=P_INPUT,
+                              help="How deep to split the book into chapters (1 = top level only)."),
+    preview: int | None = typer.Option(None, "--preview", rich_help_panel=P_INPUT, show_default="off",
+                                       help="Render only the first N characters of each chapter (quick test)."),
+    voice: str = typer.Option("", "--voice", "-v", envvar="FOLIVOX_VOICE", rich_help_panel=P_VOICE,
+                              show_default="by book language",
+                              help="Catalog voice id (`folivox voices`) or a WAV/FLAC file of 6–15 s of clean speech."),
+    voice_text: str | None = typer.Option(None, "--voice-text", envvar="FOLIVOX_VOICE_TEXT", rich_help_panel=P_VOICE,
+                                          show_default=".txt next to sample, else Whisper",
+                                          help="Transcript of the voice sample (text or a .txt file)."),
+    speed: float = typer.Option(1.0, "--speed", rich_help_panel=P_VOICE, help="Speaking rate (0.9 = slower)."),
+    max_chars: int = typer.Option(400, "--max-chars", rich_help_panel=P_TEXT,
+                                  help="Longest fragment sent to the model at once."),
+    stress: Stress = typer.Option(Stress.yo, "--stress", rich_help_panel=P_TEXT,
+                                  help="Russian only: none | yo (restore ё) | all (stress marks, experimental)."),
+    qa: bool = typer.Option(True, "--qa/--no-qa", rich_help_panel=P_QA, show_default=False,
+                            help="Check every fragment with speech recognition and retake mismatches (on)."),
+    takes: int = typer.Option(3, "--takes", rich_help_panel=P_QA,
+                              help="Max takes per fragment when QA finds a mismatch."),
+    tts: str | None = typer.Option(None, "--tts", rich_help_panel=P_PROVIDERS, show_default="cosyvoice3",
+                                   help="Speech synthesis provider (`folivox providers`)."),
+    asr: str | None = typer.Option(None, "--asr", rich_help_panel=P_PROVIDERS, show_default="auto",
+                                   help="Speech recognition provider used by QA."),
+    llm: LlmWeights = typer.Option(LlmWeights.rl, "--llm", rich_help_panel=P_PROVIDERS,
+                                   help="CosyVoice language-model weights: rl (fewer text errors) or base."),
     model_dir: Path | None = typer.Option(None, "--model-dir", envvar="FOLIVOX_MODEL_DIR",
-                                          help=_("CosyVoice 3 weights folder (downloaded otherwise)")),
-    bitrate: str = typer.Option("64k", "--bitrate", help=_("AAC bitrate")),
-    verbose: bool = typer.Option(False, "--verbose", help=_("Print every fragment")),
+                                          rich_help_panel=P_PROVIDERS, show_default="downloaded on first run",
+                                          help="Folder with CosyVoice 3 weights."),
+    device: Device = typer.Option(Device.auto, "--device", rich_help_panel=P_PERF,
+                                  help="Compute device for synthesis."),
+    threads: int | None = typer.Option(None, "--threads", rich_help_panel=P_PERF, show_default="PyTorch default",
+                                       help="CPU threads for PyTorch."),
+    output: Path | None = typer.Option(None, "--output", "-o", rich_help_panel=P_OUT,
+                                       show_default="<book>.m4b next to the book",
+                                       help="Output .m4b file (a folder with --mp3)."),
+    mp3: bool = typer.Option(False, "--mp3", rich_help_panel=P_OUT,
+                             help="Write one MP3 per chapter instead of an m4b."),
+    bitrate: str = typer.Option("64k", "--bitrate", rich_help_panel=P_OUT, help="AAC/MP3 bitrate."),
+    work_dir: Path | None = typer.Option(None, "--work-dir", rich_help_panel=P_OUT, show_default="<output>.folivox",
+                                         help="Cache and journal folder (makes runs resumable)."),
+    verbose: bool = typer.Option(False, "--verbose", rich_help_panel=P_OUT, help="Print every fragment."),
 ):
     """Render a book into an audiobook (m4b with chapters and cover)."""
     from folivox import config
     from folivox.pipeline import RenderOptions
     from folivox.pipeline import render as run_render
     from folivox.providers import ProviderError
-    from folivox.text.stress import MODES
-
-    if stress not in MODES:
-        console.print(f"[red]--stress: {', '.join(MODES)}[/]")
-        raise typer.Exit(2)
     book = _load(book_path, lang)
     voice_path, voice_text, voice_lang = _resolve_voice(voice, voice_text, book.lang)
     if voice_lang and voice_lang != book.lang:
-        console.print(f"[yellow]⚠ {_('The voice sample is in {v}, the book in {b}: the accent may carry over.', v=_lang_name(voice_lang), b=_lang_name(book.lang))}[/]")  # noqa: E501
+        console.print(f"[yellow]⚠ The voice sample is in {_lang_name(voice_lang)}, the book in "
+                      f"{_lang_name(book.lang)}: the accent may carry over.[/]")
     if output is None:
         output = book_path.with_suffix("" if mp3 else ".m4b")
     opts = RenderOptions(output=output, voice_wav=voice_path, voice_text=voice_text, work_dir=work_dir,
-                         chapters=chapters, preview=preview, depth=depth, max_chars=max_chars, stress=stress,
-                         lang=book.lang, speed=speed, device=device, threads=threads,
+                         chapters=chapters, preview=preview, depth=depth, max_chars=max_chars, stress=stress.value,
+                         lang=book.lang, speed=speed, device=device.value, threads=threads,
                          model_dir=str(model_dir) if model_dir else None, qa=qa, max_takes=takes, mp3=mp3,
-                         bitrate=bitrate, llm=llm, tts=config.provider("tts", tts) or "cosyvoice3",
+                         bitrate=bitrate, llm=llm.value, tts=config.provider("tts", tts) or "cosyvoice3",
                          asr=config.provider("asr", asr) or "auto")
-    console.print(f"[bold]{book.title}[/] — {book.author or _('unknown author')}; {_lang_name(book.lang)}; "
-                  f"{_('estimated audio')} ≈ {fmt_duration(book.estimated_seconds)}")
+    console.print(f"[bold]{book.title}[/] — {book.author or 'unknown author'}; {_lang_name(book.lang)}; "
+                  f"estimated audio ≈ {fmt_duration(book.estimated_seconds)}")
     events = RichEvents(verbose)
     t0 = time.time()
     try:
         result = run_render(book, opts, events)
     except KeyboardInterrupt:
         events.close()
-        console.print(f"\n[yellow]{_('Stopped. Progress is saved — run the same command again to continue.')}[/]")
+        console.print("\n[yellow]Stopped. Progress is saved — run the same command again to continue.[/]")
         raise typer.Exit(130) from None
     except Exception as e:  # noqa: BLE001
         events.close()
         from folivox.tts.voice import VoiceError
 
         if isinstance(e, (VoiceError, ValueError, FileNotFoundError, RuntimeError, ProviderError)):
-            console.print(f"[red]{_('Error:')}[/] {e}")
+            console.print(f"[red]Error:[/] {e}")
             raise typer.Exit(1) from None
         raise
     events.close()
-    console.print(f"[bold green]{_('Done:')}[/] {result}  ({fmt_duration(time.time() - t0)})")
+    console.print(f"[bold green]Done:[/] {result}  ({fmt_duration(time.time() - t0)})")
     if events.audio:
-        console.print(_("Synthesis: {synth} for {audio} of audio, RTF {rtf:.2f}", synth=fmt_duration(events.synth),
-                        audio=fmt_duration(events.audio), rtf=events.synth / events.audio))
+        console.print(f"Synthesis: {fmt_duration(events.synth)} for {fmt_duration(events.audio)} of audio, "
+                      f"RTF {events.synth / events.audio:.2f}")
 
 
 def _version(value: bool):
@@ -290,25 +326,27 @@ def _resolve_voice(voice: str, voice_text: str | None, book_lang: str = "ru") ->
     path = Path(voice).expanduser()
     if not path.exists():
         known = ", ".join(v.id for v in catalog.all_voices())
-        console.print(f"[red]{_('Voice {v!r} not found.', v=voice)}[/] {_('Catalog: {ids}. Or give a WAV/FLAC path.', ids=known)}")  # noqa: E501
+        console.print(f"[red]Voice {voice!r} not found.[/] Catalog: {known}. Or give a WAV/FLAC path.")
         raise typer.Exit(2)
     return path, voice_text, ""
 
 
-voices_app = typer.Typer(help=_("Voice catalog"), no_args_is_help=False, invoke_without_command=True)
-app.add_typer(voices_app, name="voices")
+voices_app = typer.Typer(help="Voice catalog: list, add, remove, design.", no_args_is_help=False,
+                         invoke_without_command=True, rich_markup_mode="rich",
+                         context_settings={"help_option_names": ["-h", "--help"]})
+app.add_typer(voices_app, name="voices", rich_help_panel="Setup")
 
 
-@voices_app.callback(help=_("List available voices."))
+@voices_app.callback(help="List available voices.")
 def voices_list(ctx: typer.Context,
-                lang: str | None = typer.Option(None, "--lang", help=_("Only voices in this language"))):
+                lang: str | None = typer.Option(None, "--lang", help="Only voices in this language (ru en de …).")):
     """List available voices."""
     if ctx.invoked_subcommand:
         return
     from folivox import voices as catalog
 
-    t = Table(title=_("Voices"))
-    for col in ("id", _("Name"), _("Sex"), _("Language"), _("Length"), _("License"), _("Where")):
+    t = Table(title="Voices")
+    for col in ("id", "Name", "Sex", "Language", "Length", "License", "Where"):
         t.add_column(col)
     for v in catalog.all_voices():
         if lang and v.lang != lang:
@@ -316,26 +354,27 @@ def voices_list(ctx: typer.Context,
         try:
             from folivox.tts.voice import audio_duration
 
-            dur = _("{s:.1f} s", s=audio_duration(v.path))
+            dur = f"{audio_duration(v.path):.1f} s"
         except Exception:  # noqa: BLE001
             dur = "?"
         star = " *" if v.id == catalog.DEFAULT_VOICE else ""
-        t.add_row(v.id + star, v.name, {"f": _("f"), "m": _("m")}.get(v.gender, "—"), v.lang, dur, v.license or "—",
-                  _("bundled") if v.bundled else _("mine"))
+        t.add_row(v.id + star, v.name, {"f": "f", "m": "m"}.get(v.gender, "—"), v.lang, dur, v.license or "—",
+                  "bundled" if v.bundled else "mine")
     console.print(t)
-    console.print(f"[dim]{_('* default voice. Your voices: {path}', path=catalog.user_voices_dir())}[/]")
+    console.print(f"[dim]* default voice. Your voices: {catalog.user_voices_dir()}[/]")
 
 
-@voices_app.command("add", help=_("Add your own voice to the catalog (stays on this computer)."))
+@voices_app.command("add", help="Add your own voice to the catalog (stays on this computer).")
 def voices_add(
-    voice_id: str = typer.Argument(..., help=_("Id: latin letters, digits, - and _")),
-    audio: Path = typer.Argument(..., help=_("WAV/FLAC/MP3 sample, 6–15 s")),
-    text: str | None = typer.Option(None, "--text", help=_("Transcript (text or .txt); otherwise Whisper")),
-    name: str = typer.Option("", "--name", help=_("Human-readable name")),
-    gender: str = typer.Option("", "--gender", help="f | m"),
-    lang: str = typer.Option("ru", "--lang", help=_("Language of the sample")),
-    license: str = typer.Option("", "--license", help=_("License / origin of the sample")),
-    force: bool = typer.Option(False, "--force", help=_("Overwrite an existing voice")),
+    voice_id: str = typer.Argument(..., help="Id: lowercase latin letters, digits, - and _."),
+    audio: Path = typer.Argument(..., help="WAV/FLAC/MP3 sample, 6–15 s of clean speech."),
+    text: str | None = typer.Option(None, "--text", help="Transcript of the sample (text or a .txt file).",
+                                  show_default=".txt next to sample, else Whisper"),
+    name: str = typer.Option("", "--name", help="Human-readable name."),
+    gender: str = typer.Option("", "--gender", help="Speaker sex: f or m (informational)."),
+    lang: str = typer.Option("ru", "--lang", help="Language of the sample (ru en de …)."),
+    license: str = typer.Option("", "--license", help="License / origin of the sample."),
+    force: bool = typer.Option(False, "--force", help="Overwrite an existing voice with the same id."),
 ):
     """Add your own voice to the catalog (stays on this computer)."""
     from folivox import voices as catalog
@@ -352,34 +391,37 @@ def voices_add(
         console.print(f"[yellow]⚠ {w}[/]")
     entry = catalog.add(voice_id, audio, v.transcript, name=name, gender=gender, lang=lang, license=license,
                         overwrite=force)
-    console.print(f"[green]{_('Voice added:')}[/] {entry.id}: «{entry.transcript}»")
+    console.print(f"[green]Voice added:[/] {entry.id}: «{entry.transcript}»")
 
 
-@voices_app.command("remove", help=_("Remove one of your voices from the catalog."))
-def voices_remove(voice_id: str = typer.Argument(...)):
+@voices_app.command("remove", help="Remove one of your voices from the catalog.")
+def voices_remove(voice_id: str = typer.Argument(..., help="Id of one of your voices.")):
     """Remove one of your voices from the catalog."""
     from folivox import voices as catalog
 
     catalog.remove(voice_id)
-    console.print(_("Removed {id}", id=voice_id))
+    console.print(f"Removed {voice_id}")
 
 
-@voices_app.command("design", help=_("Generate a reference voice with a voice generator, pick the best take "
+@voices_app.command("design", help=("Generate a reference voice with a voice generator, pick the best take "
                                      "by speech recognition."))
 def voices_design(
-    voice_id: str = typer.Argument(..., help=_("Id of the new voice")),
-    describe: str = typer.Option("", "--describe", "-d", help=_("Voice description for a design generator, e.g. "
+    voice_id: str = typer.Argument(..., help="Id of the new voice."),
+    describe: str = typer.Option("", "--describe", "-d", help=("Voice description for a design generator, e.g. "
                                                                 "\"calm native Russian female audiobook "
                                                                 "narrator\"")),
-    speaker: str = typer.Option("", "--speaker", help=_("Preset speaker for a preset generator")),
-    lang: str = typer.Option("ru", "--lang", help=_("Language of the sample")),
-    gender: str = typer.Option("", "--gender", help="f | m"),
-    text: list[str] = typer.Option([], "--text", help=_("Text to read (repeatable); default: built-in safe texts")),
-    takes: int = typer.Option(3, "--takes", help=_("Takes per text")),
-    generator: str | None = typer.Option(None, "--generator", "-g", help=_("Voice generator provider"),
+    speaker: str = typer.Option("", "--speaker", help="Preset speaker name (for preset generators)."),
+    lang: str = typer.Option("ru", "--lang", help="Language of the sample (ru en de …)."),
+    gender: str = typer.Option("", "--gender", help="Speaker sex: f or m (informational)."),
+    text: list[str] = typer.Option([], "--text", help="Text to read (repeatable).",
+                                  show_default="built-in easy texts"),
+    takes: int = typer.Option(3, "--takes", help="Takes generated per text; the best one is kept."),
+    generator: str | None = typer.Option(None, "--generator", "-g",
+                                         help="Voice generator provider (`folivox providers`).",
                                          show_default="qwen3-voicedesign"),
-    keep: Path | None = typer.Option(None, "--keep", help=_("Folder to keep every take for listening")),
-    add: bool = typer.Option(True, "--add/--no-add", help=_("Add the best take to the catalog")),
+    keep: Path | None = typer.Option(None, "--keep", show_default="temporary",
+                                 help="Folder to keep every take for listening."),
+    add: bool = typer.Option(True, "--add/--no-add", help="Add the best take to the catalog."),
 ):
     """Generate a reference voice with a voice generator, pick the best take by speech recognition."""
     import tempfile
@@ -393,14 +435,14 @@ def voices_design(
     lang = _check_lang(lang)
     gen = GENERATORS.create(config.provider("voicegen", generator))
     if gen.mode == "design" and not describe:
-        console.print(f"[red]{_('--describe is required for {g}', g=gen.name)}[/]")
+        console.print(f"[red]--describe is required for {gen.name}[/]")
         raise typer.Exit(2)
     if gen.mode == "preset" and not speaker:
-        console.print(f"[red]{_('--speaker is required for {g}: {s}', g=gen.name, s=', '.join(gen.speakers()))}[/]")
+        console.print(f"[red]--speaker is required for {gen.name}: {', '.join(gen.speakers())}[/]")
         raise typer.Exit(2)
     texts = text or safe_texts(lang)
     if not texts:
-        console.print(f"[red]{_('No built-in texts for {lang}; pass --text', lang=lang)}[/]")
+        console.print(f"[red]No built-in texts for {lang}; pass --text[/]")
         raise typer.Exit(2)
     out_dir = keep or Path(tempfile.mkdtemp(prefix="folivox-design-"))
     total = len(texts) * takes
@@ -408,19 +450,19 @@ def voices_design(
 
     def progress(job, seconds):
         done[0] += 1
-        console.log(_("take {i}/{n} ({s:.0f} s)", i=done[0], n=total, s=seconds))
+        console.log(f"take {done[0]}/{total} ({seconds:.0f} s)")
 
-    console.log(_("Generating {n} takes with {g}…", n=total, g=gen.name))
+    console.log(f"Generating {total} takes with {gen.name}…")
     paths = generate_takes(gen, texts, lang, out_dir, description=describe, speaker=speaker, takes=takes,
                            prefix=voice_id, progress=progress)
     by_path = {p: texts[int(p.stem.split("_t")[-1].split("_")[0]) - 1] for p in paths}
-    console.log(_("Checking takes with speech recognition…"))
+    console.log("Checking takes with speech recognition…")
     ranked = score_takes(paths, by_path, Transcriber(language=lang), lang)
     t = Table(title=voice_id)
-    for col in ("#", _("File"), _("Length"), _("Score"), _("Recognised")):
+    for col in ("#", "File", "Length", "Score", "Recognised"):
         t.add_column(col)
     for i, c in enumerate(ranked, 1):
-        t.add_row(str(i), c.path.name, _("{s:.1f} s", s=c.duration), "—" if c.score is None else f"{c.score:.3f}",
+        t.add_row(str(i), c.path.name, f"{c.duration:.1f} s", "—" if c.score is None else f"{c.score:.3f}",
                   c.transcript[:60])
     console.print(t)
     best = ranked[0]
@@ -428,19 +470,21 @@ def voices_design(
         source = f"{gen.name}: {describe or speaker}"
         entry = catalog.add(voice_id, best.path, best.text, gender=gender, lang=lang, source=source,
                             license=gen.license, overwrite=True)
-        console.print(f"[green]{_('Voice added:')}[/] {entry.id} ← {best.path.name}")
+        console.print(f"[green]Voice added:[/] {entry.id} ← {best.path.name}")
     if keep:
-        console.print(_("All takes: {path}", path=out_dir))
+        console.print(f"All takes: {out_dir}")
 
 
-@voices_app.command("sample-text", help=_("Pick passages from a book that are safe for a voice generator to "
+@voices_app.command("sample-text", help=("Pick passages from a book that are safe for a voice generator to "
                                           "read (by a text LLM)."))
 def voices_sample_text(
-    book_path: Path = typer.Argument(..., help=_("Book file")),
-    n: int = typer.Option(3, "-n", help=_("How many passages")),
-    lang: str | None = typer.Option(None, "--lang", help=_("Book language")),
-    llm: str | None = typer.Option(None, "--llm", help=_("Text LLM provider"), show_default="ollama"),
-    model: str | None = typer.Option(None, "--model", help=_("LLM model name")),
+    book_path: Path = typer.Argument(..., help="Book file."),
+    n: int = typer.Option(3, "-n", help="How many passages to pick."),
+    lang: str | None = typer.Option(None, "--lang", help="Book language.", show_default="from book / detected"),
+    llm: str | None = typer.Option(None, "--llm", show_default="ollama",
+                                 help="Text LLM provider (`folivox providers`)."),
+    model: str | None = typer.Option(None, "--model", show_default="from config",
+                                   help="Model name for the LLM provider."),
 ):
     """Pick passages from a book that are safe for a voice generator to read (by a text LLM)."""
     from folivox import config
@@ -453,10 +497,11 @@ def voices_sample_text(
     for s in found:
         console.print(f"• {s}")
     if not found:
-        console.print(f"[yellow]{_('Nothing suitable found.')}[/]")
+        console.print("[yellow]Nothing suitable found.[/]")
 
 
-@app.command(help=_("List pluggable backends: TTS, speech recognition, voice generators, text LLMs."))
+@app.command(help="List pluggable backends: TTS, speech recognition, voice generators, text LLMs.",
+             rich_help_panel="Setup")
 def providers():
     """List pluggable backends: TTS, speech recognition, voice generators, text LLMs."""
     from folivox import config
@@ -465,23 +510,57 @@ def providers():
     from folivox.tts import ENGINES
     from folivox.voicegen import GENERATORS
 
-    t = Table(title=_("Providers"))
-    for col in (_("Kind"), _("Name"), _("Description"), _("Runs"), _("Needs")):
+    t = Table(title="Providers")
+    for col in ("Kind", "Name", "Description", "Runs", "Needs"):
         t.add_column(col)
     for reg in (ENGINES, ASR_PROVIDERS, GENERATORS, LLMS):
         current = config.provider(reg.kind) or reg.default
         for p in reg.providers():
             mark = " *" if p.name == current else ""
-            t.add_row(reg.kind, p.name + mark, p.description, _("locally") if p.local else _("cloud API (your key)"),
+            t.add_row(reg.kind, p.name + mark, p.description, "locally" if p.local else "cloud API (your key)",
                       p.needs)
     console.print(t)
-    console.print(f"[dim]{_('* selected. Config: {path}', path=config.config_path())}[/]")
+    console.print(f"[dim]* selected. Config: {config.config_path()}[/]")
+
+
+@app.command("help", help="Explain a topic: voices, providers, config, languages, resuming, quality.",
+             rich_help_panel="Help")
+def help_topic(topic: str | None = typer.Argument(None, help="Topic name; omit to list topics.", show_default=False)):
+    """Explain a topic in more detail than --help can."""
+    from rich.panel import Panel
+
+    if topic is None or topic not in TOPICS:
+        if topic:
+            console.print(f"[red]Unknown topic {topic!r}.[/]")
+        t = Table(box=None, show_header=False, padding=(0, 2))
+        for name, (title, _body) in TOPICS.items():
+            t.add_row(f"[cyan]folivox help {name}[/]", title)
+        console.print(t)
+        raise typer.Exit(2 if topic else 0)
+    title, body = TOPICS[topic]
+    console.print(Panel(body, title=f"[bold]{title}[/]", title_align="left", padding=(1, 2)))
 
 
 @app.callback()
-def _root(version: bool | None = typer.Option(None, "--version", callback=_version, is_eager=True,
-                                                 help=_("Show the version"))):
-    pass
+def _root(ctx: typer.Context,
+          version: bool | None = typer.Option(None, "--version", callback=_version, is_eager=True,
+                                              help="Show the version and exit.")):
+    if ctx.invoked_subcommand is not None:
+        return
+    from rich.panel import Panel
+
+    console.print(f"[bold]Folivox[/] {__version__} — local audiobooks from e-books\n")
+    console.print(Panel(QUICKSTART, title="Quick start", title_align="left", padding=(1, 2)))
+    t = Table(box=None, show_header=False, padding=(0, 2), title="Commands", title_justify="left")
+    rows = [("folivox BOOK [options]", "render a book (short for `render`)"),
+            ("folivox inspect BOOK", "chapters, size, estimated duration"),
+            ("folivox voices", "list, add, design voices"),
+            ("folivox providers", "TTS / ASR / LLM backends and config"),
+            ("folivox help [topic]", "voices · providers · config · languages · resuming · quality")]
+    for cmd, desc in rows:
+        t.add_row(f"[cyan]{cmd}[/]", desc)
+    console.print(t)
+    console.print("\n[dim]All options: `folivox render --help`[/]")
 
 
 def main():

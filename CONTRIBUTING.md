@@ -9,6 +9,17 @@ uv run ruff check src tests
 Unit tests must not need PyTorch or model weights: CI runs them on macOS, Windows and Linux
 without the `tts` extra.
 
+## CLI messages and help
+
+The command line is English only: write plain English strings (f-strings) in `cli.py` and the
+modules it calls. There is no message catalog and no locale detection. (`folivox.i18n._` is a
+pass-through kept only until `folivox/voices` stops importing it; do not use it in new code.)
+
+A new `folivox render` option needs a one-line `help=`, a `rich_help_panel=` (Input / Voice / Text /
+Quality control / Providers / Performance / Output) and, when the default is not obvious,
+`show_default="…"`; `tests/test_cli_help.py` checks this. Longer explanations live in
+`src/folivox/helptext.py` (`folivox help <topic>`). Update the options table in the README.
+
 ## Adding or improving a language
 
 Everything language-specific lives in one module, `src/folivox/lang/<code>.py` (ISO 639-1 code).
