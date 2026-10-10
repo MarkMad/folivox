@@ -647,11 +647,10 @@ def providers():
     from folivox.voicegen.cloud import cloud_providers
 
     c = Table(title="Cloud voice generation (`folivox voices design -g NAME`)")
-    for col in ("Name", "Modes", "Languages", "API key", "Price / terms"):
+    for col in ("Name", "Modes", "API key", "Terms"):
         c.add_column(col)
     for cls in cloud_providers().values():
-        c.add_row(cls.name, " + ".join(cls.modes), ", ".join(cls.languages) if len(cls.languages) < 12 else
-                  f"{len(cls.languages)} languages", cls.key_env, f"{cls.price_note} {cls.terms_url}".strip())
+        c.add_row(cls.name, " + ".join(cls.modes), cls.key_env, cls.terms_url)
     console.print(c)
     console.print(f"[dim]* selected. Config: {config.config_path()}[/]")
 

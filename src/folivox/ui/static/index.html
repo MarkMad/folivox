@@ -122,6 +122,15 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 #av-timer { font-variant-numeric:tabular-nums; min-width:38px; } .meter { flex:1; height:6px; background:var(--seg-pending); border-radius:3px; overflow:hidden; } .meter i { display:block; height:100%; width:0; background:var(--accent); transition:width .08s; }
 .av-sample { display:flex; gap:12px; align-items:center; background:var(--bg); border-radius:10px; padding:10px 12px; } .av-sample .vplay { flex:none; }
 .av-sample .ok { color:var(--seg-done); } .av-sample .bad { color:var(--warn); } .av-sample .stop { color:var(--err); }
+.gp { display:none; flex-direction:column; gap:12px; } .av.gen .gp { display:flex; } .av.gen .av-body { display:none; }
+.gp-notice { border:1px solid var(--warn); border-radius:10px; padding:9px 12px; font-size:13px; color:var(--ink); background:var(--bg); }
+.gp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px 20px; }
+.gp-take { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,200px) 18px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; }
+.gp-take.sel { border-color:var(--accent); box-shadow:0 0 0 3px var(--glow); } .gp-take.sel .vplay, .gp-take.playing .vplay { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+.gp-takes { display:flex; flex-direction:column; gap:6px; }
+.gp textarea { width:100%; }
+@media (max-width:640px) { .gp-take { grid-template-columns:34px minmax(0,1fr) 18px; } .gp-take .vwave { display:none; } }
+
 .seg { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; } .seg button { border:0; border-radius:0; padding:5px 12px; background:transparent; color:var(--mute); font-size:14px; }
 .seg button.on { background:var(--accent); color:var(--accent-ink); }
 textarea { font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:6px 10px; resize:vertical; }
@@ -153,7 +162,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
   <div class="vgrid" id="voices" role="radiogroup" aria-label="Voice"></div>
   <div class="mute" id="vcount" style="margin-top:6px"><small></small></div>
   <div id="addvoice" class="av" hidden>
-    <div class="av-head"><b>Add your own voice</b><span class="mute">6–15 s of clean speech: no music, no noise, an even calm pace</span>
+    <div class="av-head"><b>Add your own voice</b><div class="seg" id="av-source"><button type="button" data-src="sample" class="on">Upload or record</button><button type="button" data-src="gen">Generate with a provider</button></div><span class="mute" id="av-sub">6–15 s of clean speech: no music, no noise, an even calm pace</span>
       <button id="av-close" class="chip" style="margin-left:auto">Close</button></div>
     <div class="av-body">
       <div class="av-left">
@@ -178,6 +187,46 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
         <label class="f">Transcript <small>(exactly what is said · empty = recognised by Whisper)</small><textarea id="av-text" rows="3" placeholder="Leave empty to transcribe automatically"></textarea></label>
         <label class="consent"><input type="checkbox" id="av-consent"> This is my own voice, or I have the speaker's permission to clone it.</label>
         <div class="row"><button id="av-submit" class="primary" disabled>Add voice</button><span id="av-msg" class="mute grow"></span></div>
+      </div>
+    </div>
+    <div class="gp" id="gp">
+      <div class="gp-notice" id="gp-notice"></div>
+      <div class="gp-grid">
+        <label class="f">Provider<select id="gp-provider"></select><small class="mute" id="gp-pinfo"></small></label>
+        <label class="f">Language of the sample<select id="gp-lang"></select></label>
+      </div>
+      <div id="gp-keybox" class="row" hidden><span class="warn" id="gp-keymsg"></span>
+        <input type="password" id="gp-key" autocomplete="off" placeholder="paste the API key" style="width:240px"><button type="button" id="gp-keysave">Save key</button>
+        <small class="mute">Stored in your OS keychain, never in a file; it is not shown again.</small></div>
+      <div id="gp-keyok" class="mute" hidden><small></small></div>
+      <div id="gp-body" hidden>
+        <div class="row" id="gp-modes"><div class="seg" id="gp-modeseg"></div></div>
+        <div id="gp-design" hidden>
+          <label class="f">Describe the voice <small>(English works best · no real people)</small><textarea id="gp-desc" rows="3" placeholder="e.g. a calm, warm woman in her forties, low timbre, unhurried pace, like an audiobook narrator"></textarea></label>
+          <div class="row"><button type="button" id="gp-suggest" class="chip">✦ Suggest from the book</button><span class="mute" id="gp-suggest-msg"></span></div>
+        </div>
+        <div id="gp-preset" hidden class="gp-grid">
+          <label class="f">Voice<select id="gp-speaker"></select></label>
+          <label class="f" id="gp-style-row">Style <small>(optional, English)</small><input id="gp-style" type="text" placeholder="e.g. slow, warm, gentle"></label>
+        </div>
+        <div style="margin-top:12px"><div class="row"><span>Text to be spoken</span><div class="seg" id="gp-textseg"><button type="button" data-t="builtin" class="on">Built-in sample</button><button type="button" data-t="book">From the book</button><button type="button" data-t="custom">My own</button></div><span class="mute" id="gp-text-msg"></span></div>
+          <textarea id="gp-text" rows="4" style="margin-top:8px"></textarea>
+          <small class="mute">Separate several texts with an empty line (at most 5). Calm, easy words work best: no names or numbers.</small></div>
+        <div class="row" style="margin-top:12px"><label class="f" style="flex-direction:row;align-items:center;gap:6px">Takes <input id="gp-takes" type="number" min="1" max="6" value="3" style="width:60px"></label>
+          <span id="gp-est" class="mute grow"></span></div>
+        <label class="consent"><input type="checkbox" id="gp-ack"> <span>I understand that this text is sent to the provider and billed to my account, and I will check the provider's terms before using the audio. Generated voices are kept on this computer and marked <b>commercial API</b>.</span></label>
+        <div class="row"><button id="gp-go" class="primary" disabled>Generate takes</button><button id="gp-cancel" disabled>Stop</button><span id="gp-msg" class="mute grow"></span></div>
+        <div class="overall" id="gp-bar" role="progressbar" aria-label="Generation progress" hidden><div id="gp-fill"></div></div>
+        <div id="gp-takes-box" hidden>
+          <div class="mute"><small>Ranked by speech recognition (best first). Listen, pick one, name it.</small></div>
+          <div class="gp-takes" id="gp-list" role="radiogroup" aria-label="Generated takes"></div>
+          <div class="gp-grid" style="margin-top:10px">
+            <label class="f">Name<input id="gp-name" type="text" autocomplete="off" placeholder="e.g. Narrator"></label>
+            <label class="f">Id <small>(a–z, 0–9, - _)</small><input id="gp-id" type="text" pattern="[a-z0-9][a-z0-9_-]*" autocomplete="off"></label>
+            <div class="f"><span>Sex</span><div class="seg" id="gp-gender"><button type="button" data-g="f">female</button><button type="button" data-g="m">male</button><button type="button" data-g="" class="on">—</button></div></div>
+          </div>
+          <div class="row" style="margin-top:10px"><button id="gp-add" class="primary" disabled>Add voice</button><span id="gp-addmsg" class="mute grow"></span></div>
+        </div>
       </div>
     </div>
   </div>
@@ -323,13 +372,14 @@ function renderVoices() {
   const showAuto = !vf.q.trim() && (vf.lang === "all" || vf.lang === book.lang) && !vf.gender && !vf.fav;
   const card = (v, auto) => `<div class="vcard ${auto ? "auto" : ""} ${(auto ? voice === "" : voice === v.id) ? "sel" : ""} ${v.lang !== book.lang && !auto ? "off" : ""}" role="radio" tabindex="0" aria-checked="${auto ? voice === "" : voice === v.id}" data-id="${auto ? "" : esc(v.id)}">
     <button class="vplay" data-play="${esc(v.id)}" aria-label="Play a sample of ${esc(v.name)}">▶</button>
-    <div style="min-width:0"><div class="vname"><span class="n">${auto ? "Automatic" : esc(v.name)}</span>${auto ? "" : v.bundled ? "" : `<span class="vbadge mine">mine</span>`}${!auto && v.lang !== book.lang ? `<span class="vbadge warn" title="The accent of the sample may carry over">${esc(v.lang)}</span>` : ""}</div>
+    <div style="min-width:0"><div class="vname"><span class="n">${auto ? "Automatic" : esc(v.name)}</span>${auto ? "" : v.bundled ? "" : `<span class="vbadge mine">mine</span>`}${!auto && v.commercial ? `<span class="vbadge warn" title="Generated with a commercial API: personal use, never bundled">commercial API</span>` : ""}${!auto && v.lang !== book.lang ? `<span class="vbadge warn" title="The accent of the sample may carry over">${esc(v.lang)}</span>` : ""}</div>
       <div class="vmeta">${auto ? `best match for the book → ${esc(v.name)}` : [esc(v.id), esc(LANGS[v.lang] || v.lang), GENDER[v.gender] || "", v.seconds ? v.seconds + " s" : "", esc(v.license)].filter(Boolean).join(" · ")}</div></div>
     <canvas class="vwave" data-wave="${esc(v.id)}"></canvas>
     <span class="vcheck">✓</span>
     <span style="display:flex;align-items:center">${auto ? "" : `<button class="vstar ${FAV.has(v.id) ? "on" : ""}" data-fav="${esc(v.id)}" title="${FAV.has(v.id) ? "Remove from favorites" : "Add to favorites"}" aria-pressed="${FAV.has(v.id)}">${FAV.has(v.id) ? "★" : "☆"}</button>`}${!auto && !v.bundled ? `<button class="vdel" data-del="${esc(v.id)}" title="Remove this voice">✕</button>` : ""}</span></div>`;
   $("#voices").innerHTML = (showAuto && autoV ? card(autoV, true) : "") + shown.map(v => card(v, false)).join("") +
-    `<div class="vcard add" role="button" tabindex="0" id="add-card"><span class="vplay" style="display:grid;place-items:center">+</span><div><div class="vname">Add your own voice</div><div class="vmeta">upload a sample or record one</div></div></div>`;
+    `<div class="vcard add" role="button" tabindex="0" id="add-card"><span class="vplay" style="display:grid;place-items:center">+</span><div><div class="vname">Add your own voice</div><div class="vmeta">upload a sample or record one</div></div></div>` +
+    `<div class="vcard add" role="button" tabindex="0" id="gen-card"><span class="vplay" style="display:grid;place-items:center">✦</span><div><div class="vname">Generate with a provider</div><div class="vmeta">Gemini · OpenAI · ElevenLabs · Cartesia (your key)</div></div></div>`;
   if (!shown.length) {
     const q = vf.q.trim().toLowerCase(), elsewhere = VOICES.filter(v => (!vf.gender || v.gender === vf.gender) && (!q || [v.name, v.id, v.transcript].some(x => (x || "").toLowerCase().includes(q)))).length;
     $("#voices").innerHTML += `<div class="vempty">${vf.fav && !FAV.size ? "No favorites yet — press ☆ on a voice. " : "No voices match"}${vf.fav && !FAV.size ? "" : ""}${vf.lang !== "all" ? ` in ${esc(LANGS[vf.lang] || vf.lang)}` : ""}. ${vf.lang !== "all" && elsewhere ? `<a href="#" id="vall">Show ${elsewhere} in other languages</a> or ` : ""}add your own below.</div>`;
@@ -361,6 +411,7 @@ $("#voices").addEventListener("click", async (e) => {
   const play = e.target.closest("[data-play]"), del = e.target.closest("[data-del]"), fav = e.target.closest("[data-fav]"), card = e.target.closest(".vcard");
   if (fav) { e.stopPropagation(); return toggleFav(fav.dataset.fav); }
   if (card && card.id === "add-card") return openAdd();
+  if (card && card.id === "gen-card") return openAdd("gen");
   if (e.target.id === "vall") { e.preventDefault(); vf.lang = "all"; vf.manual = true; return renderVoices(); }
   if (play) { e.stopPropagation(); return playVoice(play.dataset.play); }
   if (del) { e.stopPropagation(); if (confirm("Remove voice " + del.dataset.del + "?")) { await api("/api/voices/" + del.dataset.del, { method: "DELETE" }); if (voice === del.dataset.del) voice = ""; loadVoices(); saveSession(); } return; }
@@ -368,7 +419,7 @@ $("#voices").addEventListener("click", async (e) => {
 });
 $("#voices").addEventListener("keydown", (e) => {
   const card = e.target.closest(".vcard"); if (!card || e.target.tagName === "BUTTON") return;
-  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); card.id === "add-card" ? openAdd() : pickVoice(card.dataset.id); }
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); card.id === "add-card" ? openAdd() : card.id === "gen-card" ? openAdd("gen") : pickVoice(card.dataset.id); }
   if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault();
     const all = [...document.querySelectorAll(".vcard")], i = all.indexOf(card), j = Math.max(0, Math.min(all.length - 1, i + (e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : -1))); all[j].focus(); }
 });
@@ -399,8 +450,8 @@ const TR = { а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ё:"e",ж:"zh",з:"z",и:
 let av = null, avDirty = false, avRec = null, idTouched = false;
 const slug = (n) => n.toLowerCase().split("").map(c => TR[c] ?? c).join("").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
 function freeId(base) { base = base || "voice"; let id = base, i = 2; const taken = new Set(VOICES.map(v => v.id)); while (taken.has(id)) id = `${base}-${i++}`; return id; }
-function openAdd() { $("#addvoice").hidden = false; $("#addvoice").scrollIntoView({ behavior: "smooth", block: "nearest" }); $("#av-name").focus({ preventScroll: true }); }
-function closeAdd() { stopRec(true); resetAdd(); $("#addvoice").hidden = true; }
+function openAdd(src) { setSource(src === "gen" ? "gen" : "sample"); $("#addvoice").hidden = false; $("#addvoice").scrollIntoView({ behavior: "smooth", block: "nearest" }); $("#av-name").focus({ preventScroll: true }); }
+function closeAdd() { stopRec(true); resetAdd(); gpStop(); gpReset(); $("#addvoice").hidden = true; }
 function resetAdd() { av = null; avDirty = false; idTouched = false; abp.reset();
   ["#av-name", "#av-id", "#av-text"].forEach(i => $(i).value = ""); $("#av-consent").checked = false; $("#av-msg").textContent = ""; $("#av-file").value = "";
   $("#av-sample").hidden = true; $("#av-script").hidden = true; $("#av-drop").hidden = false; checkAdd(); }
@@ -793,6 +844,187 @@ function handle(ev) {
   }
   updateTiles();
 }
+
+// -- generate a reference voice with a cloud provider -----------------------------------------------------------
+let GP = { providers: [], notice: "", prov: null, mode: "preset", textSrc: "builtin", job: null, es: null, takes: [], sel: "", player: null, gender: "" };
+function setSource(src) {
+  $("#addvoice").classList.toggle("gen", src === "gen");
+  document.querySelectorAll("#av-source button").forEach(b => b.classList.toggle("on", b.dataset.src === src));
+  $("#av-sub").textContent = src === "gen" ? "Create a reference voice with a cloud TTS provider — your key, your cost" : "6–15 s of clean speech: no music, no noise, an even calm pace";
+  if (src === "gen") gpLoad();
+}
+document.querySelectorAll("#av-source button").forEach(b => b.onclick = () => setSource(b.dataset.src));
+async function gpLoad() {
+  if (!$("#gp-lang").options.length) $("#gp-lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}">${n}</option>`).join("");
+  if (!GP.job) $("#gp-lang").value = "en";
+  try {
+    const r = await api("/api/gen/providers"); GP.providers = r.providers; GP.notice = r.notice;
+    const cur = $("#gp-provider").value;
+    $("#gp-provider").innerHTML = r.providers.map(p => `<option value="${esc(p.name)}">${esc(p.label)}</option>`).join("");
+    if (cur) $("#gp-provider").value = cur;
+    $("#gp-notice").innerHTML = `<b>Your text leaves this computer.</b> ${esc(r.notice)}`;
+    gpProvider();
+  } catch (e) { $("#gp-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
+function gpProv() { return GP.providers.find(p => p.name === $("#gp-provider").value); }
+function gpProvider() {
+  const p = GP.prov = gpProv(); if (!p) return;
+  $("#gp-pinfo").innerHTML = `${p.modes.join(" + ")} · ${esc(p.price_note)} <a href="${esc(p.terms_url)}" target="_blank" rel="noopener noreferrer">terms</a>`;
+  const hasKey = p.key_in_env || p.key_saved;
+  $("#gp-keybox").hidden = hasKey; $("#gp-body").hidden = !hasKey; $("#gp-keyok").hidden = !hasKey;
+  $("#gp-keymsg").textContent = `No API key for ${p.label} (${p.key_env}).`;
+  $("#gp-keyok small").textContent = `API key: ${p.key_in_env ? "from the environment" : "saved " + p.key_masked} (${p.key_env}). Change it under Providers → API keys.`;
+  if (!p.modes.includes(GP.mode)) GP.mode = p.modes[0];
+  $("#gp-modeseg").innerHTML = p.modes.length > 1 ? p.modes.map(m => `<button type="button" data-m="${m}" class="${m === GP.mode ? "on" : ""}">${m === "design" ? "Describe a voice" : "Pick a voice"}</button>`).join("") : "";
+  $("#gp-modes").hidden = p.modes.length < 2;
+  gpMode();
+  if (hasKey && !GP.job) { gpVoices(); if (!$("#gp-text").value) gpTexts("builtin"); }
+}
+function gpMode() {
+  $("#gp-design").hidden = GP.mode !== "design"; $("#gp-preset").hidden = GP.mode !== "preset";
+  $("#gp-style-row").hidden = GP.mode !== "preset" || !["openai", "gemini"].includes(GP.prov.name);
+  document.querySelectorAll("#gp-modeseg button").forEach(b => b.classList.toggle("on", b.dataset.m === GP.mode));
+  gpCheck();
+}
+async function gpVoices() {
+  if (GP.mode !== "preset" && GP.prov.modes.length === 1) return;
+  const p = GP.prov.name, box = $("#gp-speaker"); box.innerHTML = `<option>loading…</option>`;
+  try {
+    const r = await api(`/api/gen/voices/${p}?lang=${$("#gp-lang").value}`);
+    if (GP.prov.name !== p) return;
+    box.innerHTML = r.voices.map(v => `<option value="${esc(v.id)}">${esc(v.name)}${v.gender ? " · " + (GENDER[v.gender] || v.gender) : ""}</option>`).join("") || `<option value="">no voices for this language</option>`;
+  } catch (e) { box.innerHTML = `<option value="">—</option>`; $("#gp-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  gpCheck();
+}
+$("#gp-provider").onchange = () => { gpProvider(); };
+$("#gp-lang").onchange = () => { gpVoices(); if (GP.textSrc === "builtin") gpTexts("builtin"); };
+$("#gp-modeseg").addEventListener("click", (e) => { const b = e.target.closest("[data-m]"); if (b) { GP.mode = b.dataset.m; gpMode(); } });
+$("#gp-keysave").onclick = async () => {
+  const v = $("#gp-key").value.trim(); if (!v) return;
+  try { await api("/api/keys/" + GP.prov.key_env, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: v }) }); $("#gp-key").value = ""; await gpLoad(); loadKeys().catch(() => {}); }
+  catch (e) { $("#gp-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+};
+$("#gp-suggest").onclick = async () => {
+  $("#gp-suggest").disabled = true; $("#gp-suggest-msg").textContent = "Asking the text LLM…";
+  try { const r = await api("/api/gen/suggest", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ book_id: book.book_id }) });
+    $("#gp-desc").value = r.prompt; $("#gp-suggest-msg").textContent = "Suggested by " + (r.llm || "the LLM") + " — edit freely."; gpCheck(); }
+  catch (e) { $("#gp-suggest-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  $("#gp-suggest").disabled = false;
+};
+async function gpTexts(src) {
+  GP.textSrc = src; document.querySelectorAll("#gp-textseg button").forEach(b => b.classList.toggle("on", b.dataset.t === src));
+  $("#gp-text-msg").textContent = "";
+  if (src === "custom") { gpCheck(); return; }
+  $("#gp-text-msg").textContent = src === "book" ? "Asking the text LLM to pick passages…" : "";
+  try {
+    const r = await api("/api/gen/texts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ source: src, lang: $("#gp-lang").value, book_id: book.book_id }) });
+    $("#gp-text").value = (src === "builtin" ? r.texts.slice(0, 1) : r.texts).join("\n\n"); $("#gp-text-msg").textContent = "";
+    if (src === "book" && r.lang && $("#gp-lang").value !== r.lang && LANGS[r.lang]) { $("#gp-lang").value = r.lang; gpVoices(); }
+  } catch (e) { $("#gp-text-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  gpCheck();
+}
+$("#gp-textseg").addEventListener("click", (e) => { const b = e.target.closest("[data-t]"); if (b) gpTexts(b.dataset.t); });
+function gpBody() {
+  const texts = $("#gp-text").value.split(/\n\s*\n/).map(t => t.trim()).filter(Boolean);
+  const style = $("#gp-style").value.trim();
+  return { provider: GP.prov.name, mode: GP.mode, lang: $("#gp-lang").value, texts, takes: +$("#gp-takes").value || 3,
+           description: GP.mode === "design" ? $("#gp-desc").value.trim() : (style && !$("#gp-style-row").hidden ? style : ""),
+           speaker: GP.mode === "preset" ? $("#gp-speaker").value : "", book_id: book ? book.book_id : "" };
+}
+let gpEstTimer = null;
+function gpCheck() {
+  if (!GP.prov || $("#gp-body").hidden) return;
+  const b = gpBody(), ready = b.texts.length && (GP.mode === "preset" ? b.speaker : b.description.length >= 10);
+  $("#gp-go").disabled = !(ready && $("#gp-ack").checked) || !!(GP.job && !GP.job.final);
+  clearTimeout(gpEstTimer);
+  if (!ready) { $("#gp-est").textContent = ""; return; }
+  gpEstTimer = setTimeout(async () => {
+    try { const e = await api("/api/gen/estimate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) });
+      $("#gp-est").textContent = `${e.chars.toLocaleString()} characters will be sent` + (e.usd != null ? ` · about $${e.usd.toFixed(e.usd < 0.1 ? 3 : 2)}` : "") + " (approximate; see the provider's price list)."; }
+    catch (err) { $("#gp-est").innerHTML = `<span class="err">${esc(err.message)}</span>`; }
+  }, 300);
+}
+["#gp-text", "#gp-desc", "#gp-style", "#gp-takes", "#gp-speaker", "#gp-ack"].forEach(i => $(i).addEventListener("input", gpCheck));
+$("#gp-ack").addEventListener("change", gpCheck);
+$("#gp-go").onclick = async () => {
+  gpStopPlay(); GP.takes = []; GP.sel = ""; $("#gp-takes-box").hidden = true; $("#gp-msg").textContent = "Starting…";
+  $("#gp-bar").hidden = false; $("#gp-fill").style.width = "2%";
+  try {
+    const j = await api("/api/gen/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...gpBody(), acknowledged: $("#gp-ack").checked }) });
+    GP.job = { id: j.id, final: false }; $("#gp-cancel").disabled = false; $("#gp-go").disabled = true; gpStream(j.id);
+  } catch (e) {
+    $("#gp-bar").hidden = true;
+    $("#gp-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`;
+    if (e.message.startsWith("No API key")) gpLoad();
+  }
+};
+function gpStream(id) {
+  if (GP.es) GP.es.close();
+  const total = gpBody().texts.length * gpBody().takes;
+  const es = GP.es = new EventSource(tok(`/api/jobs/${id}/events`)); let errors = 0;
+  es.onmessage = (m) => {
+    errors = 0; const ev = JSON.parse(m.data);
+    if (ev.type === "stage") $("#gp-msg").textContent = ev.detail + "…";
+    if (ev.type === "take") { $("#gp-fill").style.width = Math.round(5 + 85 * ev.n / ev.total) + "%"; $("#gp-msg").textContent = `Take ${ev.n} of ${ev.total}…`; }
+    if (ev.type === "takes") { GP.takes = ev.takes; gpShowTakes(); }
+    if (["done", "cancelled", "error"].includes(ev.type)) {
+      GP.job.final = true; es.close(); $("#gp-cancel").disabled = true; $("#gp-fill").style.width = ev.type === "done" ? "100%" : "0%";
+      $("#gp-msg").innerHTML = ev.type === "error" ? `<span class="err">${esc(ev.message)}</span>` : ev.type === "cancelled" ? "Stopped." : "Done — listen and pick one.";
+      if (ev.type !== "done") $("#gp-bar").hidden = true; gpCheck();
+    }
+  };
+  es.onerror = () => { if (GP.job && !GP.job.final && ++errors >= 3) { es.close(); GP.job.final = true; $("#gp-msg").innerHTML = `<span class="err">Lost the connection to the server.</span>`; gpCheck(); } };
+}
+$("#gp-cancel").onclick = async () => { if (GP.job) { $("#gp-msg").textContent = "Stopping after the current request…"; try { await api(`/api/jobs/${GP.job.id}/cancel`, { method: "POST" }); } catch (e) {} } };
+function gpStop() { if (GP.job && !GP.job.final) fetch(`/api/jobs/${GP.job.id}/cancel`, { method: "POST", headers: { "X-Folivox-Token": TOKEN } }).catch(() => {}); if (GP.es) GP.es.close(); gpStopPlay(); }
+function gpReset() { GP.job = null; GP.takes = []; GP.sel = ""; $("#gp-takes-box").hidden = true; $("#gp-bar").hidden = true; $("#gp-msg").textContent = ""; $("#gp-ack").checked = false; $("#gp-cancel").disabled = true; }
+function gpStopPlay() { if (GP.player) { GP.player.pause(); GP.player = null; } }
+function gpDraw(cv, peaks, progress) {
+  const dpr = window.devicePixelRatio || 1, W = Math.round(cv.clientWidth * dpr), H = Math.round(26 * dpr); if (!W || !peaks.length) return;
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const g = cv.getContext("2d"), n = peaks.length, step = W / n, bw = Math.max(1, step * 0.62), on = css("--accent"), off = css("--seg-pending");
+  g.clearRect(0, 0, W, H);
+  peaks.forEach((p, i) => { const h = Math.max(2 * dpr, H * p / 100); g.fillStyle = i / n < progress ? on : off; g.fillRect(i * step, (H - h) / 2, bw, h); });
+}
+function gpShowTakes() {
+  $("#gp-takes-box").hidden = false;
+  $("#gp-list").innerHTML = GP.takes.map((t, i) => `<div class="gp-take ${GP.sel === t.name ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${GP.sel === t.name}" data-take="${esc(t.name)}">
+    <button type="button" class="vplay" data-tplay="${esc(t.name)}" aria-label="Play take ${i + 1}">▶</button>
+    <div style="min-width:0"><div class="vname"><span class="n">Take ${i + 1}</span>${i === 0 ? `<span class="vbadge mine">best match</span>` : ""}</div>
+      <div class="vmeta">${t.duration} s · ${t.score == null ? "not scored" : "error " + t.score.toFixed(3)} · heard: ${esc((t.heard || "").slice(0, 70))}</div></div>
+    <canvas class="vwave" data-peaks="${i}"></canvas><span class="vcheck">✓</span></div>`).join("");
+  document.querySelectorAll("#gp-list canvas").forEach(c => gpDraw(c, GP.takes[+c.dataset.peaks].peaks, 0));
+  if (!GP.sel && GP.takes.length) GP.sel = GP.takes[0].name, gpShowTakes();
+  gpAddCheck();
+}
+$("#gp-list").addEventListener("click", (e) => {
+  const play = e.target.closest("[data-tplay]"), row = e.target.closest("[data-take]"); if (!row) return;
+  if (play) { e.stopPropagation(); return gpPlay(play.dataset.tplay); }
+  GP.sel = row.dataset.take; gpShowTakes();
+});
+function gpPlay(name) {
+  if (GP.player && GP.player.tname === name && !GP.player.paused) { GP.player.pause(); return; }
+  gpStopPlay();
+  const a = GP.player = new Audio(tok(`/api/gen/${GP.job.id}/takes/${encodeURIComponent(name)}`)); a.tname = name;
+  const row = () => document.querySelector(`#gp-list [data-take="${CSS.escape(name)}"]`), t = () => GP.takes.find(x => x.name === name);
+  a.onplay = () => { const r = row(); if (r) { r.classList.add("playing"); r.querySelector(".vplay").textContent = "❚❚"; } };
+  a.onpause = a.onended = () => { const r = row(); if (r) { r.classList.remove("playing"); r.querySelector(".vplay").textContent = "▶"; gpDraw(r.querySelector("canvas"), t().peaks, 0); } };
+  a.ontimeupdate = () => { const r = row(); if (r) gpDraw(r.querySelector("canvas"), t().peaks, a.currentTime / (a.duration || 1)); };
+  a.play();
+}
+let gpIdTouched = false;
+$("#gp-name").addEventListener("input", () => { if (!gpIdTouched) $("#gp-id").value = $("#gp-name").value.trim() ? freeId(slug($("#gp-name").value)) : ""; gpAddCheck(); });
+$("#gp-id").addEventListener("input", () => { gpIdTouched = true; gpAddCheck(); });
+$("#gp-gender").addEventListener("click", (e) => { const b = e.target.closest("[data-g]"); if (!b) return; GP.gender = b.dataset.g; document.querySelectorAll("#gp-gender button").forEach(x => x.classList.toggle("on", x === b)); });
+function gpAddCheck() { $("#gp-add").disabled = !(GP.sel && $("#gp-name").value.trim() && /^[a-z0-9][a-z0-9_-]*$/.test($("#gp-id").value)); }
+$("#gp-add").onclick = async () => {
+  $("#gp-add").disabled = true; $("#gp-addmsg").textContent = "Adding…";
+  try {
+    const v = await api(`/api/gen/${GP.job.id}/add`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ take: GP.sel, id: $("#gp-id").value, name: $("#gp-name").value.trim(), gender: GP.gender, lang: $("#gp-lang").value }) });
+    $("#gp-addmsg").textContent = "Added: " + v.name; voice = v.id; await loadVoices(); saveSession();
+    gpStopPlay(); gpReset(); $("#gp-name").value = $("#gp-id").value = ""; gpIdTouched = false; $("#addvoice").hidden = true;
+  } catch (e) { $("#gp-addmsg").innerHTML = `<span class="err">${esc(e.message)}</span>`; gpAddCheck(); }
+};
 
 // ---- settings ---------------------------------------------------------------------------------
 async function loadSettings() {

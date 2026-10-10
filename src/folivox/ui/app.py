@@ -99,7 +99,8 @@ def _wave(path: Path, bars: int = 64) -> dict:
 
 def _voice_json(v) -> dict:
     return {**_wave(v.path), "id": v.id, "name": v.name, "gender": v.gender, "lang": v.lang, "license": v.license,
-            "bundled": v.bundled, "default": v.id == catalog.DEFAULT_VOICE, "transcript": v.transcript}
+            "bundled": v.bundled, "commercial": v.commercial, "default": v.id == catalog.DEFAULT_VOICE,
+            "transcript": v.transcript}
 
 
 def _registries():

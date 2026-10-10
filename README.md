@@ -122,6 +122,45 @@ about the prompt — accent and rhythm included — so listen to the *cloned* na
 take. Describe the speaker as a **native** speaker of the language: preset voices of multilingual
 models carry their own accent into other languages.
 
+#### Cloud voice generation
+
+A third source of voices, besides uploaded and recorded samples: let a cloud TTS provider read a
+short text, listen to the takes (ranked by Whisper), keep the best one as your cloning prompt.
+
+| Provider (`-g`) | Modes | API key variable | Notes |
+|---|---|---|---|
+| `gemini` | preset (30 voices, style note) | `GEMINI_API_KEY` | Gemini API speech generation; free tier exists (Google may then use your text) |
+| `openai` | preset (13 voices + style instructions) | `OPENAI_API_KEY` | `gpt-4o-mini-tts` (instructions), `tts-1` / `tts-1-hd` via `[voicegen.openai] model` |
+| `elevenlabs` | preset **and design** (voice from a text description) | `ELEVENLABS_API_KEY` | Voice Design previews: 3 takes per request, billed once; free plan: personal use, no library voices via API |
+| `cartesia` | preset | `CARTESIA_API_KEY` | no text-based design in the API; commercial use of output needs a paid plan |
+
+```bash
+export GEMINI_API_KEY=…                                    # or save it in `folivox ui`
+folivox voices speakers -g gemini                          # preset voices
+folivox voices design narrator -g gemini --speaker Kore --lang en --keep takes/
+folivox voices suggest-prompt book.fb2 -g elevenlabs       # a design prompt from the book (text LLM)
+folivox voices design narrator -g elevenlabs --lang en \
+  --describe "calm, warm woman in her forties, low timbre, unhurried pace" --yes
+```
+
+In `folivox ui`: voice gallery → **Generate with a provider**. Pick a provider (the key is requested
+there if missing and stored in the OS keychain, never sent back to the browser), describe a voice
+(**Suggest** asks your text LLM to write the prompt from the book) or pick a preset voice, choose
+the text (a built-in calm English sample, passages from the book, or your own), see the number of
+characters and an approximate price, generate 3 takes, audition, name and add. Generation can be
+stopped at any time.
+
+The default text is a short English sample; for another language pick the language and a text in
+it. Preset voices of multilingual providers carry their accent into other languages.
+
+The estimates are approximate and based on public price lists seen in October 2026; check your
+provider's dashboard. **Your text is sent to the provider and billed to your account.** Generated
+voices are stored with the provider in `source`, the license note and a `commercial: true` flag
+(shown as *commercial API* in the gallery); keep them for personal use. Providers' terms differ
+(for example Gemini's and Cartesia's forbid using output to develop competing models, ElevenLabs'
+free plan is non-commercial); read them before you publish audiobooks. They are never added to
+the bundled catalog, and Folivox has no feature for imitating real people.
+
 ### The voice sample
 
 Use 6–15 seconds of **clean** speech (no music, no noise, no reverb), WAV or FLAC, with an exact
@@ -148,7 +187,7 @@ folivox providers        # what is available and selected
 |---|---|---|
 | `tts` | `cosyvoice3` | — |
 | `asr` | `auto` (mlx-whisper / faster-whisper) | `openai` (any OpenAI-compatible transcription API) |
-| `voicegen` | `qwen3-voicedesign`, `qwen3-customvoice` | `openai` |
+| `voicegen` | `qwen3-voicedesign`, `qwen3-customvoice` | `gemini`, `openai`, `elevenlabs`, `cartesia` |
 | `llm` | `ollama` | `openai` (OpenAI, OpenRouter, llama.cpp server… any OpenAI-compatible API) |
 
 Choose with CLI options, `FOLIVOX_TTS` / `FOLIVOX_ASR` / `FOLIVOX_VOICEGEN` / `FOLIVOX_LLM`, or a

@@ -74,6 +74,10 @@ browser (static HTML + small JS)  ⇄  HTTP + SSE  ⇄  folivox.ui (Starlette)  
 | Method | Path | |
 |---|---|---|
 | POST | `/api/books` | upload → `{book_id, title, author, lang, chapters[], estimated_seconds}` |
+| GET | `/api/gen/providers` | cloud voice providers: capabilities, price/terms notes, key state (masked) |
+| POST | `/api/gen/suggest`, `/api/gen/texts`, `/api/gen/estimate`, `/api/gen/start` | design prompt (LLM), sample texts, cost estimate, start a generation job (events and cancel via `/api/jobs/{id}/…`) |
+| GET | `/api/gen/voices/{provider}`, `/api/gen/{job}/takes/{name}` | preset voices; audio of a take |
+| POST | `/api/gen/{job}/add` | add a take to the catalog (marked commercial API) |
 | GET | `/api/voices` | catalog (id, name, lang, license) |
 | GET | `/api/voices/{id}/sample` | audio for audition |
 | POST | `/api/preview` | `{book_id, voice, options}` → `{audio_url}` (synchronous, short) |

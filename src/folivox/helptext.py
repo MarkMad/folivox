@@ -41,6 +41,16 @@ Without [cyan]--voice[/] Folivox picks a catalog voice in the book's language.
   [cyan]folivox voices add anna anna.wav --text anna.txt --gender f[/]
   [cyan]folivox voices design anna --describe "calm native female narrator"[/]   generate one
   [cyan]folivox voices sample-text book.fb2[/]         passages that are easy for a generator to read
+  [cyan]folivox voices suggest-prompt book.fb2 -g elevenlabs[/]   a voice-design prompt written by a text LLM
+  [cyan]folivox voices speakers -g gemini[/]           preset voices of a generator
+  [cyan]folivox voices design anna -g gemini --speaker Kore --lang en[/]   cloud provider (your key, paid)
+  [cyan]folivox voices design anna -g elevenlabs --describe "calm warm woman, low voice"[/]
+
+Cloud generators ([cyan]openai[/], [cyan]gemini[/], [cyan]elevenlabs[/], [cyan]cartesia[/]) need an API key in
+[cyan]OPENAI_API_KEY[/], [cyan]GEMINI_API_KEY[/], [cyan]ELEVENLABS_API_KEY[/], [cyan]CARTESIA_API_KEY[/]
+(or the OS keychain via [cyan]folivox ui[/]). The text is sent to the provider and billed to you;
+the voice is stored as a [bold]commercial API[/] voice for your own use and is never bundled.
+Check each provider's terms.
 
 A good sample is 6–15 s of clean, evenly read speech with an exact transcript (pass it with
 [cyan]--voice-text[/], or put a .txt next to the audio; otherwise Whisper transcribes it).
