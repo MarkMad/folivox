@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Folivox</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232f6f5e'/%3E%3Cpath d='M7 16h2v0M11 11v10M15 7v18M19 11v10M23 14v4' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
 <style>
 :root { color-scheme:light dark; --bg:#f6f5f2; --card:#fff; --ink:#1d1c1a; --mute:#6b6a66; --line:#e3e1db; --accent:#2f6f5e; --accent-ink:#fff; --warn:#a4561a; --err:#b3261e; }
 @media (prefers-color-scheme: dark) { :root { --bg:#161615; --card:#201f1d; --ink:#ecebe7; --mute:#9a9892; --line:#34332f; --accent:#5fb39b; --accent-ink:#10201b; --warn:#e0a060; --err:#f2938b; } }
@@ -659,11 +660,14 @@ function feedLine(ev) {
 }
 
 function attach(j) {
+  if (!j || typeof j.id !== "string" || !j.id) return;  // never open a stream for a job we cannot name
   job = j; busy(true); newStudio(j);
   if (es) es.close();
-  es = new EventSource(tok(`/api/jobs/${j.id}/events`));
-  es.onmessage = (m) => handle(JSON.parse(m.data));
-  es.onerror = () => { if (job && job.final) es.close(); };
+  let errors = 0; const stream = new EventSource(tok(`/api/jobs/${j.id}/events`)); es = stream;
+  stream.onmessage = (m) => { errors = 0; handle(JSON.parse(m.data)); };
+  // EventSource retries by itself after a dropped connection; give up after a few failures (e.g. the job is gone
+  // after a server restart) and let reconcile() decide what the page should show.
+  stream.onerror = () => { if ((job && job.final) || stream.readyState === EventSource.CLOSED || ++errors >= 3) { stream.close(); if (job === j && !j.final) j.streamLost = true; } };
 }
 function handle(ev) {
   if (!S.t0) S.t0 = ev.t; S.tLast = ev.t;
@@ -742,7 +746,8 @@ async function reconcile() {
       if (job && !job.final) { end("error"); log("The server restarted; this job is gone.", "warn"); $("#run-msg").textContent = "Server restarted. Progress is saved — press Render to resume."; }
       return;
     }
-    const stale = !job || job.id !== cur.id || (cur.state !== "running" && !job.final);
+    if (typeof cur.id !== "string") return;
+    const stale = !job || job.id !== cur.id || (cur.state !== "running" && !job.final) || (job.streamLost && !job.final);
     if (stale) { attach(cur); if (cur.state === "running") $("#run-msg").textContent = "Showing the job that is running on the server."; }
   } catch (e) { online = false; $("#offline").hidden = false; }
 }
