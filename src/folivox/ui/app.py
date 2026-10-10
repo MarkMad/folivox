@@ -174,11 +174,26 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         state.session_file.write_text(json.dumps(body), encoding="utf-8")
         return JSONResponse({"ok": True})
 
+    def read_favorites() -> list[str]:
+        try:
+            ids = json.loads((state.data_dir / "favorites.json").read_text(encoding="utf-8"))
+            return [i for i in ids if isinstance(i, str)]
+        except (OSError, ValueError):
+            return []
+
+    async def put_favorites(request: Request):
+        ids = (await request.json()).get("ids")
+        if not isinstance(ids, list) or not all(isinstance(i, str) and len(i) <= 64 for i in ids):
+            raise ApiError("ids must be a list of voice ids")
+        state.data_dir.mkdir(parents=True, exist_ok=True)
+        (state.data_dir / "favorites.json").write_text(json.dumps(sorted(set(ids))), encoding="utf-8")
+        return JSONResponse({"ok": True})
+
     async def list_voices(request: Request):
         lang = request.query_params.get("lang")
         voices = [v for v in catalog.all_voices() if not lang or v.lang == lang]
         auto = {code: catalog.default_for(code).id for code in sorted({v.lang for v in catalog.all_voices()})}
-        return JSONResponse({"voices": [_voice_json(v) for v in voices], "auto": auto,
+        return JSONResponse({"voices": [_voice_json(v) for v in voices], "auto": auto, "favorites": read_favorites(),
                              "user_dir": str(catalog.user_voices_dir())})
 
     async def voice_sample(request: Request):
@@ -433,6 +448,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/books/{book_id}/chapters", book_chapters),
         Route("/api/session", get_session),
         Route("/api/session", put_session, methods=["PUT"]),
+        Route("/api/favorites", put_favorites, methods=["PUT"]),
         Route("/api/voices", list_voices),
         Route("/api/voices", add_voice, methods=["POST"]),
         Route("/api/voices/{voice_id}/sample", voice_sample),

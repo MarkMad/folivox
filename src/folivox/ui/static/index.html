@@ -8,6 +8,7 @@
 :root { color-scheme:light dark; --bg:#f6f5f2; --card:#fff; --ink:#1d1c1a; --mute:#6b6a66; --line:#e3e1db; --accent:#2f6f5e; --accent-ink:#fff; --warn:#a4561a; --err:#b3261e; }
 @media (prefers-color-scheme: dark) { :root { --bg:#161615; --card:#201f1d; --ink:#ecebe7; --mute:#9a9892; --line:#34332f; --accent:#5fb39b; --accent-ink:#10201b; --warn:#e0a060; --err:#f2938b; } }
 * { box-sizing: border-box; }
+[hidden] { display:none !important; }
 body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
 main { max-width: 860px; margin: 0 auto; padding: 24px 16px 80px; }
 h1 { font-size: 22px; margin: 0 0 4px; } h1 small { color:var(--mute); font-weight:400; font-size:14px; }
@@ -30,7 +31,7 @@ td.n, th.n { text-align:right; color:var(--mute); white-space:nowrap; }
 .progress > div { height:100%; width:0; background:var(--accent); transition:width .3s; }
 #log { font:12px/1.5 ui-monospace,Menlo,monospace; max-height:180px; overflow:auto; background:var(--bg); border-radius:6px; padding:8px; margin-top:8px; white-space:pre-wrap; }
 details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px 16px; margin-top:10px; }
-label.f { display:flex; flex-direction:column; gap:3px; font-size:13px; color:var(--mute); } label.f input, label.f select { color:var(--ink); }
+.f { display:flex; flex-direction:column; gap:3px; font-size:13px; color:var(--mute); } .f input, .f select, .f textarea { color:var(--ink); }
 .built { display:flex; gap:10px; align-items:center; padding:3px 0; } .built audio { height:30px; flex:1; max-width:420px; }
 
 /* ---- studio ---- */
@@ -85,22 +86,45 @@ label.f { display:flex; flex-direction:column; gap:3px; font-size:13px; color:va
 .chips { display:flex; gap:6px; flex-wrap:wrap; } #vlangs { margin-bottom:10px; }
 .chip { font-size:12.5px; padding:3px 11px; border-radius:99px; border:1px solid var(--line); background:transparent; color:var(--mute); cursor:pointer; }
 .chip:hover { color:var(--ink); } .chip.on { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); } .chip small { opacity:.7; margin-left:3px; }
-.vgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; max-height:430px; overflow:auto; padding:3px; margin:-3px; }
-.vcard { position:relative; display:grid; grid-template-columns:40px 1fr; gap:4px 12px; align-items:start; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; transition:border-color .2s, box-shadow .2s, transform .2s; }
+.vgrid { display:flex; flex-direction:column; gap:6px; max-height:440px; overflow:auto; padding:3px; margin:-3px; }
+.vcard { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,170px) 18px 28px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; transition:border-color .2s, box-shadow .2s, background .2s; }
 .vcard:hover { border-color:var(--mute); } .vcard:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .vcard.sel { border-color:var(--accent); box-shadow:0 0 0 3px var(--glow); } .vcard.off { opacity:.62; }
-.vplay { width:40px; height:40px; border-radius:50%; padding:0; line-height:1; border:1px solid var(--line); font-size:14px; background:var(--bg); }
+.vplay { width:34px; height:34px; border-radius:50%; padding:0; line-height:1; border:1px solid var(--line); font-size:12px; background:var(--bg); }
 .vcard.sel .vplay, .vcard.playing .vplay { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
-.vname { font-weight:600; font-size:14.5px; display:flex; gap:6px; align-items:center; min-width:0; } .vname span.n { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.vname { font-weight:600; font-size:14px; display:flex; gap:6px; align-items:center; min-width:0; } .vname span.n { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .vmeta { font-size:12px; color:var(--mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.vwave { grid-column:1 / -1; width:100%; height:26px; display:block; margin-top:4px; }
-.vtext { grid-column:1 / -1; font-size:12.5px; color:var(--mute); line-height:1.35; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.vwave { width:100%; height:24px; display:block; }
 .vbadge { font-size:10.5px; font-weight:500; padding:1px 7px; border-radius:99px; background:var(--bg); color:var(--mute); text-transform:uppercase; letter-spacing:.04em; flex:none; }
 .vbadge.mine { background:var(--glow); color:var(--seg-done); } .vbadge.warn { color:var(--warn); }
-.vcheck { position:absolute; top:9px; right:11px; color:var(--accent); font-weight:700; opacity:0; transition:opacity .2s; } .vcard.sel .vcheck { opacity:1; }
-.vdel { position:absolute; bottom:8px; right:8px; padding:0 7px; font-size:12px; opacity:0; border-radius:6px; } .vcard:hover .vdel { opacity:1; }
-.vcard.auto { background:linear-gradient(135deg,var(--glow),transparent 70%); }
-.vempty { grid-column:1 / -1; text-align:center; padding:26px 8px; color:var(--mute); }
+.vcheck { color:var(--accent); font-weight:700; opacity:0; transition:opacity .2s; text-align:center; } .vcard.sel .vcheck { opacity:1; }
+.vstar { padding:0; width:28px; height:28px; border:0; background:transparent; font-size:17px; line-height:1; color:var(--mute); opacity:.55; border-radius:6px; }
+.vstar:hover { opacity:1; color:var(--seg-synth); } .vstar.on { color:var(--seg-synth); opacity:1; }
+.vdel { padding:0 6px; font-size:11px; opacity:0; border-radius:6px; margin-left:2px; } .vcard:hover .vdel { opacity:1; }
+.vcard.auto { background:linear-gradient(90deg,var(--glow),transparent 75%); }
+.vempty { text-align:center; padding:22px 8px; color:var(--mute); }
+.vcard.add { border-style:dashed; background:transparent; color:var(--mute); grid-template-columns:34px minmax(0,1fr); }
+@media (max-width:640px) { .vcard { grid-template-columns:34px minmax(0,1fr) 18px 28px; } .vwave { display:none; } }
+/* ---- add voice ---- */
+.vcard.add:hover { color:var(--ink); border-color:var(--accent); } .vcard.add .vplay { font-size:22px; font-weight:300; }
+.av { margin-top:14px; border:1px solid var(--line); border-radius:12px; padding:16px; background:linear-gradient(180deg,var(--glow),transparent 120px); }
+.av-head { display:flex; gap:12px; align-items:baseline; flex-wrap:wrap; margin-bottom:12px; }
+.av-body { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px; } @media (max-width:760px) { .av-body { grid-template-columns:1fr; } }
+.av-left, .av-right { display:flex; flex-direction:column; gap:12px; min-width:0; }
+.dropbox { border:2px dashed var(--line); border-radius:12px; padding:22px 14px; text-align:center; cursor:pointer; transition:all .2s; }
+.dropbox:hover, .dropbox.over, .dropbox:focus-visible { border-color:var(--accent); background:var(--glow); outline:0; }
+.av-or { margin:8px 0; color:var(--mute); font-size:12px; } button.rec { color:var(--err); border-color:var(--err); background:transparent; }
+.av-script { background:var(--bg); border-radius:10px; padding:10px 14px; } #av-script-text { font-size:16px; line-height:1.5; margin-top:4px; }
+.av-rec { display:flex; align-items:center; gap:12px; background:var(--bg); border-radius:10px; padding:10px 14px; }
+.dotrec { width:10px; height:10px; border-radius:50%; background:var(--err); animation:pulse 1s ease-in-out infinite; } @keyframes pulse { 50% { opacity:.25; } }
+#av-timer { font-variant-numeric:tabular-nums; min-width:38px; } .meter { flex:1; height:6px; background:var(--seg-pending); border-radius:3px; overflow:hidden; } .meter i { display:block; height:100%; width:0; background:var(--accent); transition:width .08s; }
+.av-sample { display:flex; gap:12px; align-items:center; background:var(--bg); border-radius:10px; padding:10px 12px; } .av-sample .vplay { flex:none; }
+.av-sample .ok { color:var(--seg-done); } .av-sample .bad { color:var(--warn); } .av-sample .stop { color:var(--err); }
+.seg { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; } .seg button { border:0; border-radius:0; padding:5px 12px; background:transparent; color:var(--mute); font-size:14px; }
+.seg button.on { background:var(--accent); color:var(--accent-ink); }
+textarea { font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:6px 10px; resize:vertical; }
+.consent { display:flex; gap:8px; align-items:flex-start; font-size:13px; color:var(--mute); }
+@media (prefers-reduced-motion: reduce) { .dotrec { animation:none; } }
 </style>
 </head>
 <body>
@@ -121,23 +145,37 @@ label.f { display:flex; flex-direction:column; gap:3px; font-size:13px; color:va
 </section>
 
 <section id="s-voice" class="disabled"><h2>3 · Voice</h2>
-  <div class="vbar"><input id="vq" type="search" placeholder="Search voices — name, id, text of the sample" autocomplete="off">
+  <div class="vbar"><input id="vq" type="search" placeholder="Search voices — name, id, language, license" autocomplete="off">
     <div class="chips" id="vgender"></div></div>
   <div class="chips" id="vlangs"></div>
   <div class="vgrid" id="voices" role="radiogroup" aria-label="Voice"></div>
   <div class="mute" id="vcount" style="margin-top:6px"><small></small></div>
-  <details style="margin-top:10px"><summary>Add your own voice (6–15 s of clean speech)</summary>
-    <form id="voice-form" class="grid">
-      <label class="f">Id (a-z, 0-9, - _)<input name="id" type="text" required pattern="[a-z0-9][a-z0-9_-]*"></label>
-      <label class="f">Name<input name="name" type="text"></label>
-      <label class="f">Sex<select name="gender"><option value="">—</option><option value="f">f</option><option value="m">m</option></select></label>
-      <label class="f">Language of the sample<select name="lang" id="voice-lang"></select></label>
-      <label class="f">Audio file<input name="file" type="file" accept="audio/*" required></label>
-      <label class="f">Transcript (empty = Whisper)<input name="transcript" type="text"></label>
-      <div class="row" style="grid-column:1/-1"><button class="primary">Add voice</button><span id="voice-msg" class="mute"></span></div>
-    </form>
-    <p class="mute"><small>Clone only your own voice or one you have permission to use.</small></p>
-  </details>
+  <div id="addvoice" class="av" hidden>
+    <div class="av-head"><b>Add your own voice</b><span class="mute">6–15 s of clean speech: no music, no noise, an even calm pace</span>
+      <button id="av-close" class="chip" style="margin-left:auto">Close</button></div>
+    <div class="av-body">
+      <div class="av-left">
+        <div id="av-drop" class="dropbox" tabindex="0"><div><b>Drop an audio file</b> or click to choose</div><div class="mute"><small>WAV, FLAC, MP3, M4A, OGG</small></div>
+          <div class="av-or">or</div><button type="button" id="av-rec" class="rec">● Record with the microphone</button><input id="av-file" type="file" accept="audio/*" hidden></div>
+        <div id="av-script" class="av-script" hidden><small class="mute">READ ALOUD, CALMLY</small><div id="av-script-text"></div></div>
+        <div id="av-rec-ui" class="av-rec" hidden><span class="dotrec"></span><span id="av-timer">0:00</span><div class="meter"><i id="av-meter"></i></div><button type="button" id="av-stop" class="primary">■ Stop</button></div>
+        <div id="av-sample" class="av-sample" hidden>
+          <button type="button" id="av-play" class="vplay">▶</button>
+          <div style="min-width:0;flex:1"><div id="av-fname" class="vname"></div><canvas id="av-wave" class="vwave" style="margin-top:2px"></canvas>
+            <div id="av-dur" class="vmeta"></div></div>
+          <button type="button" id="av-trim" class="chip" hidden>Trim to 15 s</button><button type="button" id="av-clear" class="chip">Remove</button></div>
+      </div>
+      <div class="av-right">
+        <label class="f">Name<input id="av-name" type="text" placeholder="e.g. Anna" autocomplete="off"></label>
+        <label class="f">Id <small>(a–z, 0–9, - _ · made from the name)</small><input id="av-id" type="text" pattern="[a-z0-9][a-z0-9_-]*" autocomplete="off"></label>
+        <div class="row"><label class="f" style="flex:1">Language of the sample<select id="av-lang"></select></label>
+          <div class="f"><span>Sex</span><div class="seg" id="av-gender"><button type="button" data-g="f">female</button><button type="button" data-g="m">male</button><button type="button" data-g="" class="on">—</button></div></div></div>
+        <label class="f">Transcript <small>(exactly what is said · empty = recognised by Whisper)</small><textarea id="av-text" rows="3" placeholder="Leave empty to transcribe automatically"></textarea></label>
+        <label class="consent"><input type="checkbox" id="av-consent"> This is my own voice, or I have the speaker's permission to clone it.</label>
+        <div class="row"><button id="av-submit" class="primary" disabled>Add voice</button><span id="av-msg" class="mute grow"></span></div>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section id="s-run" class="disabled"><h2>4 · Render</h2>
@@ -250,19 +288,21 @@ async function reflow() {
 $("#depth").onchange = reflow; $("#lang").onchange = reflow;
 
 // ---- voices: a searchable, filterable gallery with waveform thumbnails -------------------------------
-let VOICES = [], AUTO = {}, vf = { q: "", lang: null, gender: "", manual: false }, vplayer = null;
+let VOICES = [], AUTO = {}, FAV = new Set(), vf = { q: "", lang: null, gender: "", fav: false, manual: false }, vplayer = null;
 async function loadVoices() {
-  const r = await api("/api/voices"); VOICES = r.voices; AUTO = r.auto;
+  const r = await api("/api/voices"); VOICES = r.voices; AUTO = r.auto; FAV = new Set(r.favorites || []);
   if (!vf.manual || (vf.lang !== "all" && !VOICES.some(v => v.lang === vf.lang))) vf.lang = VOICES.some(v => v.lang === book.lang) ? book.lang : "all";
-  $("#voice-lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}" ${c === book.lang ? "selected" : ""}>${n}</option>`).join("");
+  if (!$("#av-lang").options.length) $("#av-lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}">${n}</option>`).join("");
+  if (!avDirty) $("#av-lang").value = book.lang;
   renderVoices();
 }
 const GENDER = { f: "female", m: "male" };
 function voiceMatches(v) {
   if (vf.lang !== "all" && v.lang !== vf.lang) return false;
   if (vf.gender && v.gender !== vf.gender) return false;
+  if (vf.fav && !FAV.has(v.id)) return false;
   const q = vf.q.trim().toLowerCase();
-  return !q || [v.name, v.id, v.transcript, v.license, LANGS[v.lang]].some(x => (x || "").toLowerCase().includes(q));
+  return !q || [v.name, v.id, v.license, LANGS[v.lang]].some(x => (x || "").toLowerCase().includes(q));
 }
 function renderVoices() {
   // language chips: the book's language first, then the rest by number of voices
@@ -271,22 +311,23 @@ function renderVoices() {
   $("#vlangs").innerHTML = [`<button class="chip ${vf.lang === "all" ? "on" : ""}" data-lang="all">All languages<small>${VOICES.length}</small></button>`]
     .concat(langs.map(c => `<button class="chip ${vf.lang === c ? "on" : ""}" data-lang="${c}">${esc(LANGS[c] || c)}${c === book.lang ? " · book" : ""}<small>${counts[c]}</small></button>`)).join("");
   const genders = [...new Set(VOICES.map(v => v.gender).filter(Boolean))];
-  $("#vgender").innerHTML = genders.length > 1 ? [["", "Any"], ...genders.map(g => [g, GENDER[g] || g])].map(([g, n]) => `<button class="chip ${vf.gender === g ? "on" : ""}" data-g="${g}">${n}</button>`).join("") : "";
-  const shown = VOICES.filter(voiceMatches);
+  $("#vgender").innerHTML = `<button class="chip ${vf.fav ? "on" : ""}" id="vfav">★ Favorites<small>${FAV.size}</small></button>` +
+    (genders.length > 1 ? [["", "Any"], ...genders.map(g => [g, GENDER[g] || g])].map(([g, n]) => `<button class="chip ${vf.gender === g ? "on" : ""}" data-g="${g}">${n}</button>`).join("") : "");
+  const shown = VOICES.filter(voiceMatches).sort((a, b) => FAV.has(b.id) - FAV.has(a.id));  // favorites first, otherwise the catalog order
   const autoId = AUTO[book.lang] || AUTO[Object.keys(AUTO)[0]], autoV = VOICES.find(v => v.id === autoId);
-  const showAuto = !vf.q.trim() && (vf.lang === "all" || vf.lang === book.lang) && !vf.gender;
+  const showAuto = !vf.q.trim() && (vf.lang === "all" || vf.lang === book.lang) && !vf.gender && !vf.fav;
   const card = (v, auto) => `<div class="vcard ${auto ? "auto" : ""} ${(auto ? voice === "" : voice === v.id) ? "sel" : ""} ${v.lang !== book.lang && !auto ? "off" : ""}" role="radio" tabindex="0" aria-checked="${auto ? voice === "" : voice === v.id}" data-id="${auto ? "" : esc(v.id)}">
     <button class="vplay" data-play="${esc(v.id)}" aria-label="Play a sample of ${esc(v.name)}">▶</button>
     <div style="min-width:0"><div class="vname"><span class="n">${auto ? "Automatic" : esc(v.name)}</span>${auto ? "" : v.bundled ? "" : `<span class="vbadge mine">mine</span>`}${!auto && v.lang !== book.lang ? `<span class="vbadge warn" title="The accent of the sample may carry over">${esc(v.lang)}</span>` : ""}</div>
       <div class="vmeta">${auto ? `best match for the book → ${esc(v.name)}` : [esc(v.id), esc(LANGS[v.lang] || v.lang), GENDER[v.gender] || "", v.seconds ? v.seconds + " s" : "", esc(v.license)].filter(Boolean).join(" · ")}</div></div>
     <canvas class="vwave" data-wave="${esc(v.id)}"></canvas>
-    <div class="vtext">${esc(v.transcript)}</div>
-    <span class="vcheck">✓</span>${!auto && !v.bundled ? `<button class="vdel" data-del="${esc(v.id)}" title="Remove this voice">✕</button>` : ""}</div>`;
-  $("#voices").innerHTML = (showAuto && autoV ? card(autoV, true) : "") + shown.map(v => card(v, false)).join("") ||
-    "";
+    <span class="vcheck">✓</span>
+    <span style="display:flex;align-items:center">${auto ? "" : `<button class="vstar ${FAV.has(v.id) ? "on" : ""}" data-fav="${esc(v.id)}" title="${FAV.has(v.id) ? "Remove from favorites" : "Add to favorites"}" aria-pressed="${FAV.has(v.id)}">${FAV.has(v.id) ? "★" : "☆"}</button>`}${!auto && !v.bundled ? `<button class="vdel" data-del="${esc(v.id)}" title="Remove this voice">✕</button>` : ""}</span></div>`;
+  $("#voices").innerHTML = (showAuto && autoV ? card(autoV, true) : "") + shown.map(v => card(v, false)).join("") +
+    `<div class="vcard add" role="button" tabindex="0" id="add-card"><span class="vplay" style="display:grid;place-items:center">+</span><div><div class="vname">Add your own voice</div><div class="vmeta">upload a sample or record one</div></div></div>`;
   if (!shown.length) {
     const q = vf.q.trim().toLowerCase(), elsewhere = VOICES.filter(v => (!vf.gender || v.gender === vf.gender) && (!q || [v.name, v.id, v.transcript].some(x => (x || "").toLowerCase().includes(q)))).length;
-    $("#voices").innerHTML += `<div class="vempty">No voices match${vf.lang !== "all" ? ` in ${esc(LANGS[vf.lang] || vf.lang)}` : ""}. ${vf.lang !== "all" && elsewhere ? `<a href="#" id="vall">Show ${elsewhere} in other languages</a> or ` : ""}add your own below.</div>`;
+    $("#voices").innerHTML += `<div class="vempty">${vf.fav && !FAV.size ? "No favorites yet — press ☆ on a voice. " : "No voices match"}${vf.fav && !FAV.size ? "" : ""}${vf.lang !== "all" ? ` in ${esc(LANGS[vf.lang] || vf.lang)}` : ""}. ${vf.lang !== "all" && elsewhere ? `<a href="#" id="vall">Show ${elsewhere} in other languages</a> or ` : ""}add your own below.</div>`;
   }
   $("#vcount").firstChild.textContent = `${shown.length} of ${VOICES.length} voices` + (voice && !shown.some(v => v.id === voice) ? ` · selected: ${(VOICES.find(v => v.id === voice) || {}).name || voice} (hidden by the filter)` : "");
   document.querySelectorAll("#voices .vwave").forEach(c => drawWave(c, 0));
@@ -312,7 +353,9 @@ function playVoice(id) {
   vplayer.play();
 }
 $("#voices").addEventListener("click", async (e) => {
-  const play = e.target.closest("[data-play]"), del = e.target.closest("[data-del]"), card = e.target.closest(".vcard");
+  const play = e.target.closest("[data-play]"), del = e.target.closest("[data-del]"), fav = e.target.closest("[data-fav]"), card = e.target.closest(".vcard");
+  if (fav) { e.stopPropagation(); return toggleFav(fav.dataset.fav); }
+  if (card && card.id === "add-card") return openAdd();
   if (e.target.id === "vall") { e.preventDefault(); vf.lang = "all"; vf.manual = true; return renderVoices(); }
   if (play) { e.stopPropagation(); return playVoice(play.dataset.play); }
   if (del) { e.stopPropagation(); if (confirm("Remove voice " + del.dataset.del + "?")) { await api("/api/voices/" + del.dataset.del, { method: "DELETE" }); if (voice === del.dataset.del) voice = ""; loadVoices(); saveSession(); } return; }
@@ -320,19 +363,130 @@ $("#voices").addEventListener("click", async (e) => {
 });
 $("#voices").addEventListener("keydown", (e) => {
   const card = e.target.closest(".vcard"); if (!card || e.target.tagName === "BUTTON") return;
-  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickVoice(card.dataset.id); }
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); card.id === "add-card" ? openAdd() : pickVoice(card.dataset.id); }
   if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault();
     const all = [...document.querySelectorAll(".vcard")], i = all.indexOf(card), j = Math.max(0, Math.min(all.length - 1, i + (e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : -1))); all[j].focus(); }
 });
 $("#vlangs").addEventListener("click", (e) => { const b = e.target.closest("[data-lang]"); if (b) { vf.lang = b.dataset.lang; vf.manual = true; renderVoices(); } });
-$("#vgender").addEventListener("click", (e) => { const b = e.target.closest("[data-g]"); if (b) { vf.gender = b.dataset.g; renderVoices(); } });
+$("#vgender").addEventListener("click", (e) => {
+  if (e.target.closest("#vfav")) { vf.fav = !vf.fav; return renderVoices(); }
+  const b = e.target.closest("[data-g]"); if (b) { vf.gender = b.dataset.g; renderVoices(); } });
+async function toggleFav(id) {
+  FAV.has(id) ? FAV.delete(id) : FAV.add(id); renderVoices();
+  try { await api("/api/favorites", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...FAV] }) }); }
+  catch (e) { FAV.has(id) ? FAV.delete(id) : FAV.add(id); renderVoices(); }
+}
 $("#vq").addEventListener("input", (e) => { vf.q = e.target.value; renderVoices(); });
 window.addEventListener("resize", () => document.querySelectorAll("#voices .vwave").forEach(c => drawWave(c, 0)));
-$("#voice-form").onsubmit = async (e) => {
-  e.preventDefault(); const msg = $("#voice-msg"); msg.className = "mute"; msg.textContent = "Adding (may transcribe with Whisper)…";
-  try { const v = await api("/api/voices", { method: "POST", body: new FormData(e.target) });
-    msg.textContent = "Added " + v.id + (v.warnings.length ? " — " + v.warnings.join(" ") : ""); voice = v.id; e.target.reset(); loadVoices(); }
-  catch (err) { msg.className = "err"; msg.textContent = err.message; }
+// -- adding a voice: choose / drop / record a sample, preview it, check its length, then send ------------
+const SCRIPTS = {
+  ru: "Тихое утро в деревне начиналось с первого луча солнца над рекой. Старый дом просыпался медленно, и никто не спешил.",
+  en: "It was a quiet morning in the village, and the first light touched the river. The old house woke slowly, and nobody was in a hurry.",
+  de: "Es war ein ruhiger Morgen im Dorf, und das erste Licht berührte den Fluss. Das alte Haus erwachte langsam, und niemand hatte es eilig.",
+  fr: "C'était un matin calme au village, et la première lumière touchait la rivière. La vieille maison s'éveillait lentement, sans que personne se presse.",
+  es: "Era una mañana tranquila en el pueblo, y la primera luz tocaba el río. La vieja casa despertaba despacio, y nadie tenía prisa.",
+  it: "Era una mattina tranquilla al villaggio, e la prima luce toccava il fiume. La vecchia casa si svegliava lentamente, e nessuno aveva fretta.",
+  zh: "村子里的早晨很安静，第一缕阳光落在河面上。老房子慢慢醒来，没有人着急。",
+  ja: "村の朝は静かで、最初の光が川に触れた。古い家はゆっくりと目を覚まし、誰も急いでいなかった。",
+  ko: "마을의 아침은 조용했고, 첫 햇살이 강 위에 닿았다. 오래된 집은 천천히 깨어났고, 아무도 서두르지 않았다.",
+};
+const TR = { а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ё:"e",ж:"zh",з:"z",и:"i",й:"y",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",х:"h",ц:"ts",ч:"ch",ш:"sh",щ:"sch",ы:"y",э:"e",ю:"yu",я:"ya" };
+let av = null, avDirty = false, avPlayer = null, avRec = null, idTouched = false;
+const slug = (n) => n.toLowerCase().split("").map(c => TR[c] ?? c).join("").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+function freeId(base) { base = base || "voice"; let id = base, i = 2; const taken = new Set(VOICES.map(v => v.id)); while (taken.has(id)) id = `${base}-${i++}`; return id; }
+function openAdd() { $("#addvoice").hidden = false; $("#addvoice").scrollIntoView({ behavior: "smooth", block: "nearest" }); $("#av-name").focus({ preventScroll: true }); }
+function closeAdd() { stopRec(true); resetAdd(); $("#addvoice").hidden = true; }
+function resetAdd() { av = null; avDirty = false; idTouched = false; if (avPlayer) avPlayer.pause();
+  ["#av-name", "#av-id", "#av-text"].forEach(i => $(i).value = ""); $("#av-consent").checked = false; $("#av-msg").textContent = ""; $("#av-file").value = "";
+  $("#av-sample").hidden = true; $("#av-script").hidden = true; $("#av-drop").hidden = false; checkAdd(); }
+$("#av-close").onclick = closeAdd;
+const avBox = $("#av-drop");
+avBox.onclick = (e) => { if (!e.target.closest("button")) $("#av-file").click(); };
+avBox.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#av-file").click(); } };
+["dragover", "dragenter"].forEach(t => avBox.addEventListener(t, (e) => { e.preventDefault(); avBox.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => avBox.addEventListener(t, (e) => { e.preventDefault(); avBox.classList.remove("over"); }));
+avBox.addEventListener("drop", (e) => e.dataTransfer.files[0] && useFile(e.dataTransfer.files[0]));
+$("#av-file").onchange = (e) => e.target.files[0] && useFile(e.target.files[0]);
+async function useFile(file) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = await ctx.decodeAudioData(await file.arrayBuffer()); ctx.close();
+    const mono = new Float32Array(buf.length); for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < mono.length; i++) mono[i] += d[i] / buf.numberOfChannels; }
+    setSample(mono, buf.sampleRate, file.name);
+    if (!$("#av-name").value) { $("#av-name").value = file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " "); nameChanged(); }
+  } catch (e) { $("#av-msg").innerHTML = `<span class="err">Cannot read this audio file in the browser. Try WAV, MP3 or FLAC.</span>`; }
+}
+function setSample(mono, sr, name) {
+  av = { mono, sr, name }; const n = 64, step = Math.max(1, Math.floor(mono.length / n)), peaks = [];
+  for (let i = 0; i < n; i++) { let m = 0; for (let j = i * step; j < Math.min(mono.length, (i + 1) * step); j++) m = Math.max(m, Math.abs(mono[j])); peaks.push(m); }
+  const top = Math.max(...peaks) || 1; av.peaks = peaks.map(p => Math.round(100 * p / top));
+  av.blobUrl && URL.revokeObjectURL(av.blobUrl); av.blobUrl = URL.createObjectURL(wavBlob(mono, sr));
+  $("#av-drop").hidden = true; $("#av-rec-ui").hidden = true; $("#av-sample").hidden = false; $("#av-fname").textContent = name; avDirty = true; showSample(); checkAdd();
+}
+function showSample(progress = 0) {
+  const sec = av.mono.length / av.sr, d = $("#av-dur"); $("#av-trim").hidden = sec <= 15;
+  const [cls, msg] = sec < 3 ? ["stop", "too short — at least 3 s"] : sec > 30 ? ["stop", "too long — at most 30 s"] : sec < 6 ? ["bad", "short — 6–15 s works best"] : sec > 15 ? ["bad", "long — 6–15 s works best"] : ["ok", "good length"];
+  d.innerHTML = `${sec.toFixed(1)} s · <span class="${cls}">${msg}</span>`;
+  const cv = $("#av-wave"), dpr = window.devicePixelRatio || 1, W = Math.round(cv.clientWidth * dpr), H = Math.round(26 * dpr); if (!W) return;
+  cv.width = W; cv.height = H; const g = cv.getContext("2d"), step = W / av.peaks.length;
+  av.peaks.forEach((p, i) => { const h = Math.max(2 * dpr, H * p / 100); g.fillStyle = i / av.peaks.length < progress ? css("--accent") : css("--seg-pending"); g.fillRect(i * step, (H - h) / 2, Math.max(1, step * 0.62), h); });
+}
+$("#av-play").onclick = () => {
+  if (avPlayer && !avPlayer.paused) { avPlayer.pause(); return; }
+  avPlayer = new Audio(av.blobUrl); const b = $("#av-play");
+  avPlayer.onplay = () => b.textContent = "❚❚"; avPlayer.onpause = avPlayer.onended = () => { b.textContent = "▶"; showSample(0); };
+  avPlayer.ontimeupdate = () => showSample(avPlayer.currentTime / (avPlayer.duration || 1)); avPlayer.play();
+};
+$("#av-clear").onclick = () => { if (avPlayer) avPlayer.pause(); av = null; $("#av-sample").hidden = true; $("#av-drop").hidden = false; $("#av-script").hidden = true; $("#av-file").value = ""; checkAdd(); };
+$("#av-trim").onclick = () => { setSample(av.mono.slice(0, Math.round(15 * av.sr)), av.sr, av.name); };
+function wavBlob(mono, sr) {
+  const n = mono.length, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf), w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); w(8, "WAVEfmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, mono[i])) * 0x7fff, true);
+  return new Blob([buf], { type: "audio/wav" });
+}
+// recording from the microphone, with a sentence to read (so the transcript is known)
+$("#av-rec").onclick = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
+    const ctx = new AudioContext(), src = ctx.createMediaStreamSource(stream), an = ctx.createAnalyser(); an.fftSize = 512; src.connect(an);
+    const rec = new MediaRecorder(stream), chunks = []; rec.ondataavailable = (e) => chunks.push(e.data);
+    avRec = { stream, ctx, rec, chunks, t0: Date.now(), timer: null, cancel: false };
+    rec.onstop = async () => { clearInterval(avRec.timer); stream.getTracks().forEach(t => t.stop()); const cancel = avRec.cancel; ctx.close(); $("#av-rec-ui").hidden = true;
+      if (cancel) { avRec = null; return; } const blob = new Blob(chunks); avRec = null; await useFile(new File([blob], "recording.webm")); $("#av-sample").querySelector("#av-fname").textContent = "Recording"; };
+    const lang = $("#av-lang").value, text = SCRIPTS[lang] || SCRIPTS.en, data = new Uint8Array(an.fftSize);
+    $("#av-script-text").textContent = text; $("#av-script").hidden = false; if (!$("#av-text").value) $("#av-text").value = text; avDirty = true;
+    $("#av-drop").hidden = true; $("#av-rec-ui").hidden = false; $("#av-msg").textContent = "";
+    avRec.timer = setInterval(() => { const s = (Date.now() - avRec.t0) / 1000; $("#av-timer").textContent = `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+      an.getByteTimeDomainData(data); let peak = 0; for (const x of data) peak = Math.max(peak, Math.abs(x - 128)); $("#av-meter").style.width = Math.min(100, peak / 90 * 100) + "%"; if (s >= 15) stopRec(); }, 100);
+    rec.start();
+  } catch (e) { $("#av-msg").innerHTML = `<span class="err">Cannot use the microphone (${esc(e.name)}). Allow access in the browser, or upload a file.</span>`; }
+};
+function stopRec(cancel = false) { if (avRec && avRec.rec.state !== "inactive") { avRec.cancel = cancel; avRec.rec.stop(); } }
+$("#av-stop").onclick = () => stopRec();
+$("#av-lang").onchange = () => { avDirty = true; if (!$("#av-script").hidden) { const t = SCRIPTS[$("#av-lang").value] || SCRIPTS.en; $("#av-script-text").textContent = t; $("#av-text").value = t; } };
+// name → id, sex, validation
+function nameChanged() { if (!idTouched) $("#av-id").value = $("#av-name").value.trim() ? freeId(slug($("#av-name").value)) : ""; checkAdd(); }
+$("#av-name").oninput = nameChanged; $("#av-id").oninput = () => { idTouched = true; checkAdd(); };
+$("#av-gender").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; document.querySelectorAll("#av-gender button").forEach(x => x.classList.toggle("on", x === b)); };
+["#av-consent", "#av-text"].forEach(i => $(i).addEventListener("input", checkAdd));
+function checkAdd() {
+  const sec = av ? av.mono.length / av.sr : 0, idOk = /^[a-z0-9][a-z0-9_-]{0,40}$/.test($("#av-id").value);
+  $("#av-submit").disabled = !(av && sec >= 3 && sec <= 30 && idOk && $("#av-consent").checked);
+}
+$("#av-submit").onclick = async () => {
+  const msg = $("#av-msg"), btn = $("#av-submit"); msg.className = "mute"; btn.disabled = true;
+  msg.textContent = $("#av-text").value.trim() ? "Adding…" : "Transcribing with Whisper, then adding…";
+  const fd = new FormData(); fd.append("id", $("#av-id").value); fd.append("name", $("#av-name").value.trim());
+  fd.append("gender", document.querySelector("#av-gender .on").dataset.g); fd.append("lang", $("#av-lang").value);
+  fd.append("transcript", $("#av-text").value.trim()); fd.append("file", wavBlob(av.mono, av.sr), "voice.wav");
+  try {
+    const v = await api("/api/voices", { method: "POST", body: fd }); voice = v.id; vf.manual = true; vf.lang = v.lang; vf.q = ""; $("#vq").value = "";
+    resetAdd(); $("#addvoice").hidden = true; await loadVoices(); saveSession();
+    const card = document.querySelector(`.vcard[data-id="${CSS.escape(v.id)}"]`); if (card) { card.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+    $("#vcount").firstChild.textContent += v.warnings.length ? " · " + v.warnings.join(" ") : "";
+  } catch (err) { msg.className = "err"; msg.textContent = err.message; btn.disabled = false; }
 };
 
 // ---- session: the server remembers the selection, so reload / restart shows the same screen ----------

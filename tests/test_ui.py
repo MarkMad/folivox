@@ -242,3 +242,14 @@ def test_voices_carry_waveform_and_auto_choice(client):
     assert {"peaks", "seconds", "transcript", "lang"} <= set(v)
     assert len(v["peaks"]) == 64 and max(v["peaks"]) == 100  # soundfile is part of the test group
     assert r["auto"]["ru"] in {x["id"] for x in r["voices"]}
+
+
+def test_favorites_roundtrip(client, tmp_path):
+    assert client.get("/api/voices").json()["favorites"] == []
+    assert client.put("/api/favorites", json={"ids": ["russlib", "xenia", "russlib"]}).status_code == 200
+    assert client.get("/api/voices").json()["favorites"] == ["russlib", "xenia"]
+    assert client.put("/api/favorites", json={"ids": "nope"}).status_code == 400
+    # survives a restart: stored next to the session
+    app2 = create_app(token=TOKEN, port=8765, data_dir=tmp_path / "ui", render=fake_render)
+    c2 = TestClient(app2, base_url="http://127.0.0.1:8765", headers={"X-Folivox-Token": TOKEN})
+    assert c2.get("/api/voices").json()["favorites"] == ["russlib", "xenia"]
