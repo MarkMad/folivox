@@ -1,4 +1,5 @@
 import time
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -23,7 +24,7 @@ def fake_render(book, opts, events):
     for i in range(2):
         if events.cancelled():
             raise Cancelled
-        chunk = SimpleNamespace(source="x" * 50, chapter=0, idx=i, text="x")
+        chunk = SimpleNamespace(source="x" * 50, chapter=0, idx=i, key=f"key{i}", text="x")
         events.chunk_done(chunk, SimpleNamespace(duration=2.0, synth_seconds=1.0, score=0.0), [0.0])
         time.sleep(0.05)
     work = opts.resolved_work_dir() / "chapters"
@@ -200,3 +201,22 @@ def test_api_keys_in_keychain_are_masked_and_used(client, keychain, monkeypatch)
 def test_api_key_rejects_unknown_names_and_empty_values(client, keychain):
     assert client.put("/api/keys/HOME", json={"value": "x"}).status_code == 404
     assert client.put("/api/keys/OPENAI_API_KEY", json={"value": "  "}).status_code == 400
+
+
+def test_ui_events_carry_what_the_studio_view_needs():
+    from folivox.pipeline import RenderOptions
+    from folivox.ui.jobs import Job, UIEvents
+
+    job = Job("render", "b", RenderOptions(output=Path("x.m4b"), voice_wav=Path("v.wav")))
+    ev = UIEvents(job)
+    ev.layout([{"index": 0, "title": "One", "fragments": [[10, "abc"], [20, "def"]], "done": "10"}])
+    chunk = SimpleNamespace(chapter=0, idx=1, key="def" * 5, text="hello", source="x" * 20)
+    ev.chunk_started(chunk)
+    ev.step("qa", 1, 3)
+    ev.chunk_done(chunk, SimpleNamespace(duration=2.0, synth_seconds=3.0, score=0.05), [0.5, 0.05])
+    by_type = {e["type"]: e for e in job.events}
+    assert by_type["layout"]["chapters"][0]["done"] == "10"
+    assert by_type["fragment"]["key"] == "defdefdefd" and by_type["fragment"]["idx"] == 1
+    assert (by_type["step"]["step"], by_type["step"]["attempts"]) == ("qa", 3)
+    p = by_type["progress"]
+    assert p["attempts"] == 2 and p["chars"] == 20 and p["retakes"] == 1 and p["key"] == "defdefdefd"

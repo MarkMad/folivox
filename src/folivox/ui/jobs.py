@@ -39,8 +39,11 @@ class UIEvents(Events):
     def download(self, name, done_bytes, total_bytes):
         self.job.emit("download", name=name, done=done_bytes, total=total_bytes)
 
+    def layout(self, chapters):
+        self.job.emit("layout", chapters=chapters)
+
     def chunk_started(self, chunk):
-        self.job.emit("fragment", chapter=chunk.chapter + 1, text=chunk.text[:80])
+        self.job.emit("fragment", chapter=chunk.chapter + 1, idx=chunk.idx, key=chunk.key[:10], text=chunk.text[:90])
 
     def chunk_done(self, chunk, take, attempts):
         self.audio += take.duration
@@ -49,7 +52,8 @@ class UIEvents(Events):
         self.job.done_chars += len(chunk.source)
         self.job.emit("progress", done_chars=self.job.done_chars, total_chars=self.job.total_chars,
                       rtf=self.synth / self.audio if self.audio else 0, audio=self.audio, retakes=self.retakes,
-                      chapter=chunk.chapter + 1)
+                      chapter=chunk.chapter + 1, key=chunk.key[:10], text=chunk.text[:90], duration=take.duration,
+                      score=take.score, attempts=len(attempts), chars=len(chunk.source))
 
     def chapter_built(self, index, title, duration):
         self.job.emit("chapter", index=index + 1, title=title, duration=duration)

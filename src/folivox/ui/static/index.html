@@ -27,16 +27,56 @@ td.n, th.n { text-align:right; color:var(--mute); white-space:nowrap; }
 .voice { display:flex; gap:10px; align-items:center; padding:6px 4px; border-bottom:1px solid var(--line); }
 .voice audio { height:30px; width:200px; }
 .progress { height:10px; background:var(--line); border-radius:5px; overflow:hidden; margin:10px 0 4px; }
-.progress.busy > div { width:35% !important; animation:slide 1.4s ease-in-out infinite; }
-@keyframes slide { 0% { margin-left:-35%; } 100% { margin-left:100%; } }
-#phase { display:flex; gap:8px; align-items:center; min-height:22px; }
-#phase .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); animation:pulse 1s ease-in-out infinite; }
-#phase.idle .dot { display:none; } @keyframes pulse { 50% { opacity:.25; } }
 .progress > div { height:100%; width:0; background:var(--accent); transition:width .3s; }
 #log { font:12px/1.5 ui-monospace,Menlo,monospace; max-height:180px; overflow:auto; background:var(--bg); border-radius:6px; padding:8px; margin-top:8px; white-space:pre-wrap; }
 details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px 16px; margin-top:10px; }
 label.f { display:flex; flex-direction:column; gap:3px; font-size:13px; color:var(--mute); } label.f input, label.f select { color:var(--ink); }
 .built { display:flex; gap:10px; align-items:center; padding:3px 0; } .built audio { height:30px; flex:1; max-width:420px; }
+
+/* ---- studio ---- */
+:root { --seg-pending:#e3e1db; --seg-done:#2f6f5e; --seg-retake:#6cb8a3; --seg-synth:#e7a93b; --seg-check:#d9742b; --glow:rgba(47,111,94,.18); }
+@media (prefers-color-scheme: dark) { :root { --seg-pending:#34332f; --seg-done:#5fb39b; --seg-retake:#9fdcc9; --seg-synth:#f1c15a; --seg-check:#f09a55; --glow:rgba(95,179,155,.22); } }
+#studio { margin-top:16px; } #studio[hidden] { display:none; }
+.hero { display:grid; grid-template-columns:auto 1fr; gap:6px 26px; align-items:center; }
+.big { font-size:64px; line-height:1; font-weight:300; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+.big small { font-size:22px; color:var(--mute); margin-left:2px; }
+.hero-status { grid-column:1; color:var(--mute); font-size:13px; margin-top:2px; max-width:170px; }
+.tiles { grid-column:2; grid-row:1 / span 2; display:grid; grid-template-columns:repeat(auto-fit,minmax(104px,1fr)); gap:8px; }
+.tile { background:var(--bg); border-radius:8px; padding:8px 11px; } .tile b { display:block; font-size:19px; font-weight:500; font-variant-numeric:tabular-nums; }
+.tile span { font-size:11.5px; color:var(--mute); text-transform:uppercase; letter-spacing:.05em; }
+.overall { height:4px; background:var(--seg-pending); border-radius:2px; overflow:hidden; margin:14px 0 12px; }
+.overall > div { height:100%; width:0; background:var(--seg-done); transition:width .5s ease; }
+.stages { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+.stage { font-size:12px; padding:3px 11px; border-radius:99px; border:1px solid var(--line); color:var(--mute); transition:all .4s; }
+.stage.done { color:var(--seg-done); border-color:var(--seg-done); } .stage.done::before { content:"✓ "; }
+.stage.active { color:var(--accent-ink); background:var(--accent); border-color:var(--accent); box-shadow:0 0 0 4px var(--glow); }
+.now { display:flex; gap:16px; align-items:center; background:var(--bg); border-radius:10px; padding:14px 16px; margin-bottom:12px; min-height:84px; }
+.wave { display:flex; align-items:center; gap:3px; height:44px; flex:none; }
+.wave i { display:block; width:3px; height:6px; border-radius:2px; background:var(--seg-pending); transition:background .3s; }
+.wave.synth i { background:var(--seg-synth); animation:bar 1.1s ease-in-out infinite; }
+.wave.check i { background:var(--seg-check); animation:scan 1.6s linear infinite; height:14px; }
+.wave.load i { background:var(--accent); animation:bar 1.8s ease-in-out infinite; opacity:.6; }
+.wave.done i { background:var(--seg-done); height:10px; }
+@keyframes bar { 0%,100% { height:5px; } 50% { height:40px; } }
+@keyframes scan { 0%,100% { opacity:.25; } 50% { opacity:1; } }
+.nt { min-width:0; flex:1; } #now-label { font-size:12.5px; color:var(--mute); text-transform:uppercase; letter-spacing:.06em; }
+#now-quote { font-size:17px; line-height:1.4; margin-top:3px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-family:Georgia,"Iowan Old Style",serif; }
+#now-dl { height:3px; background:var(--seg-pending); border-radius:2px; margin-top:8px; overflow:hidden; } #now-dl > div { height:100%; width:0; background:var(--accent); transition:width .5s; }
+#now-time { font-variant-numeric:tabular-nums; color:var(--mute); font-size:13px; white-space:nowrap; align-self:flex-start; }
+.lanes { max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:8px; padding:4px 10px; scroll-behavior:smooth; }
+.lanes:empty::before { content:"Fragments appear here as soon as the text is prepared — one line per chapter, one tick per fragment."; color:var(--mute); font-size:13px; display:block; padding:12px 0; }
+.lane { display:grid; grid-template-columns:26px minmax(70px,190px) 1fr 40px 26px; gap:10px; align-items:center; padding:5px 0; border-bottom:1px solid var(--line); transition:background .4s; }
+.lane:last-child { border-bottom:0; } .lane.active { background:linear-gradient(90deg,var(--glow),transparent); }
+.lane .ln { color:var(--mute); text-align:right; font-size:12px; font-variant-numeric:tabular-nums; } .lane .lt { font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lane canvas { width:100%; height:16px; display:block; } .lane .lp { font-size:12px; color:var(--mute); text-align:right; font-variant-numeric:tabular-nums; }
+.lane.full .lp { color:var(--seg-done); } .lane .lplay { padding:0; width:24px; height:24px; border-radius:50%; line-height:1; }
+.feed { margin-top:12px; font-size:13px; } .feed div { display:flex; gap:10px; padding:3px 0; color:var(--mute); animation:rise .5s ease-out; white-space:nowrap; overflow:hidden; }
+.feed div:nth-child(1) { color:var(--ink); } .feed div:nth-child(n+4) { opacity:.55; } .feed div:nth-child(n+6) { opacity:.3; }
+.feed .t { overflow:hidden; text-overflow:ellipsis; font-family:Georgia,serif; } .feed .m { margin-left:auto; flex:none; font-variant-numeric:tabular-nums; }
+@keyframes rise { from { opacity:0; transform:translateY(6px); } }
+#log { max-height:180px; margin-top:6px; }
+@media (max-width:640px) { .hero { grid-template-columns:1fr; } .tiles { grid-column:1; grid-row:auto; } .lane { grid-template-columns:22px 1fr 36px 24px; } .lane canvas { grid-column:1 / -1; grid-row:2; } }
+@media (prefers-reduced-motion: reduce) { .wave i, .stage, .overall > div { animation:none !important; transition:none !important; } .feed div { animation:none; } }
 </style>
 </head>
 <body>
@@ -90,11 +130,28 @@ label.f { display:flex; flex-direction:column; gap:3px; font-size:13px; color:va
     <button id="cancel" disabled>Stop (resume later)</button>
     <span id="run-msg" class="mute grow"></span>
   </div>
-  <div id="phase" class="idle"><span class="dot"></span><span id="phase-text" class="mute"></span></div>
-  <div class="progress" id="progress"><div id="bar"></div></div>
-  <div id="stats" class="mute"><small></small></div>
-  <div id="built"></div>
-  <div id="log" hidden></div>
+  <div id="studio" hidden>
+    <div class="hero">
+      <div class="big"><span id="pct">0</span><small>%</small></div>
+      <div class="tiles">
+        <div class="tile"><b id="t-elapsed">–</b><span>elapsed</span></div>
+        <div class="tile"><b id="t-eta">–</b><span>remaining</span></div>
+        <div class="tile"><b id="t-audio">–</b><span>audio made</span></div>
+        <div class="tile"><b id="t-pace">–</b><span>time per audio time</span></div>
+        <div class="tile"><b id="t-frags">–</b><span>fragments</span></div>
+        <div class="tile"><b id="t-retakes">0</b><span>retakes</span></div>
+      </div>
+      <div class="hero-status" id="hero-status"></div>
+    </div>
+    <div class="overall"><div id="overall"></div></div>
+    <div class="stages" id="stages"></div>
+    <div class="now"><div class="wave" id="wave"></div>
+      <div class="nt"><div id="now-label"></div><div id="now-quote"></div><div id="now-dl" hidden><div></div></div></div>
+      <div id="now-time"></div></div>
+    <div class="lanes" id="lanes"></div>
+    <div class="feed" id="feed"></div>
+    <details style="margin-top:10px"><summary>Log</summary><div id="log"></div></details>
+  </div>
 </section>
 
 <section><h2>Providers</h2>
@@ -207,7 +264,7 @@ async function restoreSession() {
   } finally { restoring = false; }
 }
 
-// ---- jobs -------------------------------------------------------------------------------------
+// ---- jobs: the studio view -----------------------------------------------------------------------
 function options() {
   const v = (id) => $("#o-" + id).value;
   return { speed: +v("speed"), max_chars: +v("max_chars"), stress: v("stress"), takes: +v("takes"), qa: v("qa") === "1",
@@ -224,57 +281,178 @@ async function start(kind) {
 $("#preview").onclick = () => start("preview"); $("#render").onclick = () => start("render");
 $("#cancel").onclick = async () => { $("#cancel").disabled = true; await api(`/api/jobs/${job.id}/cancel`, { method: "POST" }); };
 function busy(on) { ["#preview", "#render"].forEach(s => $(s).disabled = on); $("#cancel").disabled = !on; }
-const log = (text, cls = "") => { const l = $("#log"); l.hidden = false; const d = document.createElement("div"); d.className = cls; d.textContent = text; l.append(d); l.scrollTop = l.scrollHeight; };
+const log = (text, cls = "") => { const l = $("#log"); const d = document.createElement("div"); d.className = cls; d.textContent = text; l.append(d); l.scrollTop = l.scrollHeight; };
+
+const STAGES = [["prepare", "Prepare"], ["model", "Model"], ["synth", "Synthesise"], ["build", "Chapters"], ["encode", "Encode"]];
+const STAGE_OF = { asr: "prepare", plan: "prepare", download: "model", model: "model", chapter: "build", encode: "encode" };
+const SEG = { PENDING: 0, SYNTH: 1, CHECK: 2, DONE: 3, RETAKE: 4 };
+const HINTS = { "Loading TTS model": "reading the weights into memory, usually 1–2 min", "Preparing the model download": "checking what has to be downloaded",
+                "Loading speech recognition": "loading the speech recognition model", "Preparing text": "splitting the text into fragments" };
+let S = null, ticker = null, raf = null, lastDraw = 0, player = null;
+const nowSec = () => Date.now() / 1000;
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function newStudio(j) {
+  S = { job: j, lanes: [], keys: new Map(), stage: 0, t0: null, tFrag: null, tProg: null, totalChars: 0, doneChars: 0, sessChars: 0,
+        totalFrags: 0, doneFrags: 0, audio: 0, synthSecs: 0, retakes: 0, phase: "Starting", phaseSince: nowSec(), finished: null,
+        activeLane: -1, dl: null, dirty: new Set() };
+  $("#studio").hidden = false;
+  $("#stages").innerHTML = STAGES.map(([id, n]) => `<span class="stage" data-s="${id}">${n}</span>`).join("");
+  $("#wave").innerHTML = "<i></i>".repeat(30);
+  [...$("#wave").children].forEach((b, i) => b.style.animationDelay = (-(i * 0.09) % 1.1).toFixed(2) + "s");
+  $("#lanes").innerHTML = ""; $("#feed").innerHTML = ""; $("#log").innerHTML = ""; $("#hero-status").textContent = "";
+  $("#t-retakes").textContent = "0"; $("#pct").textContent = "0"; $("#overall").style.width = "0";
+  if (player) { player.pause(); player = null; }
+  setStage(0); setPhase("Starting");
+  clearInterval(ticker); ticker = setInterval(tick, 1000); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
+}
+function setStage(i) {
+  if (i < S.stage) return;  // stages only move forward
+  S.stage = i;
+  document.querySelectorAll("#stages .stage").forEach((el, k) => el.className = "stage" + (k < S.stage ? " done" : k === S.stage ? " active" : ""));
+}
+function setPhase(label, quote = "", mode = "load") {
+  S.phase = label; S.phaseSince = nowSec(); S.hint = Object.entries(HINTS).find(([k]) => label.startsWith(k));
+  $("#now-label").textContent = label; $("#now-quote").textContent = quote || (S.hint ? S.hint[1] : "");
+  $("#wave").className = "wave " + mode; $("#now-dl").hidden = true;
+}
+function end(state) {
+  S.finished = state; job.final = true; busy(false); if (es) es.close(); clearInterval(ticker);
+  $("#wave").className = "wave " + (state === "done" ? "done" : "");
+  S.activeLane = -1; document.querySelectorAll(".lane.active").forEach(l => l.classList.remove("active"));
+  if (state === "done") { setStage(STAGES.length); $("#overall").style.width = "100%"; $("#pct").textContent = "100"; }
+  $("#now-time").textContent = ""; updateTiles();
+}
+function fmtClock(sec) { sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+  return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`; }
+function updateTiles() {
+  if (!S || !S.t0) return;
+  const t = S.finished ? S.tLast : nowSec();
+  $("#t-elapsed").textContent = fmtClock(t - S.t0);
+  const remainChars = S.totalChars - S.doneChars, span = S.tProg && S.tFrag ? S.tProg - S.tFrag : 0;
+  $("#t-eta").textContent = S.finished ? "–" : (S.sessChars > 0 && span > 3 && remainChars > 0) ? "≈ " + fmtClock(remainChars / (S.sessChars / span)) : "–";
+  $("#t-audio").textContent = S.audio ? fmtClock(S.audio) : "–";
+  $("#t-pace").textContent = S.audio ? (S.synthSecs / S.audio).toFixed(2) + " ×" : "–";
+  $("#t-frags").textContent = S.totalFrags ? `${S.doneFrags} / ${S.totalFrags}` : "–";
+  $("#t-retakes").textContent = S.retakes;
+  const pct = S.totalChars ? Math.min(100, 100 * S.doneChars / S.totalChars) : 0;
+  if (!S.finished || S.finished === "done") { $("#pct").textContent = Math.floor(S.finished === "done" ? 100 : pct); $("#overall").style.width = (S.finished === "done" ? 100 : pct) + "%"; }
+}
+function tick() {
+  if (!S || S.finished) return;
+  const el = Math.round(nowSec() - S.phaseSince);
+  if (S.stage <= 1 || !S.activeKey) $("#now-time").textContent = el + " s"; else $("#now-time").textContent = el + " s on this fragment";
+  updateTiles();
+}
+
+// -- lanes: one canvas per chapter, one tick per fragment (width ∝ characters) ---------------------
+function buildLanes(chapters) {
+  const box = $("#lanes"); box.innerHTML = ""; S.lanes = []; S.keys = new Map(); S.totalChars = S.doneChars = S.totalFrags = S.doneFrags = 0;
+  chapters.forEach((c, li) => {
+    const total = c.fragments.reduce((a, f) => a + f[0], 0);
+    const lane = { i: li, ci: c.index, title: c.title, frags: c.fragments.map(([chars, key], k) => ({ chars, key, st: c.done[k] === "1" ? SEG.DONE : SEG.PENDING })),
+                   total, done: 0, built: false };
+    lane.done = lane.frags.filter(f => f.st === SEG.DONE).reduce((a, f) => a + f.chars, 0);
+    lane.frags.forEach((f, k) => { if (!S.keys.has(f.key)) S.keys.set(f.key, []); S.keys.get(f.key).push([li, k]); });
+    S.totalChars += total; S.doneChars += lane.done; S.totalFrags += lane.frags.length; S.doneFrags += lane.frags.filter(f => f.st === SEG.DONE).length;
+    const el = document.createElement("div"); el.className = "lane";
+    el.innerHTML = `<span class="ln">${c.index + 1}</span><span class="lt" title="${esc(c.title)}">${esc(c.title)}</span><canvas></canvas><span class="lp"></span><span><button class="lplay" hidden title="Listen">▶</button></span>`;
+    box.append(el); lane.el = el; lane.cv = el.querySelector("canvas"); S.lanes.push(lane);
+    el.querySelector(".lplay").onclick = () => playChapter(lane, el.querySelector(".lplay"));
+    paintLane(lane);
+  });
+  new ResizeObserver(() => S && S.lanes.forEach(paintLane)).observe(box);
+  updateTiles();
+}
+function paintLane(lane, t = 0) {
+  const cv = lane.cv, dpr = window.devicePixelRatio || 1, W = Math.round(cv.clientWidth * dpr), H = Math.round(16 * dpr);
+  if (!W) return; if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const g = cv.getContext("2d"); g.clearRect(0, 0, W, H);
+  const col = { 0: css("--seg-pending"), 1: css("--seg-synth"), 2: css("--seg-check"), 3: css("--seg-done"), 4: css("--seg-retake") };
+  let cum = 0; const pulse = 0.55 + 0.45 * Math.sin(t / 180);
+  for (const f of lane.frags) {
+    const x0 = Math.round(W * cum / lane.total), x1 = Math.round(W * (cum + f.chars) / lane.total); cum += f.chars;
+    const w = x1 - x0, gap = w > 3 * dpr ? Math.max(1, Math.round(dpr)) : 0, y = f.st === SEG.PENDING ? 5 * dpr : 1 * dpr;
+    g.globalAlpha = (f.st === SEG.SYNTH || f.st === SEG.CHECK) ? pulse : 1; g.fillStyle = col[f.st];
+    g.fillRect(x0, y, Math.max(1, w - gap), H - 2 * y);
+  }
+  g.globalAlpha = 1;
+  const pct = lane.total ? Math.floor(100 * lane.done / lane.total) : 100;
+  lane.el.querySelector(".lp").textContent = pct + "%"; lane.el.classList.toggle("full", pct >= 100);
+}
+function frame(t) {
+  raf = requestAnimationFrame(frame);
+  if (!S || t - lastDraw < 50) return; lastDraw = t;
+  if (S.activeLane >= 0 && S.lanes[S.activeLane] && !matchMedia("(prefers-reduced-motion: reduce)").matches) paintLane(S.lanes[S.activeLane], t);
+  for (const li of S.dirty) S.lanes[li] && paintLane(S.lanes[li], t); S.dirty.clear();
+}
+function setFrag(key, st) {
+  for (const [li, k] of S.keys.get(key) || []) { const f = S.lanes[li].frags[k]; const wasDone = f.st >= SEG.DONE;
+    f.st = st; S.dirty.add(li);
+    if (st >= SEG.DONE && !wasDone) { S.lanes[li].done += f.chars; S.doneFrags++; S.doneChars += f.chars; } }
+}
+function activate(key) {
+  const hit = (S.keys.get(key) || [])[0]; if (!hit) return;
+  if (S.activeLane !== hit[0]) {
+    S.activeLane = hit[0]; document.querySelectorAll(".lane.active").forEach(l => l.classList.remove("active"));
+    const el = S.lanes[hit[0]].el; el.classList.add("active"); const box = $("#lanes");
+    box.scrollTop = el.offsetTop - box.clientHeight / 2 + el.clientHeight / 2 - box.offsetTop;
+  }
+}
+function playChapter(lane, btn) {
+  if (player && player.lane === lane) { player.paused ? player.play() : player.pause(); return; }
+  if (player) { player.pause(); player.btn.textContent = "▶"; }
+  player = new Audio(tok(`/api/jobs/${job.id}/chapters/${lane.ci + 1}`)); player.lane = lane; player.btn = btn;
+  player.onplay = () => btn.textContent = "❚❚"; player.onpause = player.onended = () => btn.textContent = "▶"; player.play();
+}
+function feedLine(ev) {
+  const f = $("#feed"), d = document.createElement("div"), mark = ev.attempts > 1 ? `↻ ${ev.attempts}` : "✓";
+  d.innerHTML = `<span style="color:var(--seg-done)">${mark}</span><span class="t">${esc(ev.text)}</span><span class="m">${ev.duration.toFixed(1)} s${ev.score == null ? "" : " · " + ev.score.toFixed(2)}</span>`;
+  f.prepend(d); while (f.children.length > 7) f.lastChild.remove();
+}
+
 function attach(j) {
-  job = j; haveProgress = false; lastEvent = Date.now(); setPhase("Starting"); clearInterval(ticker); ticker = setInterval(tick, 1000); busy(true); $("#log").innerHTML = ""; $("#built").innerHTML = ""; $("#bar").style.width = "0"; $("#stats").firstChild.textContent = "";
+  job = j; busy(true); newStudio(j);
   if (es) es.close();
   es = new EventSource(tok(`/api/jobs/${j.id}/events`));
   es.onmessage = (m) => handle(JSON.parse(m.data));
   es.onerror = () => { if (job && job.final) es.close(); };
 }
 function handle(ev) {
-  lastEvent = Date.now();
-  const stats = $("#stats").firstChild;
+  if (!S.t0) S.t0 = ev.t; S.tLast = ev.t;
+  if (STAGE_OF[ev.type === "stage" ? ev.name : ev.type] !== undefined) setStage(STAGES.findIndex(([id]) => id === STAGE_OF[ev.type === "stage" ? ev.name : ev.type]));
   switch (ev.type) {
-    case "stage": log(ev.detail); haveProgress = false; if (!haveProgress && !ev.detail.startsWith("Preparing")) setBar(0, 1); setPhase(ev.detail.startsWith("Model loaded") ? "Synthesising the first fragment" : ev.detail); break;
+    case "stage": log(ev.detail); setPhase(ev.detail.startsWith("Model loaded") ? "Warming up the model" : ev.detail,
+        ev.detail.startsWith("Model loaded") ? "the first fragment is the slowest" : "", ev.name === "chapter" || ev.name === "encode" ? "check" : "load"); break;
     case "warning": log("⚠ " + ev.message, "warn"); break;
-    case "plan": log(`Fragments: ${ev.total_chunks}, left ${ev.pending_chunks}`); setBar(ev.done_chars, ev.total_chars); break;
+    case "plan": log(`Fragments: ${ev.total_chunks}, left ${ev.pending_chunks}`); break;
+    case "layout": buildLanes(ev.chapters); break;
     case "download": {
       const gb = (b) => (b / 1e9).toFixed(2), pct = ev.total ? Math.min(100, 100 * ev.done / ev.total) : 0;
-      haveProgress = !!ev.total; setBar(ev.done, ev.total || 1);
-      phase = ev.total ? `Downloading ${ev.name}: ${pct.toFixed(0)}% (${gb(ev.done)} of ${gb(ev.total)} GB)` : `Downloading ${ev.name}: ${gb(ev.done)} GB`;
-      phaseSince = Date.now(); tick(); if (ev.total && ev.done >= ev.total) { log("Downloaded " + ev.name); setPhase("Loading TTS model into memory"); } break; }
-    case "fragment": frag = ev; setPhase(`Synthesising chapter ${ev.chapter}: «${ev.text}»`); break;
-    case "step": {
-      const f = frag ? `chapter ${frag.chapter}: «${frag.text}»` : "", take = ev.attempts > 1 ? ` (take ${ev.attempt} of ${ev.attempts})` : "";
-      setPhase(ev.step === "synth" ? `Synthesising ${f}${take}` : ev.step === "qa" ? `Checking the take with speech recognition${take} — ${f}`
-               : `QA failed on every take; splitting the fragment and retrying — ${f}`); break; }
-    case "progress": haveProgress = true; setBar(ev.done_chars, ev.total_chars);
-      stats.textContent = `chapter ${ev.chapter} · RTF ${ev.rtf.toFixed(2)} · audio ${fmt(ev.audio)}${ev.retakes ? " · retakes " + ev.retakes : ""}`; break;
-    case "chapter": log(`✓ ${ev.title} — ${fmt(ev.duration)}`);
-      $("#built").insertAdjacentHTML("beforeend", `<div class="built"><span class="mute">${ev.index}.</span><span style="min-width:120px">${esc(ev.title)}</span><audio controls preload="none" src="${tok(`/api/jobs/${job.id}/chapters/${ev.index}`)}"></audio></div>`); break;
-    case "done": end(); log("Done: " + ev.result); $("#run-msg").textContent = job.kind === "preview" ? "Preview ready — play it below." : "Done: " + ev.result; setBar(1, 1); break;
-    case "cancelled": end(); log("Stopped. Progress is saved — press Render again to continue."); $("#run-msg").textContent = "Stopped; progress saved."; break;
-    case "error": end(); log("Error: " + ev.message, "err"); $("#run-msg").innerHTML = `<span class="err">${esc(ev.message)}</span>`; break;
+      S.phase = "Downloading " + ev.name; $("#now-label").textContent = S.phase; $("#wave").className = "wave load";
+      $("#now-quote").textContent = ev.total ? `${pct.toFixed(0)}% — ${gb(ev.done)} of ${gb(ev.total)} GB` : `${gb(ev.done)} GB`;
+      $("#now-dl").hidden = !ev.total; $("#now-dl > div").style.width = pct + "%";
+      if (ev.total && ev.done >= ev.total) { log("Downloaded " + ev.name); setPhase("Loading TTS model into memory"); } break; }
+    case "fragment": setStage(2); if (!S.tFrag) S.tFrag = ev.t; activate(ev.key); S.activeKey = ev.key; S.frag = ev;
+      setFrag(ev.key, SEG.SYNTH); setPhase("Synthesising", ev.text, "synth"); break;
+    case "step": { const f = S.frag, take = ev.attempts > 1 ? ` · take ${ev.attempt} of ${ev.attempts}` : "";
+      if (ev.step === "synth") { f && setFrag(f.key, SEG.SYNTH); setPhase("Synthesising" + take, f ? f.text : "", "synth"); }
+      else if (ev.step === "qa") { f && setFrag(f.key, SEG.CHECK); setPhase("Listening back — speech recognition" + take, f ? f.text : "", "check"); }
+      else setPhase("QA failed on every take — splitting the fragment", f ? f.text : "", "check"); break; }
+    case "progress": S.tProg = ev.t; S.audio = ev.audio; S.synthSecs = ev.rtf * ev.audio; S.retakes = ev.retakes; S.sessChars += ev.chars || 0;
+      setFrag(ev.key, ev.attempts > 1 ? SEG.RETAKE : SEG.DONE); feedLine(ev); S.activeKey = null; break;
+    case "chapter": log(`✓ ${ev.title} — ${fmt(ev.duration)}`); setPhase(`Chapter ready: ${ev.title}`, fmt(ev.duration) + " of audio", "check");
+      { const lane = S.lanes.find(l => l.ci + 1 === ev.index); if (lane) { lane.built = true; lane.el.querySelector(".lplay").hidden = false; } } break;
+    case "done": log("Done: " + ev.result); end("done"); setPhase("Finished", ev.result, "done"); $("#wave").className = "wave done";
+      $("#hero-status").textContent = job.kind === "preview" ? "Preview ready — press ▶ on the chapter" : "Saved";
+      $("#run-msg").textContent = job.kind === "preview" ? "Preview ready — press ▶ on the chapter line." : "Done: " + ev.result; break;
+    case "cancelled": log("Stopped. Progress is saved — press Render again to continue."); end("cancelled"); setPhase("Stopped", "Progress is saved — press Render to continue.", "");
+      $("#hero-status").textContent = "Stopped"; $("#run-msg").textContent = "Stopped; progress saved."; break;
+    case "error": log("Error: " + ev.message, "err"); end("error"); setPhase("Error", ev.message, ""); $("#hero-status").textContent = "Failed";
+      $("#run-msg").innerHTML = `<span class="err">${esc(ev.message)}</span>`; break;
   }
+  updateTiles();
 }
-function end() { job.final = true; busy(false); if (es) es.close(); clearInterval(ticker); $("#phase").classList.add("idle"); $("#progress").classList.remove("busy"); }
-// A long step (loading the model, the first fragment) emits no events: show what is going on and that it is alive.
-let frag = null, ticker = null, phase = "", phaseSince = 0, lastEvent = 0, haveProgress = false;
-const HINTS = { "Loading TTS model": "reading the weights into memory, usually 1–2 min",
-                "Preparing the model download": "checking what has to be downloaded",
-                "Loading speech recognition": "loading the speech recognition model",
-                "Preparing text": "splitting the text into fragments" };
-function setPhase(text) { phase = text; phaseSince = Date.now(); $("#phase").classList.remove("idle"); tick(); }
-function tick() {
-  if (!job || job.final) return;
-  const el = Math.round((Date.now() - phaseSince) / 1000), quiet = Math.round((Date.now() - lastEvent) / 1000);
-  const hint = Object.entries(HINTS).find(([k]) => phase.startsWith(k));
-  const dl = /^Downloading .*GB/.test(phase);
-  $("#phase-text").textContent = dl ? phase : `${phase} · ${el} s` + (hint ? ` (${hint[1]})` : "") + (quiet > 90 && !hint ? ` · still working, last update ${quiet} s ago` : "");
-  $("#progress").classList.toggle("busy", !haveProgress);
-}
-function setBar(done, total) { $("#bar").style.width = (total ? Math.min(100, 100 * done / total) : 0) + "%"; }
 
 // ---- settings ---------------------------------------------------------------------------------
 async function loadSettings() {
@@ -314,7 +492,7 @@ async function reconcile() {
     const cur = await api("/api/jobs/current");
     if (!online) { online = true; $("#offline").hidden = true; }
     if (!cur) {  // the server has no job: it was restarted while the page showed one
-      if (job && !job.final) { end(); log("The server restarted; this job is gone.", "warn"); $("#run-msg").textContent = "Server restarted. Progress is saved — press Render to resume."; }
+      if (job && !job.final) { end("error"); log("The server restarted; this job is gone.", "warn"); $("#run-msg").textContent = "Server restarted. Progress is saved — press Render to resume."; }
       return;
     }
     const stale = !job || job.id !== cur.id || (cur.state !== "running" && !job.final);

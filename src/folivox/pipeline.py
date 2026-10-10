@@ -75,6 +75,9 @@ class Events:
 
     def chapter_built(self, index: int, title: str, duration: float) -> None: ...
 
+    def layout(self, chapters: list[dict]) -> None:
+        """Every fragment of every selected chapter: ``{index, title, fragments: [[chars, key]], done: "1010…"}``."""
+
     def step(self, step: str, attempt: int = 1, attempts: int = 1) -> None:
         """What happens to the current fragment: ``synth`` (take n of m), ``qa`` (recognising it), ``split``."""
 
@@ -211,6 +214,13 @@ def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions
     pending = journal.pending()
     st = journal.stats()
     events.plan(st["total_chars"], st["done_chars"], len(journal.chunks()), len(pending))
+    pending_keys = {c.key for c in pending}
+    layout = []
+    for ci, title in journal.chapters():
+        chunks = journal.chunks(ci)
+        layout.append({"index": ci, "title": title, "fragments": [[len(c.source), c.key[:10]] for c in chunks],
+                       "done": "".join("0" if c.key in pending_keys else "1" for c in chunks)})
+    events.layout(layout)
     todo: list[PlannedChunk] = []
     keys: set[str] = set()
     for c in pending:  # the same sentence may occur twice in a book
