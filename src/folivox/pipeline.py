@@ -14,7 +14,6 @@ import numpy as np
 from folivox.audio import postprocess, save
 from folivox.audio.assemble import BookMeta, ChapterAudio, build_chapter, write_m4b, write_mp3s
 from folivox.book import Book
-from folivox.i18n import _
 from folivox.journal import Journal, PlannedChunk, Take
 from folivox.text.chunk import ChunkOptions, plan_chapter
 
@@ -80,21 +79,21 @@ def parse_selection(spec: str | None, count: int) -> list[int]:
             continue
         m = re.fullmatch(r"(\d+)?\s*-\s*(\d+)?|(\d+)", part)
         if not m:
-            raise ValueError(_("Invalid chapter number: {part!r}", part=part))
+            raise ValueError(f"Invalid chapter number: {part!r}")
         if m.group(3):
             a = b = int(m.group(3))
         else:
             a, b = int(m.group(1) or 1), int(m.group(2) or count)
         out.update(i - 1 for i in range(a, b + 1) if 1 <= i <= count)
     if not out:
-        raise ValueError(_("The book has no chapters {spec!r} (there are {count})", spec=spec, count=count))
+        raise ValueError(f"The book has no chapters {spec!r} (there are {count})")
     return sorted(out)
 
 
 def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, events: Events) -> list[str]:
     chapters = book.chapters(opts.depth)
     selected = parse_selection(opts.chapters, len(chapters))
-    events.stage("plan", _("Preparing text: {n} of {total} chapters", n=len(selected), total=len(chapters)))
+    events.stage("plan", f"Preparing text: {len(selected)} of {len(chapters)} chapters")
     copts = ChunkOptions(max_chars=opts.max_chars, min_chars=opts.chunk.min_chars, stress=opts.stress,
                          lang=opts.lang or book.lang or "ru", pauses=opts.chunk.pauses,
                          speak_headings=opts.chunk.speak_headings)
@@ -226,22 +225,22 @@ def assemble(journal: Journal, book: Book, opts: RenderOptions, sample_rate: int
     for ci, title in journal.chapters():
         chunks = journal.chunks(ci)
         if not chunks or not all(journal.is_done(c.key) for c in chunks):
-            events.warning(_("Chapter “{title}” is not fully rendered — skipping", title=title))
+            events.warning(f"Chapter “{title}” is not fully rendered — skipping")
             continue
         sig = hashlib.sha1("|".join(f"{c.key}:{c.pause}" for c in chunks).encode()).hexdigest()
         path = work / "chapters" / f"{ci + 1:03d}.flac"
         if journal.meta(f"chapter_sig_{ci}") == sig and path.exists():
             dur = journal.meta(f"chapter_dur_{ci}")
         else:
-            events.stage("chapter", _("Building chapter {n}: {title}", n=ci + 1, title=title))
+            events.stage("chapter", f"Building chapter {ci + 1}: {title}")
             dur = build_chapter([(journal.audio_path(c.key), c.pause) for c in chunks], path, sample_rate)
             journal.set_meta(**{f"chapter_sig_{ci}": sig, f"chapter_dur_{ci}": dur})
         built.append(ChapterAudio(title, path, dur))
         events.chapter_built(ci, title, dur)
     if not built:
-        raise RuntimeError(_("Nothing to assemble: no chapter is fully rendered"))
+        raise RuntimeError("Nothing to assemble: no chapter is fully rendered")
     meta = BookMeta(book.title, book.author, book.year, book.annotation, opts.narrator)
-    events.stage("encode", _("Encoding {fmt}", fmt="MP3" if opts.mp3 else "M4B"))
+    events.stage("encode", "Encoding {fmt}".format(fmt="MP3" if opts.mp3 else "M4B"))
     if opts.mp3:
         out_dir = opts.output if opts.output.suffix == "" else opts.output.with_suffix("")
         write_mp3s(built, out_dir, meta, book.cover)
@@ -269,7 +268,7 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
     try:
         asr = None
         if opts.qa:
-            events.stage("asr", _("Loading speech recognition for QA ({name})", name=opts.asr))
+            events.stage("asr", f"Loading speech recognition for QA ({opts.asr})")
             asr = ASR_PROVIDERS.create(opts.asr, language=opts.lang)
         voice = load_voice(opts.voice_wav, opts.voice_text,
                            transcribe=asr.transcribe_file if asr else None)
@@ -277,10 +276,10 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
             events.warning(w)
         plan(book, opts, journal, voice.id, events)
         if journal.pending():
-            events.stage("model", _("Loading TTS model ({name})", name=opts.tts))
+            events.stage("model", f"Loading TTS model ({opts.tts})")
             t0 = time.time()
             engine = ENGINES.create(opts.tts, **_engine_options(opts))
-            events.stage("model", _("Model loaded in {s:.0f} s ({device})", s=time.time() - t0, device=engine.device))
+            events.stage("model", f"Model loaded in {time.time() - t0:.0f} s ({engine.device})")
             sample_rate = engine.sample_rate
             synthesize_pending(journal, engine, voice, asr, opts, events)
         else:

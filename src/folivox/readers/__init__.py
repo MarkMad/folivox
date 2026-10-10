@@ -6,7 +6,6 @@ import zipfile
 from pathlib import Path
 
 from folivox.book import Book
-from folivox.i18n import _
 
 SUPPORTED = (".fb2", ".fb2.zip", ".epub", ".txt", ".docx", ".pdf")
 
@@ -26,8 +25,7 @@ def detect_format(path: Path) -> str:
         with zipfile.ZipFile(path) as z:
             if any(n.lower().endswith(".fb2") for n in z.namelist()):
                 return "fb2"
-    raise UnsupportedFormat(_("Unsupported format: {name} (supported: {formats})", name=path.name,
-                                formats=", ".join(SUPPORTED)))
+    raise UnsupportedFormat(f"Unsupported format: {path.name} (supported: {', '.join(SUPPORTED)})")
 
 
 def read_book(path: str | Path) -> Book:

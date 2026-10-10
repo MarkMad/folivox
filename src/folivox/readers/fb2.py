@@ -9,7 +9,6 @@ from pathlib import Path
 from lxml import etree
 
 from folivox.book import Block, BlockKind, Book, Section, clean_text, one_line
-from folivox.i18n import _
 
 XLINK = "{http://www.w3.org/1999/xlink}href"
 NOTE_BODIES = {"notes", "comments", "footnotes"}
@@ -125,7 +124,7 @@ def _parse(path: Path):
         data = path.read_bytes()
     root = etree.fromstring(data, parser)
     if root is None:
-        raise ValueError(_("Cannot parse FB2: {path}", path=path))
+        raise ValueError(f"Cannot parse FB2: {path}")
     return root
 
 

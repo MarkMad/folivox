@@ -11,7 +11,6 @@ from pathlib import Path
 import numpy as np
 
 from folivox.audio import load
-from folivox.i18n import _
 
 LOUDNORM = "loudnorm=I=-18:TP=-1.5:LRA=11"
 
@@ -23,8 +22,8 @@ class FFmpegMissing(RuntimeError):
 def ffmpeg() -> str:
     exe = shutil.which("ffmpeg")
     if not exe:
-        raise FFmpegMissing(_("ffmpeg not found. Install it: macOS — brew install ffmpeg; "
-                              "Windows — winget install ffmpeg; Linux — apt install ffmpeg"))
+        raise FFmpegMissing("ffmpeg not found. Install it: macOS — brew install ffmpeg; "
+                              "Windows — winget install ffmpeg; Linux — apt install ffmpeg")
     return exe
 
 
@@ -32,7 +31,7 @@ def run(args: list[str]) -> None:
     proc = subprocess.run([ffmpeg(), "-hide_banner", "-loglevel", "error", "-y", *args],
                           capture_output=True, text=True)
     if proc.returncode != 0:
-        raise RuntimeError(_("ffmpeg failed:") + "\n" + proc.stderr.strip())
+        raise RuntimeError("ffmpeg failed:" + "\n" + proc.stderr.strip())
 
 
 @dataclass
