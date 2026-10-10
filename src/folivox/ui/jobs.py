@@ -33,6 +33,9 @@ class UIEvents(Events):
         self.job.emit("plan", total_chars=total_chars, done_chars=done_chars, total_chunks=total_chunks,
                       pending_chunks=pending_chunks)
 
+    def download(self, name, done_bytes, total_bytes):
+        self.job.emit("download", name=name, done=done_bytes, total=total_bytes)
+
     def chunk_started(self, chunk):
         self.job.emit("fragment", chapter=chunk.chapter + 1, text=chunk.text[:80])
 

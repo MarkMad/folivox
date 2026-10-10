@@ -75,6 +75,9 @@ class Events:
 
     def chapter_built(self, index: int, title: str, duration: float) -> None: ...
 
+    def download(self, name: str, done_bytes: int, total_bytes: int) -> None:
+        """Model weights are being downloaded (``total_bytes`` is 0 when unknown)."""
+
 
 def parse_selection(spec: str | None, count: int) -> list[int]:
     """'1-3,5' → [0, 1, 2, 4] (0-based); None → all."""
@@ -288,7 +291,10 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
         if journal.pending():
             events.stage("model", f"Loading TTS model ({opts.tts})")
             t0 = time.time()
-            engine = ENGINES.create(opts.tts, **_engine_options(opts))
+            from folivox.tts import weights
+
+            with weights.reporting(events.download):
+                engine = ENGINES.create(opts.tts, **_engine_options(opts))
             events.stage("model", f"Model loaded in {time.time() - t0:.0f} s ({engine.device})")
             sample_rate = engine.sample_rate
             synthesize_pending(journal, engine, voice, asr, opts, events)

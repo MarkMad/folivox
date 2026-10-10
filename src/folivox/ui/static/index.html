@@ -211,9 +211,14 @@ function handle(ev) {
   lastEvent = Date.now();
   const stats = $("#stats").firstChild;
   switch (ev.type) {
-    case "stage": log(ev.detail); setPhase(ev.detail.startsWith("Model loaded") ? "Synthesising the first fragment" : ev.detail); break;
+    case "stage": log(ev.detail); haveProgress = false; if (!haveProgress && !ev.detail.startsWith("Preparing")) setBar(0, 1); setPhase(ev.detail.startsWith("Model loaded") ? "Synthesising the first fragment" : ev.detail); break;
     case "warning": log("⚠ " + ev.message, "warn"); break;
     case "plan": log(`Fragments: ${ev.total_chunks}, left ${ev.pending_chunks}`); setBar(ev.done_chars, ev.total_chars); break;
+    case "download": {
+      const gb = (b) => (b / 1e9).toFixed(2), pct = ev.total ? Math.min(100, 100 * ev.done / ev.total) : 0;
+      haveProgress = !!ev.total; setBar(ev.done, ev.total || 1);
+      phase = ev.total ? `Downloading ${ev.name}: ${pct.toFixed(0)}% (${gb(ev.done)} of ${gb(ev.total)} GB)` : `Downloading ${ev.name}: ${gb(ev.done)} GB`;
+      phaseSince = Date.now(); tick(); if (ev.total && ev.done >= ev.total) log("Downloaded " + ev.name); break; }
     case "fragment": setPhase(`Synthesising chapter ${ev.chapter}: «${ev.text}»`); break;
     case "progress": haveProgress = true; setBar(ev.done_chars, ev.total_chars);
       stats.textContent = `chapter ${ev.chapter} · RTF ${ev.rtf.toFixed(2)} · audio ${fmt(ev.audio)}${ev.retakes ? " · retakes " + ev.retakes : ""}`; break;
@@ -235,7 +240,8 @@ function tick() {
   if (!job || job.final) return;
   const el = Math.round((Date.now() - phaseSince) / 1000), quiet = Math.round((Date.now() - lastEvent) / 1000);
   const hint = Object.entries(HINTS).find(([k]) => phase.startsWith(k));
-  $("#phase-text").textContent = `${phase} · ${el} s` + (hint ? ` (${hint[1]})` : "") + (quiet > 30 && !hint ? ` · no update for ${quiet} s` : "");
+  const dl = phase.startsWith("Downloading");
+  $("#phase-text").textContent = dl ? phase : `${phase} · ${el} s` + (hint ? ` (${hint[1]})` : "") + (quiet > 30 && !hint ? ` · no update for ${quiet} s` : "");
   $("#progress").classList.toggle("busy", !haveProgress);
 }
 function setBar(done, total) { $("#bar").style.width = (total ? Math.min(100, 100 * done / total) : 0) + "%"; }

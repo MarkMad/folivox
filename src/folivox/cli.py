@@ -176,6 +176,7 @@ class RichEvents(Events):
         self.task = None
         self.audio = self.synth = 0.0
         self.retakes = self.flagged = 0
+        self._dl_pct = -10
 
     def stage(self, name, detail=""):
         console.log(f"[cyan]{detail or name}[/]")
@@ -207,6 +208,14 @@ class RichEvents(Events):
         if self.verbose or (take.score is not None and len(attempts) > 1):
             sc = ", ".join("—" if a is None else f"{a:.2f}" for a in attempts)
             self.progress.console.log(f"[dim]ch.{chunk.chapter + 1} #{chunk.idx}[/] [{sc}] {chunk.text[:70]}")
+
+    def download(self, name, done_bytes, total_bytes):
+        if not total_bytes:
+            return
+        pct = int(100 * done_bytes / total_bytes)
+        if pct >= self._dl_pct + 10 or pct == 100 and self._dl_pct < 100:
+            self._dl_pct = pct
+            console.log(f"[cyan]Downloading {name}: {pct}% ({done_bytes / 1e9:.1f} of {total_bytes / 1e9:.1f} GB)[/]")
 
     def chapter_built(self, index, title, duration):
         if self.task is not None and self.progress.live.is_started:
