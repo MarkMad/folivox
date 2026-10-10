@@ -1,0 +1,271 @@
+"""Cloud voice generators: small HTTP plugins registered in :data:`folivox.voicegen.GENERATORS`.
+
+Every provider declares what it can do (``modes``: ``"preset"`` = pick one of its voices, ``"design"`` =
+create a voice from a text description), the languages it speaks, price/terms notes and the name of the
+environment variable that holds the API key. The key is read with :func:`folivox.config.api_key`
+(environment first, then the OS keychain) and is never logged, stored in a file or put in an error message.
+
+Everything sent here leaves the computer and is billed to the user's account. The audio is for personal
+use as a cloning prompt; it must never be bundled with Folivox.
+"""
+
+from __future__ import annotations
+
+import base64
+import json
+import time
+import urllib.error
+import urllib.request
+from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
+
+import numpy as np
+
+from folivox.providers import ProviderError
+from folivox.voicegen import Job, VoiceGenerator
+
+COMMERCIAL_NOTICE = ("The text is sent to the provider and billed to your account. Some providers' terms restrict "
+                     "using their output to build competing models; the audio is kept on this computer and is "
+                     "never bundled with Folivox.")
+
+
+class CloudError(ProviderError):
+    """A cloud call failed. ``kind``: auth | rate_limit | quota | bad_request | server | network."""
+
+    def __init__(self, message: str, kind: str = "server", retry_after: float | None = None):
+        super().__init__(message)
+        self.kind, self.retry_after = kind, retry_after
+
+
+@dataclass
+class Response:
+    status: int
+    body: bytes
+    headers: dict[str, str]
+
+    def json(self) -> dict:
+        try:
+            data = json.loads(self.body or b"{}")
+        except ValueError:
+            raise CloudError("The provider returned a reply that is not JSON", "server") from None
+        return data if isinstance(data, dict) else {"data": data}
+
+
+Transport = Callable[[str, str, dict[str, str], bytes | None, float], Response]
+
+
+def urllib_transport(method: str, url: str, headers: dict[str, str], body: bytes | None, timeout: float) -> Response:
+    req = urllib.request.Request(url, data=body, method=method, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 — https URLs of the providers
+            return Response(r.status, r.read(), {k.lower(): v for k, v in r.headers.items()})
+    except urllib.error.HTTPError as e:
+        return Response(e.code, e.read() or b"", {k.lower(): v for k, v in (e.headers or {}).items()})
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        raise CloudError(f"Cannot reach the provider: {getattr(e, 'reason', e)}", "network") from None
+
+
+def error_text(resp: Response) -> str:
+    """The provider's own message from an error body, trimmed; never contains request headers."""
+    try:
+        data = json.loads(resp.body)
+    except ValueError:
+        return resp.body[:200].decode("utf-8", "replace").strip()
+
+    def dig(x):
+        if isinstance(x, str):
+            return x
+        if isinstance(x, dict):
+            for k in ("message", "detail", "error", "status"):
+                if k in x and (m := dig(x[k])):
+                    return m
+        if isinstance(x, list) and x:
+            return dig(x[0])
+        return ""
+
+    return dig(data)[:300]
+
+
+class CloudGenerator(VoiceGenerator):
+    """Base class: request plumbing, retries, error mapping, capability declaration."""
+
+    name = ""
+    label = ""
+    local = False
+    commercial = True
+    mode = "preset"  # the active mode; callers switch it to "design" where the provider offers it
+    modes: tuple[str, ...] = ("preset",)
+    languages: tuple[str, ...] = ("en",)  # ISO 639-1 codes the provider can speak
+    key_env = ""
+    price_note = ""
+    terms_url = ""
+    docs_url = ""
+    max_chars = 2000  # per request
+    retries = 2
+
+    def __init__(self, api_key_env: str = "", transport: Transport | None = None, sleep=time.sleep,
+                 api_key: str | None = None, **options):
+        from folivox.config import api_key as lookup
+
+        self.key_env = api_key_env or type(self).key_env
+        self.key = api_key or lookup(self.key_env, self.label or self.name)
+        self.transport, self._sleep = transport or urllib_transport, sleep
+        self.mode = type(self).mode if type(self).mode in self.modes else self.modes[0]
+        self.options = options
+        self._speakers: dict[str, tuple[str, str]] | None = None
+
+    # ---- declared capabilities -------------------------------------------------------------------
+    @classmethod
+    def capabilities(cls) -> dict:
+        return {"name": cls.name, "label": cls.label or cls.name, "modes": list(cls.modes),
+                "languages": list(cls.languages), "key_env": cls.key_env, "price_note": cls.price_note,
+                "terms_url": cls.terms_url, "docs_url": cls.docs_url, "commercial": cls.commercial,
+                "max_chars": cls.max_chars}
+
+    @classmethod
+    def estimate_for(cls, chars: int, takes: int = 1, mode: str = "preset") -> dict:
+        """Characters sent and, where the provider documents a price, an approximate cost (``usd`` else None)."""
+        return {"chars": chars * takes, "usd": None, "note": cls.price_note}
+
+    def speakers(self, lang: str | None = None) -> dict[str, tuple[str, str]]:
+        """Preset voices ``{id: (language or "", sex "f"/"m"/"")}``; may call the provider's API."""
+        return {}
+
+    names: dict[str, str] = {}  # voice id → display name, when the id is not readable
+
+    # ---- HTTP ------------------------------------------------------------------------------------
+    def headers(self) -> dict[str, str]:
+        raise NotImplementedError
+
+    def call(self, method: str, url: str, payload: dict | None = None, *, timeout: float = 300) -> Response:
+        body = json.dumps(payload).encode() if payload is not None else None
+        headers = {**self.headers(), **({"Content-Type": "application/json"} if body is not None else {})}
+        for attempt in range(self.retries + 1):
+            try:
+                resp = self.transport(method, url, headers, body, timeout)
+            except CloudError as e:
+                if e.kind == "network" and attempt < self.retries:
+                    self._sleep(2 ** attempt)
+                    continue
+                raise
+            if resp.status < 300:
+                return resp
+            err = self.map_error(resp)
+            if err.kind in ("rate_limit", "server") and attempt < self.retries:
+                self._sleep(min(err.retry_after or 2 ** (attempt + 1), 30))
+                continue
+            raise err
+        raise CloudError("Unreachable")  # pragma: no cover
+
+    def map_error(self, resp: Response) -> CloudError:
+        who, msg = self.label or self.name, error_text(resp)
+        suffix = f": {msg}" if msg else ""
+        s = resp.status
+        try:
+            retry = float(resp.headers.get("retry-after", ""))
+        except ValueError:
+            retry = None
+        if s in (401, 403):
+            return CloudError(f"{who} rejected the API key ({s}). Check {self.key_env} or save a new key{suffix}",
+                              "auth")
+        if s == 402 or self.is_quota(resp, msg):
+            return CloudError(f"{who}: quota or credits exhausted — top up your account or wait for the reset{suffix}",
+                              "quota")
+        if s == 429:
+            wait = f" Retry in about {int(retry)} s." if retry else " Wait a minute and try again."
+            return CloudError(f"{who}: rate limit reached.{wait}{suffix}", "rate_limit", retry)
+        if 400 <= s < 500:
+            return CloudError(f"{who} refused the request ({s}){suffix}", "bad_request")
+        return CloudError(f"{who} server error ({s}){suffix}", "server", retry)
+
+    QUOTA_TOKENS = ("quota_exceeded", "insufficient_quota", "credit_balance_exhausted", "spend_limit_exceeded",
+                    "usage_limit_exceeded")
+
+    def is_quota(self, resp: Response, msg: str) -> bool:
+        body = resp.body.lower().decode("utf-8", "replace")
+        return any(t in body for t in self.QUOTA_TOKENS)
+
+    def check_text(self, text: str) -> None:
+        if len(text) > self.max_chars:
+            raise CloudError(f"{self.label or self.name}: the text is {len(text)} characters, the limit is "
+                             f"{self.max_chars}", "bad_request")
+
+    def check_lang(self, lang: str) -> None:
+        if lang not in self.languages:
+            raise CloudError(f"{self.label or self.name} does not list {lang!r}; supported: "
+                             f"{', '.join(self.languages)}", "bad_request")
+
+    # ---- generation ------------------------------------------------------------------------------
+    license = "Cloud API output — personal use as a cloning prompt, see the provider's terms"
+
+    def synth(self, job: Job) -> bytes:
+        """One take as WAV bytes (preset / instruction mode)."""
+        raise NotImplementedError
+
+    def generate(self, jobs: list[Job], progress=None) -> list[Path]:
+        for j in jobs:
+            t0 = time.time()
+            self.check_text(j.text)
+            self.check_lang(j.lang)
+            Path(j.out).write_bytes(self.synth(j))
+            if progress:
+                progress(j, time.time() - t0)
+        return [j.out for j in jobs]
+
+
+def to_wav(data: bytes, rate: int = 24000) -> bytes:
+    """WAV passes through; anything else (mp3, flac, ogg) is decoded and re-encoded as WAV."""
+    import io
+
+    import soundfile as sf
+
+    if data[:4] == b"RIFF":
+        return data
+    try:
+        audio, sr = sf.read(io.BytesIO(data), dtype="float32", always_2d=True)
+    except Exception:  # noqa: BLE001 — libsndfile without mp3 support, or not audio at all
+        raise CloudError("The provider's audio could not be decoded (MP3 needs libsndfile 1.1+; try `pip install -U "
+                         "soundfile`)", "server") from None
+    buf = io.BytesIO()
+    sf.write(buf, audio.mean(axis=1), sr, format="WAV", subtype="PCM_16")
+    return buf.getvalue()
+
+
+def pcm_to_wav(pcm: bytes, sample_rate: int = 24000) -> bytes:
+    """Raw 16-bit little-endian mono PCM → WAV bytes."""
+    import io
+
+    import soundfile as sf
+
+    data = np.frombuffer(pcm[: len(pcm) // 2 * 2], dtype="<i2")
+    buf = io.BytesIO()
+    sf.write(buf, data, sample_rate, format="WAV", subtype="PCM_16")
+    return buf.getvalue()
+
+
+def b64(data: str) -> bytes:
+    try:
+        return base64.b64decode(data)
+    except ValueError:
+        raise CloudError("The provider returned audio that cannot be decoded", "server") from None
+
+
+def cloud_providers() -> dict[str, type[CloudGenerator]]:
+    """Registered cloud generators by name (classes only: no key or network needed)."""
+    import importlib
+
+    from folivox.voicegen import GENERATORS
+
+    out = {}
+    for p in GENERATORS.providers():
+        if p.local:
+            continue
+        module, _, attr = p.target.partition(":")
+        try:
+            cls = getattr(importlib.import_module(module), attr)
+        except (ImportError, AttributeError):
+            continue
+        if isinstance(cls, type) and issubclass(cls, CloudGenerator):
+            out[p.name] = cls
+    return out

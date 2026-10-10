@@ -33,6 +33,7 @@ class VoiceEntry:
     license: str = ""
     url: str = ""
     bundled: bool = False
+    commercial: bool = False  # generated with a commercial cloud API: personal use only, never bundled
     path: Path = field(default=Path(), compare=False)
 
     def to_meta(self) -> dict:
@@ -88,7 +89,8 @@ _ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,40}$")
 
 
 def add(voice_id: str, audio: Path, transcript: str, *, name: str = "", gender: str = "", lang: str = "ru",
-        source: str = "", license: str = "", url: str = "", overwrite: bool = False) -> VoiceEntry:
+        source: str = "", license: str = "", url: str = "", overwrite: bool = False,
+        commercial: bool = False) -> VoiceEntry:
     """Normalise a sample (mono, 24 kHz, trimmed silence) and store it as a user voice."""
     import numpy as np
     import soundfile as sf
@@ -118,7 +120,7 @@ def add(voice_id: str, audio: Path, transcript: str, *, name: str = "", gender: 
     target.mkdir(parents=True)
     sf.write(str(target / "voice.flac"), data, TARGET_SR, subtype="PCM_16")
     entry = VoiceEntry(voice_id, name or voice_id, gender, lang, " ".join(transcript.split()), source, license,
-                       url, path=target / "voice.flac")
+                       url, commercial=commercial, path=target / "voice.flac")
     (target / "voice.txt").write_text(entry.transcript, encoding="utf-8")
     (target / "meta.json").write_text(json.dumps(entry.to_meta(), ensure_ascii=False, indent=2), encoding="utf-8")
     return entry

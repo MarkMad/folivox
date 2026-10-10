@@ -101,11 +101,12 @@ class JobManager:
     def __init__(self, render: Callable | None = None):
         self._render = render
         self.current: Job | None = None
+        self.gen_current: Job | None = None  # a voice-generation job; never shown as the render job
         self.jobs: dict[str, Job] = {}
         self._lock = threading.Lock()
 
     def busy(self) -> bool:
-        return self.current is not None and self.current.state == "running"
+        return any(j is not None and j.state == "running" for j in (self.current, self.gen_current))
 
     def start(self, kind: str, book_id: str, book, opts: RenderOptions) -> Job:
         with self._lock:
@@ -132,6 +133,29 @@ class JobManager:
             job.finish("error", "error", message=job.error)
 
 
+    def start_task(self, job: Job, fn: Callable[[Job], str | None]) -> Job:
+        """Run ``fn(job)`` in a worker thread as the current voice-generation job (events and cancel as a render)."""
+        with self._lock:
+            if self.busy():
+                raise RuntimeError("Another job is running")
+            self.jobs[job.id] = job
+            self.gen_current = job
+
+        def run():
+            try:
+                job.result = fn(job)
+                job.finish("done", "done", result=job.result)
+            except Cancelled:
+                job.finish("cancelled", "cancelled")
+            except Exception as e:  # noqa: BLE001 — report any failure to the browser
+                job.error = str(e) or type(e).__name__
+                job.finish("error", "error", message=job.error)
+
+        threading.Thread(target=run, daemon=True, name=f"folivox-gen-{job.id}").start()
+        return job
+
+
 def chapter_files(work_dir: Path) -> dict[int, Path]:
     d = work_dir / "chapters"
     return {int(p.stem): p for p in sorted(d.glob("*.flac"))} if d.exists() else {}
+

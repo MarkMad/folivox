@@ -447,28 +447,52 @@ def voices_design(
     keep: Path | None = typer.Option(None, "--keep", show_default="temporary",
                                  help="Folder to keep every take for listening."),
     add: bool = typer.Option(True, "--add/--no-add", help="Add the best take to the catalog."),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Do not ask before sending text to a cloud provider."),
 ):
     """Generate a reference voice with a voice generator, pick the best take by speech recognition."""
     import tempfile
 
     from folivox import config
     from folivox import voices as catalog
+    from folivox.providers import ProviderError
     from folivox.qa.asr import Transcriber
     from folivox.voicegen import GENERATORS
     from folivox.voices.design import generate_takes, safe_texts, score_takes
 
     lang = _check_lang(lang)
-    gen = GENERATORS.create(config.provider("voicegen", generator))
+    try:
+        gen = GENERATORS.create(config.provider("voicegen", generator))
+    except (ProviderError, ValueError) as e:
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(1) from None
+    modes = getattr(gen, "modes", (gen.mode,))
+    if describe and "design" in modes:
+        gen.mode = "design"
+    elif speaker and "preset" in modes:
+        gen.mode = "preset"
     if gen.mode == "design" and not describe:
         console.print(f"[red]--describe is required for {gen.name}[/]")
         raise typer.Exit(2)
     if gen.mode == "preset" and not speaker:
-        console.print(f"[red]--speaker is required for {gen.name}: {', '.join(gen.speakers())}[/]")
+        try:
+            names = ", ".join(gen.speakers())
+        except ProviderError as e:
+            names = str(e)
+        console.print(f"[red]--speaker is required for {gen.name}: {names}[/]")
         raise typer.Exit(2)
     texts = text or safe_texts(lang)
     if not texts:
         console.print(f"[red]No built-in texts for {lang}; pass --text[/]")
         raise typer.Exit(2)
+    if not gen.local:
+        est = type(gen).estimate_for(sum(len(t) for t in texts), takes, gen.mode)
+        cost = f", about ${est['usd']:.2f}" if est.get("usd") is not None else ""
+        console.print(f"[yellow]{gen.label or gen.name}: {est['chars']} characters will be sent to the provider and "
+                      f"billed to your account{cost}.[/] {est['note']}")
+        console.print("[dim]Some providers' terms restrict using their output to build competing models; the audio "
+                      "stays on this computer and is never bundled.[/]")
+        if not yes and not typer.confirm("Continue?", default=False):
+            raise typer.Exit(1)
     out_dir = keep or Path(tempfile.mkdtemp(prefix="folivox-design-"))
     total = len(texts) * takes
     done = [0]
@@ -478,8 +502,12 @@ def voices_design(
         console.log(f"take {done[0]}/{total} ({seconds:.0f} s)")
 
     console.log(f"Generating {total} takes with {gen.name}…")
-    paths = generate_takes(gen, texts, lang, out_dir, description=describe, speaker=speaker, takes=takes,
-                           prefix=voice_id, progress=progress)
+    try:
+        paths = generate_takes(gen, texts, lang, out_dir, description=describe, speaker=speaker, takes=takes,
+                               prefix=voice_id, progress=progress)
+    except ProviderError as e:
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(1) from None
     by_path = {p: texts[int(p.stem.split("_t")[-1].split("_")[0]) - 1] for p in paths}
     console.log("Checking takes with speech recognition…")
     ranked = score_takes(paths, by_path, Transcriber(language=lang), lang)
@@ -492,12 +520,83 @@ def voices_design(
     console.print(t)
     best = ranked[0]
     if add:
-        source = f"{gen.name}: {describe or speaker}"
+        commercial = bool(getattr(gen, "commercial", False))
+        source = f"{gen.label or gen.name}{' (commercial API)' if commercial else ''}: {describe or speaker}"
         entry = catalog.add(voice_id, best.path, best.text, gender=gender, lang=lang, source=source,
-                            license=gen.license, overwrite=True)
+                            license=gen.license, overwrite=True, commercial=commercial)
         console.print(f"[green]Voice added:[/] {entry.id} ← {best.path.name}")
     if keep:
         console.print(f"All takes: {out_dir}")
+
+
+@voices_app.command("suggest-prompt", help=("Write a voice-design prompt for a book with a text LLM "
+                                             "(for `voices design --describe`)."))
+def voices_suggest_prompt(
+    book_path: Path = typer.Argument(..., help="Book file."),
+    generator: str | None = typer.Option(None, "--generator", "-g", show_default="qwen3-voicedesign",
+                                         help="Voice generator the prompt is for (`folivox providers`)."),
+    lang: str | None = typer.Option(None, "--lang", help="Book language.", show_default="from book / detected"),
+    llm: str | None = typer.Option(None, "--llm", show_default="ollama",
+                                 help="Text LLM provider (`folivox providers`)."),
+    model: str | None = typer.Option(None, "--model", show_default="from config",
+                                   help="Model name for the LLM provider."),
+):
+    """Write a voice-design prompt for a book with a text LLM."""
+    from folivox import config
+    from folivox.llm import LLMS
+    from folivox.providers import ProviderError
+    from folivox.voicegen import GENERATORS
+    from folivox.voices.suggest import suggest_design_prompt
+
+    name = config.provider("voicegen", generator)
+    caps = None
+    try:
+        from folivox.voicegen.cloud import cloud_providers
+
+        cls = cloud_providers().get(name or GENERATORS.default)
+        caps = cls.capabilities() if cls else None
+        GENERATORS.get(name)
+    except ProviderError as e:
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(2) from None
+    if caps and "design" not in caps["modes"]:
+        console.print(f"[yellow]{caps['label']} has no voice design; it only offers preset voices "
+                      f"(`folivox voices speakers -g {caps['name']}`). The prompt can still serve as instructions "
+                      f"where the provider accepts them.[/]")
+    book = _load(book_path, lang)
+    text = "\n".join(b.text for ch in book.chapters() for b in ch.blocks)
+    try:
+        console.print(suggest_design_prompt(text, book.lang, LLMS.create(config.provider("llm", llm), model=model),
+                                            title=book.title or "", author=book.author or ""))
+    except (ProviderError, ValueError) as e:
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(1) from None
+
+
+@voices_app.command("speakers", help="List the preset voices of a voice generator.")
+def voices_speakers(
+    generator: str | None = typer.Option(None, "--generator", "-g", show_default="qwen3-voicedesign",
+                                         help="Voice generator provider (`folivox providers`)."),
+    lang: str | None = typer.Option(None, "--lang", help="Only voices for this language."),
+):
+    """List the preset voices of a voice generator (cloud providers need their API key)."""
+    from folivox import config
+    from folivox.providers import ProviderError
+    from folivox.voicegen import GENERATORS
+
+    try:
+        gen = GENERATORS.create(config.provider("voicegen", generator))
+        speakers = gen.speakers()
+    except (ProviderError, ValueError) as e:
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(1) from None
+    t = Table(title=f"{gen.name} voices")
+    for col in ("Id", "Language", "Sex"):
+        t.add_column(col)
+    for k, (lg, sex) in speakers.items():
+        if not lang or lg in (lang, ""):
+            t.add_row(k, lg or "any", sex or "—")
+    console.print(t)
 
 
 @voices_app.command("sample-text", help=("Pick passages from a book that are safe for a voice generator to "
@@ -545,6 +644,15 @@ def providers():
             t.add_row(reg.kind, p.name + mark, p.description, "locally" if p.local else "cloud API (your key)",
                       p.needs)
     console.print(t)
+    from folivox.voicegen.cloud import cloud_providers
+
+    c = Table(title="Cloud voice generation (`folivox voices design -g NAME`)")
+    for col in ("Name", "Modes", "Languages", "API key", "Price / terms"):
+        c.add_column(col)
+    for cls in cloud_providers().values():
+        c.add_row(cls.name, " + ".join(cls.modes), ", ".join(cls.languages) if len(cls.languages) < 12 else
+                  f"{len(cls.languages)} languages", cls.key_env, f"{cls.price_note} {cls.terms_url}".strip())
+    console.print(c)
     console.print(f"[dim]* selected. Config: {config.config_path()}[/]")
 
 

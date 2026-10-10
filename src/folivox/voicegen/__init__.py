@@ -11,7 +11,6 @@ import json
 import os
 import subprocess
 import tempfile
-import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -100,42 +99,6 @@ def qwen_custom(model: str = "", python: str | None = None) -> Qwen3TTS:
     return Qwen3TTS(model or os.environ.get("FOLIVOX_QWEN_CUSTOM_MODEL", ""), python, "preset")
 
 
-class OpenAIVoice(VoiceGenerator):
-    """OpenAI ``/audio/speech`` with style instructions. Paid, your key; the output is subject to the
-    provider's terms — keep it local, never bundle or redistribute it."""
-
-    name, mode, local = "openai", "preset", False
-    license = "OpenAI API output — personal use, see provider terms"
-    VOICES = ("alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse")
-
-    def __init__(self, model: str = "gpt-4o-mini-tts", base_url: str = "https://api.openai.com/v1",
-                 api_key_env: str = "OPENAI_API_KEY"):
-        from folivox.config import api_key
-
-        self.model, self.base_url = model, base_url.rstrip("/")
-        self.key = api_key(api_key_env, "openai voicegen")
-
-    def speakers(self):
-        return {v: ("en", "") for v in self.VOICES}
-
-    def generate(self, jobs, progress=None):
-        import time
-
-        for j in jobs:
-            t0 = time.time()
-            payload = {"model": self.model, "input": j.text, "voice": j.speaker or "coral", "response_format": "wav"}
-            if j.description:
-                payload["instructions"] = j.description
-            req = urllib.request.Request(f"{self.base_url}/audio/speech", data=json.dumps(payload).encode(),
-                                         headers={"Authorization": f"Bearer {self.key}",
-                                                  "Content-Type": "application/json"}, method="POST")
-            with urllib.request.urlopen(req, timeout=300) as r:
-                Path(j.out).write_bytes(r.read())
-            if progress:
-                progress(j, time.time() - t0)
-        return [j.out for j in jobs]
-
-
 def load_wav(path: Path) -> tuple[np.ndarray, int]:
     import soundfile as sf
 
@@ -148,5 +111,11 @@ GENERATORS.register("qwen3-voicedesign", qwen_design, "Qwen3-TTS 1.7B VoiceDesig
                     needs="qwen-tts in a separate venv")
 GENERATORS.register("qwen3-customvoice", qwen_custom, "Qwen3-TTS 1.7B CustomVoice: 9 preset speakers (zh/en/ja/ko)",
                     needs="qwen-tts in a separate venv")
-GENERATORS.register("openai", OpenAIVoice, "OpenAI TTS with style instructions (your key, paid; never bundle)",
-                    local=False, needs="OPENAI_API_KEY")
+# Cloud providers (your key, paid, the text leaves the computer; audio must never be bundled)
+for _name, _cls, _desc, _key in (
+        ("openai", "OpenAIVoice", "OpenAI TTS: 13 preset voices + style instructions", "OPENAI_API_KEY"),
+        ("gemini", "Gemini", "Gemini API TTS: 30 preset voices, style notes", "GEMINI_API_KEY"),
+        ("elevenlabs", "ElevenLabs", "ElevenLabs: preset voices + Voice Design from a text prompt",
+         "ELEVENLABS_API_KEY"),
+        ("cartesia", "Cartesia", "Cartesia Sonic: preset voices", "CARTESIA_API_KEY")):
+    GENERATORS.register(_name, f"folivox.voicegen.cloud_apis:{_cls}", _desc, local=False, needs=_key)

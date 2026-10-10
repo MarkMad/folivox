@@ -1,0 +1,226 @@
+"""Cloud voice generators with a fake transport: no network, no keys."""
+import base64
+import json
+import urllib.parse
+from pathlib import Path
+
+import numpy as np
+import pytest
+import soundfile as sf
+
+from folivox.voicegen import GENERATORS, Job
+from folivox.voicegen.cloud import CloudError, Response, cloud_providers, pcm_to_wav
+from folivox.voicegen.cloud_apis import Cartesia, ElevenLabs, Gemini, OpenAIVoice
+
+KEY = "sk-test-SECRET-1234"
+
+
+def wav_bytes(seconds=0.2, sr=24000) -> bytes:
+    import io
+
+    buf = io.BytesIO()
+    sf.write(buf, (0.1 * np.sin(np.arange(int(sr * seconds)) / 20)).astype("float32"), sr, format="WAV")
+    return buf.getvalue()
+
+
+class Fake:
+    """Records requests, replays queued responses (the last one repeats)."""
+
+    def __init__(self, *responses):
+        self.responses, self.calls = list(responses), []
+
+    def __call__(self, method, url, headers, body, timeout):
+        self.calls.append({"method": method, "url": url, "headers": headers,
+                           "json": json.loads(body) if body else None})
+        r = self.responses.pop(0) if len(self.responses) > 1 else self.responses[0]
+        if isinstance(r, Exception):
+            raise r
+        return r
+
+
+def ok(body=b"", status=200, **headers):
+    return Response(status, body if isinstance(body, bytes) else json.dumps(body).encode(), headers)
+
+
+def make(cls, fake, **kw):
+    return cls(api_key=KEY, transport=fake, sleep=lambda s: None, **kw)
+
+
+def job(tmp_path, **kw):
+    return Job(**{"text": "A calm morning.", "lang": "en", "out": tmp_path / "t.wav", **kw})
+
+
+def test_registry_and_capabilities():
+    found = cloud_providers()
+    assert set(found) == {"openai", "gemini", "elevenlabs", "cartesia"}
+    assert found["elevenlabs"].modes == ("preset", "design")
+    for name, cls in found.items():
+        caps = cls.capabilities()
+        assert caps["key_env"].endswith("_API_KEY") and caps["languages"] and caps["terms_url"].startswith("https://")
+        assert caps["commercial"] is True and not GENERATORS.get(name).local
+        assert GENERATORS.get(name).needs == cls.key_env
+    assert all("design" not in found[n].modes for n in ("openai", "gemini", "cartesia"))
+
+
+def test_missing_key_message(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setattr("folivox.config.keychain_get", lambda n: None)
+    with pytest.raises(ValueError, match="GEMINI_API_KEY"):
+        GENERATORS.create("gemini")
+
+
+def test_gemini_request_and_wav(tmp_path):
+    pcm = (np.zeros(2400, dtype="<i2")).tobytes()
+    fake = Fake(ok({"candidates": [{"content": {"parts": [{"inlineData": {
+        "mimeType": "audio/L16;rate=24000", "data": base64.b64encode(pcm).decode()}}]}}]}))
+    g = make(Gemini, fake)
+    g.generate([job(tmp_path, speaker="Kore", description="calm and warm")])
+    c = fake.calls[0]
+    assert c["url"].endswith("/models/gemini-3.8-flash-tts:generateContent")
+    assert c["headers"]["x-goog-api-key"] == KEY
+    part = c["json"]["contents"][0]["parts"][0]
+    assert part["text"] == "A calm morning." and part["speech_metadata"] == {"style": "calm and warm"}
+    assert c["json"]["generationConfig"]["speechConfig"]["voiceConfig"] == {"voice": "Kore"}
+    data, sr = sf.read(str(tmp_path / "t.wav"))
+    assert sr == 24000 and len(data) == 2400
+
+
+def test_gemini_older_model_shape(tmp_path):
+    fake = Fake(ok({"candidates": [{"content": {"parts": [{"inlineData": {
+        "data": base64.b64encode(wav_bytes()).decode()}}]}}]}))
+    g = make(Gemini, fake, model="gemini-2.5-flash-preview-tts")
+    g.generate([job(tmp_path, speaker="Puck", description="soft")])
+    body = fake.calls[0]["json"]
+    assert body["generationConfig"]["speechConfig"]["voiceConfig"]["prebuiltVoiceConfig"] == {"voiceName": "Puck"}
+    assert body["contents"][0]["parts"][0]["text"].startswith("Say in this style (soft)")
+
+
+def test_gemini_blocked_and_unknown_voice(tmp_path):
+    g = make(Gemini, Fake(ok({"candidates": [{"finishReason": "SAFETY"}]})))
+    with pytest.raises(CloudError, match="no audio"):
+        g.generate([job(tmp_path, speaker="Kore")])
+    with pytest.raises(CloudError, match="no voice"):
+        g.generate([job(tmp_path, speaker="Nobody")])
+
+
+def test_openai_request(tmp_path):
+    fake = Fake(ok(wav_bytes()))
+    make(OpenAIVoice, fake).generate([job(tmp_path, speaker="marin", description="slow, warm")])
+    c = fake.calls[0]
+    assert c["url"] == "https://api.openai.com/v1/audio/speech"
+    assert c["headers"]["Authorization"] == f"Bearer {KEY}"
+    assert c["json"] == {"model": "gpt-4o-mini-tts", "input": "A calm morning.", "voice": "marin",
+                         "response_format": "wav", "instructions": "slow, warm"}
+    assert (tmp_path / "t.wav").read_bytes()[:4] == b"RIFF"
+
+
+def test_openai_tts1_has_no_instructions_and_fewer_voices(tmp_path):
+    fake = Fake(ok(wav_bytes()))
+    g = make(OpenAIVoice, fake, model="tts-1")
+    g.generate([job(tmp_path, speaker="coral", description="ignored")])
+    assert "instructions" not in fake.calls[0]["json"]
+    with pytest.raises(CloudError, match="no voice"):
+        g.generate([job(tmp_path, speaker="marin")])
+
+
+def test_text_limit(tmp_path):
+    with pytest.raises(CloudError, match="limit"):
+        make(OpenAIVoice, Fake(ok(b""))).generate([job(tmp_path, text="x" * 5000)])
+
+
+def test_elevenlabs_preset(tmp_path):
+    pcm = np.zeros(4800, dtype="<i2").tobytes()
+    fake = Fake(ok(pcm))
+    make(ElevenLabs, fake).generate([job(tmp_path, speaker="abc123", seed=7)])
+    c = fake.calls[0]
+    assert c["url"] == "https://api.elevenlabs.io/v1/text-to-speech/abc123?output_format=pcm_24000"
+    assert c["headers"]["xi-api-key"] == KEY
+    assert c["json"] == {"text": "A calm morning.", "model_id": "eleven_multilingual_v2", "seed": 7}
+    assert sf.read(str(tmp_path / "t.wav"))[1] == 24000
+
+
+def test_elevenlabs_voice_list(tmp_path):
+    fake = Fake(ok({"voices": [{"voice_id": "v1", "name": "Rachel", "labels": {"gender": "female"}}],
+                    "has_more": False}))
+    g = make(ElevenLabs, fake)
+    assert g.speakers() == {"v1": ("", "f")} and g.names == {"v1": "Rachel"}
+    q = urllib.parse.urlparse(fake.calls[0]["url"])
+    assert q.path == "/v2/voices" and "category=premade" in q.query
+    g.speakers()
+    assert len(fake.calls) == 1  # cached
+
+
+def test_elevenlabs_design_one_request_per_three_takes(tmp_path):
+    text = "A quiet morning on the river. " * 5
+    previews = [{"audio_base_64": base64.b64encode(np.zeros(2400, dtype="<i2").tobytes()).decode(),
+                 "media_type": "audio/pcm", "generated_voice_id": f"g{i}"} for i in range(3)]
+    fake = Fake(ok({"previews": previews, "text": text}))
+    g = make(ElevenLabs, fake)
+    g.mode = "design"
+    desc = "A calm middle-aged British woman, warm and unhurried"
+    jobs = [Job(text, "en", description=desc, out=tmp_path / f"{i}.wav") for i in range(3)]
+    done = []
+    g.generate(jobs, lambda j, s: done.append(j))
+    assert len(fake.calls) == 1 and len(done) == 3
+    assert fake.calls[0]["url"].startswith("https://api.elevenlabs.io/v1/text-to-voice/design")
+    assert fake.calls[0]["json"]["voice_description"].startswith("A calm") and fake.calls[0]["json"]["text"] == text
+    assert all(j.out.exists() for j in jobs)
+    assert ElevenLabs.estimate_for(len(text), 3, "design")["chars"] == len(text)
+    assert ElevenLabs.estimate_for(len(text), 4, "design")["chars"] == 2 * len(text)
+
+
+def test_elevenlabs_design_input_rules(tmp_path):
+    g = make(ElevenLabs, Fake(ok({})))
+    g.mode = "design"
+    with pytest.raises(CloudError, match="100–1000"):
+        g.generate([Job("short", "en", description="x" * 30, out=tmp_path / "a.wav")])
+    with pytest.raises(CloudError, match="20 characters"):
+        g.generate([Job("x" * 150, "en", description="short", out=tmp_path / "a.wav")])
+
+
+def test_cartesia_request_and_voices(tmp_path):
+    fake = Fake(ok(wav_bytes()))
+    make(Cartesia, fake).generate([job(tmp_path, speaker="uuid-1")])
+    c = fake.calls[0]
+    assert c["url"] == "https://api.cartesia.ai/tts/bytes"
+    assert c["headers"]["Authorization"] == f"Bearer {KEY}" and c["headers"]["Cartesia-Version"] == "2026-08-14"
+    assert c["json"]["voice"] == {"id": "uuid-1"} and c["json"]["model_id"] == "sonic-3.6"
+    assert c["json"]["output_format"] == {"container": "wav", "encoding": "pcm_s16le", "sample_rate": 24000}
+    fake = Fake(ok({"data": [{"id": "u1", "name": "Ann", "gender": "feminine", "language": "en"}], "has_more": False}))
+    assert make(Cartesia, fake).speakers("en") == {"u1": ("en", "f")}
+    assert "language=en" in fake.calls[0]["url"]
+
+
+@pytest.mark.parametrize("status,body,kind,words", [
+    (401, {"error": {"message": "bad key"}}, "auth", "rejected the API key"),
+    (403, {"detail": {"status": "invalid_api_key", "message": "no"}}, "auth", "rejected"),
+    (402, {"detail": "pay"}, "quota", "quota or credits"),
+    (429, {"error": {"type": "insufficient_quota", "code": "credit_balance_exhausted", "message": "m"}}, "quota",
+     "exhausted"),
+    (429, {"detail": {"status": "quota_exceeded", "message": "You have 0 credits left"}}, "quota", "0 credits"),
+    (429, {"error": {"type": "rate_limit_error", "message": "slow"}}, "rate_limit", "rate limit"),
+    (422, {"detail": [{"msg": "bad field", "loc": ["body"]}]}, "bad_request", "refused"),
+    (503, {"error": {"message": "down"}}, "server", "server error"),
+])
+def test_error_mapping(tmp_path, status, body, kind, words):
+    fake = Fake(ok(body, status=status, **{"retry-after": "7"}))
+    with pytest.raises(CloudError) as e:
+        make(OpenAIVoice, fake).generate([job(tmp_path, speaker="coral")])
+    assert e.value.kind == kind and words in str(e.value)
+    assert KEY not in str(e.value) and "SECRET" not in str(e.value)
+    assert len(fake.calls) == (3 if kind in ("rate_limit", "server") else 1)  # transient errors are retried
+
+
+def test_retry_then_success_and_network_error(tmp_path):
+    fake = Fake(ok({"error": {"message": "slow"}}, status=429), ok(wav_bytes()))
+    make(OpenAIVoice, fake).generate([job(tmp_path, speaker="coral")])
+    assert len(fake.calls) == 2
+    net = Fake(CloudError("Cannot reach the provider: down", "network"))
+    with pytest.raises(CloudError, match="Cannot reach"):
+        make(OpenAIVoice, net).generate([job(tmp_path, speaker="coral")])
+    assert len(net.calls) == 3
+
+
+def test_pcm_helper():
+    assert pcm_to_wav(b"\0\0" * 10)[:4] == b"RIFF"
+    assert isinstance(Path, type)

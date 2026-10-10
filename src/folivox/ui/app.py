@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import secrets
 import shutil
 import uuid
@@ -27,9 +28,9 @@ PREVIEW_CHARS = 600
 
 
 class ApiError(Exception):
-    def __init__(self, message: str, status: int = 400):
+    def __init__(self, message: str, status: int = 400, **extra):
         super().__init__(message)
-        self.status = status
+        self.status, self.extra = status, extra
 
 
 class State:
@@ -37,6 +38,7 @@ class State:
         self.data_dir = data_dir
         self.books: dict[str, dict] = {}
         self.manager = JobManager(render)
+        self.gen_jobs: dict = {}
 
     def book(self, book_id: str) -> dict:
         """The uploaded book; re-read from disk after a server restart."""
@@ -110,8 +112,10 @@ def _registries():
 
 
 def create_app(token: str | None = None, port: int | None = None, data_dir: Path | None = None,
-               render=None) -> Starlette:
+               render=None, services: dict | None = None) -> Starlette:
+    """``services`` (tests): ``generator(name)``, ``llm(name)`` and ``asr(lang)`` factories replacing the real ones."""
     state = State(data_dir or Path(user_data_dir("folivox", appauthor=False)) / "ui", render)
+    services = services or {}
     allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"} if port else None
 
     # ---- handlers -------------------------------------------------------------------------------
@@ -322,6 +326,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
 
     async def job_info(request: Request):
         job = get_job(request)
+        if job.opts is None:
+            return JSONResponse({**job.summary(), "takes": getattr(job, "takes", [])})
         chapters = sorted(chapter_files(job.opts.resolved_work_dir()))
         return JSONResponse({**job.summary(), "chapters_built": chapters})
 
@@ -447,6 +453,238 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         config.load.cache_clear()
         return await get_settings(request)
 
+
+    # ---- cloud voice generation -------------------------------------------------------------------
+    GEN_TAKE = re.compile(r"^take_t\d+_\d+\.wav$")
+
+    def gen_class(name: str):
+        from folivox.voicegen.cloud import cloud_providers
+
+        cls = cloud_providers().get(name)
+        if cls is None:
+            raise ApiError(f"Unknown cloud voice provider {name!r}", 404)
+        return cls
+
+    def key_state(cls) -> dict:
+        env = config.section(f"voicegen.{cls.name}").get("api_key_env", cls.key_env)
+        stored = config.keychain_get(env)
+        return {"key_env": env, "key_in_env": bool(os.environ.get(env)), "key_saved": bool(stored),
+                "key_masked": mask(stored) if stored else ""}
+
+    def make_generator(name: str):
+        from folivox.providers import ProviderError
+
+        cls = gen_class(name)
+        ks = key_state(cls)
+        if not (ks["key_in_env"] or ks["key_saved"]):
+            raise ApiError(f"No API key for {cls.label}: paste it below or set {ks['key_env']} in the environment",
+                           412, missing_key=ks["key_env"], provider=name)
+        try:
+            return services["generator"](name) if "generator" in services else GENERATORS_create(name)
+        except ProviderError as e:
+            raise ApiError(str(e), 502) from None
+        except ValueError as e:
+            raise ApiError(str(e), 412, missing_key=ks["key_env"], provider=name) from None
+
+    def GENERATORS_create(name: str):
+        from folivox.voicegen import GENERATORS
+
+        return GENERATORS.create(name)
+
+    async def gen_call(fn, *args):
+        """Run a blocking provider call; a provider failure becomes a clear API error (never the key)."""
+        from folivox.providers import ProviderError
+
+        try:
+            return await asyncio.to_thread(fn, *args)
+        except ProviderError as e:
+            raise ApiError(str(e), 429 if getattr(e, "kind", "") == "rate_limit" else 502) from None
+
+    def book_text(book, limit: int = 60000) -> str:
+        parts, n = [], 0
+        for ch in book.chapters():
+            for b in ch.blocks:
+                parts.append(b.text)
+                n += len(b.text)
+                if n > limit:
+                    return "\n".join(parts)
+        return "\n".join(parts)
+
+    def make_llm(body: dict):
+        from folivox.llm import LLMS
+        from folivox.providers import ProviderError
+
+        name = config.provider("llm", body.get("llm") or None) or LLMS.default
+        try:
+            if "llm" in services:
+                return services["llm"](name)
+            return LLMS.create(name, model=body.get("model") or None)
+        except (ProviderError, ValueError) as e:
+            raise ApiError(str(e), 412) from None
+
+    async def gen_providers(request: Request):
+        from folivox.voicegen.cloud import COMMERCIAL_NOTICE, cloud_providers
+
+        out = [{**cls.capabilities(), **key_state(cls)} for cls in cloud_providers().values()]
+        return JSONResponse({"providers": out, "notice": COMMERCIAL_NOTICE})
+
+    async def gen_voices(request: Request):
+        name = request.path_params["provider"]
+        gen = make_generator(name)
+        if "preset" not in gen.modes:
+            return JSONResponse({"voices": []})
+        speakers = await gen_call(gen.speakers, request.query_params.get("lang"))
+        lang = request.query_params.get("lang")
+        names = getattr(gen, "names", {})
+        return JSONResponse({"voices": [{"id": k, "lang": v[0], "gender": v[1], "name": names.get(k, k)}
+                                        for k, v in speakers.items() if not lang or v[0] in (lang, "")]})
+
+    async def gen_suggest(request: Request):
+        from folivox.voices.suggest import suggest_design_prompt
+
+        body = await request.json()
+        entry = state.book(body.get("book_id", ""))
+        book = entry["book"]
+        llm = make_llm(body)
+        try:
+            prompt = await asyncio.to_thread(suggest_design_prompt, book_text(book, 12000), book.lang, llm,
+                                             title=book.title or "", author=book.author or "")
+        except ValueError as e:
+            raise ApiError(str(e), 502) from None
+        except Exception as e:  # noqa: BLE001 — LLM server down, bad key…
+            raise ApiError(f"The text LLM failed: {e}", 502) from None
+        return JSONResponse({"prompt": prompt, "llm": getattr(llm, "name", "")})
+
+    async def gen_texts(request: Request):
+        from folivox import lang as languages
+        from folivox.voices.design import pick_book_texts, safe_texts
+
+        body = await request.json()
+        try:
+            code = languages.get(str(body.get("lang") or "en")).code
+        except ValueError as e:
+            raise ApiError(str(e)) from None
+        if body.get("source") == "book":
+            book = state.book(body.get("book_id", ""))["book"]
+            llm = make_llm(body)
+            try:
+                found = await asyncio.to_thread(pick_book_texts, book_text(book), book.lang, llm, 3)
+            except Exception as e:  # noqa: BLE001
+                raise ApiError(f"The text LLM failed: {e}", 502) from None
+            if not found:
+                raise ApiError("No easy passage found in the book; use the built-in text or write your own", 404)
+            return JSONResponse({"texts": found, "lang": book.lang})
+        texts = safe_texts(code)
+        if not texts:
+            raise ApiError(f"No built-in text for {code!r}; write your own", 404)
+        return JSONResponse({"texts": texts, "lang": code})
+
+    def gen_params(body: dict) -> dict:
+        from folivox import lang as languages
+
+        cls = gen_class(str(body.get("provider", "")))
+        mode = body.get("mode") or cls.modes[0]
+        if mode not in cls.modes:
+            raise ApiError(f"{cls.label} supports: {', '.join(cls.modes)}")
+        try:
+            lang = languages.get(str(body.get("lang") or "en")).code
+        except ValueError as e:
+            raise ApiError(str(e)) from None
+        if lang not in cls.languages:
+            raise ApiError(f"{cls.label} does not list {lang!r}; supported: {', '.join(cls.languages)}")
+        texts = [" ".join(str(t).split()) for t in (body.get("texts") or [])]
+        texts = [t for t in texts if t]
+        if not 1 <= len(texts) <= 5:
+            raise ApiError("Give one to five texts to be spoken")
+        if any(len(t) > cls.max_chars for t in texts):
+            raise ApiError(f"A text is longer than {cls.max_chars} characters")
+        takes = int(body.get("takes", 3))
+        if not 1 <= takes <= 6:
+            raise ApiError("takes must be between 1 and 6")
+        description = " ".join(str(body.get("description") or "").split())
+        speaker = str(body.get("speaker") or "").strip()
+        if mode == "design" and len(description) < 10:
+            raise ApiError("Describe the voice (at least a few words), or press Suggest")
+        if mode == "preset" and not speaker:
+            raise ApiError("Pick one of the provider's voices")
+        if len(description) > 1000:
+            raise ApiError("The description is too long (1000 characters at most)")
+        return {"cls": cls, "mode": mode, "lang": lang, "texts": texts, "takes": takes, "description": description,
+                "speaker": speaker}
+
+    async def gen_estimate(request: Request):
+        from folivox.voicegen.cloud import COMMERCIAL_NOTICE
+
+        prm = gen_params(await request.json())
+        cls = prm["cls"]
+        est = cls.estimate_for(sum(len(t) for t in prm["texts"]), prm["takes"], prm["mode"])
+        return JSONResponse({**est, "notice": COMMERCIAL_NOTICE, "terms_url": cls.terms_url})
+
+    async def gen_start(request: Request):
+        from folivox.ui.gen import GenJob, run_generation
+
+        body = await request.json()
+        prm = gen_params(body)
+        if body.get("acknowledged") is not True:
+            raise ApiError("Confirm that the text is sent to the provider and billed to your account", 400)
+        if state.manager.busy():
+            raise ApiError("Another job is running; cancel it or wait", 409)
+        name = prm["cls"].name
+        gen = make_generator(name)
+        gen.mode = prm["mode"]
+        out_dir = state.data_dir / "gen" / uuid.uuid4().hex[:10]
+        out_dir.mkdir(parents=True)
+        job = GenJob(name, str(body.get("book_id") or ""), out_dir, {k: v for k, v in prm.items() if k != "cls"})
+        texts = prm["texts"]
+
+        def asr_factory(lang):
+            if "asr" in services:
+                return services["asr"](lang)
+            from folivox.qa.asr import Transcriber
+
+            return Transcriber(language=lang)
+
+        try:
+            state.manager.start_task(job, lambda j: run_generation(j, gen, texts, asr_factory=asr_factory, wave=_wave))
+        except RuntimeError as e:
+            raise ApiError(str(e), 409) from None
+        state.gen_jobs[job.id] = job
+        return JSONResponse(job.summary(), status_code=202)
+
+    def get_gen_job(request: Request):
+        job = state.gen_jobs.get(request.path_params["job_id"])
+        if job is None:
+            raise ApiError("Unknown generation job", 404)
+        return job
+
+    async def gen_take(request: Request):
+        job = get_gen_job(request)
+        name = request.path_params["name"]
+        path = job.out_dir / name
+        if not GEN_TAKE.match(name) or not path.is_file():
+            raise ApiError("Unknown take", 404)
+        return FileResponse(path, media_type="audio/wav")
+
+    async def gen_add(request: Request):
+        from folivox import lang as languages
+
+        job = get_gen_job(request)
+        body = await request.json()
+        take = next((t for t in job.takes if t["name"] == body.get("take")), None)
+        if take is None:
+            raise ApiError("Pick one of the generated takes", 404)
+        cls = gen_class(job.provider)
+        try:
+            code = languages.get(str(body.get("lang") or job.params["lang"])).code
+            entry = await asyncio.to_thread(
+                catalog.add, str(body.get("id", "")).strip(), job.out_dir / take["name"], take["text"],
+                name=str(body.get("name") or ""), gender=str(body.get("gender") or ""), lang=code,
+                source=f"{cls.label} (commercial API): {job.params['description'] or job.params['speaker']}",
+                license=cls.license, url=cls.terms_url, commercial=True)
+        except (ValueError, FileExistsError) as e:
+            raise ApiError(str(e)) from None
+        return JSONResponse(_voice_json(entry))
+
     # ---- plumbing -------------------------------------------------------------------------------
     def check(request: Request) -> JSONResponse | None:
         if allowed_hosts is not None and request.headers.get("host") not in allowed_hosts:
@@ -458,7 +696,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         return None
 
     async def api_error(request: Request, exc: ApiError):
-        return JSONResponse({"error": str(exc)}, status_code=exc.status)
+        return JSONResponse({"error": str(exc), **exc.extra}, status_code=exc.status)
 
     async def bad_request(request: Request, exc: Exception):
         return JSONResponse({"error": f"Bad request: {exc}"}, status_code=400)
@@ -484,6 +722,14 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/jobs/{job_id}/chapters/{n:int}", job_chapter),
         Route("/api/settings", get_settings),
         Route("/api/settings", put_settings, methods=["PUT"]),
+        Route("/api/gen/providers", gen_providers),
+        Route("/api/gen/suggest", gen_suggest, methods=["POST"]),
+        Route("/api/gen/texts", gen_texts, methods=["POST"]),
+        Route("/api/gen/estimate", gen_estimate, methods=["POST"]),
+        Route("/api/gen/start", gen_start, methods=["POST"]),
+        Route("/api/gen/voices/{provider}", gen_voices),
+        Route("/api/gen/{job_id}/takes/{name}", gen_take),
+        Route("/api/gen/{job_id}/add", gen_add, methods=["POST"]),
         Route("/api/keys", get_keys),
         Route("/api/keys/{name}", put_key, methods=["PUT"]),
         Route("/api/keys/{name}", delete_key, methods=["DELETE"]),
