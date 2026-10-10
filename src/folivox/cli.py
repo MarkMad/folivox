@@ -20,6 +20,7 @@ from rich.tree import Tree
 from folivox import __version__
 from folivox.book import Book, Section
 from folivox.helptext import MAIN_EPILOG, QUICKSTART, RENDER_EPILOG, TOPICS
+from folivox.pipeline import Events
 
 app = typer.Typer(add_completion=False, no_args_is_help=False, invoke_without_command=True,
                   rich_markup_mode="rich", epilog=MAIN_EPILOG, context_settings={"help_option_names": ["-h", "--help"]},
@@ -153,7 +154,7 @@ def inspect(
     console.print(t)
 
 
-class RichEvents:
+class RichEvents(Events):
     """Console progress for :func:`folivox.pipeline.render`."""
 
     def __init__(self, verbose: bool = False):
