@@ -408,13 +408,13 @@ avBox.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDe
 ["dragleave", "drop"].forEach(t => avBox.addEventListener(t, (e) => { e.preventDefault(); avBox.classList.remove("over"); }));
 avBox.addEventListener("drop", (e) => e.dataTransfer.files[0] && useFile(e.dataTransfer.files[0]));
 $("#av-file").onchange = (e) => e.target.files[0] && useFile(e.target.files[0]);
-async function useFile(file) {
+async function useFile(file, defaultName) {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const buf = await ctx.decodeAudioData(await file.arrayBuffer()); ctx.close();
     const mono = new Float32Array(buf.length); for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < mono.length; i++) mono[i] += d[i] / buf.numberOfChannels; }
     setSample(mono, buf.sampleRate, file.name);
-    if (!$("#av-name").value) { $("#av-name").value = file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " "); nameChanged(); }
+    if (!$("#av-name").value) { $("#av-name").value = defaultName || file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " "); nameChanged(); }
   } catch (e) { $("#av-msg").innerHTML = `<span class="err">Cannot read this audio file in the browser. Try WAV, MP3 or FLAC.</span>`; }
 }
 function setSample(mono, sr, name) {
@@ -455,7 +455,7 @@ $("#av-rec").onclick = async () => {
     const rec = new MediaRecorder(stream), chunks = []; rec.ondataavailable = (e) => chunks.push(e.data);
     avRec = { stream, ctx, rec, chunks, t0: Date.now(), timer: null, cancel: false };
     rec.onstop = async () => { clearInterval(avRec.timer); stream.getTracks().forEach(t => t.stop()); const cancel = avRec.cancel; ctx.close(); $("#av-rec-ui").hidden = true;
-      if (cancel) { avRec = null; return; } const blob = new Blob(chunks); avRec = null; await useFile(new File([blob], "recording.webm")); $("#av-sample").querySelector("#av-fname").textContent = "Recording"; };
+      if (cancel) { avRec = null; return; } const blob = new Blob(chunks); avRec = null; await useFile(new File([blob], "recording.webm"), "My voice"); $("#av-sample").querySelector("#av-fname").textContent = "Recording"; };
     const lang = $("#av-lang").value, text = SCRIPTS[lang] || SCRIPTS.en, data = new Uint8Array(an.fftSize);
     $("#av-script-text").textContent = text; $("#av-script").hidden = false; if (!$("#av-text").value) $("#av-text").value = text; avDirty = true;
     $("#av-drop").hidden = true; $("#av-rec-ui").hidden = false; $("#av-msg").textContent = "";
