@@ -38,12 +38,14 @@ label.f { display:flex; flex-direction:column; gap:3px; font-size:13px; color:va
 @media (prefers-color-scheme: dark) { :root { --seg-pending:#34332f; --seg-done:#5fb39b; --seg-retake:#9fdcc9; --seg-synth:#f1c15a; --seg-check:#f09a55; --glow:rgba(95,179,155,.22); } }
 #studio { margin-top:16px; } #studio[hidden] { display:none; }
 .hero { display:grid; grid-template-columns:auto 1fr; gap:6px 26px; align-items:center; }
+.hero-l { display:flex; flex-direction:column; min-width:110px; }
 .big { font-size:64px; line-height:1; font-weight:300; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
 .big small { font-size:22px; color:var(--mute); margin-left:2px; }
-.hero-status { grid-column:1; color:var(--mute); font-size:13px; margin-top:2px; max-width:170px; }
-.tiles { grid-column:2; grid-row:1 / span 2; display:grid; grid-template-columns:repeat(auto-fit,minmax(104px,1fr)); gap:8px; }
+.hero-status { color:var(--mute); font-size:13px; margin-top:6px; min-height:19px; }
+.tiles { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; }
+@media (max-width:760px) { .tiles { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 .tile { background:var(--bg); border-radius:8px; padding:8px 11px; } .tile b { display:block; font-size:19px; font-weight:500; font-variant-numeric:tabular-nums; }
-.tile span { font-size:11.5px; color:var(--mute); text-transform:uppercase; letter-spacing:.05em; }
+.tile span { font-size:11px; white-space:nowrap; color:var(--mute); text-transform:uppercase; letter-spacing:.05em; }
 .overall { height:4px; background:var(--seg-pending); border-radius:2px; overflow:hidden; margin:14px 0 12px; }
 .overall > div { height:100%; width:0; background:var(--seg-done); transition:width .5s ease; }
 .stages { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
@@ -60,22 +62,22 @@ label.f { display:flex; flex-direction:column; gap:3px; font-size:13px; color:va
 @keyframes bar { 0%,100% { height:5px; } 50% { height:40px; } }
 @keyframes scan { 0%,100% { opacity:.25; } 50% { opacity:1; } }
 .nt { min-width:0; flex:1; } #now-label { font-size:12.5px; color:var(--mute); text-transform:uppercase; letter-spacing:.06em; }
-#now-quote { font-size:17px; line-height:1.4; margin-top:3px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-family:Georgia,"Iowan Old Style",serif; }
+#now-quote { font-size:17px; font-weight:450; line-height:1.4; margin-top:3px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 #now-dl { height:3px; background:var(--seg-pending); border-radius:2px; margin-top:8px; overflow:hidden; } #now-dl > div { height:100%; width:0; background:var(--accent); transition:width .5s; }
 #now-time { font-variant-numeric:tabular-nums; color:var(--mute); font-size:13px; white-space:nowrap; align-self:flex-start; }
 .lanes { max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:8px; padding:4px 10px; scroll-behavior:smooth; }
 .lanes:empty::before { content:"Fragments appear here as soon as the text is prepared — one line per chapter, one tick per fragment."; color:var(--mute); font-size:13px; display:block; padding:12px 0; }
-.lane { display:grid; grid-template-columns:26px minmax(70px,190px) 1fr 40px 26px; gap:10px; align-items:center; padding:5px 0; border-bottom:1px solid var(--line); transition:background .4s; }
+.lane { display:grid; grid-template-columns:minmax(90px,26%) 1fr 40px 26px; gap:10px; align-items:center; padding:5px 0; border-bottom:1px solid var(--line); transition:background .4s; }
 .lane:last-child { border-bottom:0; } .lane.active { background:linear-gradient(90deg,var(--glow),transparent); }
 .lane .ln { color:var(--mute); text-align:right; font-size:12px; font-variant-numeric:tabular-nums; } .lane .lt { font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .lane canvas { width:100%; height:16px; display:block; } .lane .lp { font-size:12px; color:var(--mute); text-align:right; font-variant-numeric:tabular-nums; }
 .lane.full .lp { color:var(--seg-done); } .lane .lplay { padding:0; width:24px; height:24px; border-radius:50%; line-height:1; }
 .feed { margin-top:12px; font-size:13px; } .feed div { display:flex; gap:10px; padding:3px 0; color:var(--mute); animation:rise .5s ease-out; white-space:nowrap; overflow:hidden; }
 .feed div:nth-child(1) { color:var(--ink); } .feed div:nth-child(n+4) { opacity:.55; } .feed div:nth-child(n+6) { opacity:.3; }
-.feed .t { overflow:hidden; text-overflow:ellipsis; font-family:Georgia,serif; } .feed .m { margin-left:auto; flex:none; font-variant-numeric:tabular-nums; }
+.feed .t { overflow:hidden; text-overflow:ellipsis; } .feed .m { margin-left:auto; flex:none; font-variant-numeric:tabular-nums; }
 @keyframes rise { from { opacity:0; transform:translateY(6px); } }
 #log { max-height:180px; margin-top:6px; }
-@media (max-width:640px) { .hero { grid-template-columns:1fr; } .tiles { grid-column:1; grid-row:auto; } .lane { grid-template-columns:22px 1fr 36px 24px; } .lane canvas { grid-column:1 / -1; grid-row:2; } }
+@media (max-width:640px) { .hero { grid-template-columns:1fr; } .lane { grid-template-columns:1fr 36px 24px; } .lane canvas { grid-column:1 / -1; grid-row:2; } }
 @media (prefers-reduced-motion: reduce) { .wave i, .stage, .overall > div { animation:none !important; transition:none !important; } .feed div { animation:none; } }
 </style>
 </head>
@@ -132,21 +134,20 @@ label.f { display:flex; flex-direction:column; gap:3px; font-size:13px; color:va
   </div>
   <div id="studio" hidden>
     <div class="hero">
-      <div class="big"><span id="pct">0</span><small>%</small></div>
+      <div class="hero-l"><div class="big"><span id="pct">0</span><small>%</small></div><div class="hero-status" id="hero-status"></div></div>
       <div class="tiles">
         <div class="tile"><b id="t-elapsed">–</b><span>elapsed</span></div>
         <div class="tile"><b id="t-eta">–</b><span>remaining</span></div>
-        <div class="tile"><b id="t-audio">–</b><span>audio made</span></div>
-        <div class="tile"><b id="t-pace">–</b><span>time per audio time</span></div>
+        <div class="tile"><b id="t-audio">–</b><span>audio</span></div>
+        <div class="tile"><b id="t-pace">–</b><span>work / audio</span></div>
         <div class="tile"><b id="t-frags">–</b><span>fragments</span></div>
         <div class="tile"><b id="t-retakes">0</b><span>retakes</span></div>
       </div>
-      <div class="hero-status" id="hero-status"></div>
     </div>
-    <div class="overall"><div id="overall"></div></div>
+    <div class="overall" role="progressbar" aria-label="Overall progress"><div id="overall"></div></div>
     <div class="stages" id="stages"></div>
     <div class="now"><div class="wave" id="wave"></div>
-      <div class="nt"><div id="now-label"></div><div id="now-quote"></div><div id="now-dl" hidden><div></div></div></div>
+      <div class="nt"><div id="now-label"></div><div id="now-quote"></div><div id="now-dl" hidden><div></div></div><div id="now-actions" hidden style="margin-top:8px"><button id="reveal">Show in folder</button></div></div>
       <div id="now-time"></div></div>
     <div class="lanes" id="lanes"></div>
     <div class="feed" id="feed"></div>
@@ -279,6 +280,7 @@ async function start(kind) {
   catch (e) { $("#run-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 }
 $("#preview").onclick = () => start("preview"); $("#render").onclick = () => start("render");
+$("#reveal").onclick = async () => { try { await api(`/api/jobs/${job.id}/reveal`, { method: "POST" }); } catch (e) { $("#run-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; } };
 $("#cancel").onclick = async () => { $("#cancel").disabled = true; await api(`/api/jobs/${job.id}/cancel`, { method: "POST" }); };
 function busy(on) { ["#preview", "#render"].forEach(s => $(s).disabled = on); $("#cancel").disabled = !on; }
 const log = (text, cls = "") => { const l = $("#log"); const d = document.createElement("div"); d.className = cls; d.textContent = text; l.append(d); l.scrollTop = l.scrollHeight; };
@@ -314,7 +316,7 @@ function setStage(i) {
 function setPhase(label, quote = "", mode = "load") {
   S.phase = label; S.phaseSince = nowSec(); S.hint = Object.entries(HINTS).find(([k]) => label.startsWith(k));
   $("#now-label").textContent = label; $("#now-quote").textContent = quote || (S.hint ? S.hint[1] : "");
-  $("#wave").className = "wave " + mode; $("#now-dl").hidden = true;
+  $("#wave").className = "wave " + mode; $("#now-dl").hidden = true; $("#now-actions").hidden = true;
 }
 function end(state) {
   S.finished = state; job.final = true; busy(false); if (es) es.close(); clearInterval(ticker);
@@ -335,6 +337,7 @@ function updateTiles() {
   $("#t-pace").textContent = S.audio ? (S.synthSecs / S.audio).toFixed(2) + " ×" : "–";
   $("#t-frags").textContent = S.totalFrags ? `${S.doneFrags} / ${S.totalFrags}` : "–";
   $("#t-retakes").textContent = S.retakes;
+  document.title = S.finished === "done" ? "✓ Done · Folivox" : S.finished ? "Folivox" : `${$("#pct").textContent}% · Folivox`;
   const pct = S.totalChars ? Math.min(100, 100 * S.doneChars / S.totalChars) : 0;
   if (!S.finished || S.finished === "done") { $("#pct").textContent = Math.floor(S.finished === "done" ? 100 : pct); $("#overall").style.width = (S.finished === "done" ? 100 : pct) + "%"; }
 }
@@ -356,7 +359,7 @@ function buildLanes(chapters) {
     lane.frags.forEach((f, k) => { if (!S.keys.has(f.key)) S.keys.set(f.key, []); S.keys.get(f.key).push([li, k]); });
     S.totalChars += total; S.doneChars += lane.done; S.totalFrags += lane.frags.length; S.doneFrags += lane.frags.filter(f => f.st === SEG.DONE).length;
     const el = document.createElement("div"); el.className = "lane";
-    el.innerHTML = `<span class="ln">${c.index + 1}</span><span class="lt" title="${esc(c.title)}">${esc(c.title)}</span><canvas></canvas><span class="lp"></span><span><button class="lplay" hidden title="Listen">▶</button></span>`;
+    el.innerHTML = `<span class="lt" title="${esc(c.title)}">${esc(c.title)}</span><canvas></canvas><span class="lp"></span><span><button class="lplay" hidden title="Listen">▶</button></span>`;
     box.append(el); lane.el = el; lane.cv = el.querySelector("canvas"); S.lanes.push(lane);
     el.querySelector(".lplay").onclick = () => playChapter(lane, el.querySelector(".lplay"));
     paintLane(lane);
@@ -445,7 +448,7 @@ function handle(ev) {
       { const lane = S.lanes.find(l => l.ci + 1 === ev.index); if (lane) { lane.built = true; lane.el.querySelector(".lplay").hidden = false; } } break;
     case "done": log("Done: " + ev.result); end("done"); setPhase("Finished", ev.result, "done"); $("#wave").className = "wave done";
       $("#hero-status").textContent = job.kind === "preview" ? "Preview ready — press ▶ on the chapter" : "Saved";
-      $("#run-msg").textContent = job.kind === "preview" ? "Preview ready — press ▶ on the chapter line." : "Done: " + ev.result; break;
+      $("#run-msg").textContent = job.kind === "preview" ? "Preview ready — press ▶ on the chapter line." : ""; $("#now-actions").hidden = job.kind === "preview"; break;
     case "cancelled": log("Stopped. Progress is saved — press Render again to continue."); end("cancelled"); setPhase("Stopped", "Progress is saved — press Render to continue.", "");
       $("#hero-status").textContent = "Stopped"; $("#run-msg").textContent = "Stopped; progress saved."; break;
     case "error": log("Error: " + ev.message, "err"); end("error"); setPhase("Error", ev.message, ""); $("#hero-status").textContent = "Failed";

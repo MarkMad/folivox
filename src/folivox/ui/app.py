@@ -292,6 +292,24 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         job.cancel_requested.set()
         return JSONResponse(job.summary())
 
+    async def job_reveal(request: Request):
+        """Show the finished file in the system file manager (only the result of a job of this server)."""
+        import subprocess
+        import sys
+
+        job = get_job(request)
+        if job.state != "done" or not job.result or not Path(job.result).exists():
+            raise ApiError("Nothing to show yet", 404)
+        target = Path(job.result)
+        if sys.platform == "darwin":
+            cmd = ["open", "-R", str(target)]
+        elif sys.platform == "win32":
+            cmd = ["explorer", f"/select,{target}"]
+        else:
+            cmd = ["xdg-open", str(target if target.is_dir() else target.parent)]
+        subprocess.Popen(cmd)  # noqa: S603 — fixed argv, path comes from our own job result
+        return JSONResponse({"ok": True})
+
     async def job_chapter(request: Request):
         job = get_job(request)
         path = chapter_files(job.opts.resolved_work_dir()).get(int(request.path_params["n"]))
@@ -400,6 +418,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/jobs/{job_id}", job_info),
         Route("/api/jobs/{job_id}/events", job_events),
         Route("/api/jobs/{job_id}/cancel", job_cancel, methods=["POST"]),
+        Route("/api/jobs/{job_id}/reveal", job_reveal, methods=["POST"]),
         Route("/api/jobs/{job_id}/chapters/{n:int}", job_chapter),
         Route("/api/settings", get_settings),
         Route("/api/settings", put_settings, methods=["PUT"]),

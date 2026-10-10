@@ -220,3 +220,17 @@ def test_ui_events_carry_what_the_studio_view_needs():
     assert (by_type["step"]["step"], by_type["step"]["attempts"]) == ("qa", 3)
     p = by_type["progress"]
     assert p["attempts"] == 2 and p["chars"] == 20 and p["retakes"] == 1 and p["key"] == "defdefdefd"
+
+
+def test_reveal_only_for_finished_jobs(client, tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr("subprocess.Popen", lambda cmd, *a, **k: calls.append(cmd))
+    b = upload(client)
+    out = tmp_path / "out"
+    r = client.post("/api/jobs", json={"book_id": b["book_id"], "chapters": [1],
+                                       "options": {"output_dir": str(out), "qa": False}})
+    job = r.json()["id"]
+    assert wait_done(client, job)["state"] == "done"
+    assert client.post(f"/api/jobs/{job}/reveal").status_code == 404  # fake render wrote no output file
+    (out / "tale.m4b").write_bytes(b"x")
+    assert client.post(f"/api/jobs/{job}/reveal").status_code == 200 and calls
