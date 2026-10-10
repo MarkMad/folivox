@@ -117,7 +117,8 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 .av-or { margin:8px 0; color:var(--mute); font-size:12px; } button.rec { color:var(--err); border-color:var(--err); background:transparent; }
 .av-script { background:var(--bg); border-radius:10px; padding:10px 14px; } #av-script-text { font-size:16px; line-height:1.5; margin-top:4px; }
 .av-rec { display:flex; align-items:center; gap:12px; background:var(--bg); border-radius:10px; padding:10px 14px; }
-.dotrec { width:10px; height:10px; border-radius:50%; background:var(--err); animation:pulse 1s ease-in-out infinite; } @keyframes pulse { 50% { opacity:.25; } }
+.dotrec { width:10px; height:10px; border-radius:50%; background:var(--seg-pending); } .dotrec.on { background:var(--err); animation:pulse 1s ease-in-out infinite; }
+#av-timer { min-width:64px; } .av-rec.count #av-timer { font-size:22px; font-weight:600; } @keyframes pulse { 50% { opacity:.25; } }
 #av-timer { font-variant-numeric:tabular-nums; min-width:38px; } .meter { flex:1; height:6px; background:var(--seg-pending); border-radius:3px; overflow:hidden; } .meter i { display:block; height:100%; width:0; background:var(--accent); transition:width .08s; }
 .av-sample { display:flex; gap:12px; align-items:center; background:var(--bg); border-radius:10px; padding:10px 12px; } .av-sample .vplay { flex:none; }
 .av-sample .ok { color:var(--seg-done); } .av-sample .bad { color:var(--warn); } .av-sample .stop { color:var(--err); }
@@ -158,8 +159,9 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
       <div class="av-left">
         <div id="av-drop" class="dropbox" tabindex="0"><div><b>Drop an audio file</b> or click to choose</div><div class="mute"><small>WAV, FLAC, MP3, M4A, OGG</small></div>
           <div class="av-or">or</div><button type="button" id="av-rec" class="rec">● Record with the microphone</button><input id="av-file" type="file" accept="audio/*" hidden></div>
-        <div id="av-script" class="av-script" hidden><small class="mute">READ ALOUD, CALMLY</small><div id="av-script-text"></div></div>
-        <div id="av-rec-ui" class="av-rec" hidden><span class="dotrec"></span><span id="av-timer">0:00</span><div class="meter"><i id="av-meter"></i></div><button type="button" id="av-stop" class="primary">■ Stop</button></div>
+        <div id="av-script" class="av-script" hidden><small class="mute" id="av-script-label">READ ALOUD, CALMLY</small><div id="av-script-text"></div></div>
+        <div id="av-rec-ui" class="av-rec" hidden><span class="dotrec" id="av-dot"></span><span id="av-timer">Mic ready</span><div class="meter"><i id="av-meter"></i></div>
+          <button type="button" id="av-start" class="primary">● Start</button><button type="button" id="av-stop" class="primary" hidden>■ Stop</button><button type="button" id="av-cancel" class="chip">Cancel</button></div>
         <div id="av-hint" class="mute" hidden><small></small></div>
         <div id="av-sample" class="av-sample" hidden>
           <button type="button" id="av-play" class="vplay">▶</button>
@@ -394,12 +396,12 @@ const SCRIPTS = {
   ko: "마을의 아침은 조용했고, 첫 햇살이 강 위에 닿았다. 오래된 집은 천천히 깨어났고, 아무도 서두르지 않았다.",
 };
 const TR = { а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ё:"e",ж:"zh",з:"z",и:"i",й:"y",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",х:"h",ц:"ts",ч:"ch",ш:"sh",щ:"sch",ы:"y",э:"e",ю:"yu",я:"ya" };
-let av = null, avDirty = false, avPlayer = null, avRec = null, idTouched = false;
+let av = null, avDirty = false, avRec = null, idTouched = false;
 const slug = (n) => n.toLowerCase().split("").map(c => TR[c] ?? c).join("").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
 function freeId(base) { base = base || "voice"; let id = base, i = 2; const taken = new Set(VOICES.map(v => v.id)); while (taken.has(id)) id = `${base}-${i++}`; return id; }
 function openAdd() { $("#addvoice").hidden = false; $("#addvoice").scrollIntoView({ behavior: "smooth", block: "nearest" }); $("#av-name").focus({ preventScroll: true }); }
 function closeAdd() { stopRec(true); resetAdd(); $("#addvoice").hidden = true; }
-function resetAdd() { av = null; avDirty = false; idTouched = false; if (avPlayer) avPlayer.pause();
+function resetAdd() { av = null; avDirty = false; idTouched = false; abp.reset();
   ["#av-name", "#av-id", "#av-text"].forEach(i => $(i).value = ""); $("#av-consent").checked = false; $("#av-msg").textContent = ""; $("#av-file").value = "";
   $("#av-sample").hidden = true; $("#av-script").hidden = true; $("#av-drop").hidden = false; checkAdd(); }
 $("#av-close").onclick = closeAdd;
@@ -434,7 +436,7 @@ function setSample(mono, sr, name) {
   $("#av-dn").checked = false; $("#av-dn-state").textContent = ""; $("#av-dn-row").hidden = av.silent; const n = 64, step = Math.max(1, Math.floor(mono.length / n)), peaks = [];
   for (let i = 0; i < n; i++) { let m = 0; for (let j = i * step; j < Math.min(mono.length, (i + 1) * step); j++) m = Math.max(m, Math.abs(mono[j])); peaks.push(m); }
   const top = Math.max(...peaks) || 1; av.peaks = peaks.map(p => Math.round(100 * p / top));
-  av.blobUrl && URL.revokeObjectURL(av.blobUrl); av.blobUrl = URL.createObjectURL(wavBlob(mono, sr));
+  abp.reset(); abp.load("orig", mono, sr);
   $("#av-drop").hidden = true; $("#av-rec-ui").hidden = true; $("#av-sample").hidden = false; $("#av-fname").textContent = name; avDirty = true; showSample(); checkAdd();
 }
 function showSample(progress = 0) {
@@ -448,14 +450,40 @@ function showSample(progress = 0) {
   cv.width = W; cv.height = H; const g = cv.getContext("2d"), step = W / av.peaks.length;
   av.peaks.forEach((p, i) => { const h = Math.max(2 * dpr, H * p / 100); g.fillStyle = i / av.peaks.length < progress ? css("--accent") : css("--seg-pending"); g.fillRect(i * step, (H - h) / 2, Math.max(1, step * 0.62), h); });
 }
-// noise reduction is computed on the server (on demand) and can be switched on and off to compare
-function useVersion(v) {
-  av.mono = v.mono; av.snr = v.snr; av.gain = v.gain; av.blobUrl && URL.revokeObjectURL(av.blobUrl); av.blobUrl = URL.createObjectURL(wavBlob(av.mono, av.sr));
-  if (avPlayer) avPlayer.pause(); showSample(); checkAdd();
+// A/B preview: one looping player holding both versions; switching keeps the playhead (short crossfade), so the
+// original and the noise-reduced voice can be compared in real time.
+const abp = {
+  ctx: null, bufs: {}, which: "orig", src: null, gain: null, t0: 0, off: 0, playing: false, raf: 0,
+  ensure() { if (!this.ctx) this.ctx = new AudioContext(); if (this.ctx.state === "suspended") this.ctx.resume(); },
+  load(which, mono, sr) { this.ensure(); const b = this.ctx.createBuffer(1, mono.length, sr); b.copyToChannel(mono, 0); this.bufs[which] = b; },
+  reset() { this.stop(); this.bufs = {}; this.which = "orig"; },
+  duration() { const b = this.bufs[this.which]; return b ? b.duration : 0; },
+  pos() { return this.playing ? (this.off + (this.ctx.currentTime - this.t0)) % this.duration() : 0; },
+  begin(offset) {
+    const b = this.bufs[this.which], t = this.ctx.currentTime, src = this.ctx.createBufferSource(), g = this.ctx.createGain();
+    src.buffer = b; src.loop = true; src.connect(g); g.connect(this.ctx.destination); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + 0.03);
+    src.start(0, offset % b.duration); this.src = src; this.gain = g; this.t0 = t; this.off = offset;
+  },
+  fadeOut(src, g) { if (!src) return; const t = this.ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + 0.03); src.stop(t + 0.05); },
+  play() { this.ensure(); if (!this.bufs[this.which]) return; this.playing = true; this.begin(0); $("#av-play").textContent = "❚❚"; this.tick(); },
+  stop() { if (!this.ctx) return; this.fadeOut(this.src, this.gain); this.src = this.gain = null; this.playing = false; cancelAnimationFrame(this.raf); $("#av-play").textContent = "▶"; if (av) showSample(0); },
+  toggle() { this.playing ? this.stop() : this.play(); },
+  switchTo(which) {
+    if (!this.bufs[which] || which === this.which) { this.which = this.bufs[which] ? which : this.which; return; }
+    const p = this.pos(), prev = [this.src, this.gain]; this.which = which;
+    if (this.playing) { this.begin(p); this.fadeOut(...prev); }
+  },
+  tick() { if (!this.playing) return; showSample(this.pos() / this.duration()); this.raf = requestAnimationFrame(() => this.tick()); },
+};
+function useVersion(v) { av.mono = v.mono; av.snr = v.snr; av.gain = v.gain; showSample(abp.playing ? abp.pos() / abp.duration() : 0); checkAdd(); }
+function matchLoudness(clean, ref) {   // same overall loudness for both versions, so the comparison is fair
+  const rms = (x) => { let e = 0; for (let i = 0; i < x.length; i++) e += x[i] * x[i]; return Math.sqrt(e / x.length) || 1e-9; };
+  let peak = 0; for (let i = 0; i < clean.length; i++) peak = Math.max(peak, Math.abs(clean[i]));
+  const k = Math.min(rms(ref) / rms(clean), peak > 0 ? 0.98 / peak : 1); return clean.map(x => x * k);
 }
 $("#av-dn").onchange = async (e) => {
-  const state = $("#av-dn-state");
-  if (!e.target.checked) { state.textContent = ""; return useVersion(av.orig); }
+  const state = $("#av-dn-state"), want = e.target.checked;
+  if (!want) { state.textContent = ""; abp.switchTo("orig"); return useVersion(av.orig); }
   if (!av.clean) {
     e.target.disabled = true; state.textContent = "— cleaning…";
     try {
@@ -463,20 +491,16 @@ $("#av-dn").onchange = async (e) => {
       const r = await fetch("/api/denoise", { method: "POST", headers: { "X-Folivox-Token": TOKEN }, body: fd });
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
       const ctx = new AudioContext({ sampleRate: av.sr }), buf = await ctx.decodeAudioData(await r.arrayBuffer()); ctx.close();
-      const mono = buf.getChannelData(0).slice(), st = analyse(mono, av.sr), gain = st.peak > 1e-4 ? Math.min(40, 0.9 / st.peak) : 1;
-      av.clean = { mono: mono.map(x => x * gain), snr: st.snr, gain };
+      const raw = buf.getChannelData(0).slice(), st = analyse(raw, av.sr), mono = matchLoudness(raw, av.orig.mono);
+      av.clean = { mono, snr: st.snr, gain: av.orig.gain }; abp.load("clean", mono, av.sr);
     } catch (err) { e.target.checked = false; e.target.disabled = false; state.innerHTML = `<span class="err">— ${esc(err.message)}</span>`; return; }
     e.target.disabled = false;
   }
-  state.textContent = `— voice-to-noise ${av.orig.snr.toFixed(0)} → ${av.clean.snr.toFixed(0)} dB`; useVersion(av.clean);
+  if (!$("#av-dn").checked) return;  // unticked again while it was being cleaned
+  state.textContent = `— voice-to-noise ${av.orig.snr.toFixed(0)} → ${av.clean.snr.toFixed(0)} dB`; abp.switchTo("clean"); useVersion(av.clean);
 };
-$("#av-play").onclick = () => {
-  if (avPlayer && !avPlayer.paused) { avPlayer.pause(); return; }
-  avPlayer = new Audio(av.blobUrl); const b = $("#av-play");
-  avPlayer.onplay = () => b.textContent = "❚❚"; avPlayer.onpause = avPlayer.onended = () => { b.textContent = "▶"; showSample(0); };
-  avPlayer.ontimeupdate = () => showSample(avPlayer.currentTime / (avPlayer.duration || 1)); avPlayer.play();
-};
-$("#av-clear").onclick = () => { if (avPlayer) avPlayer.pause(); av = null; $("#av-sample").hidden = true; $("#av-drop").hidden = false; $("#av-script").hidden = true; $("#av-file").value = ""; checkAdd(); };
+$("#av-play").onclick = () => abp.toggle();
+$("#av-clear").onclick = () => { abp.reset(); av = null; $("#av-sample").hidden = true; $("#av-drop").hidden = false; $("#av-script").hidden = true; $("#av-file").value = ""; checkAdd(); };
 $("#av-trim").onclick = () => { setSample(av.mono.slice(0, Math.round(15 * av.sr)), av.sr, av.name); };
 function wavBlob(mono, sr) {
   const n = mono.length, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf), w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
@@ -485,26 +509,52 @@ function wavBlob(mono, sr) {
   for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, mono[i])) * 0x7fff, true);
   return new Blob([buf], { type: "audio/wav" });
 }
-// recording from the microphone, with a sentence to read (so the transcript is known)
+// recording from the microphone: the text to read is shown first, the level can be checked, recording starts on "Start"
+function showRecUI(phase) {
+  const ui = $("#av-rec-ui"); ui.classList.toggle("count", phase === "count"); $("#av-dot").classList.toggle("on", phase === "rec");
+  $("#av-start").hidden = phase !== "ready"; $("#av-stop").hidden = phase !== "rec"; $("#av-cancel").hidden = phase === "count";
+  $("#av-script-label").textContent = phase === "ready" ? "READ THIS ALOUD WHEN YOU PRESS START — CALMLY, AT YOUR OWN PACE" : "READ ALOUD, CALMLY";
+}
 $("#av-rec").onclick = async () => {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: true } });
     const ctx = new AudioContext(), src = ctx.createMediaStreamSource(stream), an = ctx.createAnalyser(); an.fftSize = 512; src.connect(an);
-    const rec = new MediaRecorder(stream), chunks = []; rec.ondataavailable = (e) => chunks.push(e.data);
-    avRec = { stream, ctx, rec, chunks, t0: Date.now(), timer: null, cancel: false, loud: 0 };
-    rec.onstop = async () => { clearInterval(avRec.timer); stream.getTracks().forEach(t => t.stop()); const cancel = avRec.cancel; ctx.close(); $("#av-rec-ui").hidden = true; $("#av-hint").hidden = true;
-      if (cancel) { avRec = null; return; } const blob = new Blob(chunks); avRec = null; await useFile(new File([blob], "recording.webm"), "My voice"); $("#av-sample").querySelector("#av-fname").textContent = "Recording"; };
+    avRec = { stream, ctx, an, rec: null, chunks: [], phase: "ready", t0: 0, readyAt: Date.now(), cancel: false, loud: 0, timer: null, count: 0 };
     const lang = $("#av-lang").value, text = SCRIPTS[lang] || SCRIPTS.en, data = new Uint8Array(an.fftSize);
     $("#av-script-text").textContent = text; $("#av-script").hidden = false; if (!$("#av-text").value) $("#av-text").value = text; avDirty = true;
-    $("#av-drop").hidden = true; $("#av-rec-ui").hidden = false; $("#av-msg").textContent = "";
-    avRec.timer = setInterval(() => { const s = (Date.now() - avRec.t0) / 1000; $("#av-timer").textContent = `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-      an.getByteTimeDomainData(data); let peak = 0; for (const x of data) peak = Math.max(peak, Math.abs(x - 128)); $("#av-meter").style.width = Math.min(100, peak / 90 * 100) + "%"; avRec.loud = Math.max(avRec.loud * 0.97, peak / 128);
-      const hint = s > 1.5 && avRec.loud < 0.12 ? "Very quiet — speak closer to the microphone." : ""; $("#av-hint").hidden = !hint; $("#av-hint").firstChild.textContent = hint; if (s >= 15) stopRec(); }, 100);
-    rec.start();
+    $("#av-drop").hidden = true; $("#av-rec-ui").hidden = false; $("#av-msg").textContent = ""; showRecUI("ready");
+    avRec.timer = setInterval(() => {
+      const r = avRec; if (!r) return;
+      r.an.getByteTimeDomainData(data); let peak = 0; for (const x of data) peak = Math.max(peak, Math.abs(x - 128));
+      $("#av-meter").style.width = Math.min(100, peak / 90 * 100) + "%"; r.loud = Math.max(r.loud * 0.97, peak / 128);
+      let hint = "";
+      if (r.phase === "ready") { $("#av-timer").textContent = "Mic ready"; if (Date.now() - r.readyAt > 2500 && r.loud < 0.05) hint = "No sound yet — say a few words to check the microphone level."; }
+      else if (r.phase === "count") $("#av-timer").textContent = String(r.count);
+      else { const s = (Date.now() - r.t0) / 1000; $("#av-timer").textContent = `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+        if (s > 1.5 && r.loud < 0.12) hint = "Very quiet — speak closer to the microphone."; if (s >= 15) stopRec(); }
+      $("#av-hint").hidden = !hint; $("#av-hint").firstChild.textContent = hint;
+    }, 100);
   } catch (e) { $("#av-msg").innerHTML = `<span class="err">Cannot use the microphone (${esc(e.name)}). Allow access in the browser, or upload a file.</span>`; }
 };
-function stopRec(cancel = false) { if (avRec && avRec.rec.state !== "inactive") { avRec.cancel = cancel; avRec.rec.stop(); } }
-$("#av-stop").onclick = () => stopRec();
+$("#av-start").onclick = () => {
+  const r = avRec; if (!r || r.phase !== "ready") return; r.phase = "count"; r.count = 3; showRecUI("count");
+  const tick = setInterval(() => { if (!avRec) return clearInterval(tick); if (--avRec.count > 0) return; clearInterval(tick); beginRecording(); }, 1000);
+};
+function beginRecording() {
+  const r = avRec; if (!r) return;
+  r.rec = new MediaRecorder(r.stream); r.rec.ondataavailable = (e) => r.chunks.push(e.data);
+  r.rec.onstop = async () => { clearInterval(r.timer); r.stream.getTracks().forEach(t => t.stop()); r.ctx.close(); $("#av-rec-ui").hidden = true; $("#av-hint").hidden = true; avRec = null;
+    if (r.cancel) { $("#av-drop").hidden = false; $("#av-script").hidden = true; return; }
+    await useFile(new File([new Blob(r.chunks)], "recording.webm"), "My voice"); $("#av-fname").textContent = "Recording"; };
+  r.phase = "rec"; r.t0 = Date.now(); r.loud = 0; showRecUI("rec"); r.rec.start();
+}
+function stopRec(cancel = false) {
+  const r = avRec; if (!r) return;
+  if (r.rec && r.rec.state !== "inactive") { r.cancel = cancel; r.rec.stop(); return; }
+  clearInterval(r.timer); r.stream.getTracks().forEach(t => t.stop()); r.ctx.close(); avRec = null;   // cancelled before the recording started
+  $("#av-rec-ui").hidden = true; $("#av-hint").hidden = true; $("#av-drop").hidden = false; $("#av-script").hidden = true;
+}
+$("#av-stop").onclick = () => stopRec(); $("#av-cancel").onclick = () => stopRec(true);
 $("#av-lang").onchange = () => { avDirty = true; if (!$("#av-script").hidden) { const t = SCRIPTS[$("#av-lang").value] || SCRIPTS.en; $("#av-script-text").textContent = t; $("#av-text").value = t; } };
 // name → id, sex, validation
 function nameChanged() { if (!idTouched) $("#av-id").value = $("#av-name").value.trim() ? freeId(slug($("#av-name").value)) : ""; checkAdd(); }
