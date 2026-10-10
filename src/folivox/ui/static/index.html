@@ -242,7 +242,11 @@ function handle(ev) {
       haveProgress = !!ev.total; setBar(ev.done, ev.total || 1);
       phase = ev.total ? `Downloading ${ev.name}: ${pct.toFixed(0)}% (${gb(ev.done)} of ${gb(ev.total)} GB)` : `Downloading ${ev.name}: ${gb(ev.done)} GB`;
       phaseSince = Date.now(); tick(); if (ev.total && ev.done >= ev.total) { log("Downloaded " + ev.name); setPhase("Loading TTS model into memory"); } break; }
-    case "fragment": setPhase(`Synthesising chapter ${ev.chapter}: «${ev.text}»`); break;
+    case "fragment": frag = ev; setPhase(`Synthesising chapter ${ev.chapter}: «${ev.text}»`); break;
+    case "step": {
+      const f = frag ? `chapter ${frag.chapter}: «${frag.text}»` : "", take = ev.attempts > 1 ? ` (take ${ev.attempt} of ${ev.attempts})` : "";
+      setPhase(ev.step === "synth" ? `Synthesising ${f}${take}` : ev.step === "qa" ? `Checking the take with speech recognition${take} — ${f}`
+               : `QA failed on every take; splitting the fragment and retrying — ${f}`); break; }
     case "progress": haveProgress = true; setBar(ev.done_chars, ev.total_chars);
       stats.textContent = `chapter ${ev.chapter} · RTF ${ev.rtf.toFixed(2)} · audio ${fmt(ev.audio)}${ev.retakes ? " · retakes " + ev.retakes : ""}`; break;
     case "chapter": log(`✓ ${ev.title} — ${fmt(ev.duration)}`);
@@ -254,7 +258,7 @@ function handle(ev) {
 }
 function end() { job.final = true; busy(false); if (es) es.close(); clearInterval(ticker); $("#phase").classList.add("idle"); $("#progress").classList.remove("busy"); }
 // A long step (loading the model, the first fragment) emits no events: show what is going on and that it is alive.
-let ticker = null, phase = "", phaseSince = 0, lastEvent = 0, haveProgress = false;
+let frag = null, ticker = null, phase = "", phaseSince = 0, lastEvent = 0, haveProgress = false;
 const HINTS = { "Loading TTS model": "reading the weights into memory, usually 1–2 min",
                 "Preparing the model download": "checking what has to be downloaded",
                 "Loading speech recognition": "loading the speech recognition model",
@@ -265,7 +269,7 @@ function tick() {
   const el = Math.round((Date.now() - phaseSince) / 1000), quiet = Math.round((Date.now() - lastEvent) / 1000);
   const hint = Object.entries(HINTS).find(([k]) => phase.startsWith(k));
   const dl = /^Downloading .*GB/.test(phase);
-  $("#phase-text").textContent = dl ? phase : `${phase} · ${el} s` + (hint ? ` (${hint[1]})` : "") + (quiet > 30 && !hint ? ` · no update for ${quiet} s` : "");
+  $("#phase-text").textContent = dl ? phase : `${phase} · ${el} s` + (hint ? ` (${hint[1]})` : "") + (quiet > 90 && !hint ? ` · still working, last update ${quiet} s ago` : "");
   $("#progress").classList.toggle("busy", !haveProgress);
 }
 function setBar(done, total) { $("#bar").style.width = (total ? Math.min(100, 100 * done / total) : 0) + "%"; }

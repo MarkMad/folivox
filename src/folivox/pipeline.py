@@ -75,6 +75,9 @@ class Events:
 
     def chapter_built(self, index: int, title: str, duration: float) -> None: ...
 
+    def step(self, step: str, attempt: int = 1, attempts: int = 1) -> None:
+        """What happens to the current fragment: ``synth`` (take n of m), ``qa`` (recognising it), ``split``."""
+
     def download(self, name: str, done_bytes: int, total_bytes: int) -> None:
         """Model weights are being downloaded (``total_bytes`` is 0 when unknown)."""
 
@@ -143,7 +146,8 @@ def _limit(chunks, preview: int | None, copts: ChunkOptions):
 SPLIT_PAUSE = 0.25  # seconds between the halves of a fragment split after failed takes
 
 
-def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: str, depth: int = 0):
+def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: str, depth: int = 0,
+               events: Events | None = None):
     """Synthesise ``text`` up to ``opts.max_takes`` times, keep the best take by QA score.
 
     If every take fails QA and the fragment has several sentences, split it in two at a
@@ -155,16 +159,20 @@ def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: 
     from folivox.text.chunk import sentences
     from folivox.text.stress import strip_marks
 
+    events = events or Events()
     best = None
     attempts: list[float | None] = []
     lang = opts.lang or "ru"
     limit = threshold_for(source, opts.qa_threshold, lang)
-    for attempt in range(max(1, opts.max_takes if asr else 1)):
+    takes = max(1, opts.max_takes if asr else 1)
+    for attempt in range(takes):
+        events.step("synth", attempt + 1, takes)
         syn = prefetch.synthesize(key, text, _seed(key, attempt), speed=opts.speed)
         audio = postprocess(syn.audio, syn.sample_rate)
         dur = len(audio) / syn.sample_rate
         sc = hyp = None
         if asr is not None:
+            events.step("qa", attempt + 1, takes)
             hyp = asr.transcribe(audio, syn.sample_rate) if dur > 0.05 else ""
             sc = score(source, hyp, dur, lang)
         attempts.append(sc)
@@ -176,6 +184,7 @@ def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: 
     parts = sentences(text, lang)
     if len(parts) < 2 or depth >= 2:
         return best[0], best[1], best[2], attempts
+    events.step("split")
     # split into two halves of similar length at a sentence boundary
     total, acc, cut = sum(len(x) for x in parts), 0, 1
     for i, part in enumerate(parts[:-1], 1):
@@ -184,7 +193,7 @@ def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: 
             cut = i
             break
     halves = [" ".join(parts[:cut]), " ".join(parts[cut:])]
-    results = [_best_take(prefetch, asr, opts, f"{key}/{i}", h, strip_marks(h), depth + 1)
+    results = [_best_take(prefetch, asr, opts, f"{key}/{i}", h, strip_marks(h), depth + 1, events)
                for i, h in enumerate(halves)]
     sr = prefetch.engine.sample_rate
     audio = np.concatenate([results[0][1], np.zeros(int(sr * SPLIT_PAUSE), np.float32), results[1][1]])
@@ -218,7 +227,8 @@ def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions
             for nxt in todo[pos: pos + 1 + LOOKAHEAD]:
                 prefetch.submit(nxt.key, nxt.text, _seed(nxt.key, 0))
             events.chunk_started(chunk)
-            sc, audio, hyp, attempts = _best_take(prefetch, asr, opts, chunk.key, chunk.text, chunk.source)
+            sc, audio, hyp, attempts = _best_take(prefetch, asr, opts, chunk.key, chunk.text, chunk.source,
+                                                  events=events)
             sr = engine.sample_rate
             dur = len(audio) / sr
             save(journal.audio_path(chunk.key), audio, sr)

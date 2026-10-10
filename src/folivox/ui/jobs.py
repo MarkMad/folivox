@@ -33,6 +33,9 @@ class UIEvents(Events):
         self.job.emit("plan", total_chars=total_chars, done_chars=done_chars, total_chunks=total_chunks,
                       pending_chunks=pending_chunks)
 
+    def step(self, step, attempt=1, attempts=1):
+        self.job.emit("step", step=step, attempt=attempt, attempts=attempts)
+
     def download(self, name, done_bytes, total_bytes):
         self.job.emit("download", name=name, done=done_bytes, total=total_bytes)
 
