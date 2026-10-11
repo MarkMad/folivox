@@ -1039,11 +1039,11 @@ function engChange() {
 }
 const MODE_UI = { preset: ["Pick a voice", "Choose one of the service's ready-made voices."],
   design: ["✨ Create a voice from a description", "Describe the narrator in words: the voice is made for this book and deleted from your account afterwards."],
-  localize: ["Native accent of the language", "Recommended for books that are not in English: pick any voice and it is adapted to speak your book's language like a native. Without this step ready-made voices often keep a foreign accent."],
+  localize: ["Adapt a voice to your language", "Recommended for books that are not in English: take any professional voice (an English one is fine) and Cartesia adapts it to speak your book's language like a native, keeping the timbre. Ready-made voices used as they are often keep a foreign accent."],
   clone: ["Clone my own voice", "Only your own voice, or one you have permission for."] };
 function engModes() {
   const e = ENG.cur(), cur = $("#o-tts_mode").value;
-  $("#vc-modes").innerHTML = e.voice_modes.map(m => `<button type="button" class="chip ${m === cur ? "on" : ""} ${m === "design" ? "hot" : ""}" role="radio" aria-checked="${m === cur}" data-mode="${m}">${esc(MODE_UI[m] ? MODE_UI[m][0] : m)}${m === "localize" && book && book.lang !== "en" ? " ★" : ""}</button>`).join("");
+  $("#vc-modes").innerHTML = e.voice_modes.map(m => `<button type="button" class="chip ${m === cur ? "on" : ""} ${m === "design" ? "hot" : ""}" role="radio" aria-checked="${m === cur}" data-mode="${m}">${esc(MODE_UI[m] ? MODE_UI[m][0] : m)}${m === "localize" && book && book.lang !== "en" ? " ★ recommended" : ""}</button>`).join("");
   $("#vc-modehint").textContent = MODE_UI[cur] ? MODE_UI[cur][1] : "";
 }
 $("#vc-modes").addEventListener("click", (ev) => { const b = ev.target.closest("[data-mode]"); if (!b) return; $("#o-tts_mode").value = b.dataset.mode; engMode(); engVoices(); engEstimate(); });
