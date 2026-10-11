@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import os
 import re
@@ -118,7 +119,9 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     """``services`` (tests): ``generator(name)``, ``llm(name)`` and ``asr(lang)`` factories replacing the real ones."""
     state = State(data_dir or Path(user_data_dir("folivox", appauthor=False)) / "ui", render)
     services = services or {}
-    session = secrets.token_urlsafe(24)  # per run; what the cookie holds, so the saved token itself never sits in it
+    # what the cookie holds: derived from the token, so it survives restarts but the token itself never sits in it
+    session = (hmac.new(token.encode(), b"folivox-ui-cookie", "sha256").hexdigest() if token
+               else secrets.token_urlsafe(24))
     cookie_name = f"folivox_session_{port or 0}"
     allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"} if port else None
 
@@ -129,7 +132,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             if not secrets.compare_digest(given, token):
                 return JSONResponse({"error": "Wrong token"}, status_code=401)
             resp = RedirectResponse("/", status_code=303)
-            resp.set_cookie(cookie_name, session, httponly=True, samesite="strict", path="/")
+            resp.set_cookie(cookie_name, session, httponly=True, samesite="strict", path="/", max_age=90 * 86400)
             return resp
         return HTMLResponse((STATIC / "index.html").read_text(encoding="utf-8"))
 

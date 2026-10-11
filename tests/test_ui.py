@@ -373,3 +373,19 @@ def test_book_details_are_editable_saved_and_sent_to_the_render(client):
     assert seen["title"] == "My Title" and seen["narrator"] == "Anna" and seen["series_part"] == "2"
     back = client.put(f"/api/books/{bid}/meta", json={"reset": True}).json()
     assert back["meta"] == back["defaults"] and back["meta"]["narrator"] == ""
+
+
+def test_cookie_survives_a_server_restart(tmp_path):
+    """The cookie is derived from the saved token, so restarting `folivox ui` does not log the browser out."""
+    def boot():
+        return TestClient(create_app(token=TOKEN, port=8765, data_dir=tmp_path / "ui", render=fake_render),
+                          base_url="http://127.0.0.1:8765", follow_redirects=False)
+
+    first = boot()
+    r = first.get(f"/?token={TOKEN}")
+    cookie = r.cookies.get("folivox_session_8765")
+    assert cookie and TOKEN not in cookie and "max-age" in r.headers["set-cookie"].lower()
+    again = boot()
+    again.cookies.set("folivox_session_8765", cookie)
+    assert again.get("/api/session").status_code == 200
+    assert boot().get("/api/session").status_code == 401  # a browser without the cookie is still refused
