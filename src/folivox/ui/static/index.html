@@ -389,10 +389,11 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
   <details><summary data-i18n="run.options">Options</summary>
     <div class="grid">
       <label class="f"><span data-i18n="opt.speed">Speed</span><input id="o-speed" type="number" step="0.05" min="0.5" max="1.5" value="1"></label>
-      <label class="f"><span data-i18n="opt.maxchars">Max fragment (chars)</span><input id="o-max_chars" type="number" value="400"></label>
+      <label class="f"><span data-i18n="opt.maxchars">Max fragment (chars)</span><input id="o-max_chars" type="number" value="300"></label>
       <label class="f" title="Helps the local model read Russian: it restores the letter ё (так «все» и «всё» читаются по-разному) and can add stress marks." data-i18n-attr="title:opt.ru.title"><span data-i18n="opt.ru">Russian reading aids</span><select id="o-stress"><option value="yo" data-i18n="opt.ru.yo">restore ё (recommended)</option><option value="none" data-i18n="opt.ru.none">leave the text as written</option><option value="all" data-i18n="opt.ru.all">ё and stress marks (experimental)</option></select></label>
       <label class="f" title="How many times a fragment may be re-read when speech recognition finds missing or wrong words" data-i18n-attr="title:opt.takes.title"><span data-i18n="opt.takes">Retakes per fragment</span><input id="o-takes" type="number" min="1" max="10" value="3"></label>
       <label class="f"><span data-i18n="opt.qa">Quality check</span><select id="o-qa"><option value="1" data-i18n="opt.qa.on">on: listen back with speech recognition</option><option value="0" data-i18n="opt.qa.off">off (faster, no extra cost)</option></select></label>
+      <label class="f"><span data-i18n="opt.qalevel">Check strictness</span><select id="o-qa_level"><option value="low" data-i18n="opt.qalevel.low">low: fewer retakes, faster</option><option value="standard" selected data-i18n="opt.qalevel.standard">standard</option><option value="high" data-i18n="opt.qalevel.high">high: strict, more retakes</option></select></label>
       <label class="f"><span data-i18n="opt.out">Output</span><select id="o-mp3"><option value="0" data-i18n="opt.out.m4b">one m4b</option><option value="1" data-i18n="opt.out.mp3">mp3 per chapter</option></select></label>
       <label class="f"><span data-i18n="opt.dir">Output folder</span><input id="o-output_dir" type="text" placeholder="~/Audiobooks"></label>
       <label class="f"><span data-i18n="opt.device">Device</span><select id="o-device"><option>auto</option><option>cpu</option><option>cuda</option><option>mps</option></select></label>
@@ -903,7 +904,7 @@ async function restoreSession() {
 // ---- jobs: the studio view -----------------------------------------------------------------------
 function options() {
   const v = (id) => $("#o-" + id).value;
-  return { speed: +v("speed"), max_chars: +v("max_chars"), stress: v("stress"), takes: +v("takes"), qa: v("qa") === "1",
+  return { speed: +v("speed"), max_chars: +v("max_chars"), stress: v("stress"), takes: +v("takes"), qa: v("qa") === "1", qa_level: v("qa_level"),
            mp3: v("mp3") === "1", output_dir: v("output_dir"), device: v("device"), depth: +$("#depth").value || 2, ...engOptions() };
 }
 async function start(kind) {
@@ -912,7 +913,7 @@ async function start(kind) {
   $("#run-msg").textContent = "";
   if (ENG.cloud() && !$("#eng-ack").checked) { $("#run-msg").innerHTML = `<span class="err">${t("run.tick")}</span>`; return; }
   if (ENG.cloud() && ENG.cur().voice_modes.includes("clone") && $("#o-tts_mode").value === "clone" && !$("#eng-own").checked) { $("#run-msg").innerHTML = `<span class="err">${t("run.confirmown")}</span>`; return; }
-  RUNSECS = book.chapters.filter(c => chapters.includes(c.n)).reduce((a, c) => a + c.seconds, 0); PACE_ENGINE = ENG.cur() ? ENG.cur().name : "cosyvoice3";
+  RUNSECS = kind === "preview" ? Math.min(book.chapters.find(c => c.n === chapters[0]).seconds, 600 * book.estimated_seconds / Math.max(1, book.chars)) : book.chapters.filter(c => chapters.includes(c.n)).reduce((a, c) => a + c.seconds, 0); PACE_ENGINE = ENG.cur() ? ENG.cur().name : "cosyvoice3";
   try { attach(await api("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ kind, book_id: book.book_id, voice, chapters, options: options(), acknowledged: ENG.cloud() ? $("#eng-ack").checked : undefined }) })); }
   catch (e) { $("#run-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
@@ -1183,7 +1184,7 @@ function optionsVisibility() {
   const cloud = ENG.cloud(), qaOn = $("#o-qa").value === "1", ru = !book || book.lang === "ru";
   const row = (id, show) => { $("#" + id).parentElement.hidden = !show; };
   row("o-speed", !cloud); row("o-max_chars", !cloud); row("o-device", !cloud);
-  row("o-stress", !cloud && ru); row("o-takes", qaOn);
+  row("o-stress", !cloud && ru); row("o-takes", qaOn); row("o-qa_level", qaOn);
 }
 $("#o-qa").addEventListener("change", optionsVisibility);
 function engChange() {

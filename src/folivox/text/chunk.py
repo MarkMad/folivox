@@ -31,7 +31,7 @@ class Pauses:
 
 @dataclass
 class ChunkOptions:
-    max_chars: int = 400
+    max_chars: int = 300
     min_chars: int = 30
     stress: str = "yo"
     lang: str = "ru"

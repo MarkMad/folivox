@@ -279,12 +279,14 @@ def render(
                                           show_default=".txt next to sample, else Whisper",
                                           help="Transcript of the voice sample (text or a .txt file)."),
     speed: float = typer.Option(1.0, "--speed", rich_help_panel=P_VOICE, help="Speaking rate (0.9 = slower)."),
-    max_chars: int = typer.Option(400, "--max-chars", rich_help_panel=P_TEXT,
+    max_chars: int = typer.Option(300, "--max-chars", rich_help_panel=P_TEXT,
                                   help="Longest fragment sent to the model at once."),
     stress: Stress = typer.Option(Stress.yo, "--stress", rich_help_panel=P_TEXT,
                                   help="Russian only: none | yo (restore ё) | all (stress marks, experimental)."),
     qa: bool = typer.Option(True, "--qa/--no-qa", rich_help_panel=P_QA, show_default=False,
                             help="Check every fragment with speech recognition and retake mismatches (on)."),
+    qa_level: str = typer.Option("standard", "--qa-level", rich_help_panel=P_QA,
+                                 help="How strict QA is: low | standard | high (stricter means more retakes)."),
     takes: int | None = typer.Option(None, "--takes", rich_help_panel=P_QA, show_default="3 local, 2 cloud",
                                      help="Max takes per fragment when QA finds a mismatch (cloud takes are billed)."),
     tts: str | None = typer.Option(None, "--tts", rich_help_panel=P_PROVIDERS, show_default="cosyvoice3",
@@ -347,7 +349,7 @@ def render(
 ):
     """Render a book into an audiobook (m4b with chapters and cover)."""
     from folivox import config
-    from folivox.pipeline import CostCapReached, RenderOptions
+    from folivox.pipeline import QA_LEVELS, CostCapReached, RenderOptions
     from folivox.pipeline import render as run_render
     from folivox.providers import ProviderError
     book = _load(book_path, lang)
@@ -372,7 +374,7 @@ def render(
     opts = RenderOptions(output=output, voice_wav=voice_path, voice_text=voice_text, work_dir=work_dir,
                          chapters=chapters, preview=preview, depth=depth, max_chars=max_chars, stress=stress.value,
                          lang=book.lang, speed=speed, device=device.value, threads=threads,
-                         model_dir=str(model_dir) if model_dir else None, qa=qa,
+                         model_dir=str(model_dir) if model_dir else None, qa=qa, qa_threshold=QA_LEVELS.get(qa_level, QA_LEVELS["standard"]),
                          max_takes=takes or (2 if cloud else 3), mp3=mp3,
                          bitrate=bitrate, llm=llm.value, tts=tts_name, tts_model=tts_model, tts_voice=tts_voice,
                          tts_style=tts_style, tts_mode=tts_mode, tts_description=tts_describe, voice_ref=voice_ref,

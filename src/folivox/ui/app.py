@@ -21,7 +21,7 @@ from starlette.routing import Route
 
 from folivox import config
 from folivox import voices as catalog
-from folivox.pipeline import RenderOptions
+from folivox.pipeline import QA_LEVELS, RenderOptions
 from folivox.ui.jobs import JobManager, chapter_files
 
 STATIC = Path(__file__).parent / "static"
@@ -497,8 +497,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         cloud_opts = cloud_options(body, o, tts, v) if cloud else {}
         common = dict(voice_wav=v.path if v else None,
                       voice_text=body.get("voice_text") or (v.transcript if v else None), lang=book.lang, **cloud_opts,
-                      depth=int(o.get("depth", 2)), max_chars=int(o.get("max_chars", 400)), stress=stress,
-                      speed=float(o.get("speed", 1.0)), qa=bool(o.get("qa", True)),
+                      depth=int(o.get("depth", 2)), max_chars=int(o.get("max_chars", 300)), stress=stress,
+                      speed=float(o.get("speed", 1.0)), qa=bool(o.get("qa", True)), qa_threshold=QA_LEVELS.get(str(o.get("qa_level")), QA_LEVELS["standard"]),
                       max_takes=int(o.get("takes") or (2 if cloud else 3)),
                       tts=tts, asr=asr, device=str(o.get("device", "auto")),
                       cover=custom_cover(str(body.get("book_id", ""))),

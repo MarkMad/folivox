@@ -21,6 +21,11 @@ from folivox.text.chunk import ChunkOptions, plan_chapter
 SYNTH_VERSION = "cv3-1"
 
 
+# QA strictness: highest speech-recognition error (CER + rate penalty) a take may have without a retake
+# Measured on CosyVoice 3 (ru): good takes score 0–0.07, a take that drops one sentence of a fragment 0.15–0.25.
+QA_LEVELS = {"low": 0.14, "standard": 0.10, "high": 0.07}
+
+
 @dataclass
 class RenderOptions:
     output: Path
@@ -30,7 +35,7 @@ class RenderOptions:
     chapters: str | None = None  # "1-3,5" (1-based)
     preview: int | None = None  # only the first N characters of each selected chapter
     depth: int = 2
-    max_chars: int = 400
+    max_chars: int = 300  # CosyVoice 3 drops the last sentence of longer fragments more and more often
     stress: str = "yo"
     lang: str | None = None  # book language (ISO 639-1); None → from the book metadata / detection
     speed: float = 1.0
@@ -42,7 +47,7 @@ class RenderOptions:
     model_dir: str | None = None
     qa: bool = True
     max_takes: int = 3
-    qa_threshold: float = 0.08
+    qa_threshold: float = QA_LEVELS["standard"]
     mp3: bool = False
     bitrate: str = "64k"
     narrator: str = ""
@@ -162,10 +167,24 @@ def _seed(key: str, attempt: int) -> int:
     return zlib.crc32(key.encode()) + attempt * 7919
 
 
+def _prose_start(chunks) -> int:
+    """Index of the first fragment that reads like running text, so a preview skips the title and
+    copyright page (names, years, publishers) that synthesise slowly and say nothing about the voice."""
+    for i, c in enumerate(chunks):
+        src = c.source
+        if len(src) < 120 or not src.rstrip().endswith((".", "!", "?", "…", "»", "”", '"')):
+            continue
+        odd = sum(ch.isdigit() or ("a" <= ch.lower() <= "z") for ch in src)
+        if odd / len(src) < 0.08:
+            return i
+    return 0
+
+
 def _limit(chunks, preview: int | None, copts: ChunkOptions):
     """Keep fragments until ``preview`` characters are covered; end with a chapter pause."""
     if not preview:
         return chunks
+    chunks = chunks[_prose_start(chunks):]
     out, n = [], 0
     for c in chunks:
         if n >= preview:
@@ -175,6 +194,20 @@ def _limit(chunks, preview: int | None, copts: ChunkOptions):
     if out:
         out[-1].pause_after = copts.pauses.chapter_end
     return out
+
+
+FOREIGN_SHARE = 0.12  # share of Latin letters at which a fragment of a non-Latin language is not QA-checked
+
+
+def _mostly_foreign(source: str, lang: str) -> bool:
+    """True for e-mails, URLs and publisher names in a Cyrillic/CJK text: Whisper transcribes them
+    phonetically, so the comparison with the written form fails however well the take was read."""
+    if lang not in ("ru", "zh", "ja", "ko"):
+        return False
+    letters = [c for c in source if c.isalpha()]
+    if not letters:
+        return False
+    return sum("a" <= c.lower() <= "z" for c in letters) / len(letters) >= FOREIGN_SHARE
 
 
 SPLIT_PAUSE = 0.25  # seconds between the halves of a fragment split after failed takes
@@ -199,6 +232,8 @@ def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: 
     lang = opts.lang or "ru"
     limit = threshold_for(source, opts.qa_threshold, lang)
     takes = max(1, opts.max_takes if asr else 1)
+    if asr is not None and _mostly_foreign(source, lang):
+        asr, takes = None, 1  # the recogniser writes Latin words in Cyrillic: the check could only ever fail
     for attempt in range(takes):
         events.step("synth", attempt + 1, takes)
         if attempt:  # a retake of a cloud fragment is billed: stop cleanly instead of overspending
