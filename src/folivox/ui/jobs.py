@@ -125,16 +125,24 @@ class JobManager:
         render = self._render
         if render is None:
             from folivox.pipeline import render
+        from folivox import diag
+
+        t0 = time.time()
+        diag.event("job started", job=job.id, kind=job.kind, options=diag.options_summary(job.opts))
         try:
             result = render(book, job.opts, UIEvents(job))
             job.result = str(result)
+            diag.event("job finished", job=job.id, seconds=round(time.time() - t0, 1))
             job.finish("done", "done", result=job.result)
         except CostCapReached as e:
+            diag.event("job stopped at the spending cap", job=job.id)
             job.finish("cancelled", "cancelled", reason="cost_cap", message=str(e))
         except Cancelled:
+            diag.event("job cancelled", job=job.id, seconds=round(time.time() - t0, 1))
             job.finish("cancelled", "cancelled")
         except Exception as e:  # noqa: BLE001 — report any failure to the browser
             job.error = str(e) or type(e).__name__
+            diag.event("job failed", level=40, exc_info=True, job=job.id, error=job.error)
             job.finish("error", "error", message=job.error)
 
     def start_task(self, job: Job, fn: Callable[[Job], str | None]) -> Job:

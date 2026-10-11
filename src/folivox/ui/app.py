@@ -516,7 +516,10 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             raise ApiError("Another job is running; cancel it or wait", 409)
         opts = build_options(body, entry, kind)
         opts.output.parent.mkdir(parents=True, exist_ok=True)
-        job = state.manager.start(kind, body["book_id"], entry["book"], opts)
+        try:
+            job = state.manager.start(kind, body["book_id"], entry["book"], opts)
+        except RuntimeError:  # another request won the race between the busy() check and start()
+            raise ApiError("Another job is running; cancel it or wait", 409) from None
         return JSONResponse(job.summary(), status_code=202)
 
     def get_job(request: Request):
@@ -583,6 +586,30 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         if path is None:
             raise ApiError("Chapter is not built yet", 404)
         return FileResponse(path, media_type="audio/flac")
+
+    def diag_work_dir() -> Path | None:
+        job = state.manager.current
+        return job.opts.resolved_work_dir() if job is not None and job.opts is not None else None
+
+    async def diagnostics(request: Request):
+        from folivox import diag
+
+        data = await asyncio.to_thread(diag.report, diag_work_dir())
+        return JSONResponse({"report": data, "text": diag.render_report_text(data)})
+
+    async def support_bundle(request: Request):
+        """A redacted zip (no keys, no book text) for a bug report; built in memory-safe temp space."""
+        import tempfile
+
+        from folivox import diag
+
+        def build() -> bytes:
+            with tempfile.TemporaryDirectory() as tmp:
+                return diag.support_bundle(Path(tmp) / "bundle.zip", diag_work_dir()).read_bytes()
+
+        data = await asyncio.to_thread(build)
+        return Response(data, media_type="application/zip", headers={
+            "Content-Disposition": 'attachment; filename="folivox-support.zip"', "Cache-Control": "no-store"})
 
     async def get_settings(request: Request):
         kinds = {}
@@ -1066,6 +1093,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/jobs/{job_id}/cancel", job_cancel, methods=["POST"]),
         Route("/api/jobs/{job_id}/reveal", job_reveal, methods=["POST"]),
         Route("/api/jobs/{job_id}/chapters/{n:int}", job_chapter),
+        Route("/api/diagnostics", diagnostics),
+        Route("/api/support-bundle", support_bundle),
         Route("/api/settings", get_settings),
         Route("/api/settings", put_settings, methods=["PUT"]),
         Route("/api/gen/providers", gen_providers),

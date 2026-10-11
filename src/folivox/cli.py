@@ -26,7 +26,7 @@ app = typer.Typer(add_completion=False, no_args_is_help=False, invoke_without_co
                   rich_markup_mode="rich", epilog=MAIN_EPILOG, context_settings={"help_option_names": ["-h", "--help"]},
                   help="Turn e-books (FB2, EPUB, DOCX, PDF, TXT) into m4b audiobooks, locally.")
 console = Console()
-COMMANDS = {"render", "inspect", "voices", "providers", "help", "ui", "--help", "-h", "--version"}
+COMMANDS = {"render", "inspect", "voices", "providers", "help", "ui", "doctor", "--help", "-h", "--version"}
 
 # Option panels of `folivox render --help`
 P_INPUT, P_VOICE, P_TEXT, P_QA = "Input", "Voice", "Text", "Quality control"
@@ -365,8 +365,13 @@ def render(
         _confirm_cloud(book, opts, yes)
     events = RichEvents(verbose)
     t0 = time.time()
+    from folivox import diag
+
+    diag.event("render started", book=diag.snippet(book.title, 30), options=diag.options_summary(opts),
+               versions=diag.report()["packages"])
     try:
         result = run_render(book, opts, events)
+        diag.event("render finished", seconds=round(time.time() - t0, 1))
     except CostCapReached as e:
         events.close()
         console.print(f"\n[yellow]{e}[/]")
@@ -378,6 +383,8 @@ def render(
     except Exception as e:  # noqa: BLE001
         events.close()
         from folivox.tts.voice import VoiceError
+
+        diag.event("render failed", level=40, exc_info=True, error=str(e))
 
         if isinstance(e, (VoiceError, ValueError, FileNotFoundError, RuntimeError, ProviderError)):
             console.print(f"[red]Error:[/] {e}")
@@ -863,6 +870,24 @@ def ui(port: int = typer.Option(8765, "--port", help="Port to listen on (127.0.0
     from folivox.ui import run
 
     run(port=port, open_browser=open_browser)
+
+
+@app.command(help="Check the setup (ffmpeg, model, devices, disk) and optionally write a redacted support bundle.",
+             rich_help_panel="Main commands",
+             epilog="[bold]Example[/]\n\n  [cyan]folivox doctor --bundle ~/Desktop[/]")
+def doctor(bundle: Path | None = typer.Option(None, "--bundle", "-b", help="Write a redacted zip (versions, log tail, "
+                                              "progress counters; no keys, no book text) to this file or folder."),
+           work: Path | None = typer.Option(None, "--work", help="Work folder of a render to summarise "
+                                            "(NAME.folivox next to the output).")):
+    """Print a health report; with --bundle also save a zip to attach to a bug report."""
+    from folivox import diag
+
+    data = diag.report(work)
+    console.print(diag.render_report_text(data), markup=False, highlight=False)
+    if bundle:
+        path = diag.support_bundle(bundle, work)
+        console.print(f"\nSupport bundle: {path}\nIt holds no API keys and no book text; look inside before sharing.",
+                      markup=False)
 
 
 @app.command("help", help="Explain a topic: voices, providers, config, languages, resuming, quality.",
