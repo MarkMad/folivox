@@ -177,6 +177,12 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 .seg { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; } .seg button { border:0; border-radius:0; padding:5px 12px; background:transparent; color:var(--mute); font-size:14px; }
 .seg button.on { background:var(--accent); color:var(--accent-ink); }
 textarea { font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:6px 10px; resize:vertical; }
+.done-card { display:flex; gap:16px; align-items:center; margin:10px 0 14px; padding:18px 20px; border-radius:14px; background:var(--accent); color:var(--accent-ink); box-shadow:0 6px 22px var(--glow); }
+.dc-ico { flex:none; width:56px; height:56px; border-radius:50%; background:var(--accent-ink); color:var(--accent); font-size:32px; line-height:56px; text-align:center; font-weight:700; }
+.dc-title { font-size:22px; font-weight:700; } .dc-path { margin-top:4px; font-size:14px; word-break:break-all; opacity:.95; } .done-card .dc-meta { color:var(--accent-ink); opacity:.8; font-size:13px; margin-top:2px; }
+.done-card button { background:var(--accent-ink); color:var(--accent); border-color:var(--accent-ink); } .done-card button.chip { background:transparent; color:var(--accent-ink); border-color:var(--accent-ink); }
+.runbar.redo .big-go { font-size:15px; font-weight:500; padding:8px 16px; background:var(--card); color:var(--ink); border-color:var(--line); box-shadow:none; }
+@media (max-width:560px) { .done-card { flex-direction:column; align-items:flex-start; } .runbar.redo .big-go { width:auto; } }
 .costcard { margin:10px 0; padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:var(--card); }
 .cc-main { display:flex; flex-wrap:wrap; gap:14px 28px; align-items:flex-end; }
 .cc-big { font-size:34px; font-weight:700; line-height:1; color:var(--accent); } .cc-big small { display:block; margin-top:6px; font-size:13px; font-weight:400; color:var(--mute); }
@@ -365,6 +371,11 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
 </section>
 
 <section id="s-run" class="disabled"><h2>5 · Render</h2>
+  <div id="done-card" class="done-card" hidden>
+    <div class="dc-ico">✓</div>
+    <div class="dc-body"><div class="dc-title">Your audiobook is ready</div><div class="dc-path" id="dc-path"></div><div class="dc-meta mute" id="dc-meta"></div>
+      <div class="row" style="margin-top:10px"><button id="dc-reveal" class="primary">Show in folder</button><button id="dc-close" class="chip" type="button">Hide</button></div></div>
+  </div>
   <div id="eng-cloud" class="eng-cloud costcard" hidden>
     <div id="eng-est"></div>
     <label class="consent"><input type="checkbox" id="eng-ack"><span>I understand that the book text is sent to this online service and billed to my account at the price above. I will check the provider's terms (<a id="eng-terms" href="#" target="_blank" rel="noopener">terms</a>) before sharing or selling the audio. A 600-character preview costs a few cents: try it first.</span></label>
@@ -381,7 +392,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
       <label class="f">Output folder<input id="o-output_dir" type="text" placeholder="~/Audiobooks"></label>
       <label class="f">Device<select id="o-device"><option>auto</option><option>cpu</option><option>cuda</option><option>mps</option></select></label>
     </div></details>
-  <div class="runbar">
+  <div class="runbar" id="runbar">
     <div class="run-sum" id="run-sum"></div>
     <div class="run-final"><button id="render" class="primary big-go">Render audiobook</button>
       <div class="run-side"><button id="preview">▶ Preview (first 600 chars)</button><button id="cancel" disabled>Stop (resume later)</button></div></div>
@@ -867,6 +878,8 @@ async function start(kind) {
   catch (e) { $("#run-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 }
 $("#preview").onclick = () => start("preview"); $("#render").onclick = () => start("render");
+$("#dc-close").onclick = () => { $("#done-card").hidden = true; };
+$("#dc-reveal").onclick = () => $("#reveal").click();
 $("#reveal").onclick = async () => { try { await api(`/api/jobs/${job.id}/reveal`, { method: "POST" }); } catch (e) { $("#run-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; } };
 $("#cancel").onclick = async () => { $("#cancel").disabled = true; await api(`/api/jobs/${job.id}/cancel`, { method: "POST" }); };
 function busy(on) { ["#preview", "#render"].forEach(s => $(s).disabled = on); $("#cancel").disabled = !on; }
@@ -885,7 +898,7 @@ function newStudio(j) {
   S = { job: j, lanes: [], keys: new Map(), stage: 0, t0: null, tFrag: null, tProg: null, totalChars: 0, doneChars: 0, sessChars: 0,
         totalFrags: 0, doneFrags: 0, audio: 0, synthSecs: 0, retakes: 0, phase: "Starting", phaseSince: nowSec(), finished: null,
         activeLane: -1, dl: null, dirty: new Set() };
-  $("#studio").hidden = false;
+  $("#studio").hidden = false; $("#done-card").hidden = true; $("#runbar").classList.remove("redo"); $("#render").textContent = "Render audiobook"; $("#render").title = "";
   $("#stages").innerHTML = STAGES.map(([id, n]) => `<span class="stage" data-s="${id}">${n}</span>`).join("");
   $("#wave").innerHTML = "<i></i>".repeat(30);
   [...$("#wave").children].forEach((b, i) => b.style.animationDelay = (-(i * 0.09) % 1.1).toFixed(2) + "s");
@@ -1071,6 +1084,10 @@ function handle(ev) {
       } else {
         setPhase("Finished", ev.result, "done"); $("#wave").className = "wave done"; $("#hero-status").textContent = "Saved"; $("#run-msg").textContent = "";
         $("#pv-play").hidden = true; $("#reveal").hidden = false;
+        $("#dc-path").textContent = ev.result || ""; $("#dc-meta").textContent = [S.audio ? fmtClock(S.audio) + " of audio" : "", "rendered in " + fmtClock(S.tLast - S.t0)].filter(Boolean).join(" · ");
+        $("#done-card").hidden = false; $("#runbar").classList.add("redo"); $("#render").textContent = "Render again";
+        $("#render").title = "Fragments that are already done are reused, nothing is read twice; the book is just assembled again.";
+        $("#done-card").scrollIntoView({ behavior: "smooth", block: "center" });
       } break;
     case "cancelled": log(ev.message || "Stopped. Progress is saved — press Render again to continue."); end("cancelled"); setPhase(ev.reason === "cost_cap" ? "Spending cap reached" : "Stopped", ev.message || "Progress is saved — press Render to continue.", "");
       $("#hero-status").textContent = ev.reason === "cost_cap" ? "Cap reached" : "Stopped"; $("#run-msg").textContent = ev.reason === "cost_cap" ? ev.message : "Stopped; progress saved."; break;
