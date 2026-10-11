@@ -1,320 +1,236 @@
+<div align="center">
+
 # Folivox
 
-Turn an e-book into a chaptered audiobook — fully locally, with
-[CosyVoice 3](https://github.com/FunAudioLLM/CosyVoice) zero-shot voice cloning.
+**Turn any e-book into a chaptered audiobook, read in your own voice. Free, offline, on your computer.**
+
+FB2 · EPUB · DOCX · PDF · TXT &nbsp;→&nbsp; `.m4b` / `.mp3` with chapters, cover and metadata
+
+![Python 3.10–3.12](https://img.shields.io/badge/python-3.10%E2%80%933.12-blue)
+![License Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green)
+![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
+![Status early development](https://img.shields.io/badge/status-early%20development-orange)
+
+<img src="docs/img/studio-progress.png" alt="Folivox studio rendering a book: progress, chapter lanes, live fragments" width="820">
+
+</div>
+
+## What is this
+
+Folivox reads a whole book aloud with [CosyVoice 3](https://github.com/FunAudioLLM/CosyVoice), an open
+model that clones a voice from a 6–15 second sample. It runs on your machine: no account, no subscription,
+no per-character fee, and with the local engine nothing leaves your computer. It is built for **long books**
+(many hours of audio): every fragment is saved, a crash or a power cut loses nothing, and editing the text
+re-reads only what changed.
+
+You can drive it from a **web studio** (`folivox ui`) or from the **command line**.
+
+## Quick start
 
 ```bash
-folivox book.fb2 --voice me.wav -o book.m4b
+git clone <this repository> && cd folivox
+./scripts/install.sh            # Windows: powershell -ExecutionPolicy Bypass -File scripts\install.ps1
+folivox ui                      # the studio opens in your browser
+folivox render book.fb2         # or: no browser, the audiobook appears next to the book
 ```
 
-- **Formats:** FB2 (also `.fb2.zip`), EPUB, DOCX, PDF (text layer, no OCR), TXT.
-- **Output:** one `.m4b` with chapter markers, cover and metadata — or `--mp3` per chapter.
-- **Languages:** Russian, English, German, French, Spanish, Italian, Chinese, Japanese, Korean
-  (the CosyVoice 3 set). The book language comes from FB2/EPUB/DOCX metadata or is detected from
-  the text; `--lang` overrides it.
-- **Russian is the most polished:** numbers, dates, years, centuries, units and abbreviations are
-  expanded with case/gender agreement; `ё` is restored with
-  [ruaccent](https://github.com/Den4ikAI/ruaccent); dialogue dashes get natural pauses. Other
-  languages start with basic normalisation (numbers via num2words, symbols, sentence splitting).
-- **Pluggable:** TTS, speech recognition, reference-voice generation and the text LLM are
-  providers behind small interfaces — swap them by name when better models appear.
-- **Quality control:** every fragment is re-transcribed with Whisper (MLX on Apple Silicon,
-  faster-whisper elsewhere); on mismatch it is re-synthesised and the best take is kept.
-- **Resumable:** books take many hours. Every fragment is cached; interrupt at any time and run
-  the same command again to continue. Editing the text re-synthesises only what changed.
-- **Runs on** macOS (Apple Silicon: hybrid CPU + GPU), Windows and Linux (CUDA or CPU).
+The installer sets up `uv`, ffmpeg, the right PyTorch build and Folivox, then runs `folivox setup`, which
+checks your machine and downloads the models once (about 6 GB for the voice and 1.6 GB for the quality
+check). Details, manual install and troubleshooting: [docs/install.md](docs/install.md).
 
-> Status: early development, private.
+## Features
 
-## Install
+<table>
+<tr>
+<td width="33%" valign="top">
 
-Shortest way: `./scripts/install.sh` (macOS/Linux) or `scripts\install.ps1` (Windows); see [docs/install.md](docs/install.md)
-for what it does and how to start the studio. Manual steps:
+**Many formats in**<br>
+FB2 (also `.fb2.zip`), EPUB, DOCX, PDF (text layer, no OCR) and TXT. Chapters, nested sections, poems and
+epigraphs are kept; PDF headers, footers and page numbers are removed and hyphenation is undone.
 
-Requires Python 3.10–3.12 and [ffmpeg](https://ffmpeg.org/) (`brew install ffmpeg`,
-`winget install ffmpeg`, `apt install ffmpeg`).
+</td>
+<td width="33%" valign="top">
 
-```bash
-uv tool install "folivox[all]"   # or: pip install "folivox[all]"
-```
+**9 languages**<br>
+Russian, English, German, French, Spanish, Italian, Chinese, Japanese, Korean. The language comes from the
+book's metadata or is detected from the text; `--lang` overrides it.
 
-On first run the CosyVoice 3 weights (~4.5 GB, plus ~2 GB for the default RL LLM) are downloaded
-from Hugging Face into the user data directory. To use an existing copy set
-`FOLIVOX_MODEL_DIR=/path/to/Fun-CosyVoice3-0.5B`.
+</td>
+<td width="33%" valign="top">
 
-For NVIDIA GPUs install a CUDA build of PyTorch 2.5 first
-(<https://pytorch.org/get-started/locally/>).
+**Your own voice**<br>
+Zero-shot cloning from a short clean recording (upload or record in the studio). Optional gentle noise
+reduction. A bundled public-domain Russian voice works out of the box.
 
-## Usage
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**Quality control**<br>
+Every fragment is re-transcribed with Whisper. If it does not match the text, it is re-synthesised and the
+best take is kept (`--takes`, default 3).
+
+</td>
+<td valign="top">
+
+**Text normalisation**<br>
+Numbers, dates, years, centuries, units and abbreviations spoken in full (with case and gender agreement
+for Russian), `ё` restored, optional stress marks, natural pauses in dialogue.
+
+</td>
+<td valign="top">
+
+**Real audiobook files**<br>
+One `.m4b` with chapter markers, cover and metadata (title, author, narrator, year, description, series as
+the Grouping tag), or one `.mp3` per chapter. Loudness-normalised (−18 LUFS).
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**Built for 10-hour books**<br>
+Journal of finished fragments; stop and run again to continue. Edit the text and only changed fragments are
+redone. Damaged files after a crash are detected and redone; the old result is never replaced until the new
+one is fully written.
+
+</td>
+<td valign="top">
+
+**Web studio**<br>
+Book, chapters, voice gallery with audition, preview, live progress per chapter and fragment, remaining-time
+forecast, playback of finished chapters, stop and resume. Local only, token-protected.
+
+</td>
+<td valign="top">
+
+**Online engines, optional**<br>
+ElevenLabs, OpenAI, Gemini and Cartesia can read a book or generate a voice sample. Cost estimate first,
+explicit confirmation, a spending cap (`--max-cost`) that stops cleanly and resumes.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**Pluggable**<br>
+Speech synthesis, recognition, voice generation and the text LLM are small provider interfaces; swap them
+by name or register your own via entry points.
+
+</td>
+<td valign="top">
+
+**Hardware aware**<br>
+Apple Silicon (hybrid CPU + GPU), NVIDIA CUDA or plain CPU. `folivox doctor` checks ffmpeg, models, disk and
+your hardware and gives advice; a GPU failure falls back to the CPU.
+
+</td>
+<td valign="top">
+
+**Sturdy**<br>
+Early checks for ffmpeg and disk space, resumable model downloads, retries with backoff, a pause through
+network outages, a timeout for a stuck fragment, a rotating log and a redacted support bundle.
+
+</td>
+</tr>
+</table>
+
+### A closer look
+
+<table>
+<tr>
+<td width="50%"><img src="docs/img/studio-book.png" alt="A loaded book with its chapters and estimated length"><br><sub>A book loaded: chapters, language, cover and metadata, estimated length.</sub></td>
+<td width="50%"><img src="docs/img/studio-voices.png" alt="Reading engine and voice gallery"><br><sub>Reading engine and voice gallery; add your own voice or generate one.</sub></td>
+</tr>
+<tr>
+<td colspan="2"><img src="docs/img/studio-done.png" alt="The audiobook is ready card"><br><sub>Done: the card shows the output file, audio length and render time.</sub></td>
+</tr>
+</table>
+
+<sub>The screenshots show the studio on a short public-domain text (<i>Alice's Adventures in Wonderland</i>).
+To keep the capture quick and independent of the model weights, the render in them was simulated with the
+same events the real pipeline emits (the test suite's fake render approach); no audio was produced.</sub>
+
+## Why Folivox
+
+- **Free and private.** The default engine is a local open model. No text is uploaded, there is no usage bill.
+- **Your voice, any book.** A short sample is enough; the same voice stays consistent through the whole book.
+- **Made for long audiobooks, not for clips.** Resumable, crash-safe, with a time forecast and a quality
+  check that retakes bad fragments for you.
+- **Honest about what leaves your computer.** Online engines are opt-in, labelled, estimated and capped.
+- **Open and replaceable.** Apache-2.0, small provider interfaces, no lock-in to one model.
+
+## Usage in short
 
 ```bash
 folivox inspect book.epub                     # chapter tree, size, estimated duration
-folivox book.fb2 -v me.wav -o book.m4b        # render the whole book
-folivox book.fb2 -v me.wav -c 1-2             # only chapters 1–2
-folivox book.pdf -v me.wav --mp3 -o out/      # one mp3 per chapter
+folivox book.fb2 -v me.wav -o book.m4b        # render the whole book with your voice
+folivox book.fb2 -c 1-2 --preview 600         # a quick test: chapters 1–2, first 600 characters each
+folivox book.pdf --mp3 -o out/                # one mp3 per chapter
+folivox voices                                # bundled and your own voices
+folivox doctor --bundle                       # check the setup / write a redacted support bundle
 ```
 
-Run `folivox` with no arguments for a quick start, `folivox --help` / `folivox render --help` for
-all options (grouped by purpose, with defaults and examples), and `folivox help <topic>` for
-longer explanations (`voices`, `providers`, `config`, `languages`, `resuming`, `quality`).
+`folivox --help`, `folivox render --help` and `folivox help <topic>` (`voices`, `providers`, `config`,
+`languages`, `resuming`, `quality`) explain every option. The full list: [docs/cli.md](docs/cli.md).
 
-`folivox render` options (the same groups as in `--help`):
+## FAQ
 
-| Group | Option | Default | |
-|---|---|---|---|
-| Input | `--lang` | from the book | `ru en de fr es it zh ja ko` |
-| | `--chapters`, `-c` | all | `1-3,5` |
-| | `--depth` | 2 | how deep to split the book into chapters |
-| | `--preview N` | off | only the first N characters of each chapter (quick test) |
-| Voice | `--voice`, `-v` | by book language | catalog id or a WAV/FLAC file |
-| | `--voice-text` | `.txt` next to the sample, else Whisper | transcript of the voice sample |
-| | `--speed` | 1.0 | speaking rate |
-| Text | `--max-chars` | 400 | longest fragment sent to the model at once |
-| | `--stress` | `yo` | `none`, `yo` (restore ё), `all` (acute stress marks, experimental) |
-| Quality control | `--qa` / `--no-qa` | on | check each fragment with speech recognition (faster without) |
-| | `--takes` | 3 | max takes per fragment when QA finds a mismatch |
-| Providers | `--tts` | `cosyvoice3` | TTS provider (`folivox providers`) |
-| | `--asr` | `auto` | speech recognition for QA: `mlx-whisper`, `faster-whisper`, `openai` |
-| | `--llm` | `rl` | CosyVoice language-model weights: `rl` or `base` |
-| | `--model-dir` | downloaded on first run | folder with CosyVoice 3 weights |
-| Performance | `--device` | `auto` | `cpu`, `cuda`, `mps` |
-| | `--threads` | PyTorch default | CPU threads |
-| Output | `--output`, `-o` | `<book>.m4b` | output file (a folder with `--mp3`) |
-| | `--mp3` | | one mp3 per chapter instead of an m4b |
-| | `--bitrate` | `64k` | AAC/MP3 bitrate |
-| Book details | `--title` `--author` `--narrator` `--series` `--series-number` `--year` `--description` | from the book | what the player shows; the series is written as the Grouping tag |
-| | `--cover` | the book's own | an image (JPEG, PNG, WebP) to embed instead, or `none`; shrunk to 1600 px |
-| | `--work-dir` | `<output>.folivox/` | cache and journal; delete it when done |
-| | `--verbose` | | print every fragment |
+**What hardware do I need?** Python 3.10–3.12, ffmpeg and room for the models (about 7.6 GB). macOS on Apple
+Silicon, Windows or Linux with an NVIDIA GPU (CUDA) or just a CPU. The CPU works but is slower; `folivox setup`
+and `folivox doctor` look at your machine and tell you what to expect.
 
-### Web interface
+**How long does a book take?** It depends on your hardware, so we do not quote a number. `folivox inspect`
+and the studio show the length of the audio before you start; after the first render on a machine the studio
+estimates the time from your own measured speed, and shows the remaining time while it works. Try
+`--preview` first to hear a voice on a few hundred characters.
 
-```bash
-uv tool install "folivox[all]"   # `all` includes the `ui` extra
-folivox ui                       # http://127.0.0.1:8765, local only; open the printed link once (access token → cookie), then bookmark http://127.0.0.1:8765/
-```
+**Is my book uploaded anywhere?** Not with the local engine (the default): everything runs on your computer
+and the studio listens on `127.0.0.1` only. Downloading the model weights is the only network use. The online
+engines (ElevenLabs, OpenAI, Gemini, Cartesia), online voice generation and an OpenAI-compatible recognition
+or LLM provider **do send text (or audio) to that provider and may cost money**; Folivox says so and asks
+for confirmation. API keys come from environment variables or your OS keychain, never from a config file.
 
-Pick a book, choose chapters and a voice (with audition), render a short preview, then the whole
-book with live progress; stop and resume at any time. It uses the same pipeline, cache and config as
-the CLI. See [docs/ui.md](docs/ui.md).
+**Can I stop and continue?** Yes, at any time, even after a crash or a power cut: run the same command (or
+press Render) again.
 
-### Voices
+**Whose voice may I clone?** Your own, or one you have explicit permission to use. Folivox ships no celebrity
+or third-party voices and has no feature for imitating real people.
 
-```bash
-folivox voices                                  # list voices (bundled + yours)
-folivox book.fb2 --voice russlib                # pick a voice by id (default: russlib)
-folivox voices add anna anna.wav --text anna.txt --gender f   # add your own (stays on this machine)
-```
+**Which voices come with it?** One public-domain Russian voice (`russlib`, LibriVox). For other languages,
+add your own sample or generate one; see [docs/voices.md](docs/voices.md).
 
-Without `--voice` Folivox picks a catalog voice in the book's language. Bundled voices are public
-domain, CC0 or generated by an Apache-2.0 model; `folivox voices` shows each voice's source and
-license.
+## Documentation
 
-#### Designing a voice
-
-No good recording? Let a voice-design model read a few short, easy texts and use the best take
-as the cloning prompt:
-
-```bash
-folivox voices design anna --lang ru --gender f \
-  --describe "calm, warm female voice of a native Russian speaker, audiobook narrator, studio" \
-  --keep takes/          # keep every take to listen to
-folivox voices sample-text book.fb2    # passages from the book that are easy to read aloud (LLM)
-```
-
-Each take is checked with Whisper; the best one becomes a user voice. CosyVoice copies everything
-about the prompt — accent and rhythm included — so listen to the *cloned* narration, not just the
-take. Describe the speaker as a **native** speaker of the language: preset voices of multilingual
-models carry their own accent into other languages.
-
-#### Cloud voice generation
-
-A third source of voices, besides uploaded and recorded samples: let a cloud TTS provider read a
-short text, listen to the takes (ranked by Whisper), keep the best one as your cloning prompt.
-
-| Provider (`-g`) | Modes (`--mode`) | Models (`--model`, default `auto` = newest the provider lists) | API key variable |
-|---|---|---|---|
-| `gemini` | `preset` (30 voices + narration style), `design` (voice from a description; made for the run, then deleted) | `gemini-3.8-flash-tts`, `-flash-lite-tts`, 3.1 preview, 2.5 | `GEMINI_API_KEY` |
-| `openai` | `preset` (13 voices + style instructions on `gpt-*-tts`) | `gpt-4o-mini-tts`, `tts-1-hd`, `tts-1` | `OPENAI_API_KEY` |
-| `elevenlabs` | `preset` (premade voices; `[style]` audio tags on v3/v4), `design` (3 previews per request, billed once) | `eleven_v4`, `eleven_v3`, `eleven_multilingual_v2`, `eleven_flash_v2_5` (design: `eleven_ttv_v3`) | `ELEVENLABS_API_KEY` |
-| `cartesia` | `preset`, `localize` (same voice with the native accent of the language), `clone` (one of your own voices) | `sonic-3.6`, `sonic-3.5`, `sonic-3`, `sonic-latest` | `CARTESIA_API_KEY` |
-
-Texts here are a few hundred characters, so use the best model: with `auto` Folivox asks the provider
-which models your key can use and takes the newest one (new releases are picked up without a Folivox
-update); pin a model with `--model`, in the UI model list, or `[voicegen.gemini] model = "…"` in
-`config.toml`. Temporary voices (Gemini design, Cartesia localize/clone) are deleted from your account
-when the takes are made. Free-plan accounts may lack some of this (ElevenLabs library voices, Cartesia cloning).
-
-```bash
-export GEMINI_API_KEY=…                                    # or save it in `folivox ui`
-folivox voices speakers -g gemini                          # preset voices
-folivox voices design narrator -g gemini --speaker Kore --lang en --describe "calm audiobook narrator" --keep takes/
-folivox voices design narrator -g gemini --mode design --lang ru --describe "calm woman in her forties, warm low voice"
-folivox voices design narrator -g cartesia --mode localize --speaker <voice-id> --lang ru   # `voices speakers -g cartesia`
-folivox voices suggest-prompt book.fb2 -g elevenlabs       # a design prompt from the book (text LLM)
-folivox voices design narrator -g elevenlabs --lang en \
-  --describe "calm, warm woman in her forties, low timbre, unhurried pace" --yes
-```
-
-In `folivox ui`: voice gallery → **Generate a voice sample**. Pick a provider (the key is requested
-there if missing and stored in the OS keychain, never sent back to the browser), describe a voice
-(**Suggest** asks your text LLM to write the prompt from the book) or pick a preset voice (with an optional narration style), choose the model, choose
-the text (a built-in calm English sample, passages from the book, or your own), see the number of
-characters and an approximate price, generate 3 takes, audition, name and add. Generation can be
-stopped at any time.
-
-The default text is a short English sample; for another language pick the language and a text in
-it. Preset voices of multilingual providers carry their accent into other languages.
-
-The estimates are approximate and based on public price lists seen in October 2026; check your
-provider's dashboard. **Your text is sent to the provider and billed to your account.** Generated
-voices are stored with the provider in `source`, the license note and a `commercial: true` flag
-(shown as *commercial API* in the gallery); keep them for personal use. Providers' terms differ
-(for example Gemini's and Cartesia's forbid using output to develop competing models, ElevenLabs'
-free plan is non-commercial); read them before you publish audiobooks. They are never added to
-the bundled catalog, and Folivox has no feature for imitating real people.
-
-### Cloud reading engines
-
-Besides the local CosyVoice 3 model, the whole book can be read by a paid online service. **The book
-text is sent to the provider and billed to your account** — a full audiobook (≈ 10 h, 500,000 characters)
-costs roughly $8–40 depending on the provider. Folivox therefore shows an estimate first and asks you to
-confirm (checkbox in the studio, a question or `--yes` in the CLI), and `--max-cost` stops a run cleanly
-at a spending cap (progress is saved; raise the cap and run the same command to continue — fragments already
-rendered are never paid for twice).
-
-| Engine (`--tts`) | Voice quality / languages | ≈ price per hour of audio¹ | Request limit | Notes and terms |
-|---|---|---|---|---|
-| `elevenlabs` | most natural; 90+ languages (v4), 29 (multilingual v2) | $4.0 (v4, v3, multilingual v2), $2.0 (flash) | 10,000 chars (v3: 5,000) | Free plan: personal, non-commercial only; selling audiobooks needs a paid plan. Audio tags (`[calm]`) on v3/v4. |
-| `cartesia` | clean, fast; 40+ languages | $2.5 (Pro plan credits) | 5,000 chars | Commercial use needs a paid plan; output must not train competing models. Voice cloning from your own recording. |
-| `openai` | good, simple; 13 voices, style note on `gpt-4o-mini-tts` | $0.9 (`gpt-4o-mini-tts`), $0.8 (`tts-1`), $1.5 (`tts-1-hd`) | 4,096 chars | Cheapest. Disclose that the voice is AI-generated (OpenAI usage policy). |
-| `gemini` | natural; 30 voices, style note, voice from a description | $0.8 (`gemini-3.8-flash-tts`) | 4,000 chars | Free tier exists, but Google may then use your text; paid tier does not. Output must not train competing models. |
-
-¹ List prices seen in October 2026 at 14 characters per second of speech; approximate, check your dashboard.
-The cloud voices are not clones of a reference recording: pick one of the provider's voices (with sex and
-traits, as in the voice gallery), or have a voice made for the book: Gemini and ElevenLabs *design* (from a description) and
-Cartesia *localize* (take any voice, e.g. an English one, and adapt it to the book's language with a native accent — the default for non-English books) / *clone* (your own voice only, with a confirmation). Such a voice lives in your account
-for the whole run, so every fragment sounds the same. Tick *Keep this voice* in the studio (CLI: `--keep-voice
---tts-voice-name "Calm narrator"`) and it stays in your account and is listed under *My created voices* for
-every later book (`--tts-voice "Calm narrator"`, `folivox tts-voices gemini`, delete with `--delete`); otherwise it
-is deleted when the book is finished. A kept voice uses a slot of your provider plan.
-
-```bash
-export OPENAI_API_KEY=…                       # or save the key in `folivox ui`; keys: GEMINI/OPENAI/ELEVENLABS/CARTESIA_API_KEY
-folivox tts-voices openai                     # voices with sex and traits (Cartesia/ElevenLabs: ids and names)
-folivox render book.epub --tts openai --tts-voice coral --preview 600            # first step: ~1 minute for a few cents
-folivox render book.epub --tts elevenlabs --tts-voice Rachel --tts-model auto --max-cost 10 --yes
-folivox render book.epub --tts gemini --tts-mode design --tts-describe "calm warm woman, unhurried" --tts-style "audiobook narration"
-folivox render book.epub --tts cartesia --tts-mode clone --voice my-voice --own-voice   # my-voice = your own catalog voice
-```
-
-Quality control still works (Whisper QA with retakes), but every retake is billed, so cloud runs default to
-2 takes (`--takes`) and never re-split a failed fragment; the estimate includes a retake allowance. Fragments
-are limited to the provider's request size and sent in a few parallel requests (Retry-After is honoured).
-Reading speed (`--speed`) and Russian stress marks (`--stress all`) do not apply; the narration style is
-`--tts-style` (OpenAI and Gemini get a neutral audiobook note by default). Audio from commercial APIs is
-yours to keep under the provider's terms and is never bundled with Folivox.
-
-### The voice sample
-
-Use 6–15 seconds of **clean** speech (no music, no noise, no reverb), WAV or FLAC, with an exact
-transcript. The model copies everything about the sample — timbre, pace, microphone, room — so a
-calm, evenly read sentence works best.
-
-Steady background noise (hiss, hum, a fan) can be reduced gently before the voice is added:
-tick **Reduce background noise** in `folivox ui` (play the sample with and without it), or use
-`folivox voices add … --denoise` (needs `pip install "folivox[denoise]"`; included in `folivox[all]`).
-It is spectral gating with a noise profile from the quietest part of the recording, deliberately mild so the
-voice does not get a metallic ring; it cannot fix a noisy room, re-record closer to the microphone for that.
-
-**Clone only your own voice or a voice you have explicit permission to use.** Imitating real
-people without consent can be illegal and is harmful. Folivox ships no celebrity or third-party
-voices.
-
-### Providers and configuration
-
-```bash
-folivox providers        # what is available and selected
-```
-
-| Kind | Local (default) | Optional |
-|---|---|---|
-| `tts` | `cosyvoice3` | — |
-| `asr` | `auto` (mlx-whisper / faster-whisper) | `openai` (any OpenAI-compatible transcription API) |
-| `voicegen` | `qwen3-voicedesign`, `qwen3-customvoice` | `gemini`, `openai`, `elevenlabs`, `cartesia` |
-| `llm` | `ollama` | `openai` (OpenAI, OpenRouter, llama.cpp server… any OpenAI-compatible API) |
-
-Choose with CLI options, `FOLIVOX_TTS` / `FOLIVOX_ASR` / `FOLIVOX_VOICEGEN` / `FOLIVOX_LLM`, or a
-`config.toml` in the user config directory (`$FOLIVOX_CONFIG` overrides the path):
-
-```toml
-[providers]
-llm = "ollama"
-
-[llm.ollama]
-model = "gemma4:31b-it-qat"
-
-[voicegen.qwen3-voicedesign]
-python = "~/qwen3tts/.venv/bin/python"   # a separate venv with `pip install qwen-tts`
-model = "~/qwen3tts/models/VoiceDesign"   # Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign
-
-[llm.openai]
-base_url = "https://openrouter.ai/api/v1"
-model = "some/model"
-api_key_env = "OPENROUTER_API_KEY"
-```
-
-API keys are read from environment variables, or from your **OS keychain** when you save them in
-the web interface (`folivox ui` → Providers → API keys). The config file refuses `api_key` fields, so
-keys never end up in a file you might share. Cloud providers run at your own cost, and your text
-or audio leaves your computer.
-
-> **Commercial voice output.** Some providers' terms restrict using their outputs to build
-> competing models or services (for example the Gemini API Additional Terms). Using such audio as a
-> cloning prompt is a grey zone; that decision and its consequences are yours. Folivox never
-> bundles audio produced by commercial APIs.
-
-Third-party packages can register providers through the `folivox.providers` entry-point group
-(see [CONTRIBUTING.md](CONTRIBUTING.md)).
-
-### Interface language
-
-The command line interface is in English only.
-
-## How it works
-
-1. **Read** — a reader per format produces a common `Book` model: metadata, cover, nested sections,
-   typed blocks (paragraph, epigraph, poem, quote…). Footnotes are skipped; PDF headers, footers and
-   page numbers are removed and hyphenation is undone.
-2. **Normalise** — a language module turns numbers and abbreviations into words (and restores ё
-   for Russian), splits sentences ([razdel](https://github.com/natasha/razdel) for Russian, a
-   punctuation splitter elsewhere, including `。！？` for Chinese and Japanese) and packs them into
-   fragments.
-3. **Synthesise** — CosyVoice 3 clones the voice zero-shot. Each accepted take is stored in the
-   work dir and recorded in an SQLite journal.
-4. **Check** — Whisper transcribes the take; character error rate and speaking rate decide whether
-   to retake.
-5. **Assemble** — fragments are joined with structural pauses (sentence < paragraph < heading <
-   chapter), loudness-normalised (EBU R128, −18 LUFS) and encoded to AAC in an `.m4b` with chapters.
+| Page | What is in it |
+|---|---|
+| [docs/install.md](docs/install.md) | One-command install, starting the studio, update and removal |
+| [docs/cli.md](docs/cli.md) | All `folivox render` options and examples |
+| [docs/voices.md](docs/voices.md) | Voice catalog, your own voices, the voice sample, designing and generating voices |
+| [docs/cloud-engines.md](docs/cloud-engines.md) | Online reading engines: prices, limits, terms, spending cap |
+| [docs/providers.md](docs/providers.md) | Pluggable providers and `config.toml` |
+| [docs/ui.md](docs/ui.md) | The web studio: design, screens and API |
+| [docs/how-it-works.md](docs/how-it-works.md) | The pipeline in five steps |
+| [docs/support.md](docs/support.md) | Resuming, retries, `folivox doctor` and the support bundle |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, adding a language or a provider |
 
 ## Development
 
 ```bash
 uv sync --all-extras
-uv run pytest
+uv run pytest -q
 uv run ruff check src tests
-uv run python tests/fixtures/make_fixtures.py   # regenerate synthetic test books
 ```
 
-Adding a language or a provider: see [CONTRIBUTING.md](CONTRIBUTING.md).
+The CI workflow (`.github/workflows/ci.yml`) runs lint and the unit tests (readers, text processing,
+journal, assembly) on macOS, Windows and Linux without model inference. Contributions are welcome; see
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
-CI runs the unit tests (readers, text processing, journal, assembly) on macOS, Windows and Linux
-without model inference.
+## License and status
 
-## License
-
-Apache-2.0. Folivox vendors a trimmed copy of the CosyVoice inference code (Apache-2.0) and parts of
-Matcha-TTS and Whisper (MIT); see [`src/folivox/vendor/README.md`](src/folivox/vendor/README.md) and
-[NOTICE](NOTICE). The CosyVoice 3 weights are Apache-2.0
-([model card](https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512)) and are downloaded, not
-redistributed.
+Status: early development. Folivox is licensed under **Apache-2.0**. It vendors a trimmed copy of the
+CosyVoice inference code (Apache-2.0) and parts of Matcha-TTS and Whisper (MIT); see
+[`src/folivox/vendor/README.md`](src/folivox/vendor/README.md) and [NOTICE](NOTICE). The CosyVoice 3 weights are
+Apache-2.0 ([model card](https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512)) and are downloaded, not
+redistributed. Audio produced by commercial APIs is never bundled; its use is governed by the provider's terms.
