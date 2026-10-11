@@ -152,6 +152,19 @@ folivox voices design narrator -g gemini --mode design --lang en --describe "cal
 folivox render book.epub --voice narrator
 ```
 
+### The very best quality: a full online render
+
+Reading the whole book with a commercial engine still sounds better than local cloning. For that we recommend
+**Gemini 3.8 Flash TTS**: the best narration in our experience and at the same time one of the cheapest engines,
+about $0.8 per hour of audio at list prices (October 2026; a ten-hour book is roughly $8). Folivox shows the
+estimate before you start and can stop at a spending cap:
+
+```bash
+folivox render book.epub --tts gemini --tts-mode design --tts-describe "calm, warm audiobook narrator" --max-cost 10
+```
+
+Prices, limits and terms of all four engines: [docs/cloud-engines.md](docs/cloud-engines.md).
+
 ## Features
 
 <table>
