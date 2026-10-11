@@ -133,8 +133,8 @@ class OpenAIVoice(CloudGenerator):
     name, label, modes, languages = "openai", "OpenAI", ("preset",), LANGS
     style = True
     blurb = (
-        "13 ready-made voices; a style note steers tone and pace ('audiobook narration, calm, steady pace'). No voice-from-"
-        'description. Simple, reliable and cheap.'
+        "13 ready-made voices; a style note steers tone and pace ('audiobook narration, calm, steady pace'). "
+        'No voice-from-description. Simple, reliable and cheap.'
     )
     key_env = "OPENAI_API_KEY"
     price_note = ("gpt-4o-mini-tts: roughly $0.015 per minute of audio (billed in tokens); tts-1: $15 per million "
