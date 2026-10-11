@@ -1058,9 +1058,10 @@ function engMode() {
 async function engVoices() {
   const e = ENG.cur(), box = $("#vc-list"); if (!e || !e.cloud) return;
   if (!e.key_in_env && !e.key_saved) { box.innerHTML = `<div class="mute">No API key for ${esc(e.label)} — add it in “Paid online services” at the bottom of the page.</div>`; $("#vc-sex").innerHTML = ""; return; }
-  box.innerHTML = `<div class="mute">Loading the voices…</div>`;
+  box.innerHTML = `<div class="mute">Loading the voices…</div>`; const ticket = ENG.ticket = (ENG.ticket || 0) + 1;
   try {
     const lang = $("#o-tts_mode").value === "localize" ? "" : (book && book.lang) || "", r = ENG.voices[e.name + lang] || (ENG.voices[e.name + lang] = await api(`/api/gen/voices/${e.name}?lang=${encodeURIComponent(lang)}`));
+    if (ticket !== ENG.ticket) return;  // a newer request (another mode or engine) owns the list now
     ENG.vlist = (e.name === "elevenlabs" || e.name === "cartesia" ? [] : [{ id: "", name: "Provider default", traits: "a neutral voice", gender: "" }]).concat(r.voices);
     ENG.vnote = r.note || ""; ENG.vname = e.name;
     if (!ENG.vlist.some(v => v.id === $("#o-tts_voice").value)) $("#o-tts_voice").value = ENG.vlist[0] ? ENG.vlist[0].id : "";
