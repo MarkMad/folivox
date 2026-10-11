@@ -1,22 +1,33 @@
-import json, sys, time, urllib.request, collections
-UA={"User-Agent":"folivox-voice-research/0.1 (open-source audiobook tool; 1 req/s)"}
-langs=sys.argv[1].split(","); out=sys.argv[2]
-books=[b for b in json.load(open("lv_books.json")) if b["language"] in langs]
-print(len(books),"books",flush=True)
-sec=[]
-for i,b in enumerate(books):
-    u=f"https://librivox.org/api/feed/audiobooks?format=json&extended=1&id={b['id']}"
-    try: d=json.load(urllib.request.urlopen(urllib.request.Request(u,headers=UA),timeout=60))["books"][0]
-    except Exception as e: print("skip",b["id"],e); continue
+"""lv_readers.py <work> <Language> <max_books> [--poetry]
+Per book (extended=1): sections with reader, playtime and mp3 url -> <work>/sec_<Language>.json.
+Books are filtered by the BOOK's language; poetry/drama/multi-voice genres are skipped unless --poetry.
+If there are more candidate books than max_books, a seeded random sample is taken."""
+import collections, json, random, sys, time, urllib.request
+from pathlib import Path
+
+UA = {"User-Agent": "folivox-voice-research/0.1 (open-source audiobook tool; 1 req/s)"}
+work, lang, cap = Path(sys.argv[1]), sys.argv[2], int(sys.argv[3])
+poetry = "--poetry" in sys.argv
+SKIP = ("poetry", "poem", "drama", "play", "dramatic", "multi", "song", "sermon", "religion", "bible")
+def ok(b):
+    if b["language"] != lang or int(b["num_sections"] or 0) < 2: return False
+    g = " ".join(x["name"].lower() for x in b.get("genres") or [])
+    return poetry or not any(s in g for s in SKIP)
+books = [b for b in json.load(open(work / "lv_books.json")) if ok(b)]
+random.Random(1).shuffle(books); books = books[:cap]
+print(len(books), "books", flush=True)
+sec = []
+for b in books:
+    u = f"https://librivox.org/api/feed/audiobooks?format=json&extended=1&id={b['id']}"
+    try: d = json.load(urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=60))["books"][0]
+    except Exception as e: print("skip", b["id"], e); time.sleep(1); continue
+    genres = [x["name"] for x in b.get("genres") or []]
     for s in d["sections"]:
         for r in s["readers"]:
-            sec.append({"book":b["id"],"title":d["title"],"lang":d["language"],"url":d["url_librivox"],"src":d["url_text_source"],
-                        "reader_id":r["reader_id"],"reader":r["display_name"],"sec":s["section_number"],"playtime":int(s["playtime"] or 0),
-                        "mp3":s["listen_url"],"sec_lang":s["language"]})
+            sec.append({"book": b["id"], "title": d["title"], "lang": d["language"], "url": d["url_librivox"],
+                        "src": d["url_text_source"], "genres": genres, "reader_id": r["reader_id"],
+                        "reader": r["display_name"], "sec": s["section_number"],
+                        "playtime": int(s["playtime"] or 0), "mp3": s["listen_url"]})
     time.sleep(1)
-json.dump(sec,open(out,"w"),ensure_ascii=False)
-by=collections.defaultdict(list)
-for s in sec: by[(s["lang"],s["reader_id"],s["reader"])].append(s["playtime"])
-for l in langs:
-    rs=[(k,v) for k,v in by.items() if k[0]==l]
-    print(l,"readers:",len(rs),"sections:",sum(len(v) for _,v in rs))
+json.dump(sec, open(work / f"sec_{lang}.json", "w"), ensure_ascii=False)
+print(lang, "readers:", len({s["reader_id"] for s in sec}), "sections:", len(sec))
