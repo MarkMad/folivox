@@ -1,7 +1,7 @@
 <#
  Folivox installer for Windows (PowerShell 5.1 or 7).
    From a checkout:   powershell -ExecutionPolicy Bypass -File scripts\install.ps1
-   Without one:       irm https://raw.githubusercontent.com/alex-vatavu/folivox/main/scripts/install.ps1 | iex
+   Without one:       irm https://raw.githubusercontent.com/vatavale/folivox/main/scripts/install.ps1 | iex
    Options (environment): FOLIVOX_SOURCE=<path|git url|package>  FOLIVOX_SKIP_MODELS=1
  Safe to run again. Installs for the current user only; no administrator rights, nothing runs in the background.
 #>
@@ -52,7 +52,7 @@ $src = $env:FOLIVOX_SOURCE
 if (-not $src) {
   $py = if ($here) { Join-Path $here "..\pyproject.toml" } else { $null }
   if ($py -and (Test-Path $py) -and (Select-String -Path $py -Pattern '^name = "folivox"' -Quiet)) { $src = (Resolve-Path (Join-Path $here "..")).Path }
-  else { $src = "https://github.com/alex-vatavu/folivox/archive/refs/heads/main.zip" }  # no checkout: install from the GitHub archive (no git needed)
+  else { $src = "https://github.com/vatavale/folivox/archive/refs/heads/main.zip" }  # no checkout: install from the GitHub archive (no git needed)
 }
 if ($src -match '^(http|git\+)') { $spec = "folivox[all] @ $src" }
 elseif (Test-Path (Join-Path $src "pyproject.toml")) { $spec = (Resolve-Path $src).Path + "[all]" }

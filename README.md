@@ -44,13 +44,13 @@ Pick one way. Each needs no administrator rights and is safe to run again.
 macOS and Linux:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/alex-vatavu/folivox/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vatavale/folivox/main/scripts/install.sh | bash
 ```
 
 Windows (PowerShell):
 
 ```powershell
-irm https://raw.githubusercontent.com/alex-vatavu/folivox/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/vatavale/folivox/main/scripts/install.ps1 | iex
 ```
 
 <details>
@@ -59,7 +59,7 @@ irm https://raw.githubusercontent.com/alex-vatavu/folivox/main/scripts/install.p
 macOS and Linux:
 
 ```bash
-git clone https://github.com/alex-vatavu/folivox.git
+git clone https://github.com/vatavale/folivox.git
 cd folivox
 bash scripts/install.sh
 ```
@@ -67,7 +67,7 @@ bash scripts/install.sh
 Windows (PowerShell):
 
 ```powershell
-git clone https://github.com/alex-vatavu/folivox.git
+git clone https://github.com/vatavale/folivox.git
 cd folivox
 powershell -ExecutionPolicy Bypass -File scripts\install.ps1
 ```
@@ -322,7 +322,7 @@ model inference. Notes for working on the code: [CONTRIBUTING.md](CONTRIBUTING.m
 ## Feedback
 
 Found a bug, a mispronounced word or a book that does not open? Please
-[open an issue](https://github.com/alex-vatavu/folivox/issues) with the steps to reproduce; for crashes attach
+[open an issue](https://github.com/vatavale/folivox/issues) with the steps to reproduce; for crashes attach
 the redacted bundle from `folivox doctor --bundle`. Ideas and feature requests are welcome there too.
 
 Folivox is maintained by one person, so before writing code for a larger change, please open an issue
