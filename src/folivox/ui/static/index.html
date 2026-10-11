@@ -102,7 +102,9 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 .vbadge.best { background:var(--glow); color:var(--seg-done); vertical-align:1px; margin-left:4px; }
 .vact b { display:block; font-size:14px; } .vact small { display:block; color:var(--mute); font-size:12px; font-weight:400; margin-top:2px; line-height:1.35; }
 .vact-i { flex:none; width:34px; height:34px; border-radius:50%; display:grid; place-items:center; font-size:20px; background:var(--bg); border:1px solid var(--line); }
-.vcard.pv { grid-template-columns:34px minmax(0,1fr) 18px; } #vc-saved-list .vcard.pv { grid-template-columns:34px minmax(0,1fr) auto auto; gap:8px; } .vcard.pv .vmeta { white-space:normal; }
+.vcard.pv { grid-template-columns:34px minmax(0,1fr) 18px; } #vc-saved-list .vcard.pv { grid-template-columns:34px minmax(0,1fr) auto; gap:8px; }
+.sv-del { width:28px; height:28px; padding:0; border-radius:50%; display:grid; place-items:center; line-height:1; font-size:13px; flex:none; }
+.sv-name { cursor:text; border-bottom:1px dashed transparent; } .sv-name:hover { border-bottom-color:var(--mute); } .sv-edit { font:inherit; font-weight:600; padding:1px 6px; border:1px solid var(--accent); border-radius:6px; min-width:12ch; max-width:100%; } .vcard.pv .vmeta { white-space:normal; }
 .vcard:hover { border-color:var(--mute); } .vcard:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .vcard.sel { border-color:var(--accent); box-shadow:0 0 0 3px var(--glow); } .vcard.off { opacity:.62; }
 .vplay { width:34px; height:34px; border-radius:50%; padding:0; line-height:1; border:1px solid var(--line); font-size:12px; background:var(--bg); }
@@ -1130,15 +1132,23 @@ async function engSaved() {
   const KIND = { design: "from a description", localize: "adapted to a language", clone: "your clone" };
   $("#vc-saved-list").innerHTML = ENG.savedList.map(v => `<div class="vcard pv ${ENG.sel && ENG.sel.id === v.id ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${!!ENG.sel && ENG.sel.id === v.id}" data-sid="${esc(v.id)}">
     <span class="vplay" style="display:grid;place-items:center">✨</span>
-    <div style="min-width:0"><div class="vname"><span class="n">${esc(v.name)}</span><span class="vbadge mine">created by you</span></div><div class="vmeta">${esc([KIND[v.mode] || v.mode, v.description].filter(Boolean).join(" · "))}</div></div>
-    <button type="button" class="chip" data-ren="${esc(v.id)}" title="Rename" aria-label="Rename voice ${esc(v.name)}">✎</button><button type="button" class="chip" data-del="${esc(v.id)}" title="Delete this voice from your account" aria-label="Delete voice ${esc(v.name)}">✕</button></div>`).join("");
+    <div style="min-width:0"><div class="vname"><span class="n sv-name" title="Click to rename" data-id="${esc(v.id)}">${esc(v.name)}</span><span class="vbadge mine">created by you</span></div><div class="vmeta">${esc([KIND[v.mode] || v.mode, v.description].filter(Boolean).join(" · "))}</div></div>
+    <button type="button" class="chip sv-del" data-del="${esc(v.id)}" title="Delete this voice from your account" aria-label="Delete voice ${esc(v.name)}">✕</button></div>`).join("");
   engMode(); engEstimate();
 }
 $("#vc-saved-list").addEventListener("click", async (ev) => {
-  const del = ev.target.closest("[data-del]"), card = ev.target.closest("[data-sid]"), ren = ev.target.closest("[data-ren]");
-  if (ren) {
-    const v = ENG.savedList.find(x => x.id === ren.dataset.ren), name = v && prompt("New name for this voice", v.name);
-    if (name && name.trim()) { try { await api(`/api/tts/${ENG.cur().name}/saved/${encodeURIComponent(v.id)}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) }); engSaved(); } catch (x) { $("#vc-saved-hint").innerHTML = `<span class="err">${esc(x.message)}</span>`; } }
+  const del = ev.target.closest("[data-del]"), card = ev.target.closest("[data-sid]"), nm = ev.target.closest(".sv-name");
+  if (nm && !nm.querySelector("input")) {  // click the name to rename it right in the card
+    const v = ENG.savedList.find(x => x.id === nm.dataset.id); if (!v) return;
+    const input = document.createElement("input"); input.className = "sv-edit"; input.value = v.name; input.maxLength = 60; nm.textContent = ""; nm.append(input); input.focus(); input.select();
+    let done = false;
+    const finish = async (save) => {
+      if (done) return; done = true; const name = input.value.trim();
+      if (save && name && name !== v.name) { try { await api(`/api/tts/${ENG.cur().name}/saved/${encodeURIComponent(v.id)}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) }); if (ENG.sel && ENG.sel.id === v.id) ENG.sel = { ...ENG.sel, name }; } catch (x) { $("#vc-saved-hint").innerHTML = `<span class="err">${esc(x.message)}</span>`; } }
+      engSaved();
+    };
+    input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); finish(true); } else if (e.key === "Escape") { e.preventDefault(); finish(false); } e.stopPropagation(); };
+    input.onblur = () => finish(true); input.onclick = (e) => e.stopPropagation();
     return;
   }
   if (del) {
