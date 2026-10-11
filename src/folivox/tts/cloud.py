@@ -150,15 +150,18 @@ class CloudTTS(TTSEngine):
         names = {n.lower(): i for i, n in getattr(self.gen, "names", {}).items()}
         return names.get(wanted.lower(), wanted)
 
+    def voice_modes(self) -> tuple[str, ...]:
+        return voice_modes_of(type(self.gen))
+
     def make_voice(self, wanted: str = "", style: str | None = None, lang: str = "en", mode: str = "preset",
                    description: str = "", reference=None, remembered: str = "") -> CloudVoice:
         """Resolve the voice for a run. ``mode`` design / localize / clone creates a voice in the provider's
         account (the caller deletes it with :meth:`release`); ``remembered`` is the id made by an earlier,
         interrupted run."""
         self.lang = lang
-        if mode not in type(self.gen).modes:
-            raise ProviderError(f"{type(self.gen).label} has no {mode!r} voice mode "
-                                f"(available: {', '.join(type(self.gen).modes)})")
+        if mode not in self.voice_modes():
+            raise ProviderError(f"{type(self.gen).label} has no {mode!r} voice mode for the book "
+                                f"(available: {', '.join(self.voice_modes())})")
         self.gen.check_lang(lang)
         self.gen.mode = mode
         note = DEFAULT_STYLE.get(self.name, "") if style is None else style.strip()
@@ -183,6 +186,14 @@ class CloudTTS(TTSEngine):
             self.gen.teardown_voices([voice.speaker])
         except ProviderError:
             pass
+
+
+def voice_modes_of(cls) -> tuple[str, ...]:
+    """Modes usable for a whole book: preset, plus the ones that create a voice in the account."""
+    from folivox.voicegen.cloud import CloudGenerator
+
+    can_create = cls.setup_voices is not CloudGenerator.setup_voices
+    return tuple(m for m in cls.modes if m == "preset" or can_create)
 
 
 def decode(wav: bytes, rate: int = 24000) -> np.ndarray:

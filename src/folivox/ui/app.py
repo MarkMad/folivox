@@ -408,14 +408,63 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         catalog.remove(voice_id)
         return JSONResponse({"ok": True})
 
+    def regs_tts_names() -> list[str]:
+        return _registries()["tts"].names()
+
+    def cloud_options(body: dict, o: dict, tts: str, voice) -> dict:
+        """Options of a paid cloud engine; refuses to start without the user's explicit agreement."""
+        from folivox.tts.cloud import generator_class, voice_modes_of
+
+        cls = generator_class(tts)
+        if body.get("acknowledged") is not True:
+            raise ApiError("Confirm that the book text is sent to the provider and billed to your account", 400)
+        ks = key_state(cls)
+        if not (ks["key_in_env"] or ks["key_saved"]):
+            raise ApiError(f"No API key for {cls.label}: paste it on the Settings page or set {ks['key_env']}",
+                           412, missing_key=ks["key_env"], provider=tts)
+        model = str(o.get("tts_model") or "auto").strip()
+        if not re.fullmatch(r"[\w.\-]{1,80}", model):
+            raise ApiError("Bad model name")
+        mode = str(o.get("tts_mode") or "preset")
+        if mode not in voice_modes_of(cls):
+            raise ApiError(f"{cls.label} cannot use the voice mode {mode!r} for a book")
+        description = " ".join(str(o.get("tts_description") or "").split())[:1000]
+        speaker = str(o.get("tts_voice") or "").strip()
+        ref = None
+        if mode == "clone":
+            if o.get("own_voice") is not True:
+                raise ApiError("Confirm that this is your own voice or you have the speaker's permission")
+            if voice is None or not any(x.id == voice.id for x in catalog.user()):
+                raise ApiError("Choose one of your own voices to clone")
+            ref = voice.path
+        if mode == "design" and len(description) < 10:
+            raise ApiError("Describe the voice (at least a few words)")
+        if mode in ("preset", "localize") and not speaker and tts in ("elevenlabs", "cartesia"):
+            raise ApiError("Pick one of the provider's voices")
+        cap = o.get("max_cost")
+        try:
+            cap = float(cap) if cap not in (None, "") else None
+        except (TypeError, ValueError):
+            raise ApiError("The spending cap must be a number of dollars") from None
+        if cap is not None and cap <= 0:
+            raise ApiError("The spending cap must be more than zero")
+        style = o.get("tts_style")
+        return dict(accept_cloud=True, tts_model=model, tts_voice=speaker, tts_mode=mode, tts_description=description,
+                    tts_style=str(style) if style not in (None, "") else None, voice_ref=ref, max_cost=cap,
+                    keep_voice=bool(o.get("keep_voice", False)))
+
     def build_options(body: dict, book_entry: dict, kind: str) -> RenderOptions:
         from folivox.text.stress import MODES
 
         o = body.get("options") or {}
         book = book_entry["book"]
         voice_id = body.get("voice") or ""
+        from folivox.pipeline import is_cloud
+
+        tts = config.provider("tts", o.get("tts") or None) or "cosyvoice3"
+        cloud = tts in regs_tts_names() and is_cloud(tts)
         v = catalog.find(voice_id) if voice_id else catalog.default_for(book.lang)
-        if v is None:
+        if v is None and not cloud:
             raise ApiError(f"Unknown voice {voice_id!r}")
         stress = o.get("stress", "yo")
         if stress not in MODES:
@@ -428,9 +477,12 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                 raise ApiError(f"Unknown {kind_name} provider {name!r}")
         chapters = body.get("chapters") or []
         spec = ",".join(str(int(n)) for n in chapters) or None
-        common = dict(voice_wav=v.path, voice_text=body.get("voice_text") or v.transcript, lang=book.lang,
+        cloud_opts = cloud_options(body, o, tts, v) if cloud else {}
+        common = dict(voice_wav=v.path if v else None,
+                      voice_text=body.get("voice_text") or (v.transcript if v else None), lang=book.lang, **cloud_opts,
                       depth=int(o.get("depth", 2)), max_chars=int(o.get("max_chars", 400)), stress=stress,
-                      speed=float(o.get("speed", 1.0)), qa=bool(o.get("qa", True)), max_takes=int(o.get("takes", 3)),
+                      speed=float(o.get("speed", 1.0)), qa=bool(o.get("qa", True)),
+                      max_takes=int(o.get("takes") or (2 if cloud else 3)),
                       tts=tts, asr=asr, device=str(o.get("device", "auto")),
                       cover=custom_cover(str(body.get("book_id", ""))),
                       no_cover=cover_kind(str(body.get("book_id", "")), book) == "none",
@@ -676,6 +728,52 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                for cls in cloud_providers().values()]
         return JSONResponse({"providers": out, "notice": COMMERCIAL_NOTICE})
 
+    async def tts_engines(request: Request):
+        """Engines that can read the book: the local one and the paid cloud ones, with prices and limits."""
+        from folivox.tts.cloud import CHARS_PER_SECOND, voice_modes_of
+        from folivox.voicegen.cloud import COMMERCIAL_NOTICE, cloud_providers
+
+        hour = CHARS_PER_SECOND * 3600
+        out = [{"name": "cosyvoice3", "label": "On this computer (CosyVoice 3)", "local": True, "cloud": False,
+                "blurb": "Free, private, works offline. Clones a voice from a short recording. Slower and "
+                         "the quality depends on your hardware.", "models": [], "per_hour": 0}]
+        for cls in cloud_providers().values():
+            prices = {m["id"]: cls.estimate_for(hour, 1, "preset", m["id"]).get("usd") for m in cls.models}
+            out.append({**cls.capabilities(), **key_state(cls), "local": False, "cloud": True,
+                        "voice_modes": list(voice_modes_of(cls)), "per_hour": prices.get(cls.models[0]["id"])
+                        if cls.models else None, "prices": prices})
+        return JSONResponse({"engines": out, "notice": COMMERCIAL_NOTICE})
+
+    async def tts_estimate(request: Request):
+        from folivox.tts import cost
+        from folivox.tts.cloud import generator_class
+        from folivox.voicegen.cloud import COMMERCIAL_NOTICE
+
+        body = await request.json()
+        entry = state.book(body.get("book_id", ""))
+        o = body.get("options") or {}
+        try:
+            cls = generator_class(str(o.get("tts") or ""))
+        except Exception:  # noqa: BLE001
+            raise ApiError("Pick a cloud engine", 400) from None
+        from folivox.pipeline import parse_selection
+
+        depth = int(o.get("depth", 2))
+        total = len(entry["book"].chapters(depth))
+        chapters = body.get("chapters") or []
+        chosen = [i + 1 for i in parse_selection(",".join(str(int(n)) for n in chapters) or None, total)]
+        preview = int(o.get("preview_chars", PREVIEW_CHARS)) if body.get("kind") == "preview" else None
+        if preview:
+            chosen = chosen[:1]
+        chars = cost.book_chars(entry["book"], depth, chosen, preview)
+        model = str(o.get("tts_model") or "auto")
+        if model in ("auto", "latest"):
+            model = cls.models[0]["id"] if cls.models else ""
+        est = cost.estimate(cls.name, chars, model, int(o.get("takes") or 2), bool(o.get("qa", True)),
+                            str(o.get("tts_mode") or "preset"))
+        return JSONResponse({**est, "summary": cost.describe(est), "notice": COMMERCIAL_NOTICE,
+                             "label": cls.label, "price_note": cls.price_note})
+
     async def gen_voices(request: Request):
         name = request.path_params["provider"]
         gen = make_generator(name)
@@ -893,6 +991,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/settings", get_settings),
         Route("/api/settings", put_settings, methods=["PUT"]),
         Route("/api/gen/providers", gen_providers),
+        Route("/api/tts/engines", tts_engines),
+        Route("/api/tts/estimate", tts_estimate, methods=["POST"]),
         Route("/api/gen/suggest", gen_suggest, methods=["POST"]),
         Route("/api/gen/texts", gen_texts, methods=["POST"]),
         Route("/api/gen/estimate", gen_estimate, methods=["POST"]),
