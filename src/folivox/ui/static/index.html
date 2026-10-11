@@ -369,6 +369,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
     <div id="eng-est"></div>
     <label class="consent"><input type="checkbox" id="eng-ack"><span>I understand that the book text is sent to this online service and billed to my account at the price above. I will check the provider's terms (<a id="eng-terms" href="#" target="_blank" rel="noopener">terms</a>) before sharing or selling the audio. A 600-character preview costs a few cents: try it first.</span></label>
   </div>
+  <div id="eng-free" class="costcard" hidden></div>
   <details><summary>Options</summary>
     <div class="grid">
       <label class="f">Speed<input id="o-speed" type="number" step="0.05" min="0.5" max="1.5" value="1"></label>
@@ -1242,6 +1243,15 @@ function engEstimate() {
     } catch (x) { ENG.est = null; $("#eng-est").textContent = ""; runSummary(); }
   }, 300);
 }
+// The local engine costs nothing: show it in the same card so an empty box never looks like a failure.
+function renderFree() {
+  const box = $("#eng-free"), local = ENG.list.length && !ENG.cloud();
+  box.hidden = !local || !book; if (box.hidden) return;
+  const ch = selected(), secs = book.chapters.filter(c => ch.includes(c.n)).reduce((a, c) => a + c.seconds, 0);
+  box.innerHTML = `<div class="cc-main"><div class="cc-big">$0.00<small>cost of the selected chapters</small></div>
+    <div class="cc-facts"><div>audio<b>${ch.length ? "≈ " + fmt(secs) : "–"}</b></div><div>sent anywhere<b>nothing</b></div><div>preview<b>$0.00</b></div></div></div>
+    <div class="cc-sub">${esc(ENG.cur().label)} · free and private, runs on this computer; the time it takes depends on your hardware</div>`;
+}
 function renderEst() {
   const E = ENG.est; if (!E) return; const { all, pre } = E, e = ENG.cur(), qaOn = $("#o-qa").value === "1";
   const cost = (x) => x.usd == null ? "price unknown" : "≈ $" + x.usd.toFixed(2);
@@ -1254,6 +1264,7 @@ function renderEst() {
 }
 // One or two plain lines under the cost card: what exactly will be rendered, and what blocks it.
 function runSummary() {
+  renderFree();
   if (!book || !ENG.list.length) { $("#run-sum").textContent = ""; return; }
   const e = ENG.cur(), cloud = e.cloud, ch = selected(), secs = book.chapters.filter(c => ch.includes(c.n)).reduce((a, c) => a + c.seconds, 0);
   const model = cloud ? $("#o-tts_model").value : "", mt = model && model !== "auto" ? model : "";
