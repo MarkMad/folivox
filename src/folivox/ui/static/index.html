@@ -305,6 +305,21 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
 </section>
 
 <section id="s-run" class="disabled"><h2>4 · Render</h2>
+  <div id="eng" class="grid" style="margin-bottom:10px">
+    <label class="f">Reading engine<select id="o-tts"></select></label>
+    <label class="f eng-cloud" hidden>Model<select id="o-tts_model"></select></label>
+    <label class="f eng-cloud" hidden>Voice kind<select id="o-tts_mode"></select></label>
+    <label class="f eng-cloud eng-pick" hidden>Voice<select id="o-tts_voice"></select></label>
+    <label class="f eng-cloud eng-desc" hidden style="grid-column:1/-1">Describe the voice<input id="o-tts_description" type="text" placeholder="a calm, warm middle-aged woman, unhurried audiobook narrator"></label>
+    <label class="f eng-cloud eng-style" hidden style="grid-column:1/-1">Narration note (optional)<input id="o-tts_style" type="text" placeholder="default: neutral, steady audiobook narration"></label>
+    <label class="f eng-cloud" hidden>Spending cap, $ (optional)<input id="o-max_cost" type="number" min="0.5" step="0.5" placeholder="no cap"></label>
+  </div>
+  <small class="mute" id="eng-blurb"></small>
+  <div id="eng-cloud" class="eng-cloud" hidden style="margin:8px 0">
+    <div id="eng-est" style="margin-bottom:6px"></div>
+    <label class="consent eng-own" hidden><input type="checkbox" id="eng-own"><span>The selected voice in step 2 is my own, or I have the speaker's permission to clone it. The clone exists in the provider's account while the book is made, then it is deleted.</span></label>
+    <label class="consent"><input type="checkbox" id="eng-ack"><span>I understand that the book text is sent to this online service and billed to my account at the price above. I will check the provider's terms (<a id="eng-terms" href="#" target="_blank" rel="noopener">terms</a>) before sharing or selling the audio. A 600-character preview costs a few cents: try it first.</span></label>
+  </div>
   <details><summary>Options</summary>
     <div class="grid">
       <label class="f">Speed<input id="o-speed" type="number" step="0.05" min="0.5" max="1.5" value="1"></label>
@@ -332,6 +347,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
         <div class="tile"><b id="t-pace">–</b><span>work / audio</span></div>
         <div class="tile"><b id="t-frags">–</b><span>fragments</span></div>
         <div class="tile"><b id="t-retakes">0</b><span>retakes</span></div>
+        <div class="tile" id="tile-spend" hidden><b id="t-spend">–</b><span>spent (≈)</span></div>
       </div>
     </div>
     <div class="overall" role="progressbar" aria-label="Overall progress"><div id="overall"></div></div>
@@ -439,6 +455,7 @@ function setBook(b, keep, lang) {
   $("#lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}" ${c === b.lang ? "selected" : ""}>${n}</option>`).join("");
   if (lang) $("#lang").value = lang;
   renderChapters(keep);
+  if (typeof ENG !== "undefined" && ENG.list.length) { engVoices(); engEstimate(); }
   ["#s-chapters", "#s-voice", "#s-run"].forEach(s => $(s).classList.remove("disabled"));
   loadVoices();
 }
@@ -776,14 +793,16 @@ async function restoreSession() {
 function options() {
   const v = (id) => $("#o-" + id).value;
   return { speed: +v("speed"), max_chars: +v("max_chars"), stress: v("stress"), takes: +v("takes"), qa: v("qa") === "1",
-           mp3: v("mp3") === "1", output_dir: v("output_dir"), device: v("device"), depth: +$("#depth").value || 2 };
+           mp3: v("mp3") === "1", output_dir: v("output_dir"), device: v("device"), depth: +$("#depth").value || 2, ...engOptions() };
 }
 async function start(kind) {
   const chapters = selected();
   if (!chapters.length) { $("#run-msg").textContent = "Select at least one chapter."; return; }
   $("#run-msg").textContent = "";
+  if (ENG.cloud() && !$("#eng-ack").checked) { $("#run-msg").innerHTML = `<span class="err">Tick the box under the reading engine to confirm that the text is sent and billed.</span>`; return; }
+  if (ENG.cloud() && ENG.cur().voice_modes.includes("clone") && $("#o-tts_mode").value === "clone" && !$("#eng-own").checked) { $("#run-msg").innerHTML = `<span class="err">Confirm that the voice you clone is your own.</span>`; return; }
   try { attach(await api("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kind, book_id: book.book_id, voice, chapters, options: options() }) })); }
+    body: JSON.stringify({ kind, book_id: book.book_id, voice, chapters, options: options(), acknowledged: ENG.cloud() ? $("#eng-ack").checked : undefined }) })); }
   catch (e) { $("#run-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 }
 $("#preview").onclick = () => start("preview"); $("#render").onclick = () => start("render");
@@ -938,6 +957,7 @@ function handle(ev) {
     case "stage": log(ev.detail); setPhase(ev.detail.startsWith("Model loaded") ? "Warming up the model" : ev.detail,
         ev.detail.startsWith("Model loaded") ? "the first fragment is the slowest" : "", ev.name === "chapter" || ev.name === "encode" ? "check" : "load"); break;
     case "warning": log("⚠ " + ev.message, "warn"); break;
+    case "spend": $("#tile-spend").hidden = false; $("#t-spend").textContent = "$" + (ev.usd ?? 0).toFixed(2) + (ev.cap ? " / $" + ev.cap.toFixed(0) : ""); S.chars = ev.chars; break;
     case "plan": log(`Fragments: ${ev.total_chunks}, left ${ev.pending_chunks}`); break;
     case "layout": buildLanes(ev.chapters); break;
     case "download": {
@@ -959,13 +979,77 @@ function handle(ev) {
     case "done": log("Done: " + ev.result); end("done"); setPhase("Finished", ev.result, "done"); $("#wave").className = "wave done";
       $("#hero-status").textContent = job.kind === "preview" ? "Preview ready — press ▶ on the chapter" : "Saved";
       $("#run-msg").textContent = job.kind === "preview" ? "Preview ready — press ▶ on the chapter line." : ""; $("#now-actions").hidden = job.kind === "preview"; break;
-    case "cancelled": log("Stopped. Progress is saved — press Render again to continue."); end("cancelled"); setPhase("Stopped", "Progress is saved — press Render to continue.", "");
-      $("#hero-status").textContent = "Stopped"; $("#run-msg").textContent = "Stopped; progress saved."; break;
+    case "cancelled": log(ev.message || "Stopped. Progress is saved — press Render again to continue."); end("cancelled"); setPhase(ev.reason === "cost_cap" ? "Spending cap reached" : "Stopped", ev.message || "Progress is saved — press Render to continue.", "");
+      $("#hero-status").textContent = ev.reason === "cost_cap" ? "Cap reached" : "Stopped"; $("#run-msg").textContent = ev.reason === "cost_cap" ? ev.message : "Stopped; progress saved."; break;
     case "error": log("Error: " + ev.message, "err"); end("error"); setPhase("Error", ev.message, ""); $("#hero-status").textContent = "Failed";
       $("#run-msg").innerHTML = `<span class="err">${esc(ev.message)}</span>`; break;
   }
   updateTiles();
 }
+
+// -- reading engine: local model or a paid online service ---------------------------------------------------------
+const ENG = { list: [], voices: {}, tm: null, cur() { return this.list.find(e => e.name === $("#o-tts").value) || this.list[0]; }, cloud() { const e = this.cur(); return !!e && e.cloud; } };
+function engOptions() {
+  if (!ENG.cloud()) return {};
+  const cap = $("#o-max_cost").value;
+  return { tts: ENG.cur().name, tts_model: $("#o-tts_model").value, tts_mode: $("#o-tts_mode").value, tts_voice: $("#o-tts_voice").value,
+           tts_description: $("#o-tts_description").value, tts_style: $("#o-tts_style").value, max_cost: cap ? +cap : null, own_voice: $("#eng-own").checked };
+}
+async function engLoad() {
+  try {
+    const r = await api("/api/tts/engines"); ENG.list = r.engines;
+    const st = await api("/api/settings").catch(() => null), pref = (st && st.kinds && st.kinds.tts && st.kinds.tts.selected) || "cosyvoice3";
+    let saved = ""; try { saved = localStorage.getItem("folivox.tts") || ""; } catch (e) {}
+    $("#o-tts").innerHTML = r.engines.map(e => `<option value="${esc(e.name)}">${esc(e.label)}${e.cloud ? " — online, paid" : " — free, local"}</option>`).join("");
+    $("#o-tts").value = r.engines.some(e => e.name === saved) ? saved : r.engines.some(e => e.name === pref) ? pref : "cosyvoice3";
+    engChange();
+  } catch (e) { /* the page still works with the local engine */ }
+}
+function engChange() {
+  const e = ENG.cur(); if (!e) return;
+  try { localStorage.setItem("folivox.tts", e.name); } catch (x) {}
+  document.querySelectorAll(".eng-cloud").forEach(el => el.hidden = !e.cloud);
+  $("#eng-ack").checked = false;
+  $("#o-takes").value = e.cloud ? 2 : 3;
+  $("#o-takes").parentElement.title = e.cloud ? "Each retake is billed" : "";
+  $("#eng-blurb").innerHTML = esc(e.blurb || "") + (e.cloud ? ` <span class="warn">Price ≈ ${e.per_hour != null ? "$" + e.per_hour.toFixed(2) : "?"} per hour of audio; request limit ${e.max_chars.toLocaleString()} characters.</span>` : "");
+  if (!e.cloud) return;
+  $("#o-tts_model").innerHTML = `<option value="auto">auto — newest available</option>` + e.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${e.prices[m.id] != null ? ` (≈ $${e.prices[m.id].toFixed(2)}/h)` : ""}${m.note ? " — " + esc(m.note) : ""}</option>`).join("");
+  $("#o-tts_mode").innerHTML = e.voice_modes.map(m => `<option value="${m}">${esc((e.mode_labels || {})[m] || m)}</option>`).join("");
+  $("#eng-terms").href = e.terms_url || "#"; $("#o-tts_mode").parentElement.hidden = e.voice_modes.length < 2;
+  $("#o-tts_style").parentElement.hidden = !e.style;
+  engMode(); engVoices(); engEstimate();
+}
+function engMode() {
+  const e = ENG.cur(); if (!e || !e.cloud) return; const m = $("#o-tts_mode").value;
+  document.querySelector(".eng-pick").hidden = !(m === "preset" || m === "localize"); document.querySelector(".eng-desc").hidden = m !== "design";
+  document.querySelector(".eng-own").hidden = m !== "clone";
+}
+async function engVoices() {
+  const e = ENG.cur(), sel = $("#o-tts_voice"); if (!e || !e.cloud) return;
+  if (!e.key_in_env && !e.key_saved) { sel.innerHTML = `<option value="">no API key — add it on the Settings page</option>`; return; }
+  sel.innerHTML = `<option value="">loading…</option>`;
+  try {
+    const lang = (book && book.lang) || "", r = ENG.voices[e.name + lang] || (ENG.voices[e.name + lang] = await api(`/api/gen/voices/${e.name}?lang=${encodeURIComponent(lang)}`));
+    const sex = { f: "woman", m: "man" };
+    sel.innerHTML = (e.name === "elevenlabs" || e.name === "cartesia" ? "" : `<option value="">provider default</option>`) +
+      r.voices.map(v => `<option value="${esc(v.id)}">${esc(v.name)}${v.gender ? " · " + sex[v.gender] : ""}${v.traits ? " · " + esc(v.traits) : ""}</option>`).join("");
+  } catch (x) { sel.innerHTML = `<option value="">${esc(x.message)}</option>`; }
+}
+function engEstimate() {
+  clearTimeout(ENG.tm); if (!ENG.cloud() || !book) { return; }
+  ENG.tm = setTimeout(async () => {
+    const post = (kind) => api("/api/tts/estimate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, book_id: book.book_id, chapters: selected(), options: options() }) });
+    try {
+      const [all, pre] = await Promise.all([post("render"), post("preview")]), cost = (x) => x.usd == null ? "price unknown" : "≈ $" + x.usd.toFixed(2);
+      $("#eng-est").innerHTML = `<b>Estimated cost of the selected chapters: ${cost(all)}</b>${all.usd_max != null ? ` (up to $${all.usd_max.toFixed(2)} if every fragment needs all ${all.takes} takes)` : ""} · ${all.hours} h of audio, ${all.likely_chars.toLocaleString()} characters sent.<br><span class="mute">Preview: ${cost(pre)}. Approximate list prices; retakes after a failed quality check are billed too. ${esc(all.price_note)}</span>`;
+    } catch (x) { $("#eng-est").textContent = ""; }
+  }, 300);
+}
+$("#o-tts").onchange = engChange; $("#o-tts_mode").onchange = () => { engMode(); engEstimate(); };
+["#o-tts_model", "#o-takes", "#o-qa"].forEach(i => $(i).addEventListener("change", engEstimate));
+document.addEventListener("change", (ev) => { if (ev.target.closest && ev.target.closest("#chapters, .chap, #chlist")) engEstimate(); });
+engLoad();
 
 // -- generate a reference voice with a cloud provider -----------------------------------------------------------
 let GP = { providers: [], notice: "", prov: null, mode: "preset", textSrc: "builtin", job: null, es: null, takes: [], sel: null, player: null, gender: "", more: false };
