@@ -54,7 +54,7 @@ irm https://raw.githubusercontent.com/alex-vatavu/folivox/main/scripts/install.p
 ```
 
 <details>
-<summary><b>With git</b> (if you want the source code, e.g. to contribute)</summary>
+<summary><b>With git</b> (if you want the source code)</summary>
 
 macOS and Linux:
 
@@ -305,7 +305,7 @@ or third-party voices and has no feature for imitating real people.
 | [docs/ui-languages.md](docs/ui-languages.md) | Interface languages and translations |
 | [docs/how-it-works.md](docs/how-it-works.md) | The pipeline in five steps |
 | [docs/support.md](docs/support.md) | Resuming, retries, `folivox doctor` and the support bundle |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, adding a language or a provider |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup and code structure |
 
 ## Development
 
@@ -316,7 +316,16 @@ uv run ruff check src tests
 ```
 
 The CI workflow (`.github/workflows/ci.yml`) runs lint and the unit tests on macOS, Windows and Linux without
-model inference. Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
+model inference. Notes for working on the code: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Feedback
+
+Found a bug, a mispronounced word or a book that does not open? Please
+[open an issue](https://github.com/alex-vatavu/folivox/issues) with the steps to reproduce; for crashes attach
+the redacted bundle from `folivox doctor --bundle`. Ideas and feature requests are welcome there too.
+
+Folivox is developed by one maintainer, and at this stage pull requests are not being accepted: please
+describe the problem or idea in an issue instead. You are free to fork the project under its licence.
 
 ## Acknowledgements
 
