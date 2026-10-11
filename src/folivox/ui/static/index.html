@@ -89,6 +89,7 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 .chip:hover { color:var(--ink); } .chip.on { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); } .chip small { opacity:.7; margin-left:3px; }
 .vgrid { display:flex; flex-direction:column; gap:6px; max-height:440px; overflow:auto; padding:3px; margin:-3px; }
 .vcard { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,170px) 18px 28px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; transition:border-color .2s, box-shadow .2s, background .2s; }
+.vcard.pv { grid-template-columns:34px minmax(0,1fr) 18px; } .vcard.pv .vmeta { white-space:normal; }
 .vcard:hover { border-color:var(--mute); } .vcard:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .vcard.sel { border-color:var(--accent); box-shadow:0 0 0 3px var(--glow); } .vcard.off { opacity:.62; }
 .vplay { width:34px; height:34px; border-radius:50%; padding:0; line-height:1; border:1px solid var(--line); font-size:12px; background:var(--bg); }
@@ -214,7 +215,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
     <small class="mute" id="vc-title"></small>
     <div class="grid" style="margin-top:8px">
       <label class="f">Kind of voice<select id="o-tts_mode"></select></label>
-      <label class="f eng-pick">Voice<select id="o-tts_voice"></select></label>
+      <div class="eng-pick" style="grid-column:1/-1"><div class="chips" id="vc-sex" style="margin-bottom:6px"></div><div class="vgrid" id="vc-list" role="radiogroup" aria-label="Voice"></div><small class="mute" id="vc-note"></small><input type="hidden" id="o-tts_voice"></div>
       <label class="f eng-desc" hidden style="grid-column:1/-1">Describe the voice<input id="o-tts_description" type="text" placeholder="a calm, warm middle-aged woman, unhurried audiobook narrator"></label>
       <label class="f eng-style" style="grid-column:1/-1">Narration note (optional)<input id="o-tts_style" type="text" placeholder="default: neutral, steady audiobook narration"></label>
     </div>
@@ -1023,7 +1024,7 @@ function engChange() {
   $("#eng-ack").checked = false;
   $("#o-takes").value = e.cloud ? 2 : 3;
   $("#o-takes").parentElement.title = e.cloud ? "Each retake is billed" : "";
-  $("#eng-blurb").innerHTML = esc(e.blurb || "") + (e.cloud ? ` <span class="warn">Price ≈ ${e.per_hour != null ? "$" + e.per_hour.toFixed(2) : "?"} per hour of audio; request limit ${e.max_chars.toLocaleString()} characters.</span>` : "");
+  $("#eng-blurb").innerHTML = esc(e.blurb || "") + (e.cloud ? ` <span class="warn">Paid: ≈ ${e.per_hour != null ? "$" + e.per_hour.toFixed(2) : "?"} per hour of audio.</span>` : "");
   if (!e.cloud) return;
   $("#o-tts_model").innerHTML = `<option value="auto">auto — newest available</option>` + e.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${e.prices[m.id] != null ? ` (≈ $${e.prices[m.id].toFixed(2)}/h)` : ""}${m.note ? " — " + esc(m.note) : ""}</option>`).join("");
   $("#o-tts_mode").innerHTML = e.voice_modes.map(m => `<option value="${m}">${esc((e.mode_labels || {})[m] || m)}</option>`).join("");
@@ -1039,16 +1040,43 @@ function engMode() {
   $("#vc-title").textContent = m === "clone" ? "Pick one of your own voices below; it will be cloned in your " + e.label + " account." : "Voices of " + e.label + ". Your own voice catalog is used only by the local engine (and for cloning).";
 }
 async function engVoices() {
-  const e = ENG.cur(), sel = $("#o-tts_voice"); if (!e || !e.cloud) return;
-  if (!e.key_in_env && !e.key_saved) { sel.innerHTML = `<option value="">no API key — add it on the Settings page</option>`; return; }
-  sel.innerHTML = `<option value="">loading…</option>`;
+  const e = ENG.cur(), box = $("#vc-list"); if (!e || !e.cloud) return;
+  if (!e.key_in_env && !e.key_saved) { box.innerHTML = `<div class="mute">No API key for ${esc(e.label)} — add it in “Paid online services” at the bottom of the page.</div>`; $("#vc-sex").innerHTML = ""; return; }
+  box.innerHTML = `<div class="mute">Loading the voices…</div>`;
   try {
     const lang = (book && book.lang) || "", r = ENG.voices[e.name + lang] || (ENG.voices[e.name + lang] = await api(`/api/gen/voices/${e.name}?lang=${encodeURIComponent(lang)}`));
-    const sex = { f: "woman", m: "man" };
-    sel.innerHTML = (e.name === "elevenlabs" || e.name === "cartesia" ? "" : `<option value="">provider default</option>`) +
-      r.voices.map(v => `<option value="${esc(v.id)}">${esc(v.name)}${v.gender ? " · " + sex[v.gender] : ""}${v.traits ? " · " + esc(v.traits) : ""}</option>`).join("");
-  } catch (x) { sel.innerHTML = `<option value="">${esc(x.message)}</option>`; }
+    ENG.vlist = (e.name === "elevenlabs" || e.name === "cartesia" ? [] : [{ id: "", name: "Provider default", traits: "a neutral voice", gender: "" }]).concat(r.voices);
+    ENG.vnote = r.note || ""; ENG.vname = e.name;
+    if (!ENG.vlist.some(v => v.id === $("#o-tts_voice").value)) $("#o-tts_voice").value = ENG.vlist[0] ? ENG.vlist[0].id : "";
+    engRenderVoices();
+  } catch (x) { box.innerHTML = `<div class="err">${esc(x.message)}</div>`; }
 }
+function engRenderVoices() {
+  const e = ENG.cur(), all = ENG.vlist || [], sexes = [...new Set(all.map(v => v.gender).filter(Boolean))], cur = $("#o-tts_voice").value;
+  if (ENG.vsex && !sexes.includes(ENG.vsex)) ENG.vsex = "";
+  $("#vc-sex").innerHTML = sexes.length > 1 ? [["", "Any"], ["f", "Female"], ["m", "Male"]].map(([g, n]) => `<button type="button" class="chip ${(ENG.vsex || "") === g ? "on" : ""}" data-vsex="${g}">${n}</button>`).join("") : "";
+  const list = all.filter(v => !ENG.vsex || !v.gender || v.gender === ENG.vsex);
+  $("#vc-list").innerHTML = list.map(v => `<div class="vcard pv ${v.id === cur ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${v.id === cur}" data-id="${esc(v.id)}">
+    <button type="button" class="vplay" data-url="${esc(v.preview_url || "")}" ${v.preview_url ? "" : "disabled"} title="${v.preview_url ? "Hear a free sample" : "This service offers no free sample"}" aria-label="Play sample">${v.preview_url ? "▶" : "–"}</button>
+    <div style="min-width:0"><div class="vname"><span class="n">${esc((v.name || v.id).split(" - ")[0])}</span><span class="vbadge warn">online · paid</span></div>
+      <div class="vmeta">${esc([GENDER[v.gender], v.traits, v.description].filter(Boolean).join(" · "))}</div></div>
+    <span>${v.id === cur ? "✓" : ""}</span></div>`).join("") || `<div class="mute">No voices for this language.</div>`;
+  $("#vc-note").textContent = (all.some(v => v.preview_url) ? "Samples play free of charge. " : "") + (ENG.vnote || "") + ` Reading the book with ${e.label} is paid${e.per_hour != null ? " (≈ $" + e.per_hour.toFixed(2) + " per hour of audio)" : ""}, whichever voice you pick.`;
+}
+$("#vc-sex").addEventListener("click", (ev) => { const b = ev.target.closest("[data-vsex]"); if (b) { ENG.vsex = b.dataset.vsex; engRenderVoices(); } });
+function engStop() { if (ENG.audio) { ENG.audio.pause(); ENG.audio = null; } document.querySelectorAll("#vc-list .vcard.playing").forEach(c => { c.classList.remove("playing"); c.querySelector(".vplay").textContent = "▶"; }); }
+$("#vc-list").addEventListener("click", (ev) => {
+  const card = ev.target.closest(".vcard"); if (!card) return;
+  const play = ev.target.closest(".vplay");
+  if (play) {
+    if (!play.dataset.url) return;
+    const was = card.classList.contains("playing"); engStop(); if (was) return;
+    card.classList.add("playing"); play.textContent = "❚❚";
+    const a = ENG.audio = new Audio(play.dataset.url); a.onended = a.onerror = engStop; a.play().catch(engStop); return;
+  }
+  $("#o-tts_voice").value = card.dataset.id; engRenderVoices();
+});
+$("#vc-list").addEventListener("keydown", (ev) => { if ((ev.key === "Enter" || ev.key === " ") && ev.target.classList.contains("vcard")) { ev.preventDefault(); ev.target.click(); } });
 function engEstimate() {
   clearTimeout(ENG.tm); if (!ENG.cloud() || !book) { return; }
   ENG.tm = setTimeout(async () => {
