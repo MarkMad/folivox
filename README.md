@@ -34,16 +34,58 @@ results.
 
 ## Quick start
 
+**1. Download Folivox.** On this page click **Code → Download ZIP** and unpack it (double-click the file).
+
+**2. Run the installer** for your system. It needs no administrator rights and is safe to run again.
+
+<details open>
+<summary><b>macOS</b></summary>
+
+Open **Terminal** (Applications → Utilities), type `cd ` (with a space), drag the unpacked folder into the
+window, press Enter, then run:
+
 ```bash
-git clone <this repository> && cd folivox
-./scripts/install.sh            # Windows: powershell -ExecutionPolicy Bypass -File scripts\install.ps1
-folivox ui                      # the studio opens in your browser
+bash scripts/install.sh
 ```
 
-One script installs everything: `uv`, ffmpeg, the PyTorch build that fits your hardware (NVIDIA GPU, Apple
-Silicon or CPU) and Folivox. Then `folivox setup` checks your computer and downloads the models by itself
-(about 6 GB for the voice and 1.6 GB for the quality check), with progress and resume. After that it is a few
-clicks: drop a book, choose a voice, press **Render audiobook**. Prefer the terminal? `folivox render book.fb2`.
+</details>
+
+<details open>
+<summary><b>Windows</b></summary>
+
+Open the unpacked folder in Explorer, click the address bar, type `powershell` and press Enter. In the window
+that opens, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install.ps1
+```
+
+</details>
+
+<details open>
+<summary><b>Linux</b></summary>
+
+Open a terminal in the unpacked folder and run:
+
+```bash
+bash scripts/install.sh
+```
+
+</details>
+
+**3. Start the studio.** Open a new terminal window and run:
+
+```bash
+folivox ui
+```
+
+Your browser opens the studio. Drop a book, choose a voice, press **Render audiobook**. To stop the studio,
+press `Ctrl+C` in the terminal.
+
+The installer sets up everything for you: `uv`, ffmpeg, the PyTorch build that fits your hardware (NVIDIA GPU,
+Apple Silicon or CPU) and Folivox. Then it checks your computer and downloads the models (about 6 GB for the
+voice and 1.6 GB for the quality check) with a progress bar; an interrupted download continues where it
+stopped. Prefer the terminal to the studio? `folivox render book.fb2` puts the audiobook next to the book.
 
 Details, manual install and troubleshooting: [docs/install.md](docs/install.md).
 
