@@ -137,6 +137,15 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             return resp
         return HTMLResponse((STATIC / "index.html").read_text(encoding="utf-8"))
 
+    async def i18n_catalog(request: Request):
+        """UI message catalogs (static JSON next to index.html); the code is checked against the shipped files."""
+        code = request.path_params["code"]
+        path = STATIC / "i18n" / f"{code}.json"
+        if not re.fullmatch(r"[a-z]{2}", code) or not path.is_file():
+            return JSONResponse({"error": "Unknown language"}, status_code=404)
+        return Response(path.read_text(encoding="utf-8"), media_type="application/json",
+                        headers={"Cache-Control": "no-cache"})
+
     async def upload_book(request: Request):
         from folivox.readers import UnsupportedFormat, read_book
 
@@ -1072,6 +1081,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
 
     routes = [
         Route("/", index),
+        Route("/i18n/{code}.json", i18n_catalog),
         Route("/api/books", upload_book, methods=["POST"]),
         Route("/api/books/{book_id}/chapters", book_chapters),
         Route("/api/books/{book_id}/meta", get_meta),

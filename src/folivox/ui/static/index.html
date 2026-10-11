@@ -38,6 +38,10 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 .f { display:flex; flex-direction:column; gap:3px; font-size:13px; color:var(--mute); } .f input, .f select, .f textarea { color:var(--ink); }
 .built { display:flex; gap:10px; align-items:center; padding:3px 0; } .built audio { height:30px; flex:1; max-width:420px; }
 
+main { position:relative; }
+.langsw { position:absolute; top:24px; right:16px; } .langsw select { font-size:13px; padding:4px 8px; max-width:130px; }
+h1 { padding-right:140px; }
+#av-script-label { text-transform:uppercase; }
 /* ---- studio ---- */
 :root { --seg-pending:#e3e1db; --seg-done:#2f6f5e; --seg-retake:#6cb8a3; --seg-synth:#e7a93b; --seg-check:#d9742b; --glow:rgba(47,111,94,.18); }
 @media (prefers-color-scheme: dark) { :root { --seg-pending:#34332f; --seg-done:#5fb39b; --seg-retake:#9fdcc9; --seg-synth:#f1c15a; --seg-check:#f09a55; --glow:rgba(95,179,155,.22); } }
@@ -48,9 +52,9 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 .big small { font-size:22px; color:var(--mute); margin-left:2px; }
 .hero-status { color:var(--mute); font-size:13px; margin-top:6px; min-height:19px; }
 .tiles { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; }
-@media (max-width:760px) { .tiles { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (max-width:760px) { .tiles { grid-template-columns:repeat(3,minmax(0,1fr)); } .tile span { font-size:10px; letter-spacing:.02em; } }
 .tile { background:var(--bg); border-radius:8px; padding:8px 11px; } .tile b { display:block; font-size:19px; font-weight:500; font-variant-numeric:tabular-nums; }
-.tile span { font-size:11px; white-space:nowrap; color:var(--mute); text-transform:uppercase; letter-spacing:.05em; }
+.tile span { font-size:11px; white-space:normal; overflow-wrap:break-word; hyphens:auto; line-height:1.25; color:var(--mute); text-transform:uppercase; letter-spacing:.05em; }
 .overall { height:4px; background:var(--seg-pending); border-radius:2px; overflow:hidden; margin:14px 0 12px; }
 .overall > div { height:100%; width:0; background:var(--seg-done); transition:width .5s ease; }
 .stages { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
@@ -71,7 +75,7 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 #now-dl { height:3px; background:var(--seg-pending); border-radius:2px; margin-top:8px; overflow:hidden; } #now-dl > div { height:100%; width:0; background:var(--accent); transition:width .5s; }
 #now-time { font-variant-numeric:tabular-nums; color:var(--mute); font-size:13px; white-space:nowrap; align-self:flex-start; }
 .lanes { max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:8px; padding:4px 10px; scroll-behavior:smooth; }
-.lanes:empty::before { content:"Fragments appear here as soon as the text is prepared — one line per chapter, one tick per fragment."; color:var(--mute); font-size:13px; display:block; padding:12px 0; }
+.lanes:empty::before { content:attr(data-empty); color:var(--mute); font-size:13px; display:block; padding:12px 0; }
 .lane { display:grid; grid-template-columns:minmax(90px,26%) 1fr 40px 26px; gap:10px; align-items:center; padding:5px 0; border-bottom:1px solid var(--line); transition:background .4s; }
 .lane:last-child { border-bottom:0; } .lane.active { background:linear-gradient(90deg,var(--glow),transparent); }
 .lane .ln { color:var(--mute); text-align:right; font-size:12px; font-variant-numeric:tabular-nums; } .lane .lt { font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -203,236 +207,237 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
 </head>
 <body>
 <main>
-<div id="offline" class="err" hidden style="padding:8px 12px;border:1px solid var(--err);border-radius:8px">Cannot reach the Folivox server — is <code>folivox ui</code> still running? This page will reconnect by itself.</div>
-<h1>Folivox <small>local audiobook generator — everything stays on this computer</small></h1>
+<div id="offline" class="err" hidden data-i18n-html="offline" style="padding:8px 12px;border:1px solid var(--err);border-radius:8px">Cannot reach the Folivox server — is <code>folivox ui</code> still running? This page will reconnect by itself.</div>
+<h1>Folivox <small data-i18n="app.tagline">local audiobook generator — everything stays on this computer</small></h1>
+<div class="langsw"><select id="ui-lang" aria-label="Language" data-i18n-attr="aria-label:ui.lang"></select></div>
 
-<section id="s-book"><h2>1 · Book</h2>
-  <div id="drop">Drop an FB2, EPUB, DOCX, PDF or TXT file here, or click to choose<input id="file" type="file" hidden accept=".fb2,.zip,.epub,.docx,.pdf,.txt"></div>
+<section id="s-book"><h2 data-i18n="s1.h">1 · Book</h2>
+  <div id="drop"><span data-i18n="s1.drop">Drop an FB2, EPUB, DOCX, PDF or TXT file here, or click to choose</span><input id="file" type="file" hidden accept=".fb2,.zip,.epub,.docx,.pdf,.txt"></div>
   <div id="book-info" class="mute" style="margin-top:10px"></div>
   <div id="cover-box" class="cover-box" hidden>
-    <div class="cover-thumb"><img id="cover-img" alt="Audiobook cover" hidden><span id="cover-empty" class="mute">no cover</span></div>
-    <div class="cover-side"><b>Cover of the audiobook</b><div class="mute" id="cover-state"></div>
-      <div class="row" style="margin-top:6px"><button type="button" id="cover-change">Choose an image…</button><button type="button" id="cover-book" class="chip" hidden>Use the book's own</button><button type="button" id="cover-none" class="chip">No cover</button><span id="cover-msg" class="mute"></span></div>
-      <small class="mute">JPEG, PNG or WebP (or drop it here). It is saved in the audiobook file and shrunk to at most 1600 px wide.</small></div>
+    <div class="cover-thumb"><img id="cover-img" alt="Audiobook cover" data-i18n-attr="alt:s1.cover.alt" hidden><span id="cover-empty" class="mute">no cover</span></div>
+    <div class="cover-side"><b data-i18n="s1.cover.h">Cover of the audiobook</b><div class="mute" id="cover-state"></div>
+      <div class="row" style="margin-top:6px"><button type="button" id="cover-change" data-i18n="s1.cover.choose">Choose an image…</button><button type="button" id="cover-book" class="chip" hidden data-i18n="s1.cover.book">Use the book's own</button><button type="button" id="cover-none" class="chip" data-i18n="s1.cover.none">No cover</button><span id="cover-msg" class="mute"></span></div>
+      <small class="mute" data-i18n="s1.cover.hint">JPEG, PNG or WebP (or drop it here). It is saved in the audiobook file and shrunk to at most 1600 px wide.</small></div>
     <input id="cover-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
   </div>
-  <details id="meta-box" class="meta-box" hidden><summary>Book details <small class="mute">title, author, narrator, series… as shown in the player</small></summary>
+  <details id="meta-box" class="meta-box" hidden><summary><span data-i18n="s1.meta.h">Book details</span> <small class="mute" data-i18n="s1.meta.sub">title, author, narrator, series… as shown in the player</small></summary>
     <div class="gp-grid" style="margin-top:10px">
-      <label class="f">Title<input id="m-title" data-m="title" type="text" autocomplete="off"></label>
-      <label class="f">Author<input id="m-author" data-m="author" type="text" autocomplete="off"></label>
-      <label class="f">Narrator <small>(reader)</small><input id="m-narrator" data-m="narrator" type="text" autocomplete="off" placeholder="e.g. Folivox, or your name"></label>
-      <label class="f">Series<input id="m-series" data-m="series" type="text" autocomplete="off" placeholder="optional"></label>
-      <label class="f">Number in the series<input id="m-series_part" data-m="series_part" type="text" autocomplete="off" placeholder="e.g. 2"></label>
-      <label class="f">Year<input id="m-year" data-m="year" type="text" autocomplete="off"></label>
-      <label class="f">Genre<input id="m-genre" data-m="genre" type="text" autocomplete="off"></label>
+      <label class="f"><span data-i18n="s1.m.title">Title</span><input id="m-title" data-m="title" type="text" autocomplete="off"></label>
+      <label class="f"><span data-i18n="s1.m.author">Author</span><input id="m-author" data-m="author" type="text" autocomplete="off"></label>
+      <label class="f"><span data-i18n-html="s1.m.narrator">Narrator <small>(reader)</small></span><input id="m-narrator" data-m="narrator" type="text" autocomplete="off" placeholder="e.g. Folivox, or your name" data-i18n-attr="placeholder:s1.m.narrator.ph"></label>
+      <label class="f"><span data-i18n="s1.m.series">Series</span><input id="m-series" data-m="series" type="text" autocomplete="off" placeholder="optional" data-i18n-attr="placeholder:ph.optional"></label>
+      <label class="f"><span data-i18n="s1.m.part">Number in the series</span><input id="m-series_part" data-m="series_part" type="text" autocomplete="off" placeholder="e.g. 2" data-i18n-attr="placeholder:s1.m.part.ph"></label>
+      <label class="f"><span data-i18n="s1.m.year">Year</span><input id="m-year" data-m="year" type="text" autocomplete="off"></label>
+      <label class="f"><span data-i18n="s1.m.genre">Genre</span><input id="m-genre" data-m="genre" type="text" autocomplete="off"></label>
     </div>
-    <label class="f" style="margin-top:10px">Description<textarea id="m-description" data-m="description" rows="3"></textarea></label>
-    <div class="row" style="margin-top:8px"><button type="button" id="m-reset" class="chip">Reset to the book's own data</button><span id="m-msg" class="mute"></span></div>
-    <small class="mute">Saved automatically for this book. The series is written as the “Grouping” tag (“Name #2”), which most audiobook apps show as the series. Empty fields fall back to the book's data.</small>
+    <label class="f" style="margin-top:10px"><span data-i18n="s1.m.desc">Description</span><textarea id="m-description" data-m="description" rows="3"></textarea></label>
+    <div class="row" style="margin-top:8px"><button type="button" id="m-reset" class="chip" data-i18n="s1.m.reset">Reset to the book's own data</button><span id="m-msg" class="mute"></span></div>
+    <small class="mute" data-i18n="s1.m.note">Saved automatically for this book. The series is written as the “Grouping” tag (“Name #2”), which most audiobook apps show as the series. Empty fields fall back to the book's data.</small>
   </details>
 </section>
 
-<section id="s-chapters" class="disabled"><h2>2 · Chapters</h2>
-  <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:6px">Language <select id="lang"></select></label>
-    <label class="f" style="flex-direction:row;align-items:center;gap:6px">Split depth <input id="depth" type="number" min="1" max="6" value="2" style="width:60px"></label>
-    <button id="all">All</button><button id="none">None</button><span id="sel-info" class="mute grow"></span></div>
+<section id="s-chapters" class="disabled"><h2 data-i18n="s2.h">2 · Chapters</h2>
+  <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:6px"><span data-i18n="s2.lang">Language</span> <select id="lang"></select></label>
+    <label class="f" style="flex-direction:row;align-items:center;gap:6px"><span data-i18n="s2.depth">Split depth</span> <input id="depth" type="number" min="1" max="6" value="2" style="width:60px"></label>
+    <button id="all" data-i18n="s2.all">All</button><button id="none" data-i18n="s2.none">None</button><span id="sel-info" class="mute grow"></span></div>
   <div class="chapters" style="margin-top:10px"><table id="chapters"></table></div>
 </section>
 
-<section id="s-engine" class="disabled"><h2>3 · Reading engine</h2>
+<section id="s-engine" class="disabled"><h2 data-i18n="s3.h">3 · Reading engine</h2>
   <div class="grid">
-    <label class="f">Who reads the book<select id="o-tts"></select></label>
-    <label class="f eng-cloud" hidden>Model<select id="o-tts_model"></select></label>
-    <label class="f eng-cloud" hidden>Spending cap, $ (optional)<input id="o-max_cost" type="number" min="0.5" step="0.5" placeholder="no cap"></label>
+    <label class="f"><span data-i18n="s3.who">Who reads the book</span><select id="o-tts"></select></label>
+    <label class="f eng-cloud" hidden><span data-i18n="s3.model">Model</span><select id="o-tts_model"></select></label>
+    <label class="f eng-cloud" hidden><span data-i18n="s3.cap">Spending cap, $ (optional)</span><input id="o-max_cost" type="number" min="0.5" step="0.5" placeholder="no cap" data-i18n-attr="placeholder:s3.cap.ph"></label>
   </div>
   <small class="mute" id="eng-blurb"></small>
 </section>
 
-<section id="s-voice" class="disabled"><h2>4 · Voice</h2>
+<section id="s-voice" class="disabled"><h2 data-i18n="s4.h">4 · Voice</h2>
   <div id="v-cloud" class="eng-cloud" hidden>
     <small class="mute" id="vc-title"></small>
     <div class="grid" style="margin-top:8px">
-      <div id="vc-saved" hidden style="grid-column:1/-1"><div style="font-weight:600;font-size:14px">My created voices <small class="mute" style="font-weight:400">· kept in your account, free to reuse · click a name to rename</small></div><div class="vgrid" id="vc-saved-list" style="max-height:230px;margin-top:6px"></div><small class="mute" id="vc-saved-hint" style="display:block;margin-top:4px"></small></div>
-      <div style="grid-column:1/-1"><div class="chips" id="vc-modes" role="radiogroup" aria-label="Kind of voice"></div><select id="o-tts_mode" hidden></select><small class="mute" id="vc-modehint" style="display:block;margin-top:4px"></small></div>
-      <label class="f eng-desc" hidden style="grid-column:1/-1">Describe the voice<input id="o-tts_description" type="text" placeholder="a calm, warm middle-aged woman, unhurried audiobook narrator"></label>
-      <div class="eng-keep" hidden style="grid-column:1/-1"><label class="consent"><input type="checkbox" id="vc-keep" checked><span>Keep this voice for other books (otherwise it is deleted after this book)</span></label></div>
-      <label class="f eng-style" style="grid-column:1/-1">Narration note (optional)<input id="o-tts_style" type="text" placeholder="default: neutral, steady audiobook narration"></label>
-      <div class="eng-pick" style="grid-column:1/-1"><small class="mute" style="display:block;margin-bottom:6px" id="vc-note"></small><div class="chips" id="vc-lang" style="margin-bottom:6px"></div><div class="chips" id="vc-sex" style="margin-bottom:6px"></div><div class="vgrid" id="vc-list" role="radiogroup" aria-label="Voice"></div><input type="hidden" id="o-tts_voice"></div>
+      <div id="vc-saved" hidden style="grid-column:1/-1"><div style="font-weight:600;font-size:14px"><span data-i18n="s4.saved.h">My created voices</span> <small class="mute" style="font-weight:400" data-i18n="s4.saved.sub">· kept in your account, free to reuse · click a name to rename</small></div><div class="vgrid" id="vc-saved-list" style="max-height:230px;margin-top:6px"></div><small class="mute" id="vc-saved-hint" style="display:block;margin-top:4px"></small></div>
+      <div style="grid-column:1/-1"><div class="chips" id="vc-modes" role="radiogroup" aria-label="Kind of voice" data-i18n-attr="aria-label:s4.aria.kind"></div><select id="o-tts_mode" hidden></select><small class="mute" id="vc-modehint" style="display:block;margin-top:4px"></small></div>
+      <label class="f eng-desc" hidden style="grid-column:1/-1"><span data-i18n="s4.desc">Describe the voice</span><input id="o-tts_description" type="text" placeholder="a calm, warm middle-aged woman, unhurried audiobook narrator" data-i18n-attr="placeholder:s4.desc.ph"></label>
+      <div class="eng-keep" hidden style="grid-column:1/-1"><label class="consent"><input type="checkbox" id="vc-keep" checked><span data-i18n="s4.keep">Keep this voice for other books (otherwise it is deleted after this book)</span></label></div>
+      <label class="f eng-style" style="grid-column:1/-1"><span data-i18n="s4.style">Narration note (optional)</span><input id="o-tts_style" type="text" placeholder="default: neutral, steady audiobook narration" data-i18n-attr="placeholder:s4.style.ph"></label>
+      <div class="eng-pick" style="grid-column:1/-1"><small class="mute" style="display:block;margin-bottom:6px" id="vc-note"></small><div class="chips" id="vc-lang" style="margin-bottom:6px"></div><div class="chips" id="vc-sex" style="margin-bottom:6px"></div><div class="vgrid" id="vc-list" role="radiogroup" aria-label="Voice" data-i18n-attr="aria-label:aria.voice"></div><input type="hidden" id="o-tts_voice"></div>
     </div>
-    <label class="consent eng-own" hidden style="margin-top:8px"><input type="checkbox" id="eng-own"><span>The voice I select in the list below is my own, or I have the speaker's permission to clone it. The clone exists in the provider's account while the book is made, then it is deleted.</span></label>
+    <label class="consent eng-own" hidden style="margin-top:8px"><input type="checkbox" id="eng-own"><span data-i18n="s4.own">The voice I select in the list below is my own, or I have the speaker's permission to clone it. The clone exists in the provider's account while the book is made, then it is deleted.</span></label>
   </div>
   <div id="v-local">
-  <div class="vbar"><input id="vq" type="search" placeholder="Search voices — name, id, language, license" autocomplete="off">
+  <div class="vbar"><input id="vq" type="search" placeholder="Search voices — name, id, language, license" data-i18n-attr="placeholder:s4.search.ph" autocomplete="off">
     <div class="chips" id="vgender"></div></div>
   <div class="chips" id="vlangs"></div>
-  <div class="vgrid" id="voices" role="radiogroup" aria-label="Voice"></div>
-  <div class="vactions" style="margin-top:12px">    <button type="button" class="vact" id="gen-card" aria-pressed="false"><span class="vact-i">✦</span><span><b>Generate a voice sample <span class="vbadge best">best option</span></b><small>an online service reads a short text (a few cents, once); you then use it for free, offline</small></span></button>
-    <button type="button" class="vact" id="add-card" aria-pressed="false"><span class="vact-i">+</span><span><b>Add your own voice</b><small>upload a recording or record one</small></span></button>
+  <div class="vgrid" id="voices" role="radiogroup" aria-label="Voice" data-i18n-attr="aria-label:aria.voice"></div>
+  <div class="vactions" style="margin-top:12px">    <button type="button" class="vact" id="gen-card" aria-pressed="false"><span class="vact-i">✦</span><span><b><span data-i18n="s4.gen.h">Generate a voice sample</span> <span class="vbadge best" data-i18n="badge.best">best option</span></b><small data-i18n="s4.gen.sub">an online service reads a short text (a few cents, once); you then use it for free, offline</small></span></button>
+    <button type="button" class="vact" id="add-card" aria-pressed="false"><span class="vact-i">+</span><span><b data-i18n="s4.add.h">Add your own voice</b><small data-i18n="s4.add.sub">upload a recording or record one</small></span></button>
   </div>
   <div class="mute" id="vcount" hidden style="margin-top:6px"><small></small></div>
   <div id="addvoice" class="av" hidden>
-    <div class="av-head"><b>Add your own voice</b><span class="mute" id="av-sub">6–15 s of clean speech: no music, no noise, an even calm pace</span>
-      <button id="av-close" class="chip" style="margin-left:auto">Close</button></div>
+    <div class="av-head"><b data-i18n="s4.add.h">Add your own voice</b><span class="mute" id="av-sub" data-i18n="s4.add.rules">6–15 s of clean speech: no music, no noise, an even calm pace</span>
+      <button id="av-close" class="chip" style="margin-left:auto" data-i18n="btn.close">Close</button></div>
     <div class="av-body">
       <div class="av-left">
-        <div id="av-drop" class="dropbox" tabindex="0"><div><b>Drop an audio file</b> or click to choose</div><div class="mute"><small>WAV, FLAC, MP3, M4A, OGG</small></div>
-          <div class="av-or">or</div><button type="button" id="av-rec" class="rec">● Record with the microphone</button><input id="av-file" type="file" accept="audio/*" hidden></div>
+        <div id="av-drop" class="dropbox" tabindex="0"><div data-i18n-html="av.drop"><b>Drop an audio file</b> or click to choose</div><div class="mute"><small data-i18n="av.formats">WAV, FLAC, MP3, M4A, OGG</small></div>
+          <div class="av-or" data-i18n="av.or">or</div><button type="button" id="av-rec" class="rec" data-i18n="av.rec">● Record with the microphone</button><input id="av-file" type="file" accept="audio/*" hidden></div>
         <div id="av-script" class="av-script" hidden><small class="mute" id="av-script-label">READ ALOUD, CALMLY</small><div id="av-script-text"></div></div>
         <div id="av-rec-ui" class="av-rec" hidden><span class="dotrec" id="av-dot"></span><span id="av-timer">Mic ready</span><div class="meter"><i id="av-meter"></i></div>
-          <button type="button" id="av-start" class="primary">● Start</button><button type="button" id="av-stop" class="primary" hidden>■ Stop</button><button type="button" id="av-cancel" class="chip">Cancel</button></div>
+          <button type="button" id="av-start" class="primary" data-i18n="av.start">● Start</button><button type="button" id="av-stop" class="primary" hidden data-i18n="av.stop">■ Stop</button><button type="button" id="av-cancel" class="chip" data-i18n="btn.cancel">Cancel</button></div>
         <div id="av-hint" class="mute" hidden><small></small></div>
         <div id="av-sample" class="av-sample" hidden>
           <button type="button" id="av-play" class="vplay">▶</button>
           <div style="min-width:0;flex:1"><div id="av-fname" class="vname"></div><canvas id="av-wave" class="vwave" style="margin-top:2px"></canvas>
             <div id="av-dur" class="vmeta"></div></div>
-          <button type="button" id="av-trim" class="chip" hidden>Trim to 15 s</button><button type="button" id="av-clear" class="chip">Remove</button></div>
-        <label class="consent" id="av-dn-row" hidden><input type="checkbox" id="av-dn"><span><b>Reduce background noise</b> <span id="av-dn-state" class="mute"></span><br><small>Gentle and for steady noise only (hiss, hum, fans). Play the sample with and without it and keep what sounds natural.</small></span></label>
+          <button type="button" id="av-trim" class="chip" hidden data-i18n="av.trim">Trim to 15 s</button><button type="button" id="av-clear" class="chip" data-i18n="av.remove">Remove</button></div>
+        <label class="consent" id="av-dn-row" hidden><input type="checkbox" id="av-dn"><span><b data-i18n="av.dn.h">Reduce background noise</b> <span id="av-dn-state" class="mute"></span><br><small data-i18n="av.dn.sub">Gentle and for steady noise only (hiss, hum, fans). Play the sample with and without it and keep what sounds natural.</small></span></label>
       </div>
       <div class="av-right">
-        <label class="f">Name<input id="av-name" type="text" placeholder="e.g. Anna" autocomplete="off"></label>
-        <label class="f">Id <small>(a–z, 0–9, - _ · made from the name)</small><input id="av-id" type="text" pattern="[a-z0-9][a-z0-9_-]*" autocomplete="off"></label>
-        <div class="row"><label class="f" style="flex:1">Language of the sample<select id="av-lang"></select></label>
-          <div class="f"><span>Sex</span><div class="seg" id="av-gender"><button type="button" data-g="f">female</button><button type="button" data-g="m">male</button><button type="button" data-g="" class="on">—</button></div></div></div>
-        <label class="f">Transcript <small>(exactly what is said · empty = recognised by Whisper)</small><textarea id="av-text" rows="3" placeholder="Leave empty to transcribe automatically"></textarea></label>
-        <label class="consent"><input type="checkbox" id="av-consent"> This is my own voice, or I have the speaker's permission to clone it.</label>
-        <div class="row"><button id="av-submit" class="primary" disabled>Add voice</button><span id="av-msg" class="mute grow"></span></div>
+        <label class="f"><span data-i18n="av.name">Name</span><input id="av-name" type="text" placeholder="e.g. Anna" data-i18n-attr="placeholder:av.name.ph" autocomplete="off"></label>
+        <label class="f"><span data-i18n-html="av.id">Id <small>(a–z, 0–9, - _ · made from the name)</small></span><input id="av-id" type="text" pattern="[a-z0-9][a-z0-9_-]*" autocomplete="off"></label>
+        <div class="row"><label class="f" style="flex:1"><span data-i18n="av.lang">Language of the sample</span><select id="av-lang"></select></label>
+          <div class="f"><span data-i18n="sex">Sex</span><div class="seg" id="av-gender"><button type="button" data-g="f" data-i18n="g.f">female</button><button type="button" data-g="m" data-i18n="g.m">male</button><button type="button" data-g="" class="on">—</button></div></div></div>
+        <label class="f"><span data-i18n-html="av.tr">Transcript <small>(exactly what is said · empty = recognised by Whisper)</small></span><textarea id="av-text" rows="3" placeholder="Leave empty to transcribe automatically" data-i18n-attr="placeholder:av.tr.ph"></textarea></label>
+        <label class="consent"><input type="checkbox" id="av-consent"> <span data-i18n="av.consent">This is my own voice, or I have the speaker's permission to clone it.</span></label>
+        <div class="row"><button id="av-submit" class="primary" disabled data-i18n="av.submit">Add voice</button><span id="av-msg" class="mute grow"></span></div>
       </div>
     </div>
   </div>
   <div id="genvoice" class="av" hidden>
-    <div class="av-head"><b>Generate a voice sample</b>
-      <button id="gp-close" class="chip" style="margin-left:auto">Close</button></div>
+    <div class="av-head"><b data-i18n="s4.gen.h">Generate a voice sample</b>
+      <button id="gp-close" class="chip" style="margin-left:auto" data-i18n="btn.close">Close</button></div>
     <div class="gp">
-      <div class="gp-intro"><b>What is this for?</b> Folivox reads your book on this computer with a voice cloned from a short sample. No good recording? An online voice service can make that sample for you — <b>one clip of about 10 seconds, not the whole book</b>. You listen to a few attempts and keep the best.
+      <div class="gp-intro"><span data-i18n-html="gp.intro"><b>What is this for?</b> Folivox reads your book on this computer with a voice cloned from a short sample. No good recording? An online voice service can make that sample for you — <b>one clip of about 10 seconds, not the whole book</b>. You listen to a few attempts and keep the best.</span>
         <div class="gp-cost" id="gp-cost">Cost: a few cents at most for the whole session, usually less than one.</div>
         <small class="mute" id="gp-notice"></small></div>
 
-      <div class="gp-step"><span>1</span> Choose a service</div>
-      <div class="gp-provs" id="gp-provs" role="radiogroup" aria-label="Provider"></div>
+      <div class="gp-step"><span>1</span><div data-i18n="gp.step1">Choose a service</div></div>
+      <div class="gp-provs" id="gp-provs" role="radiogroup" aria-label="Provider" data-i18n-attr="aria-label:aria.provider"></div>
       <div class="gp-blurb" id="gp-provblurb" style="margin-top:8px"></div>
       <div id="gp-keybox" class="gp-key" hidden><span class="warn" id="gp-keymsg"></span>
-        <div class="row"><input type="password" id="gp-key" autocomplete="off" placeholder="paste your API key" style="width:min(340px,100%)"><button type="button" id="gp-keysave">Save key</button></div>
-        <small class="mute">Stored in your OS keychain, never in a file; it is not shown again. Or set the variable in the environment before starting <code>folivox ui</code>.</small></div>
+        <div class="row"><input type="password" id="gp-key" autocomplete="off" placeholder="paste your API key" data-i18n-attr="placeholder:gp.key.ph" style="width:min(340px,100%)"><button type="button" id="gp-keysave" data-i18n="gp.key.save">Save key</button></div>
+        <small class="mute" data-i18n-html="gp.key.note">Stored in your OS keychain, never in a file; it is not shown again. Or set the variable in the environment before starting <code>folivox ui</code>.</small></div>
       <div id="gp-keyok" class="mute" hidden><small></small></div>
-      <details class="gp-adv"><summary>Advanced: model and price details</summary>
+      <details class="gp-adv"><summary data-i18n="gp.adv">Advanced: model and price details</summary>
         <div class="gp-grid" style="margin-top:8px">
-          <label class="f">Model<select id="gp-model"></select><input id="gp-model-custom" type="text" placeholder="model id exactly as the provider names it" hidden><small class="mute">Auto asks the provider for its newest model each time. Short samples are cheap, so the best model is the sensible default.</small></label>
-          <div class="f"><span>Price list</span><small class="mute" id="gp-pinfo"></small></div></div></details>
+          <label class="f"><span data-i18n="s3.model">Model</span><select id="gp-model"></select><input id="gp-model-custom" type="text" placeholder="model id exactly as the provider names it" data-i18n-attr="placeholder:gp.model.ph" hidden><small class="mute" data-i18n="gp.model.note">Auto asks the provider for its newest model each time. Short samples are cheap, so the best model is the sensible default.</small></label>
+          <div class="f"><span data-i18n="gp.prices">Price list</span><small class="mute" id="gp-pinfo"></small></div></div></details>
 
-      <div class="gp-step"><span>2</span> Language and voice</div>
-      <label class="f" style="max-width:360px">Language of the sample<select id="gp-lang"></select></label>
+      <div class="gp-step"><span>2</span><div data-i18n="gp.step2">Language and voice</div></div>
+      <label class="f" style="max-width:360px"><span data-i18n="av.lang">Language of the sample</span><select id="gp-lang"></select></label>
       <small class="mute" id="gp-lang-hint"></small>
-      <div class="gp-modes" id="gp-modes" role="radiogroup" aria-label="Voice source"></div>
+      <div class="gp-modes" id="gp-modes" role="radiogroup" aria-label="Voice source" data-i18n-attr="aria-label:aria.vsource"></div>
       <div id="gp-design" hidden>
-        <label class="f">Describe the voice <small>(English works best; describe a type of voice, never a real person)</small>
-          <textarea id="gp-desc" rows="3" placeholder="e.g. a calm, warm woman in her forties, low timbre, unhurried pace, like an audiobook narrator"></textarea></label>
-        <div class="row" style="margin-top:6px"><button type="button" id="gp-suggest" class="chip">✦ Suggest from my book</button><span class="mute" id="gp-suggest-msg"></span></div>
+        <label class="f"><span data-i18n-html="gp.desc">Describe the voice <small>(English works best; describe a type of voice, never a real person)</small></span>
+          <textarea id="gp-desc" rows="3" placeholder="e.g. a calm, warm woman in her forties, low timbre, unhurried pace, like an audiobook narrator" data-i18n-attr="placeholder:gp.desc.ph"></textarea></label>
+        <div class="row" style="margin-top:6px"><button type="button" id="gp-suggest" class="chip" data-i18n="gp.suggest">✦ Suggest from my book</button><span class="mute" id="gp-suggest-msg"></span></div>
         <div class="chips" id="gp-ideas" style="margin-top:6px"></div>
       </div>
       <div id="gp-preset" hidden class="gp-grid">
         <div class="f"><span id="gp-speaker-label">Voice</span><div class="chips" id="gp-vsex" style="margin-bottom:4px"></div><select id="gp-speaker"></select></div>
-        <label class="f" id="gp-style-row">Narration style <small>(optional, English)</small><input id="gp-style" type="text" value="Audiobook narration: calm, steady pace, neutral emotion, clear diction" placeholder="empty = the voice's own manner"></label>
+        <label class="f" id="gp-style-row"><span data-i18n-html="gp.style">Narration style <small>(optional, English)</small></span><input id="gp-style" type="text" value="Audiobook narration: calm, steady pace, neutral emotion, clear diction" placeholder="empty = the voice's own manner" data-i18n-attr="placeholder:gp.style.ph"></label>
       </div>
-      <div id="gp-vinfo" class="gp-vinfo" hidden><span id="gp-vdesc"></span> <button type="button" class="chip" id="gp-vplay" hidden>▶ Hear a free sample</button><div class="mute"><small id="gp-vnote"></small></div></div>
+      <div id="gp-vinfo" class="gp-vinfo" hidden><span id="gp-vdesc"></span> <button type="button" class="chip" id="gp-vplay" hidden data-i18n="gp.hear">▶ Hear a free sample</button><div class="mute"><small id="gp-vnote"></small></div></div>
       <div id="gp-clone" hidden class="gp-grid">
-        <label class="f">Your voice to clone<select id="gp-ref"></select></label>
-        <label class="consent"><input type="checkbox" id="gp-own"><span>This is my own voice, or I have the speaker's permission to clone it. The clone exists in the provider's account only while the takes are made, then it is deleted.</span></label>
+        <label class="f"><span data-i18n="gp.clone.ref">Your voice to clone</span><select id="gp-ref"></select></label>
+        <label class="consent"><input type="checkbox" id="gp-own"><span data-i18n="gp.own">This is my own voice, or I have the speaker's permission to clone it. The clone exists in the provider's account only while the takes are made, then it is deleted.</span></label>
       </div>
 
-      <div class="gp-step"><span>3</span> What should it say?</div>
-      <div class="row"><div class="seg" id="gp-textseg"><button type="button" data-t="builtin" class="on">Built-in sample</button><button type="button" data-t="book">From my book</button><button type="button" data-t="custom">My own text</button></div><span class="mute" id="gp-text-msg"></span></div>
+      <div class="gp-step"><span>3</span><div data-i18n="gp.step3">What should it say?</div></div>
+      <div class="row"><div class="seg" id="gp-textseg"><button type="button" data-t="builtin" class="on" data-i18n="gp.src.builtin">Built-in sample</button><button type="button" data-t="book" data-i18n="gp.src.book">From my book</button><button type="button" data-t="custom" data-i18n="gp.src.custom">My own text</button></div><span class="mute" id="gp-text-msg"></span></div>
       <div id="gp-text-view" class="gp-readonly" hidden></div>
-      <textarea id="gp-text" rows="4" hidden placeholder="Type or paste the text to be spoken"></textarea>
-      <div class="row" id="gp-text-actions"><button type="button" class="chip" id="gp-text-next" hidden></button><button type="button" class="chip" id="gp-text-copy" hidden>Edit a copy in “My own text”</button></div>
+      <textarea id="gp-text" rows="4" hidden placeholder="Type or paste the text to be spoken" data-i18n-attr="placeholder:gp.text.ph"></textarea>
+      <div class="row" id="gp-text-actions"><button type="button" class="chip" id="gp-text-next" hidden></button><button type="button" class="chip" id="gp-text-copy" hidden data-i18n="gp.copy">Edit a copy in “My own text”</button></div>
       <small class="mute" id="gp-text-hint"></small>
 
-      <div class="gp-step"><span>4</span> Generate attempts</div>
-      <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:6px">Attempts <input id="gp-takes" type="number" min="1" max="6" value="2" style="width:60px"></label>
+      <div class="gp-step"><span>4</span><div data-i18n="gp.step4">Generate attempts</div></div>
+      <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:6px"><span data-i18n="gp.attempts">Attempts</span> <input id="gp-takes" type="number" min="1" max="6" value="2" style="width:60px"></label>
         <span id="gp-est" class="gp-est grow"></span></div>
-      <label class="consent"><input type="checkbox" id="gp-ack"> <span>I understand that this short text is sent to the provider and billed to my account, and I will check the provider's terms before using the audio. Generated voices stay on this computer and are free to use; the license note under the name says what the audio may be used for.</span></label>
-      <div class="row"><button id="gp-go" class="primary" disabled>Generate</button><button id="gp-cancel" disabled>Stop</button><span id="gp-msg" class="mute grow"></span></div>
-      <div class="overall" id="gp-bar" role="progressbar" aria-label="Generation progress" hidden><div id="gp-fill"></div></div>
+      <label class="consent"><input type="checkbox" id="gp-ack"> <span data-i18n="gp.ack">I understand that this short text is sent to the provider and billed to my account, and I will check the provider's terms before using the audio. Generated voices stay on this computer and are free to use; the license note under the name says what the audio may be used for.</span></label>
+      <div class="row"><button id="gp-go" class="primary" disabled data-i18n="gp.go">Generate</button><button id="gp-cancel" disabled data-i18n="gp.stop">Stop</button><span id="gp-msg" class="mute grow"></span></div>
+      <div class="overall" id="gp-bar" role="progressbar" aria-label="Generation progress" data-i18n-attr="aria-label:aria.genprogress" hidden><div id="gp-fill"></div></div>
 
       <div id="gp-takes-box" hidden>
-        <div class="gp-step"><span>5</span> Listen, choose, add</div>
-        <div class="mute"><small>Best match first (checked by speech recognition). Play each one and pick the voice you like — the score only says how clearly it was read.</small></div>
-        <div class="gp-takes" id="gp-list" role="radiogroup" aria-label="Generated attempts"></div>
-        <div class="row" style="margin-top:8px"><button id="gp-more" type="button">＋ More attempts</button><button id="gp-clear" type="button" class="chip">Discard all</button><span class="mute"><small>More attempts are added to the list (billed again).</small></span></div>
+        <div class="gp-step"><span>5</span><div data-i18n="gp.step5">Listen, choose, add</div></div>
+        <div class="mute"><small data-i18n="gp.takes.note">Best match first (checked by speech recognition). Play each one and pick the voice you like — the score only says how clearly it was read.</small></div>
+        <div class="gp-takes" id="gp-list" role="radiogroup" aria-label="Generated attempts" data-i18n-attr="aria-label:aria.takes"></div>
+        <div class="row" style="margin-top:8px"><button id="gp-more" type="button" data-i18n="gp.more">＋ More attempts</button><button id="gp-clear" type="button" class="chip" data-i18n="gp.discard">Discard all</button><span class="mute"><small data-i18n="gp.more.note">More attempts are added to the list (billed again).</small></span></div>
         <div class="gp-grid" style="margin-top:12px">
-          <label class="f">Name<input id="gp-name" type="text" autocomplete="off" placeholder="e.g. Narrator"></label>
-          <label class="f">Id <small>(a–z, 0–9, - _)</small><input id="gp-id" type="text" pattern="[a-z0-9][a-z0-9_-]*" autocomplete="off"></label>
-          <div class="f"><span>Sex</span><div class="seg" id="gp-gender"><button type="button" data-g="f">female</button><button type="button" data-g="m">male</button><button type="button" data-g="" class="on">—</button></div></div>
+          <label class="f"><span data-i18n="av.name">Name</span><input id="gp-name" type="text" autocomplete="off" placeholder="e.g. Narrator" data-i18n-attr="placeholder:gp.name.ph"></label>
+          <label class="f"><span data-i18n-html="gp.id">Id <small>(a–z, 0–9, - _)</small></span><input id="gp-id" type="text" pattern="[a-z0-9][a-z0-9_-]*" autocomplete="off"></label>
+          <div class="f"><span data-i18n="sex">Sex</span><div class="seg" id="gp-gender"><button type="button" data-g="f" data-i18n="g.f">female</button><button type="button" data-g="m" data-i18n="g.m">male</button><button type="button" data-g="" class="on">—</button></div></div>
         </div>
-        <div class="row" style="margin-top:10px"><button id="gp-add" class="primary" disabled>Add this voice</button><span id="gp-addmsg" class="mute grow"></span></div>
+        <div class="row" style="margin-top:10px"><button id="gp-add" class="primary" disabled data-i18n="gp.add">Add this voice</button><span id="gp-addmsg" class="mute grow"></span></div>
       </div>
     </div>
   </div>
   </div>
 </section>
 
-<section id="s-run" class="disabled"><h2>5 · Render</h2>
+<section id="s-run" class="disabled"><h2 data-i18n="s5.h">5 · Render</h2>
   <div id="done-card" class="done-card" hidden>
     <div class="dc-ico">✓</div>
-    <div class="dc-body"><div class="dc-title">Your audiobook is ready</div><div class="dc-path" id="dc-path"></div><div class="dc-meta mute" id="dc-meta"></div>
-      <div class="row" style="margin-top:10px"><button id="dc-reveal" class="primary">Show in folder</button><button id="dc-close" class="chip" type="button">Hide</button></div></div>
+    <div class="dc-body"><div class="dc-title" data-i18n="run.ready">Your audiobook is ready</div><div class="dc-path" id="dc-path"></div><div class="dc-meta mute" id="dc-meta"></div>
+      <div class="row" style="margin-top:10px"><button id="dc-reveal" class="primary" data-i18n="run.show">Show in folder</button><button id="dc-close" class="chip" type="button" data-i18n="run.hide">Hide</button></div></div>
   </div>
   <div id="eng-cloud" class="eng-cloud costcard" hidden>
     <div id="eng-est"></div>
-    <label class="consent"><input type="checkbox" id="eng-ack"><span>I understand that the book text is sent to this online service and billed to my account at the price above. I will check the provider's terms (<a id="eng-terms" href="#" target="_blank" rel="noopener">terms</a>) before sharing or selling the audio. A 600-character preview costs a few cents: try it first.</span></label>
+    <label class="consent"><input type="checkbox" id="eng-ack"><span data-i18n-html="run.ack">I understand that the book text is sent to this online service and billed to my account at the price above. I will check the provider's terms (<a id="eng-terms" href="#" target="_blank" rel="noopener">terms</a>) before sharing or selling the audio. A 600-character preview costs a few cents: try it first.</span></label>
   </div>
   <div id="eng-free" class="costcard" hidden></div>
-  <details><summary>Options</summary>
+  <details><summary data-i18n="run.options">Options</summary>
     <div class="grid">
-      <label class="f">Speed<input id="o-speed" type="number" step="0.05" min="0.5" max="1.5" value="1"></label>
-      <label class="f">Max fragment (chars)<input id="o-max_chars" type="number" value="400"></label>
-      <label class="f" title="Helps the local model read Russian: it restores the letter ё (так «все» и «всё» читаются по-разному) and can add stress marks.">Russian reading aids<select id="o-stress"><option value="yo">restore ё (recommended)</option><option value="none">leave the text as written</option><option value="all">ё and stress marks (experimental)</option></select></label>
-      <label class="f" title="How many times a fragment may be re-read when speech recognition finds missing or wrong words">Retakes per fragment<input id="o-takes" type="number" min="1" max="10" value="3"></label>
-      <label class="f">Quality check<select id="o-qa"><option value="1">on: listen back with speech recognition</option><option value="0">off (faster, no extra cost)</option></select></label>
-      <label class="f">Output<select id="o-mp3"><option value="0">one m4b</option><option value="1">mp3 per chapter</option></select></label>
-      <label class="f">Output folder<input id="o-output_dir" type="text" placeholder="~/Audiobooks"></label>
-      <label class="f">Device<select id="o-device"><option>auto</option><option>cpu</option><option>cuda</option><option>mps</option></select></label>
+      <label class="f"><span data-i18n="opt.speed">Speed</span><input id="o-speed" type="number" step="0.05" min="0.5" max="1.5" value="1"></label>
+      <label class="f"><span data-i18n="opt.maxchars">Max fragment (chars)</span><input id="o-max_chars" type="number" value="400"></label>
+      <label class="f" title="Helps the local model read Russian: it restores the letter ё (так «все» и «всё» читаются по-разному) and can add stress marks." data-i18n-attr="title:opt.ru.title"><span data-i18n="opt.ru">Russian reading aids</span><select id="o-stress"><option value="yo" data-i18n="opt.ru.yo">restore ё (recommended)</option><option value="none" data-i18n="opt.ru.none">leave the text as written</option><option value="all" data-i18n="opt.ru.all">ё and stress marks (experimental)</option></select></label>
+      <label class="f" title="How many times a fragment may be re-read when speech recognition finds missing or wrong words" data-i18n-attr="title:opt.takes.title"><span data-i18n="opt.takes">Retakes per fragment</span><input id="o-takes" type="number" min="1" max="10" value="3"></label>
+      <label class="f"><span data-i18n="opt.qa">Quality check</span><select id="o-qa"><option value="1" data-i18n="opt.qa.on">on: listen back with speech recognition</option><option value="0" data-i18n="opt.qa.off">off (faster, no extra cost)</option></select></label>
+      <label class="f"><span data-i18n="opt.out">Output</span><select id="o-mp3"><option value="0" data-i18n="opt.out.m4b">one m4b</option><option value="1" data-i18n="opt.out.mp3">mp3 per chapter</option></select></label>
+      <label class="f"><span data-i18n="opt.dir">Output folder</span><input id="o-output_dir" type="text" placeholder="~/Audiobooks"></label>
+      <label class="f"><span data-i18n="opt.device">Device</span><select id="o-device"><option>auto</option><option>cpu</option><option>cuda</option><option>mps</option></select></label>
     </div></details>
   <div class="runbar" id="runbar">
     <div class="run-sum" id="run-sum"></div>
-    <div class="run-final"><button id="render" class="primary big-go">Render audiobook</button>
-      <div class="run-side"><button id="preview">▶ Preview (first 600 chars)</button><button id="cancel" disabled>Stop (resume later)</button></div></div>
+    <div class="run-final"><button id="render" class="primary big-go" data-i18n="run.render">Render audiobook</button>
+      <div class="run-side"><button id="preview" data-i18n="run.preview">▶ Preview (first 600 chars)</button><button id="cancel" disabled data-i18n="run.stop">Stop (resume later)</button></div></div>
     <div id="run-msg" class="mute"></div>
   </div>
   <div id="studio" hidden>
     <div class="hero">
       <div class="hero-l"><div class="big"><span id="pct">0</span><small>%</small></div><div class="hero-status" id="hero-status"></div></div>
       <div class="tiles">
-        <div class="tile"><b id="t-elapsed">–</b><span>elapsed</span></div>
-        <div class="tile"><b id="t-eta">–</b><span>remaining</span></div>
-        <div class="tile"><b id="t-audio">–</b><span>audio</span></div>
-        <div class="tile"><b id="t-pace">–</b><span>work / audio</span></div>
-        <div class="tile"><b id="t-frags">–</b><span>fragments</span></div>
-        <div class="tile"><b id="t-retakes">0</b><span>retakes</span></div>
-        <div class="tile" id="tile-spend" hidden><b id="t-spend">–</b><span>spent (≈)</span></div>
+        <div class="tile"><b id="t-elapsed">–</b><span data-i18n="tile.elapsed">elapsed</span></div>
+        <div class="tile"><b id="t-eta">–</b><span data-i18n="tile.remaining">remaining</span></div>
+        <div class="tile"><b id="t-audio">–</b><span data-i18n="tile.audio">audio</span></div>
+        <div class="tile"><b id="t-pace">–</b><span data-i18n="tile.pace">work / audio</span></div>
+        <div class="tile"><b id="t-frags">–</b><span data-i18n="tile.frags">fragments</span></div>
+        <div class="tile"><b id="t-retakes">0</b><span data-i18n="tile.retakes">retakes</span></div>
+        <div class="tile" id="tile-spend" hidden><b id="t-spend">–</b><span data-i18n="tile.spent">spent (≈)</span></div>
       </div>
     </div>
-    <div class="overall" role="progressbar" aria-label="Overall progress"><div id="overall"></div></div>
+    <div class="overall" role="progressbar" aria-label="Overall progress" data-i18n-attr="aria-label:aria.overall"><div id="overall"></div></div>
     <div class="stages" id="stages"></div>
     <div class="now"><div class="wave" id="wave"></div>
-      <div class="nt"><div id="now-label"></div><div id="now-quote"></div><div id="now-dl" hidden><div></div></div><div id="now-actions" hidden style="margin-top:8px"><button id="pv-play" class="primary" hidden>▶ Listen to the preview</button><button id="reveal">Show in folder</button></div></div>
+      <div class="nt"><div id="now-label"></div><div id="now-quote"></div><div id="now-dl" hidden><div></div></div><div id="now-actions" hidden style="margin-top:8px"><button id="pv-play" class="primary" hidden data-i18n="run.listen">▶ Listen to the preview</button><button id="reveal" data-i18n="run.show">Show in folder</button></div></div>
       <div id="now-time"></div></div>
-    <div class="lanes" id="lanes"></div>
+    <div class="lanes" id="lanes" data-i18n-attr="data-empty:lanes.empty" data-empty="Fragments appear here as soon as the text is prepared — one line per chapter, one tick per fragment."></div>
     <div class="feed" id="feed"></div>
-    <details style="margin-top:10px"><summary>Log</summary><div id="log"></div></details>
+    <details style="margin-top:10px"><summary data-i18n="run.log">Log</summary><div id="log"></div></details>
   </div>
 </section>
 
-<details id="adv" class="advanced"><summary><b>Advanced settings</b> <small class="mute">helpers that run on this computer · API keys for online providers</small></summary>
-  <div id="s-engines" class="adv-block"><h3>Helper programs</h3>
-    <p class="sec-sub">Work behind the scenes and run <b>free on this computer</b>; a choice marked <span class="vbadge warn">cloud</span> sends data to an online service and costs money. Who reads the book is chosen in step 3.</p>
+<details id="adv" class="advanced"><summary><b data-i18n="adv.h">Advanced settings</b> <small class="mute" data-i18n="adv.sub">helpers that run on this computer · API keys for online providers</small></summary>
+  <div id="s-engines" class="adv-block"><h3 data-i18n="adv.helpers">Helper programs</h3>
+    <p class="sec-sub" data-i18n-html="adv.helpers.sub">Work behind the scenes and run <b>free on this computer</b>; a choice marked <span class="vbadge warn">cloud</span> sends data to an online service and costs money. Who reads the book is chosen in step 3.</p>
     <div id="settings" class="eng-list"></div>
-    <div class="row" style="margin-top:12px"><button id="save-settings" class="primary">Save choices</button><span id="settings-msg" class="mute"></span></div>
+    <div class="row" style="margin-top:12px"><button id="save-settings" class="primary" data-i18n="adv.save">Save choices</button><span id="settings-msg" class="mute"></span></div>
     <p class="mute" style="margin:8px 0 0"><small id="settings-note"></small></p>
-    <div class="row" style="margin-top:12px"><button id="copy-diag">Copy diagnostics</button> <a id="save-bundle" href="/api/support-bundle" download="folivox-support.zip"><button type="button">Save a support bundle</button></a><span id="diag-msg" class="mute"></span></div>
-    <p class="mute" style="margin:4px 0 0"><small>Versions, system and progress counters only: no API keys, no book text. Look inside before sharing.</small></p>
+    <div class="row" style="margin-top:12px"><button id="copy-diag" data-i18n="adv.copy">Copy diagnostics</button> <a id="save-bundle" href="/api/support-bundle" download="folivox-support.zip"><button type="button" data-i18n="adv.bundle">Save a support bundle</button></a><span id="diag-msg" class="mute"></span></div>
+    <p class="mute" style="margin:4px 0 0"><small data-i18n="adv.diag.note">Versions, system and progress counters only: no API keys, no book text. Look inside before sharing.</small></p>
   </div>
-  <div id="s-keys" class="adv-block"><h3>API keys for online providers <small class="mute" style="text-transform:none;letter-spacing:0">· optional</small></h3>
-    <p class="sec-sub">One place for the keys of the online providers you use. Which provider reads the book or makes a voice is chosen in steps 3 and 4; the keys are only needed there. Without keys the app works fully on this computer. Keys are kept in your computer's keychain, never in a file, and are never shown again.</p>
+  <div id="s-keys" class="adv-block"><h3><span data-i18n="adv.keys">API keys for online providers</span> <small class="mute" style="text-transform:none;letter-spacing:0" data-i18n="adv.optional">· optional</small></h3>
+    <p class="sec-sub" data-i18n="adv.keys.sub">One place for the keys of the online providers you use. Which provider reads the book or makes a voice is chosen in steps 3 and 4; the keys are only needed there. Without keys the app works fully on this computer. Keys are kept in your computer's keychain, never in a file, and are never shown again.</p>
     <div id="keys" class="key-list"></div>
   </div>
 </details>
@@ -442,8 +447,9 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
 const $ = (s) => document.querySelector(s);
 const TOKEN = new URLSearchParams(location.search).get("token") || "";
 const fmt = (s) => { s = Math.round(s); const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60;
-  return h ? `${h} h ${String(m).padStart(2,"0")} min` : `${m} min ${String(x).padStart(2,"0")} s`; };
-const num = (n) => n.toLocaleString("en").replace(/,/g, " ");
+  return h ? `${h} ${t("u.h")} ${String(m).padStart(2,"0")} ${t("u.min")}` : `${m} ${t("u.min")} ${String(x).padStart(2,"0")} ${t("u.s")}`; };
+const num = (n) => UI_LANG === "en" ? n.toLocaleString("en").replace(/,/g, " ") : nf(n);
+const dec = (x, d = 1) => UI_LANG === "en" ? x.toFixed(d) : nf(x, { minimumFractionDigits: d, maximumFractionDigits: d });
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const linkify = (text) => esc(text).replace(/https?:\/\/[^\s<]+[^\s<.,;)]/g, (u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`);
 const media = (u) => u && u.startsWith("/") ? tok(u) : u;  // samples proxied by this server need the session
@@ -458,6 +464,33 @@ async function api(url, opts = {}) {
 const LANGS = {ru:"Русский",en:"English",de:"Deutsch",fr:"Français",es:"Español",it:"Italiano",zh:"中文",ja:"日本語",ko:"한국어"};
 let book = null, voice = "", job = null, es = null;
 
+// ---- UI language: static catalogs under /i18n/<code>.json; the English catalog is the key source and the fallback -----
+const UI_LANGS = [["ru", "Русский"], ["es", "Español"], ["de", "Deutsch"], ["fr", "Français"], ["it", "Italiano"], ["zh", "中文"], ["ja", "日本語"], ["ko", "한국어"], ["en", "English"]];
+let UI_LANG = "en", CAT = {}, CAT_EN = {};
+const t = (key, p) => { const s = CAT[key] ?? CAT_EN[key] ?? key; return p ? s.replace(/\{(\w+)\}/g, (m, n) => n in p ? p[n] : m) : s; };
+const nf = (n, o) => new Intl.NumberFormat(UI_LANG, o).format(n);
+async function loadCatalog(code) { try { const r = await fetch("/i18n/" + code + ".json"); return r.ok ? await r.json() : {}; } catch (e) { return {}; } }
+function pickUiLang() {
+  let saved = ""; try { saved = localStorage.getItem("folivox.lang") || ""; } catch (e) {}
+  if (UI_LANGS.some(([c]) => c === saved)) return saved;
+  for (const l of navigator.languages || [navigator.language || "en"]) { const c = String(l).toLowerCase().split("-")[0]; if (UI_LANGS.some(([x]) => x === c)) return c; }
+  return "en";
+}
+function applyI18n() {
+  document.querySelectorAll("[data-i18n]").forEach(e => e.textContent = t(e.dataset.i18n));
+  document.querySelectorAll("[data-i18n-html]").forEach(e => e.innerHTML = t(e.dataset.i18nHtml));
+  document.querySelectorAll("[data-i18n-attr]").forEach(e => e.dataset.i18nAttr.split(";").forEach(p => { const [a, key] = p.split(":"); e.setAttribute(a, t(key)); }));
+  document.documentElement.lang = UI_LANG;
+}
+async function setUiLang(code, save = true) {
+  if (!UI_LANGS.some(([c]) => c === code)) code = "en";
+  CAT = code === "en" ? {} : await loadCatalog(code); UI_LANG = code; $("#ui-lang").value = code;
+  if (save) try { localStorage.setItem("folivox.lang", code); } catch (e) {}
+  applyI18n(); if (typeof refreshUi === "function") refreshUi();
+}
+$("#ui-lang").innerHTML = UI_LANGS.map(([c, n]) => `<option value="${c}">${n}</option>`).join("");
+$("#ui-lang").onchange = (e) => setUiLang(e.target.value);
+
 // ---- book -------------------------------------------------------------------------------------
 $("#drop").onclick = () => $("#file").click();
 $("#file").onchange = (e) => e.target.files[0] && upload(e.target.files[0]);
@@ -465,22 +498,21 @@ $("#file").onchange = (e) => e.target.files[0] && upload(e.target.files[0]);
 ["dragleave","drop"].forEach(t => $("#drop").addEventListener(t, (e) => { e.preventDefault(); $("#drop").classList.remove("over"); }));
 $("#drop").addEventListener("drop", (e) => e.dataTransfer.files[0] && upload(e.dataTransfer.files[0]));
 async function upload(file) {
-  $("#book-info").textContent = "Reading " + file.name + "…";
+  $("#book-info").textContent = t("book.reading", { name: file.name });
   const fd = new FormData(); fd.append("file", file);
   try { setBook(await api("/api/books", { method: "POST", body: fd })); }
   catch (e) { $("#book-info").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 }
 // ---- cover ---------------------------------------------------------------------------------------
-const COVER_TEXT = { custom: "Your image", book: "From the book file", none: "No cover will be written", "": "The book has no cover; add an image if you like" };
 function showCover(kind) {
   if (!book) return; book.cover = kind; $("#cover-box").hidden = false;
   const has = kind === "custom" || kind === "book";
-  $("#cover-img").hidden = !has; $("#cover-empty").hidden = has; $("#cover-empty").textContent = kind === "none" ? "none" : "no cover";
+  $("#cover-img").hidden = !has; $("#cover-empty").hidden = has; $("#cover-empty").textContent = kind === "none" ? t("cover.none") : t("cover.nocover");
   if (has) $("#cover-img").src = tok(`/api/books/${book.book_id}/cover?v=${Date.now()}`);
-  $("#cover-state").textContent = COVER_TEXT[kind] || ""; $("#cover-book").hidden = !(kind !== "book" && book.has_cover); $("#cover-none").hidden = kind === "none";
+  $("#cover-state").textContent = t("cover.state." + (kind || "empty")); $("#cover-book").hidden = !(kind !== "book" && book.has_cover); $("#cover-none").hidden = kind === "none";
 }
 async function sendCover(file) {
-  $("#cover-msg").textContent = "Uploading…";
+  $("#cover-msg").textContent = t("cover.uploading");
   try { const fd = new FormData(); fd.append("file", file); const r = await api(`/api/books/${book.book_id}/cover`, { method: "PUT", body: fd }); $("#cover-msg").textContent = ""; showCover(r.cover); }
   catch (e) { $("#cover-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 }
@@ -508,13 +540,13 @@ function saveMeta(reset) {
   metaTimer = setTimeout(async () => {
     const body = reset ? { reset: true } : Object.fromEntries([...document.querySelectorAll("[data-m]")].map(e => [e.dataset.m, e.value]));
     try { const r = await api(`/api/books/${book.book_id}/meta`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (reset) document.querySelectorAll("[data-m]").forEach(e => e.value = r.meta[e.dataset.m] || ""); showBookInfo(r.meta); $("#m-msg").textContent = "Saved."; }
+      if (reset) document.querySelectorAll("[data-m]").forEach(e => e.value = r.meta[e.dataset.m] || ""); showBookInfo(r.meta); $("#m-msg").textContent = t("saved"); }
     catch (e) { $("#m-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
   }, 500);
 }
 document.querySelectorAll("[data-m]").forEach(e => e.addEventListener("input", () => saveMeta(false)));
 $("#m-reset").onclick = () => saveMeta(true);
-function renderBookInfo() { const b = book;$("#book-info").innerHTML = `<b style="color:var(--ink)">${esc(b.title)}</b> — ${esc(b.author || "unknown author")} · ${esc(b.lang_name)} · ${esc(b.format.toUpperCase())}${b.year ? " · " + esc(b.year) : ""} · ${num(b.chars)} characters · ≈ ${fmt(b.estimated_seconds)}`; }
+function renderBookInfo() { const b = book;$("#book-info").innerHTML = `<b style="color:var(--ink)">${esc(b.title)}</b> — ${esc(b.author || t("book.noauthor"))} · ${esc(b.lang_name)} · ${esc(b.format.toUpperCase())}${b.year ? " · " + esc(b.year) : ""} · ${t("book.chars", { n: num(b.chars) })} · ≈ ${fmt(b.estimated_seconds)}`; }
 function setBook(b, keep, lang) {
   book = b; showCover(b.cover || "");
   renderBookInfo(); loadMeta();
@@ -526,17 +558,17 @@ function setBook(b, keep, lang) {
   loadVoices();
 }
 function renderChapters(keep) {
-  const t = $("#chapters");
-  t.innerHTML = `<tr><th></th><th class="n">#</th><th>Chapter</th><th class="n">Characters</th><th class="n">≈ Time</th></tr>` +
+  const tb = $("#chapters");
+  tb.innerHTML = `<tr><th></th><th class="n">#</th><th>${t("chap.chapter")}</th><th class="n">${t("chap.chars")}</th><th class="n">≈ ${t("chap.time")}</th></tr>` +
     book.chapters.map(c => `<tr><td><input type="checkbox" data-n="${c.n}" ${!keep || keep.has(c.n) ? "checked" : ""}></td><td class="n">${c.n}</td><td>${esc(c.title)}</td><td class="n">${num(c.chars)}</td><td class="n">${fmt(c.seconds)}</td></tr>`).join("");
-  t.querySelectorAll("input").forEach(i => i.onchange = selInfo); selInfo();
+  tb.querySelectorAll("input").forEach(i => i.onchange = selInfo); selInfo();
   saveSession();
 }
 const selected = () => [...document.querySelectorAll("#chapters input:checked")].map(i => +i.dataset.n);
 function selInfo() {
   const s = new Set(selected()); const secs = book.chapters.filter(c => s.has(c.n)).reduce((a, c) => a + c.seconds, 0);
   if (typeof runSummary === "function") { runSummary(); engEstimate(); }
-  $("#sel-info").textContent = `${s.size} of ${book.chapters.length} chapters · ≈ ${fmt(secs)}`;
+  $("#sel-info").textContent = t("chap.sel", { n: s.size, total: book.chapters.length, time: fmt(secs) });
 }
 $("#all").onclick = () => { document.querySelectorAll("#chapters input").forEach(i => i.checked = true); selInfo(); };
 $("#none").onclick = () => { document.querySelectorAll("#chapters input").forEach(i => i.checked = false); selInfo(); };
@@ -555,7 +587,7 @@ async function loadVoices() {
   if (!avDirty) $("#av-lang").value = book.lang;
   renderVoices();
 }
-const GENDER = { f: "female", m: "male" };
+const GENDER = new Proxy({}, { get: (_, g) => g === "f" || g === "m" ? t("g." + g) : undefined });
 function voiceMatches(v) {
   if (vf.lang !== "all" && v.lang !== vf.lang) return false;
   if (vf.gender && v.gender !== vf.gender) return false;
@@ -567,27 +599,28 @@ function renderVoices() {
   // language chips: the book's language first, then the rest by number of voices
   const counts = {}; VOICES.forEach(v => counts[v.lang] = (counts[v.lang] || 0) + 1);
   const langs = Object.keys(counts).sort((a, b) => (b === book.lang) - (a === book.lang) || counts[b] - counts[a] || a.localeCompare(b));
-  $("#vlangs").innerHTML = [`<button class="chip ${vf.lang === "all" ? "on" : ""}" data-lang="all">All languages<small>${VOICES.length}</small></button>`]
-    .concat(langs.map(c => `<button class="chip ${vf.lang === c ? "on" : ""}" data-lang="${c}">${esc(LANGS[c] || c)}${c === book.lang ? " · book" : ""}<small>${counts[c]}</small></button>`)).join("");
+  $("#vlangs").innerHTML = [`<button class="chip ${vf.lang === "all" ? "on" : ""}" data-lang="all">${t("v.alllangs")}<small>${VOICES.length}</small></button>`]
+    .concat(langs.map(c => `<button class="chip ${vf.lang === c ? "on" : ""}" data-lang="${c}">${esc(LANGS[c] || c)}${c === book.lang ? " · " + t("v.book") : ""}<small>${counts[c]}</small></button>`)).join("");
   const genders = [...new Set(VOICES.map(v => v.gender).filter(Boolean))];
-  $("#vgender").innerHTML = `<button class="chip ${vf.fav ? "on" : ""}" id="vfav">★ Favorites<small>${FAV.size}</small></button>` +
-    (genders.length > 1 ? [["", "Any"], ...genders.map(g => [g, GENDER[g] || g])].map(([g, n]) => `<button class="chip ${vf.gender === g ? "on" : ""}" data-g="${g}">${n}</button>`).join("") : "");
+  $("#vgender").innerHTML = `<button class="chip ${vf.fav ? "on" : ""}" id="vfav">★ ${t("v.fav")}<small>${FAV.size}</small></button>` +
+    (genders.length > 1 ? [["", t("v.any")], ...genders.map(g => [g, GENDER[g] || g])].map(([g, n]) => `<button class="chip ${vf.gender === g ? "on" : ""}" data-g="${g}">${n}</button>`).join("") : "");
   const shown = VOICES.filter(voiceMatches).sort((a, b) => FAV.has(b.id) - FAV.has(a.id));  // favorites first, otherwise the catalog order
   const autoId = AUTO[book.lang] || AUTO[Object.keys(AUTO)[0]], autoV = VOICES.find(v => v.id === autoId);
   const showAuto = !vf.q.trim() && (vf.lang === "all" || vf.lang === book.lang) && !vf.gender && !vf.fav;
   const card = (v, auto) => `<div class="vcard ${auto ? "auto" : ""} ${(auto ? voice === "" : voice === v.id) ? "sel" : ""} ${v.lang !== book.lang && !auto ? "off" : ""}" role="radio" tabindex="0" aria-checked="${auto ? voice === "" : voice === v.id}" data-id="${auto ? "" : esc(v.id)}">
-    <button class="vplay" data-play="${esc(v.id)}" aria-label="Play a sample of ${esc(v.name)}">▶</button>
-    <div style="min-width:0"><div class="vname"><span class="n">${auto ? "Automatic" : esc(v.name)}</span>${auto ? "" : v.bundled ? "" : `<span class="vbadge mine">mine</span>`}${!auto && v.lang !== book.lang ? `<span class="vbadge warn" title="The accent of the sample may carry over">${esc(v.lang)}</span>` : ""}</div>
-      <div class="vmeta">${auto ? `best match for the book → ${esc(v.name)}` : [esc(v.id), esc(LANGS[v.lang] || v.lang), GENDER[v.gender] || "", v.seconds ? v.seconds + " s" : "", esc(v.license)].filter(Boolean).join(" · ")}</div></div>
+    <button class="vplay" data-play="${esc(v.id)}" aria-label="${esc(t("v.playsample", { name: v.name }))}">▶</button>
+    <div style="min-width:0"><div class="vname"><span class="n">${auto ? t("v.auto") : esc(v.name)}</span>${auto ? "" : v.bundled ? "" : `<span class="vbadge mine">${t("v.mine")}</span>`}${!auto && v.lang !== book.lang ? `<span class="vbadge warn" title="${esc(t("v.accent"))}">${esc(v.lang)}</span>` : ""}</div>
+      <div class="vmeta">${auto ? t("v.bestmatch", { name: esc(v.name) }) : [esc(v.id), esc(LANGS[v.lang] || v.lang), GENDER[v.gender] || "", v.seconds ? v.seconds + " " + t("u.s") : "", esc(v.license)].filter(Boolean).join(" · ")}</div></div>
     <canvas class="vwave" data-wave="${esc(v.id)}"></canvas>
     <span class="vcheck">✓</span>
-    <span style="display:flex;align-items:center">${auto ? "" : `<button class="vstar ${FAV.has(v.id) ? "on" : ""}" data-fav="${esc(v.id)}" title="${FAV.has(v.id) ? "Remove from favorites" : "Add to favorites"}" aria-pressed="${FAV.has(v.id)}">${FAV.has(v.id) ? "★" : "☆"}</button>`}${!auto && !v.bundled ? `<button class="vdel" data-del="${esc(v.id)}" title="Remove this voice">✕</button>` : ""}</span></div>`;
+    <span style="display:flex;align-items:center">${auto ? "" : `<button class="vstar ${FAV.has(v.id) ? "on" : ""}" data-fav="${esc(v.id)}" title="${FAV.has(v.id) ? t("v.unfav") : t("v.dofav")}" aria-pressed="${FAV.has(v.id)}">${FAV.has(v.id) ? "★" : "☆"}</button>`}${!auto && !v.bundled ? `<button class="vdel" data-del="${esc(v.id)}" title="${esc(t("v.remove"))}">✕</button>` : ""}</span></div>`;
   $("#voices").innerHTML = (showAuto && autoV ? card(autoV, true) : "") + shown.map(v => card(v, false)).join("");
   if (!shown.length) {
     const q = vf.q.trim().toLowerCase(), elsewhere = VOICES.filter(v => (!vf.gender || v.gender === vf.gender) && (!q || [v.name, v.id, v.transcript].some(x => (x || "").toLowerCase().includes(q)))).length;
-    $("#voices").innerHTML += `<div class="vempty">${vf.fav && !FAV.size ? "No favorites yet — press ☆ on a voice. " : "No voices match"}${vf.fav && !FAV.size ? "" : ""}${vf.lang !== "all" ? ` in ${esc(LANGS[vf.lang] || vf.lang)}` : ""}. ${vf.lang !== "all" && elsewhere ? `<a href="#" id="vall">Show ${elsewhere} in other languages</a> or ` : ""}add your own below.</div>`;
+    const head = vf.fav && !FAV.size ? t("v.nofav") : vf.lang !== "all" ? t("v.nomatchin", { lang: esc(LANGS[vf.lang] || vf.lang) }) : t("v.nomatch");
+    $("#voices").innerHTML += `<div class="vempty">${head} ${vf.lang !== "all" && elsewhere ? `<a href="#" id="vall">${t("v.showother", { n: elsewhere })}</a> ${t("v.oradd")}` : t("v.add")}</div>`;
   }
-  setVNote(voice && !shown.some(v => v.id === voice) ? `Selected: ${(VOICES.find(v => v.id === voice) || {}).name || voice} (hidden by the filter)` : "");
+  setVNote(voice && !shown.some(v => v.id === voice) ? t("v.hidden", { name: (VOICES.find(v => v.id === voice) || {}).name || voice }) : "");
   document.querySelectorAll("#voices .vwave").forEach(c => drawWave(c, 0));
 }
 function drawWave(cv, progress) {
@@ -617,7 +650,7 @@ $("#voices").addEventListener("click", async (e) => {
   if (card && card.id === "gen-card") return openGen();
   if (e.target.id === "vall") { e.preventDefault(); vf.lang = "all"; vf.manual = true; return renderVoices(); }
   if (play) { e.stopPropagation(); return playVoice(play.dataset.play); }
-  if (del) { e.stopPropagation(); if (confirm("Remove voice " + del.dataset.del + "?")) { await api("/api/voices/" + del.dataset.del, { method: "DELETE" }); if (voice === del.dataset.del) voice = ""; loadVoices(); saveSession(); } return; }
+  if (del) { e.stopPropagation(); if (confirm(t("v.confirmrm", { id: del.dataset.del }))) { await api("/api/voices/" + del.dataset.del, { method: "DELETE" }); if (voice === del.dataset.del) voice = ""; loadVoices(); saveSession(); } return; }
   if (card) pickVoice(card.dataset.id);
 });
 $("#voices").addEventListener("keydown", (e) => {
@@ -681,7 +714,7 @@ async function useFile(file, defaultName) {
     const mono = new Float32Array(buf.length); for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < mono.length; i++) mono[i] += d[i] / buf.numberOfChannels; }
     setSample(mono, buf.sampleRate, file.name);
     if (!$("#av-name").value) { $("#av-name").value = defaultName || file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " "); nameChanged(); }
-  } catch (e) { $("#av-msg").innerHTML = `<span class="err">Cannot read this audio file in the browser. Try WAV, MP3 or FLAC.</span>`; }
+  } catch (e) { $("#av-msg").innerHTML = `<span class="err">${t("av.cantread")}</span>`; }
 }
 // Loudness is evened out here: the sample is scaled to a 0.9 peak (what the server does too), so the preview is audible.
 // Gain cannot fix a noisy room, so the background level is measured and reported.
@@ -703,10 +736,10 @@ function setSample(mono, sr, name) {
 }
 function showSample(progress = 0) {
   const sec = av.mono.length / av.sr, d = $("#av-dur"); $("#av-trim").hidden = sec <= 15;
-  const [cls, msg] = sec < 3 ? ["stop", "too short — at least 3 s"] : sec > 30 ? ["stop", "too long — at most 30 s"] : sec < 6 ? ["bad", "short — 6–15 s works best"] : sec > 15 ? ["bad", "long — 6–15 s works best"] : ["ok", "good length"];
-  const noise = av.silent ? ["stop", "no sound recorded — check the microphone"] : av.snr < 15 ? ["bad", "noisy — record closer to the microphone or in a quieter room"]
-    : av.snr < 25 ? ["bad", "some background noise"] : ["ok", "clean"];
-  d.innerHTML = `${sec.toFixed(1)} s · <span class="${cls}">${msg}</span><br>${av.gain > 1.5 ? `level raised ×${av.gain.toFixed(1)} · ` : ""}<span class="${noise[0]}">${noise[1]}</span>${av.snr < 25 && !av.silent && !$("#av-dn").checked ? ` · <a href="#" id="av-try-dn">try noise reduction</a>` : ""}`;
+  const [cls, msg] = sec < 3 ? ["stop", t("av.q.tooshort")] : sec > 30 ? ["stop", t("av.q.toolong")] : sec < 6 ? ["bad", t("av.q.short")] : sec > 15 ? ["bad", t("av.q.long")] : ["ok", t("av.q.good")];
+  const noise = av.silent ? ["stop", t("av.n.silent")] : av.snr < 15 ? ["bad", t("av.n.noisy")]
+    : av.snr < 25 ? ["bad", t("av.n.some")] : ["ok", t("av.n.clean")];
+  d.innerHTML = `${dec(sec)} ${t("u.s")} · <span class="${cls}">${msg}</span><br>${av.gain > 1.5 ? t("av.raised", { x: dec(av.gain) }) + " · " : ""}<span class="${noise[0]}">${noise[1]}</span>${av.snr < 25 && !av.silent && !$("#av-dn").checked ? ` · <a href="#" id="av-try-dn">${t("av.trydn")}</a>` : ""}`;
   const tryDn = $("#av-try-dn"); if (tryDn) tryDn.onclick = (ev) => { ev.preventDefault(); $("#av-dn").click(); };
   const cv = $("#av-wave"), dpr = window.devicePixelRatio || 1, W = Math.round(cv.clientWidth * dpr), H = Math.round(26 * dpr); if (!W) return;
   cv.width = W; cv.height = H; const g = cv.getContext("2d"), step = W / av.peaks.length;
@@ -747,7 +780,7 @@ $("#av-dn").onchange = async (e) => {
   const state = $("#av-dn-state"), want = e.target.checked;
   if (!want) { state.textContent = ""; abp.switchTo("orig"); return useVersion(av.orig); }
   if (!av.clean) {
-    e.target.disabled = true; state.textContent = "— cleaning…";
+    e.target.disabled = true; state.textContent = t("av.cleaning");
     try {
       const fd = new FormData(); fd.append("file", wavBlob(av.orig.mono, av.sr), "voice.wav");
       const r = await fetch("/api/denoise", { method: "POST", headers: { "X-Folivox-Token": TOKEN }, body: fd });
@@ -759,7 +792,7 @@ $("#av-dn").onchange = async (e) => {
     e.target.disabled = false;
   }
   if (!$("#av-dn").checked) return;  // unticked again while it was being cleaned
-  state.textContent = `— voice-to-noise ${av.orig.snr.toFixed(0)} → ${av.clean.snr.toFixed(0)} dB`; abp.switchTo("clean"); useVersion(av.clean);
+  state.textContent = t("av.snr", { a: av.orig.snr.toFixed(0), b: av.clean.snr.toFixed(0) }); abp.switchTo("clean"); useVersion(av.clean);
 };
 $("#av-play").onclick = () => abp.toggle();
 $("#av-clear").onclick = () => { abp.reset(); av = null; $("#av-sample").hidden = true; $("#av-drop").hidden = false; $("#av-script").hidden = true; $("#av-file").value = ""; checkAdd(); };
@@ -775,7 +808,7 @@ function wavBlob(mono, sr) {
 function showRecUI(phase) {
   const ui = $("#av-rec-ui"); ui.classList.toggle("count", phase === "count"); $("#av-dot").classList.toggle("on", phase === "rec");
   $("#av-start").hidden = phase !== "ready"; $("#av-stop").hidden = phase !== "rec"; $("#av-cancel").hidden = phase === "count";
-  $("#av-script-label").textContent = phase === "ready" ? "READ THIS ALOUD WHEN YOU PRESS START — CALMLY, AT YOUR OWN PACE" : "READ ALOUD, CALMLY";
+  $("#av-script-label").textContent = phase === "ready" ? t("av.read.ready") : t("av.read");
 }
 $("#av-rec").onclick = async () => {
   try {
@@ -790,13 +823,13 @@ $("#av-rec").onclick = async () => {
       r.an.getByteTimeDomainData(data); let peak = 0; for (const x of data) peak = Math.max(peak, Math.abs(x - 128));
       $("#av-meter").style.width = Math.min(100, peak / 90 * 100) + "%"; r.loud = Math.max(r.loud * 0.97, peak / 128);
       let hint = "";
-      if (r.phase === "ready") { $("#av-timer").textContent = "Mic ready"; if (Date.now() - r.readyAt > 2500 && r.loud < 0.05) hint = "No sound yet — say a few words to check the microphone level."; }
+      if (r.phase === "ready") { $("#av-timer").textContent = t("av.micready"); if (Date.now() - r.readyAt > 2500 && r.loud < 0.05) hint = t("av.nosound"); }
       else if (r.phase === "count") $("#av-timer").textContent = String(r.count);
       else { const s = (Date.now() - r.t0) / 1000; $("#av-timer").textContent = `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-        if (s > 1.5 && r.loud < 0.12) hint = "Very quiet — speak closer to the microphone."; if (s >= 15) stopRec(); }
+        if (s > 1.5 && r.loud < 0.12) hint = t("av.quiet"); if (s >= 15) stopRec(); }
       $("#av-hint").hidden = !hint; $("#av-hint").firstChild.textContent = hint;
     }, 100);
-  } catch (e) { $("#av-msg").innerHTML = `<span class="err">Cannot use the microphone (${esc(e.name)}). Allow access in the browser, or upload a file.</span>`; }
+  } catch (e) { $("#av-msg").innerHTML = `<span class="err">${esc(t("av.nomic", { name: e.name }))}</span>`; }
 };
 $("#av-start").onclick = () => {
   const r = avRec; if (!r || r.phase !== "ready") return; r.phase = "count"; r.count = 3; showRecUI("count");
@@ -807,7 +840,7 @@ function beginRecording() {
   r.rec = new MediaRecorder(r.stream); r.rec.ondataavailable = (e) => r.chunks.push(e.data);
   r.rec.onstop = async () => { clearInterval(r.timer); r.stream.getTracks().forEach(t => t.stop()); r.ctx.close(); $("#av-rec-ui").hidden = true; $("#av-hint").hidden = true; avRec = null;
     if (r.cancel) { $("#av-drop").hidden = false; $("#av-script").hidden = true; return; }
-    await useFile(new File([new Blob(r.chunks)], "recording.webm"), "My voice"); $("#av-fname").textContent = "Recording"; };
+    await useFile(new File([new Blob(r.chunks)], "recording.webm"), t("av.myvoice")); $("#av-fname").textContent = t("av.recording"); };
   r.phase = "rec"; r.t0 = Date.now(); r.loud = 0; showRecUI("rec"); r.rec.start();
 }
 function stopRec(cancel = false) {
@@ -829,7 +862,7 @@ function checkAdd() {
 }
 $("#av-submit").onclick = async () => {
   const msg = $("#av-msg"), btn = $("#av-submit"); msg.className = "mute"; btn.disabled = true;
-  msg.textContent = $("#av-text").value.trim() ? "Adding…" : "Transcribing with Whisper, then adding…";
+  msg.textContent = $("#av-text").value.trim() ? t("av.adding") : t("av.transcribing");
   const fd = new FormData(); fd.append("id", $("#av-id").value); fd.append("name", $("#av-name").value.trim());
   fd.append("gender", document.querySelector("#av-gender .on").dataset.g); fd.append("lang", $("#av-lang").value);
   fd.append("transcript", $("#av-text").value.trim()); fd.append("file", wavBlob(av.mono, av.sr), "voice.wav");
@@ -858,7 +891,7 @@ async function restoreSession() {
     book = await api(`/api/books/${s.book_id}/chapters?depth=${s.depth || 2}&lang=${s.lang || ""}`);
     voice = s.voice || ""; setBook(book, new Set(s.chapters || []), s.lang);
     for (const [id, v] of Object.entries(s.options || {})) { const e = document.getElementById(id); if (e) e.value = v; }
-  } catch (e) { book = null; log("Could not restore the last book: " + e.message, "warn"); }  // never block the page over it
+  } catch (e) { book = null; log(t("log.restorefail", { msg: e.message }), "warn"); }  // never block the page over it
   finally { restoring = false; if (typeof ENG !== "undefined" && ENG.list.length) { if (ENG.cur().name !== ENG.shown) engChange(); else optionsVisibility(); } }  // the session may have set another engine
 }
 
@@ -870,10 +903,10 @@ function options() {
 }
 async function start(kind) {
   const chapters = selected();
-  if (!chapters.length) { $("#run-msg").textContent = "Select at least one chapter."; return; }
+  if (!chapters.length) { $("#run-msg").textContent = t("run.nochap"); return; }
   $("#run-msg").textContent = "";
-  if (ENG.cloud() && !$("#eng-ack").checked) { $("#run-msg").innerHTML = `<span class="err">Tick the confirmation in the cost box to confirm that the text is sent and billed.</span>`; return; }
-  if (ENG.cloud() && ENG.cur().voice_modes.includes("clone") && $("#o-tts_mode").value === "clone" && !$("#eng-own").checked) { $("#run-msg").innerHTML = `<span class="err">Confirm that the voice you clone is your own.</span>`; return; }
+  if (ENG.cloud() && !$("#eng-ack").checked) { $("#run-msg").innerHTML = `<span class="err">${t("run.tick")}</span>`; return; }
+  if (ENG.cloud() && ENG.cur().voice_modes.includes("clone") && $("#o-tts_mode").value === "clone" && !$("#eng-own").checked) { $("#run-msg").innerHTML = `<span class="err">${t("run.confirmown")}</span>`; return; }
   RUNSECS = book.chapters.filter(c => chapters.includes(c.n)).reduce((a, c) => a + c.seconds, 0); PACE_ENGINE = ENG.cur() ? ENG.cur().name : "cosyvoice3";
   try { attach(await api("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ kind, book_id: book.book_id, voice, chapters, options: options(), acknowledged: ENG.cloud() ? $("#eng-ack").checked : undefined }) })); }
@@ -884,30 +917,37 @@ $("#dc-close").onclick = () => { $("#done-card").hidden = true; };
 $("#dc-reveal").onclick = () => $("#reveal").click();
 $("#reveal").onclick = async () => { try { await api(`/api/jobs/${job.id}/reveal`, { method: "POST" }); } catch (e) { $("#run-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; } };
 $("#cancel").onclick = async () => { $("#cancel").disabled = true; await api(`/api/jobs/${job.id}/cancel`, { method: "POST" }); };
+const setRenderLabel = () => { const redo = $("#runbar").classList.contains("redo"); $("#render").textContent = t(redo ? "run.again" : "run.render"); $("#render").title = redo ? t("run.again.title") : ""; };
 function busy(on) { ["#preview", "#render"].forEach(s => $(s).disabled = on); $("#cancel").disabled = !on; }
 const log = (text, cls = "") => { const l = $("#log"); const d = document.createElement("div"); d.className = cls; d.textContent = text; l.append(d); l.scrollTop = l.scrollHeight; };
 
-const STAGES = [["prepare", "Prepare"], ["model", "Model"], ["synth", "Synthesise"], ["build", "Chapters"], ["encode", "Encode"]];
+const STAGES = [["prepare", "stage.prepare"], ["model", "stage.model"], ["synth", "stage.synth"], ["build", "stage.build"], ["encode", "stage.encode"]];
 const STAGE_OF = { asr: "prepare", plan: "prepare", download: "model", model: "model", chapter: "build", encode: "encode" };
 const SEG = { PENDING: 0, SYNTH: 1, CHECK: 2, DONE: 3, RETAKE: 4 };
-const HINTS = { "Loading TTS model": "reading the weights into memory, usually 1–2 min", "Preparing the model download": "checking what has to be downloaded",
-                "Loading speech recognition": "loading the speech recognition model", "Preparing text": "splitting the text into fragments" };
+// Phase texts come from the backend in English; the known ones are recognised here and shown in the UI language.
+const PHASES = [[/^Preparing text: (\d+) of (\d+) chapters/, "ph.prep", "hint.prep", ["n", "total"]], [/^Building chapter (\d+): (.*)$/s, "ph.build", "", ["n", "title"]],
+  [/^Encoding (\w+)/, "ph.encode", "", ["fmt"]], [/^Loading speech recognition for QA \((.*)\)/, "ph.asr", "hint.asr", ["name"]],
+  [/^Preparing the model download/, "ph.dlprep", "hint.dlprep", []], [/^Loading TTS model into memory \((.*)\)/, "ph.loadmodel", "hint.loadmodel", ["name"]]];
+function phaseOf(detail) {
+  for (const [re, key, hint, names] of PHASES) { const m = detail.match(re); if (m) return [t(key, Object.fromEntries(names.map((n, i) => [n, m[i + 1]]))), hint ? t(hint) : ""]; }
+  return [detail, ""];
+}
 let S = null, ticker = null, raf = null, lastDraw = 0, player = null;
 const nowSec = () => Date.now() / 1000;
 const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
 function newStudio(j) {
   S = { job: j, lanes: [], keys: new Map(), stage: 0, t0: null, tFrag: null, tProg: null, totalChars: 0, doneChars: 0, sessChars: 0,
-        totalFrags: 0, doneFrags: 0, audio: 0, synthSecs: 0, retakes: 0, phase: "Starting", phaseSince: nowSec(), finished: null,
+        totalFrags: 0, doneFrags: 0, audio: 0, synthSecs: 0, retakes: 0, phase: t("ph.starting"), phaseSince: nowSec(), finished: null,
         activeLane: -1, dl: null, dirty: new Set() };
-  $("#studio").hidden = false; $("#done-card").hidden = true; $("#runbar").classList.remove("redo"); $("#render").textContent = "Render audiobook"; $("#render").title = "";
-  $("#stages").innerHTML = STAGES.map(([id, n]) => `<span class="stage" data-s="${id}">${n}</span>`).join("");
+  $("#studio").hidden = false; $("#done-card").hidden = true; $("#runbar").classList.remove("redo"); setRenderLabel();
+  $("#stages").innerHTML = STAGES.map(([id, n]) => `<span class="stage" data-s="${id}">${t(n)}</span>`).join("");
   $("#wave").innerHTML = "<i></i>".repeat(30);
   [...$("#wave").children].forEach((b, i) => b.style.animationDelay = (-(i * 0.09) % 1.1).toFixed(2) + "s");
   $("#lanes").innerHTML = ""; $("#feed").innerHTML = ""; $("#log").innerHTML = ""; $("#hero-status").textContent = "";
   $("#t-retakes").textContent = "0"; $("#pct").textContent = "0"; $("#overall").style.width = "0";
   if (player) { player.pause(); player = null; }
-  setStage(0); setPhase("Starting");
+  setStage(0); setPhase(t("ph.starting"));
   clearInterval(ticker); ticker = setInterval(tick, 1000); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
 }
 function setStage(i) {
@@ -915,9 +955,9 @@ function setStage(i) {
   S.stage = i;
   document.querySelectorAll("#stages .stage").forEach((el, k) => el.className = "stage" + (k < S.stage ? " done" : k === S.stage ? " active" : ""));
 }
-function setPhase(label, quote = "", mode = "load") {
-  S.phase = label; S.phaseSince = nowSec(); S.hint = Object.entries(HINTS).find(([k]) => label.startsWith(k));
-  $("#now-label").textContent = label; $("#now-quote").textContent = quote || (S.hint ? S.hint[1] : "");
+function setPhase(label, quote = "", mode = "load", hint = "") {
+  S.phase = label; S.phaseSince = nowSec();
+  $("#now-label").textContent = label; $("#now-quote").textContent = quote || hint;
   $("#wave").className = "wave " + mode; $("#now-dl").hidden = true; $("#now-actions").hidden = true;
 }
 function end(state) {
@@ -931,26 +971,26 @@ function fmtClock(sec) { sec = Math.max(0, Math.round(sec)); const h = Math.floo
   return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`; }
 let RUNSECS = 0, PACE_ENGINE = "cosyvoice3";  // audio seconds of the running selection; engine of the running job
 const paceOf = (eng) => { try { return +localStorage.getItem("folivox.pace." + eng) || 0; } catch (x) { return 0; } };  // work seconds per audio second seen on this machine
-const fmtDur = (sec) => sec < 90 ? "about a minute" : sec < 5400 ? "≈ " + Math.round(sec / 60) + " min" : "≈ " + (sec / 3600).toFixed(1) + " h";
+const fmtDur = (sec) => sec < 90 ? t("dur.minute") : sec < 5400 ? "≈ " + Math.round(sec / 60) + " " + t("u.min") : "≈ " + dec(sec / 3600) + " " + t("u.h");
 function updateTiles() {
   if (!S || !S.t0) return;
-  const t = S.finished ? S.tLast : nowSec();
-  $("#t-elapsed").textContent = fmtClock(t - S.t0);
+  const now = S.finished ? S.tLast : nowSec();
+  $("#t-elapsed").textContent = fmtClock(now - S.t0);
   const remainChars = S.totalChars - S.doneChars, span = S.tProg && S.tFrag ? S.tProg - S.tFrag : 0;
   const pace = paceOf(PACE_ENGINE), guess = pace && RUNSECS && S.totalChars ? RUNSECS * pace * Math.max(0, 1 - S.doneChars / S.totalChars) : 0;
-  $("#t-eta").textContent = S.finished ? "–" : (S.sessChars > 0 && span > 3 && remainChars > 0) ? "≈ " + fmtClock(remainChars / (S.sessChars / span)) : guess ? "≈ " + fmtClock(guess) + " (from last run)" : "estimating…";
+  $("#t-eta").textContent = S.finished ? "–" : (S.sessChars > 0 && span > 3 && remainChars > 0) ? "≈ " + fmtClock(remainChars / (S.sessChars / span)) : guess ? t("eta.last", { t: fmtClock(guess) }) : t("eta.est");
   $("#t-audio").textContent = S.audio ? fmtClock(S.audio) : "–";
-  $("#t-pace").textContent = S.audio ? (S.synthSecs / S.audio).toFixed(2) + " ×" : "–";
+  $("#t-pace").textContent = S.audio ? dec(S.synthSecs / S.audio, 2) + " ×" : "–";
   $("#t-frags").textContent = S.totalFrags ? `${S.doneFrags} / ${S.totalFrags}` : "–";
   $("#t-retakes").textContent = S.retakes;
-  document.title = S.finished === "done" ? "✓ Done · Folivox" : S.finished ? "Folivox" : `${$("#pct").textContent}% · Folivox`;
+  document.title = S.finished === "done" ? t("title.done") : S.finished ? "Folivox" : `${$("#pct").textContent}% · Folivox`;
   const pct = S.totalChars ? Math.min(100, 100 * S.doneChars / S.totalChars) : 0;
   if (!S.finished || S.finished === "done") { $("#pct").textContent = Math.floor(S.finished === "done" ? 100 : pct); $("#overall").style.width = (S.finished === "done" ? 100 : pct) + "%"; }
 }
 function tick() {
   if (!S || S.finished) return;
   const el = Math.round(nowSec() - S.phaseSince);
-  if (S.stage <= 1 || !S.activeKey) $("#now-time").textContent = el + " s"; else $("#now-time").textContent = el + " s on this fragment";
+  if (S.stage <= 1 || !S.activeKey) $("#now-time").textContent = t("now.sec", { n: el }); else $("#now-time").textContent = t("now.secfrag", { n: el });
   updateTiles();
 }
 
@@ -965,7 +1005,7 @@ function buildLanes(chapters) {
     lane.frags.forEach((f, k) => { if (!S.keys.has(f.key)) S.keys.set(f.key, []); S.keys.get(f.key).push([li, k]); });
     S.totalChars += total; S.doneChars += lane.done; S.totalFrags += lane.frags.length; S.doneFrags += lane.frags.filter(f => f.st === SEG.DONE).length;
     const el = document.createElement("div"); el.className = "lane";
-    el.innerHTML = `<span class="lt" title="${esc(c.title)}">${esc(c.title)}</span><canvas></canvas><span class="lp"></span><span><button class="lplay" hidden title="Listen">▶</button></span>`;
+    el.innerHTML = `<span class="lt" title="${esc(c.title)}">${esc(c.title)}</span><canvas></canvas><span class="lp"></span><span><button class="lplay" hidden title="${esc(t("lane.listen"))}">▶</button></span>`;
     box.append(el); lane.el = el; lane.cv = el.querySelector("canvas"); S.lanes.push(lane);
     el.querySelector(".lplay").onclick = () => playChapter(lane, el.querySelector(".lplay"));
     paintLane(lane);
@@ -1020,7 +1060,7 @@ function invalidatePreview() {
   if (!job || !job.final || job.kind !== "preview" || $("#studio").hidden) return;
   if (player) { player.pause(); player = null; }
   $("#studio").hidden = true; $("#pv-play").hidden = true;
-  $("#run-msg").textContent = "Settings changed: the earlier preview no longer matches. Make a new one.";
+  $("#run-msg").textContent = t("run.invalidated");
 }
 const PREVIEW_INERT = "#eng-ack, #eng-own, #o-max_cost, #o-output_dir, #o-mp3, #o-device, #vq, #vgender, #vlangs, #vc-lang, #vc-sex";
 function previewTouched(ev) {
@@ -1032,11 +1072,11 @@ document.addEventListener("click", (ev) => {
   const t = ev.target; if (!t.closest || t.closest(".vplay, .vstar, [data-fav], [data-del]")) return;  // auditioning a voice changes nothing
   if (t.closest("#v-cloud .vcard, #v-cloud [data-mode], #voices .vcard, #vc-saved-list [data-sid]")) invalidatePreview();
 });
-function syncPv() { const on = player && !player.paused; $("#pv-play").textContent = on ? "❚❚ Pause" : player && player.currentTime > 0 ? "▶ Play again" : "▶ Listen to the preview"; }
+function syncPv() { const on = player && !player.paused; $("#pv-play").textContent = on ? t("pv.pause") : player && player.currentTime > 0 ? t("pv.again") : t("run.listen"); }
 $("#pv-play").onclick = () => { const lane = S.lanes.find(l => l.built); if (lane) playChapter(lane, lane.el.querySelector(".lplay")); };
 function feedLine(ev) {
   const f = $("#feed"), d = document.createElement("div"), mark = ev.attempts > 1 ? `↻ ${ev.attempts}` : "✓";
-  d.innerHTML = `<span style="color:var(--seg-done)">${mark}</span><span class="t">${esc(ev.text)}</span><span class="m">${ev.duration.toFixed(1)} s${ev.score == null ? "" : " · " + ev.score.toFixed(2)}</span>`;
+  d.innerHTML = `<span style="color:var(--seg-done)">${mark}</span><span class="t">${esc(ev.text)}</span><span class="m">${dec(ev.duration)} ${t("u.s")}${ev.score == null ? "" : " · " + dec(ev.score, 2)}</span>`;
   f.prepend(d); while (f.children.length > 7) f.lastChild.remove();
 }
 
@@ -1054,48 +1094,47 @@ function handle(ev) {
   if (!S.t0) S.t0 = ev.t; S.tLast = ev.t;
   if (STAGE_OF[ev.type === "stage" ? ev.name : ev.type] !== undefined) setStage(STAGES.findIndex(([id]) => id === STAGE_OF[ev.type === "stage" ? ev.name : ev.type]));
   switch (ev.type) {
-    case "stage": if (ev.name === "voice" && /is kept in your account/.test(ev.detail)) engNewVoice(); log(ev.detail); setPhase(ev.detail.startsWith("Model loaded") ? "Warming up the model" : ev.detail,
-        ev.detail.startsWith("Model loaded") ? "the first fragment is the slowest" : "", ev.name === "chapter" || ev.name === "encode" ? "check" : "load"); break;
+    case "stage": if (ev.name === "voice" && /is kept in your account/.test(ev.detail)) engNewVoice(); log(ev.detail); { const warm = ev.detail.startsWith("Model loaded"), [label, hint] = phaseOf(ev.detail);
+        setPhase(warm ? t("ph.warm") : label, warm ? t("hint.warm") : "", ev.name === "chapter" || ev.name === "encode" ? "check" : "load", hint); } break;
     case "warning": log("⚠ " + ev.message, "warn"); break;
     case "spend": $("#tile-spend").hidden = false; $("#t-spend").textContent = "$" + (ev.usd ?? 0).toFixed(2) + (ev.cap ? " / $" + ev.cap.toFixed(0) : ""); S.chars = ev.chars; break;
-    case "plan": log(`Fragments: ${ev.total_chunks}, left ${ev.pending_chunks}`); break;
+    case "plan": log(t("log.plan", { total: ev.total_chunks, left: ev.pending_chunks })); break;
     case "layout": buildLanes(ev.chapters); break;
     case "download": {
-      const gb = (b) => (b / 1e9).toFixed(2), pct = ev.total ? Math.min(100, 100 * ev.done / ev.total) : 0;
-      S.phase = "Downloading " + ev.name; $("#now-label").textContent = S.phase; $("#wave").className = "wave load";
-      const mbs = ev.speed > 0 ? ` · ${(ev.speed / 1e6).toFixed(1)} MB/s` : "";
-      const left = ev.eta ? ` · ${ev.eta >= 90 ? Math.round(ev.eta / 60) + " min" : Math.round(ev.eta) + " s"} left` : "";
-      $("#now-quote").textContent = ev.total ? `${pct.toFixed(0)}% — ${gb(ev.done)} of ${gb(ev.total)} GB${mbs}${left}` : `${gb(ev.done)} GB${mbs}`;
+      const gb = (b) => dec(b / 1e9, 2), pct = ev.total ? Math.min(100, 100 * ev.done / ev.total) : 0;
+      S.phase = t("dl.title", { name: ev.name }); $("#now-label").textContent = S.phase; $("#wave").className = "wave load";
+      const mbs = ev.speed > 0 ? ` · ${dec(ev.speed / 1e6)} ${t("u.mbs")}` : "";
+      const left = ev.eta ? " · " + t("dl.left", { t: ev.eta >= 90 ? Math.round(ev.eta / 60) + " " + t("u.min") : Math.round(ev.eta) + " " + t("u.s") }) : "";
+      $("#now-quote").textContent = ev.total ? t("dl.progress", { pct: pct.toFixed(0), done: gb(ev.done), total: gb(ev.total) }) + mbs + left : `${gb(ev.done)} ${t("u.gb")}${mbs}`;
       $("#now-dl").hidden = !ev.total; $("#now-dl > div").style.width = pct + "%";
-      if (ev.total && ev.done >= ev.total) { log("Downloaded " + ev.name); setPhase("Loading TTS model into memory"); } break; }
+      if (ev.total && ev.done >= ev.total) { log(t("dl.done", { name: ev.name })); setPhase(t("ph.loadmodel0"), "", "load", t("hint.loadmodel")); } break; }
     case "fragment": setStage(2); if (!S.tFrag) S.tFrag = ev.t; activate(ev.key); S.activeKey = ev.key; S.frag = ev;
-      setFrag(ev.key, SEG.SYNTH); setPhase("Synthesising", ev.text, "synth"); break;
-    case "step": { const f = S.frag, take = ev.attempts > 1 ? ` · take ${ev.attempt} of ${ev.attempts}` : "";
-      if (ev.step === "synth") { f && setFrag(f.key, SEG.SYNTH); setPhase("Synthesising" + take, f ? f.text : "", "synth"); }
-      else if (ev.step === "qa") { f && setFrag(f.key, SEG.CHECK); setPhase("Listening back — speech recognition" + take, f ? f.text : "", "check"); }
-      else setPhase("QA failed on every take — splitting the fragment", f ? f.text : "", "check"); break; }
+      setFrag(ev.key, SEG.SYNTH); setPhase(t("ph.synth"), ev.text, "synth"); break;
+    case "step": { const f = S.frag, take = ev.attempts > 1 ? " · " + t("ph.take", { a: ev.attempt, b: ev.attempts }) : "";
+      if (ev.step === "synth") { f && setFrag(f.key, SEG.SYNTH); setPhase(t("ph.synth") + take, f ? f.text : "", "synth"); }
+      else if (ev.step === "qa") { f && setFrag(f.key, SEG.CHECK); setPhase(t("ph.listen") + take, f ? f.text : "", "check"); }
+      else setPhase(t("ph.qafail"), f ? f.text : "", "check"); break; }
     case "progress": S.tProg = ev.t; S.audio = ev.audio; S.synthSecs = ev.rtf * ev.audio; S.retakes = ev.retakes; S.sessChars += ev.chars || 0;
       if (ev.audio > 20 && ev.rtf > 0) try { localStorage.setItem("folivox.pace." + PACE_ENGINE, String(ev.rtf)); } catch (x) {}
       setFrag(ev.key, ev.attempts > 1 ? SEG.RETAKE : SEG.DONE); feedLine(ev); S.activeKey = null; break;
-    case "chapter": log(`✓ ${ev.title} — ${fmt(ev.duration)}`); setPhase(`Chapter ready: ${ev.title}`, fmt(ev.duration) + " of audio", "check");
+    case "chapter": log(`✓ ${ev.title} — ${fmt(ev.duration)}`); setPhase(t("ph.chapter", { title: ev.title }), t("ph.ofaudio", { t: fmt(ev.duration) }), "check");
       { const lane = S.lanes.find(l => l.ci + 1 === ev.index); if (lane) { lane.built = true; lane.dur = ev.duration; lane.el.querySelector(".lplay").hidden = false; } } break;
-    case "done": if (ENG.cloud()) engSaved(); log("Done: " + ev.result); end("done");
+    case "done": if (ENG.cloud()) engSaved(); log(t("log.done", { path: ev.result })); end("done");
       if (job.kind === "preview") {  // one clear message and one big button, no hunting for the small ▶
         const lane = S.lanes.find(l => l.built), dur = lane && lane.dur ? ` · ${fmt(lane.dur)}` : "";
-        setPhase("Preview ready" + dur, "Press the green button to listen. The audio is not saved as a book.", "done"); $("#wave").className = "wave done";
-        $("#hero-status").textContent = "Preview ready"; $("#run-msg").textContent = "";
+        setPhase(t("ph.pvready") + dur, t("ph.pvhint"), "done"); $("#wave").className = "wave done";
+        $("#hero-status").textContent = t("ph.pvready"); $("#run-msg").textContent = "";
         $("#pv-play").hidden = !lane; $("#reveal").hidden = true; $("#now-actions").hidden = false; syncPv();
       } else {
-        setPhase("Finished", ev.result, "done"); $("#wave").className = "wave done"; $("#hero-status").textContent = "Saved"; $("#run-msg").textContent = "";
+        setPhase(t("ph.finished"), ev.result, "done"); $("#wave").className = "wave done"; $("#hero-status").textContent = t("hero.saved"); $("#run-msg").textContent = "";
         $("#pv-play").hidden = true; $("#reveal").hidden = false;
-        $("#dc-path").textContent = ev.result || ""; $("#dc-meta").textContent = [S.audio ? fmtClock(S.audio) + " of audio" : "", "rendered in " + fmtClock(S.tLast - S.t0)].filter(Boolean).join(" · ");
-        $("#done-card").hidden = false; $("#runbar").classList.add("redo"); $("#render").textContent = "Render again";
-        $("#render").title = "Fragments that are already done are reused, nothing is read twice; the book is just assembled again.";
+        $("#dc-path").textContent = ev.result || ""; $("#dc-meta").textContent = [S.audio ? t("ph.ofaudio", { t: fmtClock(S.audio) }) : "", t("ph.renderedin", { t: fmtClock(S.tLast - S.t0) })].filter(Boolean).join(" · ");
+        $("#done-card").hidden = false; $("#runbar").classList.add("redo"); setRenderLabel();
         $("#done-card").scrollIntoView({ behavior: "smooth", block: "center" });
       } break;
-    case "cancelled": log(ev.message || "Stopped. Progress is saved — press Render again to continue."); end("cancelled"); setPhase(ev.reason === "cost_cap" ? "Spending cap reached" : "Stopped", ev.message || "Progress is saved — press Render to continue.", "");
-      $("#hero-status").textContent = ev.reason === "cost_cap" ? "Cap reached" : "Stopped"; $("#run-msg").textContent = ev.reason === "cost_cap" ? ev.message : "Stopped; progress saved."; break;
-    case "error": log("Error: " + ev.message, "err"); end("error"); setPhase("Error", ev.message, ""); $("#hero-status").textContent = "Failed";
+    case "cancelled": log(ev.message || t("log.stopped")); end("cancelled"); setPhase(ev.reason === "cost_cap" ? t("ph.capreached") : t("ph.stopped"), ev.message || t("ph.stoppedhint"), "");
+      $("#hero-status").textContent = ev.reason === "cost_cap" ? t("hero.cap") : t("ph.stopped"); $("#run-msg").textContent = ev.reason === "cost_cap" ? ev.message : t("run.stopped"); break;
+    case "error": log(t("log.error", { msg: ev.message }), "err"); end("error"); setPhase(t("ph.error"), ev.message, ""); $("#hero-status").textContent = t("hero.failed");
       $("#run-msg").innerHTML = `<span class="err">${esc(ev.message)}</span>`; break;
   }
   updateTiles();
@@ -1112,12 +1151,22 @@ function engOptions() {
   return { ...base, tts_mode: mode, tts_voice: $("#o-tts_voice").value, tts_description: $("#o-tts_description").value, own_voice: $("#eng-own").checked,
            keep_voice: mode !== "preset" && $("#vc-keep").checked };
 }
+const engTtsOptions = (list) => list.map(e => `<option value="${esc(e.name)}">${esc(e.label)}${" — " + (e.cloud ? t("eng.paid") : t("eng.free"))}${e.tag ? " (" + esc(e.tag) + ")" : ""}</option>`).join("");
+const engBlurb = (e) => esc(e.blurb || "") + (e.cloud ? ` <span class="warn">${esc(t("eng.paidper", { p: e.per_hour != null ? "$" + dec(e.per_hour, 2) : "?" }))}</span>` : "");
+const engModelOptions = (e) => `<option value="auto">${esc(t("eng.autonew"))}</option>` + e.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${e.prices[m.id] != null ? ` (≈ $${dec(e.prices[m.id], 2)}/${t("u.h")})` : ""}${m.note ? " — " + esc(m.note) : ""}</option>`).join("");
+function engRelabel() {  // after a UI language switch: same selections, new labels
+  const e = ENG.cur(); if (!e) return; const keep = $("#o-tts").value;
+  $("#o-tts").innerHTML = engTtsOptions(ENG.list); $("#o-tts").value = keep;
+  $("#o-takes").parentElement.title = e.cloud ? t("eng.retakebilled") : ""; $("#eng-blurb").innerHTML = engBlurb(e);
+  if (e.cloud) { const m = $("#o-tts_model").value; $("#o-tts_model").innerHTML = engModelOptions(e); $("#o-tts_model").value = m; engMode(); engSaved(); if (ENG.vlist) engRenderVoices(); else engVoices(); renderEst(); }
+  runSummary();
+}
 async function engLoad() {
   try {
     const r = await api("/api/tts/engines"); ENG.list = r.engines;
     const st = await api("/api/settings").catch(() => null), pref = (st && st.kinds && st.kinds.tts && st.kinds.tts.selected) || "cosyvoice3";
     let saved = ""; try { saved = localStorage.getItem("folivox.tts") || ""; } catch (e) {}
-    $("#o-tts").innerHTML = r.engines.map(e => `<option value="${esc(e.name)}">${esc(e.label)}${e.cloud ? " — online, paid" : " — free, local"}${e.tag ? " (" + esc(e.tag) + ")" : ""}</option>`).join("");
+    $("#o-tts").innerHTML = engTtsOptions(r.engines);
     $("#o-tts").value = r.engines.some(e => e.name === saved) ? saved : r.engines.some(e => e.name === pref) ? pref : "cosyvoice3";
     engChange();
   } catch (e) { /* the page still works with the local engine */ }
@@ -1139,10 +1188,10 @@ function engChange() {
   $("#o-takes").value = e.cloud ? 2 : 3;
   $("#o-qa").value = e.cloud ? "0" : "1";  // an online voice rarely misreads; the check costs a retake each time and loads a local model
   optionsVisibility(); ENG.est = null; $("#eng-est").textContent = ""; runSummary();
-  $("#o-takes").parentElement.title = e.cloud ? "Each retake is billed" : "";
-  $("#eng-blurb").innerHTML = esc(e.blurb || "") + (e.cloud ? ` <span class="warn">Paid: ≈ ${e.per_hour != null ? "$" + e.per_hour.toFixed(2) : "?"} per hour of audio.</span>` : "");
+  $("#o-takes").parentElement.title = e.cloud ? t("eng.retakebilled") : "";
+  $("#eng-blurb").innerHTML = engBlurb(e);
   if (!e.cloud) return;
-  $("#o-tts_model").innerHTML = `<option value="auto">auto — newest available</option>` + e.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${e.prices[m.id] != null ? ` (≈ $${e.prices[m.id].toFixed(2)}/h)` : ""}${m.note ? " — " + esc(m.note) : ""}</option>`).join("");
+  $("#o-tts_model").innerHTML = `<option value="auto">${esc(t("eng.autonew"))}</option>` + e.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${e.prices[m.id] != null ? ` (≈ $${dec(e.prices[m.id], 2)}/${t("u.h")})` : ""}${m.note ? " — " + esc(m.note) : ""}</option>`).join("");
   $("#o-tts_mode").innerHTML = e.voice_modes.map(m => `<option value="${m}">${esc((e.mode_labels || {})[m] || m)}</option>`).join("");
   $("#eng-terms").href = e.terms_url || "#"; $("#o-tts_mode").parentElement.hidden = e.voice_modes.length < 2;
   $("#o-tts_style").parentElement.hidden = !e.style;
@@ -1150,13 +1199,10 @@ function engChange() {
   if (e.voice_modes.includes("localize") && book && book.lang && book.lang !== "en") $("#o-tts_mode").value = "localize";
   engMode(); engVoices(); engSaved(); engEstimate();
 }
-const MODE_UI = { preset: ["Pick a voice", "Choose one of the service's ready-made voices."],
-  design: ["✨ Create a voice from a description", "Describe the narrator in words: the voice is created in your account for this book; you can keep it for other books."],
-  localize: ["Adapt a voice to your language", "Recommended for books that are not in English: take any professional voice (an English one is fine) and Cartesia adapts it to speak your book's language like a native, keeping the timbre. Ready-made voices used as they are often keep a foreign accent."],
-  clone: ["Clone my own voice", "Only your own voice, or one you have permission for."] };
+const MODE_UI = new Proxy({}, { get: (_, m) => ["preset", "design", "localize", "clone"].includes(m) ? [t(`mode.${m}.h`), t(`mode.${m}.s`)] : undefined });
 function engModes() {
   const e = ENG.cur(), cur = $("#o-tts_mode").value;
-  $("#vc-modes").innerHTML = e.voice_modes.map(m => `<button type="button" class="chip ${m === cur ? "on" : ""} ${m === "design" ? "hot" : ""}" role="radio" aria-checked="${m === cur}" data-mode="${m}">${esc(MODE_UI[m] ? MODE_UI[m][0] : m)}${m === "localize" && book && book.lang !== "en" ? " ★ recommended" : ""}</button>`).join("");
+  $("#vc-modes").innerHTML = e.voice_modes.map(m => `<button type="button" class="chip ${m === cur ? "on" : ""} ${m === "design" ? "hot" : ""}" role="radio" aria-checked="${m === cur}" data-mode="${m}">${esc(MODE_UI[m] ? MODE_UI[m][0] : m)}${m === "localize" && book && book.lang !== "en" ? " ★ " + esc(t("mode.recommended")) : ""}</button>`).join("");
   $("#vc-modehint").textContent = MODE_UI[cur] ? MODE_UI[cur][1] : "";
 }
 $("#vc-modes").addEventListener("click", (ev) => { const b = ev.target.closest("[data-mode]"); if (!b) return; $("#o-tts_mode").value = b.dataset.mode; engMode(); engVoices(); engEstimate(); });
@@ -1167,8 +1213,8 @@ function engMode() {
   document.querySelector(".eng-pick").hidden = sel || !(m === "preset" || m === "localize"); document.querySelector(".eng-desc").hidden = sel || m !== "design";
   document.querySelector(".eng-own").hidden = sel || m !== "clone"; document.querySelector(".eng-keep").hidden = sel || m === "preset";
   $("#v-local").hidden = sel || m !== "clone";  // the catalog gallery is only needed to pick your own voice to clone
-  $("#vc-title").textContent = m === "clone" && !sel ? "Pick one of your own voices below; it will be cloned in your " + e.label + " account." : "Voices of " + e.label + ". Your own voice catalog is used only by the local engine (and for cloning).";
-  $("#vc-saved-hint").textContent = sel ? `Using “${ENG.sel.name}”. Click it again to choose another voice instead.` : "";
+  $("#vc-title").textContent = m === "clone" && !sel ? t("eng.pickown", { label: e.label }) : t("eng.voicesof", { label: e.label });
+  $("#vc-saved-hint").textContent = sel ? t("eng.using", { name: ENG.sel.name }) : "";
 }
 async function engNewVoice() {  // the voice exists now: offer to name it right where it appears
   const before = new Set((ENG.savedList || []).map(v => v.id));
@@ -1176,7 +1222,7 @@ async function engNewVoice() {  // the voice exists now: offer to name it right 
   const fresh = (ENG.savedList || []).find(v => !before.has(v.id)); if (!fresh) return;
   const nm = [...document.querySelectorAll("#vc-saved-list .sv-name")].find(n => n.dataset.id === fresh.id); if (!nm) return;
   const card = nm.closest(".vcard"); card.classList.add("fresh"); card.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  $("#vc-saved-hint").textContent = `Saved as “${fresh.name}”. Click the name if you want another one.`;
+  $("#vc-saved-hint").textContent = t("eng.savedas", { name: fresh.name });
   setTimeout(() => card.classList.remove("fresh"), 6000);
 }
 async function engSaved() {
@@ -1185,11 +1231,11 @@ async function engSaved() {
   try { ENG.savedList = (await api(`/api/tts/${e.name}/saved`)).voices; } catch (x) { ENG.savedList = []; }
   if (ENG.sel && !ENG.savedList.some(v => v.id === ENG.sel.id)) ENG.sel = null;
   $("#vc-saved").hidden = !ENG.savedList.length;
-  const KIND = { design: "from a description", localize: "adapted to a language", clone: "your clone" };
+  const KIND = { design: t("kind.design"), localize: t("kind.localize"), clone: t("kind.clone") };
   $("#vc-saved-list").innerHTML = ENG.savedList.map(v => `<div class="vcard pv ${ENG.sel && ENG.sel.id === v.id ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${!!ENG.sel && ENG.sel.id === v.id}" data-sid="${esc(v.id)}">
     <span class="vplay" style="display:grid;place-items:center">✨</span>
-    <div style="min-width:0"><div class="vname"><span class="n sv-name" title="Click to rename" data-id="${esc(v.id)}">${esc(v.name)}</span><span class="vbadge mine">created by you</span></div><div class="vmeta">${esc([KIND[v.mode] || v.mode, v.description].filter(Boolean).join(" · "))}</div></div>
-    <button type="button" class="chip sv-del" data-del="${esc(v.id)}" title="Delete this voice from your account" aria-label="Delete voice ${esc(v.name)}">✕</button></div>`).join("");
+    <div style="min-width:0"><div class="vname"><span class="n sv-name" title="${esc(t("eng.rename"))}" data-id="${esc(v.id)}">${esc(v.name)}</span><span class="vbadge mine">${t("eng.createdbyyou")}</span></div><div class="vmeta">${esc([KIND[v.mode] || v.mode, v.description].filter(Boolean).join(" · "))}</div></div>
+    <button type="button" class="chip sv-del" data-del="${esc(v.id)}" title="${esc(t("eng.delvoice"))}" aria-label="${esc(t("eng.delvoicename", { name: v.name }))}">✕</button></div>`).join("");
   engMode(); engEstimate();
 }
 $("#vc-saved-list").addEventListener("click", async (ev) => {
@@ -1208,7 +1254,7 @@ $("#vc-saved-list").addEventListener("click", async (ev) => {
     return;
   }
   if (del) {
-    const v = ENG.savedList.find(x => x.id === del.dataset.del); if (!v || !confirm(`Delete the voice “${v.name}” from your ${ENG.cur().label} account? Books already made keep their audio.`)) return;
+    const v = ENG.savedList.find(x => x.id === del.dataset.del); if (!v || !confirm(t("eng.confirmdel", { name: v.name, label: ENG.cur().label }))) return;
     try { await api(`/api/tts/${ENG.cur().name}/saved/${encodeURIComponent(v.id)}`, { method: "DELETE" }); if (ENG.sel && ENG.sel.id === v.id) ENG.sel = null; } catch (x) { $("#vc-saved-hint").innerHTML = `<span class="err">${esc(x.message)}</span>`; return; }
     engSaved(); return;
   }
@@ -1217,13 +1263,13 @@ $("#vc-saved-list").addEventListener("click", async (ev) => {
 $("#vc-saved-list").addEventListener("keydown", (ev) => { if ((ev.key === "Enter" || ev.key === " ") && ev.target.dataset && ev.target.dataset.sid) { ev.preventDefault(); ev.target.click(); } });
 async function engVoices() {
   const e = ENG.cur(), box = $("#vc-list"); if (!e || !e.cloud) return;
-  if (!e.key_in_env && !e.key_saved) { box.innerHTML = `<div class="mute">No API key for ${esc(e.label)} — add it in <a href="#s-keys" data-open-adv>Advanced settings → API keys</a>.</div>`; $("#vc-sex").innerHTML = ""; return; }
-  box.innerHTML = `<div class="mute">Loading the voices…</div>`; const ticket = ENG.ticket = (ENG.ticket || 0) + 1;
+  if (!e.key_in_env && !e.key_saved) { box.innerHTML = `<div class="mute">${t("eng.nokey", { label: esc(e.label) })}</div>`; $("#vc-sex").innerHTML = ""; return; }
+  box.innerHTML = `<div class="mute">${t("eng.loading")}</div>`; const ticket = ENG.ticket = (ENG.ticket || 0) + 1;
   try {
     const localize = $("#o-tts_mode").value === "localize"; if (ENG.vlang === undefined) ENG.vlang = "en";
     const lang = localize ? ENG.vlang : (book && book.lang) || "", r = ENG.voices[e.name + lang] || (ENG.voices[e.name + lang] = await api(`/api/gen/voices/${e.name}?lang=${encodeURIComponent(lang)}`));
     if (ticket !== ENG.ticket) return;  // a newer request (another mode or engine) owns the list now
-    ENG.vlist = (e.name === "elevenlabs" || e.name === "cartesia" ? [] : [{ id: "", name: "Provider default", traits: "a neutral voice", gender: "" }]).concat(r.voices);
+    ENG.vlist = (e.name === "elevenlabs" || e.name === "cartesia" ? [] : [{ id: "", name: t("eng.default"), traits: t("eng.neutral"), gender: "" }]).concat(r.voices);
     ENG.vnote = r.note || ""; ENG.vname = e.name;
     if (!ENG.vlist.some(v => v.id === $("#o-tts_voice").value)) $("#o-tts_voice").value = ENG.vlist[0] ? ENG.vlist[0].id : "";
     engRenderVoices();
@@ -1231,18 +1277,18 @@ async function engVoices() {
 }
 function engRenderVoices() {
   const e = ENG.cur(), all = ENG.vlist || [];
-  const bl = book && book.lang, langs = [["en", "English"], ...(bl && bl !== "en" ? [[bl, LANGS[bl] || bl]] : []), ["", "All languages"]];
-  $("#vc-lang").innerHTML = $("#o-tts_mode").value === "localize" ? `<span class="mute" style="align-self:center;font-size:13px">Voice language:</span>` + langs.map(([c, n]) => `<button type="button" class="chip ${(ENG.vlang ?? "en") === c ? "on" : ""}" data-vlang="${c}">${esc(n)}</button>`).join("") : "";
+  const bl = book && book.lang, langs = [["en", LANGS.en], ...(bl && bl !== "en" ? [[bl, LANGS[bl] || bl]] : []), ["", t("v.alllangs")]];
+  $("#vc-lang").innerHTML = $("#o-tts_mode").value === "localize" ? `<span class="mute" style="align-self:center;font-size:13px">${esc(t("eng.vlang"))}</span>` + langs.map(([c, n]) => `<button type="button" class="chip ${(ENG.vlang ?? "en") === c ? "on" : ""}" data-vlang="${c}">${esc(n)}</button>`).join("") : "";
   const sexes = [...new Set(all.map(v => v.gender).filter(Boolean))], cur = $("#o-tts_voice").value;
   if (ENG.vsex && !sexes.includes(ENG.vsex)) ENG.vsex = "";
-  $("#vc-sex").innerHTML = sexes.length > 1 ? [["", "Any"], ["f", "Female"], ["m", "Male"]].map(([g, n]) => `<button type="button" class="chip ${(ENG.vsex || "") === g ? "on" : ""}" data-vsex="${g}">${n}</button>`).join("") : "";
+  $("#vc-sex").innerHTML = sexes.length > 1 ? [["", t("v.any")], ["f", t("sex.female")], ["m", t("sex.male")]].map(([g, n]) => `<button type="button" class="chip ${(ENG.vsex || "") === g ? "on" : ""}" data-vsex="${g}">${n}</button>`).join("") : "";
   const list = all.filter(v => !ENG.vsex || !v.gender || v.gender === ENG.vsex);
   $("#vc-list").innerHTML = list.map(v => `<div class="vcard pv ${v.id === cur ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${v.id === cur}" data-id="${esc(v.id)}">
-    <button type="button" class="vplay" data-url="${esc(v.preview_url || "")}" ${v.preview_url ? "" : "disabled"} title="${v.preview_url ? "Hear a free sample" : "This service offers no free sample"}" aria-label="Play sample">${v.preview_url ? "▶" : "–"}</button>
-    <div style="min-width:0"><div class="vname"><span class="n">${esc((v.name || v.id).split(" - ")[0])}</span><span class="vbadge warn">online · paid</span></div>
+    <button type="button" class="vplay" data-url="${esc(v.preview_url || "")}" ${v.preview_url ? "" : "disabled"} title="${esc(v.preview_url ? t("eng.hear") : t("eng.nosample"))}" aria-label="${esc(t("eng.playsample"))}">${v.preview_url ? "▶" : "–"}</button>
+    <div style="min-width:0"><div class="vname"><span class="n">${esc((v.name || v.id).split(" - ")[0])}</span><span class="vbadge warn">${t("eng.badge")}</span></div>
       <div class="vmeta">${esc([GENDER[v.gender], v.traits, v.description].filter(Boolean).join(" · "))}</div></div>
-    <span>${v.id === cur ? "✓" : ""}</span></div>`).join("") || `<div class="mute">No voices for this language.</div>`;
-  $("#vc-note").innerHTML = linkify((all.some(v => v.preview_url) ? "Samples play free of charge. " : "") + (ENG.vnote || "") + ` Reading the book with ${e.label} is paid${e.per_hour != null ? " (≈ $" + e.per_hour.toFixed(2) + " per hour of audio)" : ""}, whichever voice you pick.`);
+    <span>${v.id === cur ? "✓" : ""}</span></div>`).join("") || `<div class="mute">${t("eng.novoices")}</div>`;
+  $("#vc-note").innerHTML = linkify((all.some(v => v.preview_url) ? t("eng.freesamples") + " " : "") + (ENG.vnote || "") + " " + (e.per_hour != null ? t("eng.paidnote2", { label: e.label, p: "$" + dec(e.per_hour, 2) }) : t("eng.paidnote", { label: e.label })));
 }
 $("#vc-lang").addEventListener("click", (ev) => { const b = ev.target.closest("[data-vlang]"); if (b) { ENG.vlang = b.dataset.vlang; engVoices(); } });
 $("#vc-sex").addEventListener("click", (ev) => { const b = ev.target.closest("[data-vsex]"); if (b) { ENG.vsex = b.dataset.vsex; engRenderVoices(); } });
@@ -1265,7 +1311,7 @@ function engEstimate() {
   ENG.tm = setTimeout(async () => {
     const post = (kind) => api("/api/tts/estimate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, book_id: book.book_id, chapters: selected(), options: options() }) });
     try {
-      const [all, pre] = await Promise.all([post("render"), post("preview")]), cost = (x) => x.usd == null ? "price unknown" : "≈ $" + x.usd.toFixed(2);
+      const [all, pre] = await Promise.all([post("render"), post("preview")]);
       ENG.est = { all, pre }; renderEst(); runSummary();
     } catch (x) { ENG.est = null; $("#eng-est").textContent = ""; runSummary(); }
   }, 300);
@@ -1275,19 +1321,19 @@ function renderFree() {
   const pace = paceOf(ENG.cur() ? ENG.cur().name : "cosyvoice3"), box = $("#eng-free"), local = ENG.list.length && !ENG.cloud();
   box.hidden = !local || !book; if (box.hidden) return;
   const ch = selected(), secs = book.chapters.filter(c => ch.includes(c.n)).reduce((a, c) => a + c.seconds, 0);
-  box.innerHTML = `<div class="cc-main"><div class="cc-big">$0.00<small>cost of the selected chapters</small></div>
-    <div class="cc-facts"><div>audio<b>${ch.length ? "≈ " + fmt(secs) : "–"}</b></div><div>sent anywhere<b>nothing</b></div><div>preview<b>$0.00</b></div></div></div>
-    <div class="cc-sub">${esc(ENG.cur().label)} · free and private, runs on this computer. ${pace && ch.length ? "Time to render: " + fmtDur(secs * pace) + " (from your last run on this machine)." : "The time depends on your hardware; after the first render it is estimated here."}</div>`;
+  box.innerHTML = `<div class="cc-main"><div class="cc-big">$0.00<small>${t("est.costof")}</small></div>
+    <div class="cc-facts"><div>${t("tile.audio")}<b>${ch.length ? "≈ " + fmt(secs) : "–"}</b></div><div>${t("free.sent")}<b>${t("free.nothing")}</b></div><div>${t("est.preview")}<b>$0.00</b></div></div></div>
+    <div class="cc-sub">${t("free.sub", { label: esc(ENG.cur().label) })} ${pace && ch.length ? t("free.time", { t: fmtDur(secs * pace) }) : t("free.timeunk")}</div>`;
 }
 function renderEst() {
   const E = ENG.est; if (!E) return; const { all, pre } = E, e = ENG.cur(), qaOn = $("#o-qa").value === "1";
-  const cost = (x) => x.usd == null ? "price unknown" : "≈ $" + x.usd.toFixed(2);
-  const worst = qaOn && all.usd_max != null && all.usd != null && all.usd_max.toFixed(2) !== all.usd.toFixed(2) ? `<div>worst case<b>up to $${all.usd_max.toFixed(2)}</b></div>` : "";
-  const hrs = all.hours >= 1 ? all.hours.toFixed(1) + " h" : Math.max(1, Math.round(all.hours * 60)) + " min";
-  $("#eng-est").innerHTML = `<div class="cc-main"><div class="cc-big">${cost(all)}<small>likely cost of the selected chapters</small></div>
-    <div class="cc-facts"><div>audio<b>${hrs}</b></div><div>characters sent<b>${all.likely_chars.toLocaleString()}</b></div>${worst}<div>preview<b>${cost(pre)}</b></div></div></div>
-    <div class="cc-sub">${esc(all.label || e.label)}${all.per_hour != null ? ` · ≈ $${all.per_hour.toFixed(2)} per hour of audio` : ""}${qaOn ? ` · retakes after a failed quality check are billed too (up to ${all.takes} takes)` : ""}</div>
-    <details><summary>Price details and terms</summary><p>Approximate list prices. ${esc(all.price_note || "")}</p></details>`;
+  const cost = (x) => x.usd == null ? t("est.unknown") : "≈ $" + dec(x.usd, 2);
+  const worst = qaOn && all.usd_max != null && all.usd != null && all.usd_max.toFixed(2) !== all.usd.toFixed(2) ? `<div>${t("est.worst")}<b>${t("est.upto", { p: "$" + dec(all.usd_max, 2) })}</b></div>` : "";
+  const hrs = all.hours >= 1 ? dec(all.hours) + " " + t("u.h") : Math.max(1, Math.round(all.hours * 60)) + " " + t("u.min");
+  $("#eng-est").innerHTML = `<div class="cc-main"><div class="cc-big">${cost(all)}<small>${t("est.likely")}</small></div>
+    <div class="cc-facts"><div>${t("tile.audio")}<b>${hrs}</b></div><div>${t("est.chars")}<b>${num(all.likely_chars)}</b></div>${worst}<div>${t("est.preview")}<b>${cost(pre)}</b></div></div></div>
+    <div class="cc-sub">${esc(all.label || e.label)}${all.per_hour != null ? " · " + esc(t("est.perhour", { p: "$" + dec(all.per_hour, 2) })) : ""}${qaOn ? " · " + esc(t("est.retakes", { n: all.takes })) : ""}</div>
+    <details><summary>${t("est.details")}</summary><p>${t("est.approx")} ${esc(all.price_note || "")}</p></details>`;
 }
 // One or two plain lines under the cost card: what exactly will be rendered, and what blocks it.
 function runSummary() {
@@ -1297,14 +1343,14 @@ function runSummary() {
   const model = cloud ? $("#o-tts_model").value : "", mt = model && model !== "auto" ? model : "";
   let v = cloud ? ($("#o-tts_voice").value || (ENG.sel && ENG.sel.id) || "") : voice;
   const vo = !cloud && VOICES.find(x => x.id === voice); if (vo) v = vo.name || v;
-  if (!cloud && (!v || v === "auto")) v = "automatic";
-  const range = (() => { if (!ch.length) return "no chapters"; const r = []; let i = 0; while (i < ch.length) { let j = i; while (j + 1 < ch.length && ch[j + 1] === ch[j] + 1) j++; r.push(j > i ? ch[i] + "–" + ch[j] : "" + ch[i]); i = j + 1; } return "chapter" + (ch.length > 1 || r[0].includes("–") ? "s " : " ") + r.join(", ") + (ch.length ? ` (${fmt(secs)})` : ""); })();
-  const dir = ($("#o-output_dir").value || "~/Audiobooks").replace(/\/$/, ""), out = $("#o-mp3").value === "1" ? dir + "/ (mp3 per chapter)" : dir + "/" + (book.title || "book") + ".m4b";
-  const parts = [esc(e.label), mt ? esc(mt) : "", v ? "voice " + esc(v) : "", range, "quality check " + ($("#o-qa").value === "1" ? "on" : "off"), "saved to " + esc(out)].filter(Boolean);
+  if (!cloud && (!v || v === "auto")) v = t("sum.auto");
+  const range = (() => { if (!ch.length) return t("sum.nochap"); const r = []; let i = 0; while (i < ch.length) { let j = i; while (j + 1 < ch.length && ch[j + 1] === ch[j] + 1) j++; r.push(j > i ? ch[i] + "–" + ch[j] : "" + ch[i]); i = j + 1; } return t(ch.length > 1 || r[0].includes("–") ? "sum.chaps" : "sum.chap1", { list: r.join(", ") }) + (ch.length ? ` (${fmt(secs)})` : ""); })();
+  const dir = ($("#o-output_dir").value || "~/Audiobooks").replace(/\/$/, ""), out = $("#o-mp3").value === "1" ? t("sum.mp3dir", { dir }) : dir + "/" + (book.title || "book") + ".m4b";
+  const parts = [esc(e.label), mt ? esc(mt) : "", v ? t("sum.voice", { v: esc(v) }) : "", range, t($("#o-qa").value === "1" ? "sum.qa.on" : "sum.qa.off"), t("sum.saved", { out: esc(out) })].filter(Boolean);
   const warn = [];
-  if (!ch.length) warn.push("Select at least one chapter.");
-  if (cloud && !(e.key_in_env || e.key_saved)) warn.push("No API key for this service yet: add it in the reading engine step.");
-  if (cloud && !$("#eng-ack").checked) warn.push("Tick the confirmation above to enable rendering.");
+  if (!ch.length) warn.push(t("run.nochap"));
+  if (cloud && !(e.key_in_env || e.key_saved)) warn.push(t("sum.w.nokey"));
+  if (cloud && !$("#eng-ack").checked) warn.push(t("sum.w.ack"));
   $("#run-sum").innerHTML = parts.join(" · ") + warn.map(w => `<span class="warn">⚠ ${esc(w)}</span>`).join("");
 }
 ["#o-qa", "#o-mp3", "#o-output_dir", "#eng-ack", "#o-tts_voice", "#o-tts_mode"].forEach(i => { $(i).addEventListener("change", () => { renderEst(); runSummary(); }); });
@@ -1312,13 +1358,13 @@ $("#o-output_dir").addEventListener("input", runSummary);
 $("#o-tts").onchange = engChange; 
 ["#o-tts_model", "#o-takes", "#o-qa"].forEach(i => $(i).addEventListener("change", engEstimate));
 document.addEventListener("change", (ev) => { if (ev.target.closest && ev.target.closest("#chapters, .chap, #chlist")) engEstimate(); });
-engLoad();
 
 // -- generate a reference voice with a cloud provider -----------------------------------------------------------
 let GP = { providers: [], notice: "", prov: null, mode: "preset", textSrc: "builtin", job: null, es: null, takes: [], sel: null, player: null, gender: "", more: false };
-const IDEA_NAMES = ["Calm woman", "Deep storyteller", "Bright young voice", "Neutral documentary"];
+const IDEA_NAMES = ["gp.idea.0", "gp.idea.1", "gp.idea.2", "gp.idea.3"];
 const IDEAS = ["A calm, warm woman in her forties, low voice, unhurried audiobook narrator", "A deep, gentle older man, audiobook narrator, steady unhurried pace, like a storyteller by the fire", "A bright, friendly young woman, audiobook narrator, clear and lively but even, easy to listen to", "A steady, neutral male voice, audiobook narrator, clear and precise, documentary style"];
-const money = (usd) => usd == null ? "" : usd < 0.005 ? "under 1 cent" : usd < 1 ? `about ${Math.max(1, Math.round(usd * 100))} cent${Math.round(usd * 100) > 1 ? "s" : ""}` : `about $${usd.toFixed(2)}`;
+const moneyAmt = (usd) => usd < 1 ? t("money.cents", { n: Math.max(1, Math.round(usd * 100)) }) : "$" + dec(usd, 2);
+const money = (usd) => usd == null ? "" : usd < 0.005 ? t("money.under") : t("money.about", { v: moneyAmt(usd) });
 function openGen() { closeAdd(); $("#genvoice").hidden = false; $("#genvoice").scrollIntoView({ behavior: "smooth", block: "nearest" }); gpLoad(); }
 function closeGen() { gpStop(); gpReset(); $("#genvoice").hidden = true; }
 $("#gp-close").onclick = closeGen;
@@ -1329,37 +1375,37 @@ async function gpLoad() {
     const r = await api("/api/gen/providers"); GP.providers = r.providers; GP.notice = r.notice;
     $("#gp-notice").textContent = r.notice;
     const worst = Math.max(...r.providers.flatMap(p => Object.values(p.sample_usd || {}).filter(v => v != null)));
-    $("#gp-cost").textContent = `Cost: ${money(worst) === "under 1 cent" ? "under 1 cent" : "up to " + money(worst).replace("about ", "")} per set of attempts, depending on the service. The book itself is never sent anywhere.`;
+    $("#gp-cost").textContent = worst < 0.005 ? t("gp.cost.under") : t("gp.cost.upto", { v: moneyAmt(worst) });
     if (!GP.prov || !r.providers.some(p => p.name === GP.prov.name)) GP.prov = r.providers[0];
     else GP.prov = r.providers.find(p => p.name === GP.prov.name);
     gpProviders();
   } catch (e) {
-    $("#gp-notice").innerHTML = `<b class="err">Cannot load the providers.</b> ${esc(e.message)}. If the server was started before an update, stop it and run <code>folivox ui</code> again.`;
+    $("#gp-notice").innerHTML = t("gp.loadfail", { msg: esc(e.message) });
   }
 }
 function gpProviders() {
   $("#gp-provs").innerHTML = GP.providers.map(p => {
     const hasKey = p.key_in_env || p.key_saved, costs = Object.values(p.sample_usd || {}).filter(v => v != null), hi = costs.length ? Math.max(...costs) : null;
     return `<div class="gp-prov ${p.name === GP.prov.name ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${p.name === GP.prov.name}" data-p="${esc(p.name)}">
-      <div class="vname"><span class="n">${esc(p.label)}</span><span class="vbadge ${hasKey ? "mine" : "warn"}">${hasKey ? "key set" : "needs key"}</span></div>
-      <div class="gp-pcost"><b>${hi == null ? "see price list" : money(hi)}</b> per set</div>${p.tag ? `<div class="gp-tag">${esc(p.tag)}</div>` : ""}</div>`;
+      <div class="vname"><span class="n">${esc(p.label)}</span><span class="vbadge ${hasKey ? "mine" : "warn"}">${hasKey ? t("gp.keyset") : t("gp.needskey")}</span></div>
+      <div class="gp-pcost">${t("gp.perset", { v: `<b>${hi == null ? t("gp.seeprices") : money(hi)}</b>` })}</div>${p.tag ? `<div class="gp-tag">${esc(p.tag)}</div>` : ""}</div>`;
   }).join("");
   gpProvider();
 }
 function gpProvider() {
   const p = GP.prov, hasKey = p.key_in_env || p.key_saved;
   $("#gp-provblurb").textContent = p.blurb || "";
-  $("#gp-pinfo").innerHTML = `${esc(p.price_note)} <a href="${esc(p.terms_url)}" target="_blank" rel="noopener noreferrer">Terms of use</a>`;
+  $("#gp-pinfo").innerHTML = `${esc(p.price_note)} <a href="${esc(p.terms_url)}" target="_blank" rel="noopener noreferrer">${t("gp.terms")}</a>`;
   $("#gp-keybox").hidden = hasKey; $("#gp-keyok").hidden = !hasKey;
-  $("#gp-keymsg").textContent = `${p.label} needs your API key (${p.key_env}). Create one in your ${p.label} account, then paste it here.`;
-  $("#gp-keyok small").textContent = `API key: ${p.key_in_env ? "from the environment" : "saved " + p.key_masked} (${p.key_env}). Change it under Advanced settings → API keys.`;
+  $("#gp-keymsg").textContent = t("gp.keymsg", { label: p.label, env: p.key_env });
+  $("#gp-keyok small").textContent = t("gp.keyok", { src: p.key_in_env ? t("gp.fromenv") : t("gp.savedkey", { m: p.key_masked }), env: p.key_env });
   const cur = $("#gp-model").value;
-  $("#gp-model").innerHTML = `<option value="auto">Best available (auto)</option>` + p.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${m.note ? " — " + esc(m.note) : ""}</option>`).join("") + `<option value="__custom">Other model id…</option>`;
+  $("#gp-model").innerHTML = `<option value="auto">${esc(t("gp.bestauto"))}</option>` + p.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${m.note ? " — " + esc(m.note) : ""}</option>`).join("") + `<option value="__custom">${esc(t("gp.othermodel"))}</option>`;
   if ([...$("#gp-model").options].some(o => o.value === cur)) $("#gp-model").value = cur;
   if (!p.modes.includes(GP.mode)) GP.mode = p.modes[0];
-  const hints = { preset: "Use one of the service's ready-made voices", design: "Describe a new voice in words", localize: "Pick a professional voice (an English one is fine): it is adapted automatically to the language you choose, so it speaks it like a native and keeps its timbre", clone: "Copy one of your own recorded voices" };
+  const hints = { preset: t("gp.hint.preset"), design: t("gp.hint.design"), localize: t("gp.hint.localize"), clone: t("gp.hint.clone") };
   const modeOrder = [...p.modes].sort((a, b) => (b === "localize") - (a === "localize"));  // the best option first
-  $("#gp-modes").innerHTML = modeOrder.map(m => `<div class="gp-mode ${m === GP.mode ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${m === GP.mode}" data-m="${m}"><b>${esc(({ preset: "Ready-made voice", design: "Describe a voice", localize: "Native accent", clone: "Clone my voice" })[m] || m)}${m === "localize" ? ' <span class="vbadge best">best option</span>' : ""}</b><small>${esc(hints[m] || "")}${(p.sample_usd || {})[m] != null ? " · " + money(p.sample_usd[m]) : ""}</small></div>`).join("");
+  $("#gp-modes").innerHTML = modeOrder.map(m => `<div class="gp-mode ${m === GP.mode ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${m === GP.mode}" data-m="${m}"><b>${esc(({ preset: t("gp.mode.preset"), design: t("gp.mode.design"), localize: t("gp.mode.localize"), clone: t("gp.mode.clone") })[m] || m)}${m === "localize" ? ` <span class="vbadge best">${t("badge.best")}</span>` : ""}</b><small>${esc(hints[m] || "")}${(p.sample_usd || {})[m] != null ? " · " + money(p.sample_usd[m]) : ""}</small></div>`).join("");
   gpMode();
   if (!GP.textInit) { GP.textInit = true; gpTexts("builtin"); }
 }
@@ -1369,19 +1415,19 @@ $("#gp-modes").addEventListener("click", (e) => { const c = e.target.closest("[d
 $("#gp-modes").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { const c = e.target.closest("[data-m]"); if (c) { e.preventDefault(); c.click(); } } });
 function gpMode() {
   const voiceMode = GP.mode === "preset" || GP.mode === "localize", hasKey = GP.prov.key_in_env || GP.prov.key_saved;
-  $("#gp-lang-hint").textContent = GP.prov.name === "cartesia" ? "Cartesia voices belong to a language: the list below shows the voices for this one."
-    : "Every voice can read any language, but a ready-made voice keeps its own accent. For the most natural result in the book's language, describe a native speaker of it.";
+  $("#gp-lang-hint").textContent = GP.prov.name === "cartesia" ? t("gp.langhint.cartesia")
+    : t("gp.langhint");
   $("#gp-design").hidden = GP.mode !== "design"; $("#gp-preset").hidden = !voiceMode; $("#gp-clone").hidden = GP.mode !== "clone";
   $("#gp-style-row").hidden = GP.mode !== "preset" || !GP.prov.style;
-  $("#gp-speaker-label").textContent = GP.mode === "localize" ? "Voice to give a native accent" : "Voice";
-  $("#gp-ref").innerHTML = VOICES.filter(v => !v.bundled && !v.commercial).map(v => `<option value="${esc(v.id)}">${esc(v.name)}</option>`).join("") || `<option value="">no recordings of your own yet — add one first</option>`;
-  $("#gp-ideas").innerHTML = IDEAS.map((t, i) => `<button type="button" class="chip" data-idea="${i}">${esc(IDEA_NAMES[i])}</button>`).join("");
-  if (voiceMode) { if (hasKey) gpVoices(); else $("#gp-speaker").innerHTML = `<option value="">save the API key above to see the voices</option>`; }
+  $("#gp-speaker-label").textContent = GP.mode === "localize" ? t("gp.speaker.native") : t("gp.speaker");
+  $("#gp-ref").innerHTML = VOICES.filter(v => !v.bundled && !v.commercial).map(v => `<option value="${esc(v.id)}">${esc(v.name)}</option>`).join("") || `<option value="">${esc(t("gp.noref"))}</option>`;
+  $("#gp-ideas").innerHTML = IDEAS.map((_, i) => `<button type="button" class="chip" data-idea="${i}">${esc(t(IDEA_NAMES[i]))}</button>`).join("");
+  if (voiceMode) { if (hasKey) gpVoices(); else $("#gp-speaker").innerHTML = `<option value="">${esc(t("gp.savekeyfirst"))}</option>`; }
   gpCheck();
 }
 $("#gp-ideas").addEventListener("click", (e) => { const b = e.target.closest("[data-idea]"); if (b) { $("#gp-desc").value = IDEAS[+b.dataset.idea]; gpCheck(); } });
 async function gpVoices() {
-  const p = GP.prov.name, box = $("#gp-speaker"); box.innerHTML = `<option>loading…</option>`;
+  const p = GP.prov.name, box = $("#gp-speaker"); box.innerHTML = `<option>${esc(t("gp.loading"))}</option>`;
   try {
     const r = await api(`/api/gen/voices/${p}` + (GP.mode === "localize" ? "" : `?lang=${$("#gp-lang").value}`));
     if (GP.prov.name !== p) return;
@@ -1392,9 +1438,9 @@ async function gpVoices() {
 function gpRenderVoices() {
   const all = GP.voices || [], sexes = [...new Set(all.map(v => v.gender).filter(Boolean))];
   if (GP.vsex && !sexes.includes(GP.vsex)) GP.vsex = "";
-  $("#gp-vsex").innerHTML = sexes.length > 1 ? [["", "Any"], ["f", "Female"], ["m", "Male"]].map(([g, n]) => `<button type="button" class="chip ${GP.vsex === g ? "on" : ""}" data-vsex="${g}">${n}</button>`).join("") : "";
+  $("#gp-vsex").innerHTML = sexes.length > 1 ? [["", t("v.any")], ["f", t("sex.female")], ["m", t("sex.male")]].map(([g, n]) => `<button type="button" class="chip ${GP.vsex === g ? "on" : ""}" data-vsex="${g}">${n}</button>`).join("") : "";
   const list = all.filter(v => !GP.vsex || v.gender === GP.vsex), keep = $("#gp-speaker").value;
-  $("#gp-speaker").innerHTML = list.map(v => `<option value="${esc(v.id)}">${esc(v.name.split(" - ")[0])}${v.gender || v.traits ? " — " : ""}${[GENDER[v.gender], v.traits].filter(Boolean).map(esc).join(", ")}</option>`).join("") || `<option value="">no voices for this language</option>`;
+  $("#gp-speaker").innerHTML = list.map(v => `<option value="${esc(v.id)}">${esc(v.name.split(" - ")[0])}${v.gender || v.traits ? " — " : ""}${[GENDER[v.gender], v.traits].filter(Boolean).map(esc).join(", ")}</option>`).join("") || `<option value="">${esc(t("gp.novoices"))}</option>`;
   if (list.some(v => v.id === keep)) $("#gp-speaker").value = keep;
   gpVoiceInfo(); gpCheck();
 }
@@ -1403,14 +1449,14 @@ function gpVoiceInfo() {
   $("#gp-vinfo").hidden = !v; if (!v) return;
   $("#gp-vdesc").textContent = v.description || (v.traits ? v.traits : "");
   $("#gp-vplay").hidden = !v.preview_url; $("#gp-vplay").dataset.url = v.preview_url || "";
-  $("#gp-vnote").innerHTML = v.preview_url ? "Samples are provided free of charge by the service." : linkify(GP.vnote);
+  $("#gp-vnote").innerHTML = v.preview_url ? t("gp.freesample") : linkify(GP.vnote);
 }
 $("#gp-vsex").addEventListener("click", (e) => { const b = e.target.closest("[data-vsex]"); if (b) { GP.vsex = b.dataset.vsex; gpRenderVoices(); } });
 $("#gp-speaker").addEventListener("change", gpVoiceInfo);
 $("#gp-vplay").onclick = () => {
-  if (GP.vaudio && !GP.vaudio.paused) { GP.vaudio.pause(); $("#gp-vplay").textContent = "▶ Hear a free sample"; return; }
-  GP.vaudio = new Audio(media($("#gp-vplay").dataset.url)); $("#gp-vplay").textContent = "❚❚ Stop";
-  GP.vaudio.onended = GP.vaudio.onpause = () => { $("#gp-vplay").textContent = "▶ Hear a free sample"; }; GP.vaudio.play().catch(() => { $("#gp-vplay").textContent = "▶ Hear a free sample"; });
+  if (GP.vaudio && !GP.vaudio.paused) { GP.vaudio.pause(); $("#gp-vplay").textContent = t("gp.hear"); return; }
+  GP.vaudio = new Audio(media($("#gp-vplay").dataset.url)); $("#gp-vplay").textContent = t("gp.vstop");
+  GP.vaudio.onended = GP.vaudio.onpause = () => { $("#gp-vplay").textContent = t("gp.hear"); }; GP.vaudio.play().catch(() => { $("#gp-vplay").textContent = t("gp.hear"); });
 };
 $("#gp-lang").onchange = () => { if (GP.prov && GP.mode !== "design") gpVoices(); GP.tx.builtin = null; if (GP.textSrc === "builtin") gpTexts("builtin"); };
 $("#gp-model").addEventListener("change", () => { $("#gp-model-custom").hidden = $("#gp-model").value !== "__custom"; gpCheck(); });
@@ -1421,17 +1467,16 @@ $("#gp-keysave").onclick = async () => {
 };
 // A spinner with a running seconds counter and a Cancel button, so a slow local model never looks like a hang.
 function working(el, label, hint, abort) {
-  const t0 = Date.now(); el.innerHTML = `<span class="spin"></span><span class="wk"></span><button type="button" class="chip wk-cancel">Cancel</button>`;
-  const txt = el.querySelector(".wk"), tick = () => { const s = Math.round((Date.now() - t0) / 1000); txt.textContent = `${label} ${s} s` + (s >= 6 ? ` — ${hint}` : ""); };
+  const t0 = Date.now(); el.innerHTML = `<span class="spin"></span><span class="wk"></span><button type="button" class="chip wk-cancel">${t("btn.cancel")}</button>`;
+  const txt = el.querySelector(".wk"), tick = () => { const s = Math.round((Date.now() - t0) / 1000); txt.textContent = `${label} ${s} ${t("u.s")}` + (s >= 6 ? ` — ${hint}` : ""); };
   tick(); const id = setInterval(tick, 500); el.querySelector(".wk-cancel").onclick = () => abort.abort();
   return () => { clearInterval(id); el.textContent = ""; };
 }
-const LLM_HINT = "a local model may need up to a minute, the first request loads it into memory";
 $("#gp-suggest").onclick = async () => {
-  $("#gp-suggest").disabled = true; const ab = new AbortController(), done = working($("#gp-suggest-msg"), "Asking the text LLM…", LLM_HINT, ab);
+  $("#gp-suggest").disabled = true; const ab = new AbortController(), done = working($("#gp-suggest-msg"), t("gp.askllm"), t("gp.llmhint"), ab);
   try { const r = await api("/api/gen/suggest", { method: "POST", signal: ab.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ book_id: book.book_id }) });
-    done(); $("#gp-desc").value = r.prompt; $("#gp-suggest-msg").textContent = "Suggested by " + (r.llm || "the LLM") + " from your book — edit freely."; gpCheck(); }
-  catch (e) { done(); $("#gp-suggest-msg").innerHTML = e.name === "AbortError" ? "Cancelled." : `<span class="err">${esc(e.message)}</span>`; }
+    done(); $("#gp-desc").value = r.prompt; $("#gp-suggest-msg").textContent = t("gp.suggested", { llm: r.llm || t("gp.thellm") }); gpCheck(); }
+  catch (e) { done(); $("#gp-suggest-msg").innerHTML = e.name === "AbortError" ? t("cancelled") : `<span class="err">${esc(e.message)}</span>`; }
   $("#gp-suggest").disabled = false;
 };
 const LS = { get(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
@@ -1447,28 +1492,27 @@ async function gpTexts(src, reload) {
   GP.textSrc = src; document.querySelectorAll("#gp-textseg button").forEach(b => b.classList.toggle("on", b.dataset.t === src));
   $("#gp-text-msg").textContent = ""; const custom = src === "custom";
   $("#gp-text").hidden = !custom; $("#gp-text-view").hidden = custom; $("#gp-text-copy").hidden = custom;
-  $("#gp-text-hint").textContent = custom ? "Calm, easy words work best: no names or numbers. Several texts: separate with an empty line (at most 5). Short is good: about 10 seconds."
-    : "Ready to use as it is. To change the wording, edit a copy in “My own text”.";
+  $("#gp-text-hint").textContent = custom ? t("gp.hint.custom") : t("gp.hint.ready");
   if (custom) { $("#gp-text").value = GP.tx.custom; $("#gp-text-next").hidden = true; $("#gp-text").focus(); gpCheck(); return; }
   if (reload || (src === "builtin" ? !GP.tx.builtin || GP.tx.blang !== $("#gp-lang").value : !GP.tx.book)) {
-    const ab = new AbortController(), done = src === "book" ? working($("#gp-text-msg"), "Asking the text LLM to pick passages…", LLM_HINT, ab) : () => {};
+    const ab = new AbortController(), done = src === "book" ? working($("#gp-text-msg"), t("gp.askpassages"), t("gp.llmhint"), ab) : () => {};
     $("#gp-text-view").textContent = "";
     try {
       const r = await api("/api/gen/texts", { method: "POST", signal: ab.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ source: src, lang: $("#gp-lang").value, book_id: book.book_id }) });
       done(); if (src === "builtin") { GP.tx.builtin = r.texts; GP.tx.blang = $("#gp-lang").value; GP.tx.bi = 0; if (!GP.tx.custom.trim()) { GP.tx.custom = r.texts[0]; LS.set("folivox.gp.custom", GP.tx.custom); } } else GP.tx.book = r.texts;
       if (src === "book" && r.lang && $("#gp-lang").value !== r.lang && LANGS[r.lang]) { $("#gp-lang").value = r.lang; if (GP.mode !== "design") gpVoices(); }
-    } catch (e) { done(); $("#gp-text-msg").innerHTML = e.name === "AbortError" ? "Cancelled." : `<span class="err">${esc(e.message)}</span>`; }
+    } catch (e) { done(); $("#gp-text-msg").innerHTML = e.name === "AbortError" ? t("cancelled") : `<span class="err">${esc(e.message)}</span>`; }
     if (GP.textSrc !== src) return;
   }
   const list = gpTextList();
-  $("#gp-text-view").innerHTML = list.map(t => `<p>${esc(t)}</p>`).join("") || `<span class="mute">No text yet.</span>`;
-  $("#gp-text-next").hidden = !(src === "book" || (GP.tx.builtin || []).length > 1); $("#gp-text-next").textContent = src === "book" ? "Pick other passages" : "Another sample";
+  $("#gp-text-view").innerHTML = list.map(t => `<p>${esc(t)}</p>`).join("") || `<span class="mute">${t("gp.notext")}</span>`;
+  $("#gp-text-next").hidden = !(src === "book" || (GP.tx.builtin || []).length > 1); $("#gp-text-next").textContent = src === "book" ? t("gp.otherpassages") : t("gp.anothersample");
   gpCheck();
 }
 $("#gp-text-next").onclick = () => { if (GP.textSrc === "book") gpTexts("book", true); else { GP.tx.bi++; gpTexts("builtin"); } };
 $("#gp-text-copy").onclick = () => {
   const copy = gpTextList().join("\n\n");
-  if (GP.tx.custom.trim() && GP.tx.custom.trim() !== copy.trim() && !confirm("Replace the text in “My own text” with a copy of this one?")) return;
+  if (GP.tx.custom.trim() && GP.tx.custom.trim() !== copy.trim() && !confirm(t("gp.confirmcopy"))) return;
   GP.tx.custom = copy; LS.set("folivox.gp.custom", GP.tx.custom); gpTexts("custom"); };
 $("#gp-text").addEventListener("input", gpSaveCustom);
 $("#gp-textseg").addEventListener("click", (e) => { const b = e.target.closest("[data-t]"); if (b) gpTexts(b.dataset.t); });
@@ -1487,10 +1531,10 @@ function gpCheck() {
   const busy = !!(GP.job && !GP.job.final);
   $("#gp-go").disabled = !(ready && hasKey && $("#gp-ack").checked) || busy; $("#gp-more").disabled = busy || !(ready && hasKey && $("#gp-ack").checked);
   clearTimeout(gpEstTimer);
-  if (!ready) { $("#gp-est").textContent = !hasKey ? "Save the API key first." : GP.mode === "design" ? "Describe the voice to continue." : ""; return; }
+  if (!ready) { $("#gp-est").textContent = !hasKey ? t("gp.est.key") : GP.mode === "design" ? t("gp.est.desc") : ""; return; }
   gpEstTimer = setTimeout(async () => {
     try { const e = await api("/api/gen/estimate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) });
-      $("#gp-est").innerHTML = `Estimated cost: <b>${e.usd != null ? money(e.usd) : "see the provider's price list"}</b> · ${e.chars.toLocaleString()} characters in total, ${b.takes} attempt${b.takes > 1 ? "s" : ""}.`; }
+      $("#gp-est").innerHTML = t("gp.est", { cost: e.usd != null ? money(e.usd) : t("gp.seepl"), chars: num(e.chars), n: b.takes }); }
     catch (err) { $("#gp-est").innerHTML = `<span class="err">${esc(err.message)}</span>`; }
   }, 300);
 }
@@ -1498,7 +1542,7 @@ function gpCheck() {
 $("#gp-ack").addEventListener("change", gpCheck);
 async function gpStart(more) {
   gpStopPlay(); GP.more = more; if (!more) { GP.takes = []; GP.sel = null; $("#gp-takes-box").hidden = true; }
-  $("#gp-msg").textContent = "Starting…"; $("#gp-bar").hidden = false; $("#gp-fill").style.width = "2%";
+  $("#gp-msg").textContent = t("gp.starting"); $("#gp-bar").hidden = false; $("#gp-fill").style.width = "2%";
   try {
     const j = await api("/api/gen/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...gpBody(), acknowledged: $("#gp-ack").checked }) });
     GP.job = { id: j.id, final: false }; $("#gp-cancel").disabled = false; $("#gp-go").disabled = $("#gp-more").disabled = true; gpStream(j.id);
@@ -1509,24 +1553,24 @@ async function gpStart(more) {
 }
 $("#gp-go").onclick = () => gpStart(false);
 $("#gp-more").onclick = () => gpStart(true);
-$("#gp-clear").onclick = () => { gpStopPlay(); GP.takes = []; GP.sel = null; $("#gp-takes-box").hidden = true; $("#gp-bar").hidden = true; $("#gp-msg").textContent = "Discarded."; };
+$("#gp-clear").onclick = () => { gpStopPlay(); GP.takes = []; GP.sel = null; $("#gp-takes-box").hidden = true; $("#gp-bar").hidden = true; $("#gp-msg").textContent = t("gp.discarded"); };
 function gpStream(id) {
   if (GP.es) GP.es.close();
   const es = GP.es = new EventSource(tok(`/api/jobs/${id}/events`)); let errors = 0;
   es.onmessage = (m) => {
     errors = 0; const ev = JSON.parse(m.data);
     if (ev.type === "stage") $("#gp-msg").textContent = ev.detail + "…";
-    if (ev.type === "take") { $("#gp-fill").style.width = Math.round(5 + 85 * ev.n / ev.total) + "%"; $("#gp-msg").textContent = `Attempt ${ev.n} of ${ev.total}…`; }
+    if (ev.type === "take") { $("#gp-fill").style.width = Math.round(5 + 85 * ev.n / ev.total) + "%"; $("#gp-msg").textContent = t("gp.attempt", { n: ev.n, total: ev.total }); }
     if (ev.type === "takes") { const fresh = ev.takes.map(t => ({ ...t, job: id })); GP.takes = (GP.more ? GP.takes.concat(fresh) : fresh).sort((a, b) => (a.score ?? 9) - (b.score ?? 9)); if (!GP.sel) GP.sel = GP.takes[0]; gpShowTakes(); }
     if (["done", "cancelled", "error"].includes(ev.type)) {
       GP.job.final = true; es.close(); $("#gp-cancel").disabled = true; $("#gp-fill").style.width = ev.type === "done" ? "100%" : "0%";
-      $("#gp-msg").innerHTML = ev.type === "error" ? `<span class="err">${esc(ev.message)}</span>` : ev.type === "cancelled" ? "Stopped." : "Done — listen and pick one.";
+      $("#gp-msg").innerHTML = ev.type === "error" ? `<span class="err">${esc(ev.message)}</span>` : ev.type === "cancelled" ? t("gp.stopped") : t("gp.done");
       if (ev.type !== "done") $("#gp-bar").hidden = true; gpCheck();
     }
   };
-  es.onerror = () => { if (GP.job && !GP.job.final && ++errors >= 3) { es.close(); GP.job.final = true; $("#gp-msg").innerHTML = `<span class="err">Lost the connection to the server.</span>`; gpCheck(); } };
+  es.onerror = () => { if (GP.job && !GP.job.final && ++errors >= 3) { es.close(); GP.job.final = true; $("#gp-msg").innerHTML = `<span class="err">${t("gp.lost")}</span>`; gpCheck(); } };
 }
-$("#gp-cancel").onclick = async () => { if (GP.job) { $("#gp-msg").textContent = "Stopping after the current request…"; try { await api(`/api/jobs/${GP.job.id}/cancel`, { method: "POST" }); } catch (e) {} } };
+$("#gp-cancel").onclick = async () => { if (GP.job) { $("#gp-msg").textContent = t("gp.stopping"); try { await api(`/api/jobs/${GP.job.id}/cancel`, { method: "POST" }); } catch (e) {} } };
 function gpStop() { if (GP.job && !GP.job.final) fetch(`/api/jobs/${GP.job.id}/cancel`, { method: "POST", headers: { "X-Folivox-Token": TOKEN } }).catch(() => {}); if (GP.es) GP.es.close(); gpStopPlay(); }
 function gpReset() { GP.job = null; GP.takes = []; GP.sel = null; $("#gp-takes-box").hidden = true; $("#gp-bar").hidden = true; $("#gp-msg").textContent = ""; $("#gp-ack").checked = false; $("#gp-cancel").disabled = true; }
 function gpStopPlay() { if (GP.player) { GP.player.pause(); GP.player = null; } }
@@ -1538,12 +1582,14 @@ function gpDraw(cv, peaks, progress) {
   peaks.forEach((p, i) => { const h = Math.max(2 * dpr, H * p / 100); g.fillStyle = i / n < progress ? on : off; g.fillRect(i * step, (H - h) / 2, bw, h); });
 }
 const tkey = (t) => t.job + "/" + t.name;
+const t0 = (key, p) => t(key, p);  // the take rows use "t" for a take
 function gpShowTakes() {
+  const tr = t0;
   $("#gp-takes-box").hidden = false;
   $("#gp-list").innerHTML = GP.takes.map((t, i) => `<div class="gp-take ${GP.sel && tkey(GP.sel) === tkey(t) ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${GP.sel && tkey(GP.sel) === tkey(t)}" data-take="${esc(tkey(t))}">
-    <button type="button" class="vplay" data-tplay="${esc(tkey(t))}" aria-label="Play attempt ${i + 1}">▶</button>
-    <div style="min-width:0"><div class="vname"><span class="n">Attempt ${i + 1}</span>${i === 0 ? `<span class="vbadge mine">clearest</span>` : ""}</div>
-      <div class="vmeta">${t.duration} s · ${t.score == null ? "not scored" : t.score < 0.03 ? "read clearly" : "some words unclear (" + t.score.toFixed(2) + ")"}</div></div>
+    <button type="button" class="vplay" data-tplay="${esc(tkey(t))}" aria-label="${esc(tr("gp.playattempt", { n: i + 1 }))}">▶</button>
+    <div style="min-width:0"><div class="vname"><span class="n">${tr("gp.attemptn", { n: i + 1 })}</span>${i === 0 ? `<span class="vbadge mine">${tr("gp.clearest")}</span>` : ""}</div>
+      <div class="vmeta">${t.duration} ${tr("u.s")} · ${t.score == null ? tr("gp.notscored") : t.score < 0.03 ? tr("gp.clear") : tr("gp.unclear", { s: dec(t.score, 2) })}</div></div>
     <canvas class="vwave" data-peaks="${i}"></canvas><span class="vcheck">✓</span></div>`).join("");
   document.querySelectorAll("#gp-list canvas").forEach(c => gpDraw(c, GP.takes[+c.dataset.peaks].peaks, 0));
   gpAddCheck();
@@ -1570,42 +1616,37 @@ $("#gp-id").addEventListener("input", () => { gpIdTouched = true; gpAddCheck(); 
 $("#gp-gender").addEventListener("click", (e) => { const b = e.target.closest("[data-g]"); if (!b) return; GP.gender = b.dataset.g; document.querySelectorAll("#gp-gender button").forEach(x => x.classList.toggle("on", x === b)); });
 function gpAddCheck() { $("#gp-add").disabled = !(GP.sel && $("#gp-name").value.trim() && /^[a-z0-9][a-z0-9_-]*$/.test($("#gp-id").value)); }
 $("#gp-add").onclick = async () => {
-  $("#gp-add").disabled = true; $("#gp-addmsg").textContent = "Adding…";
+  $("#gp-add").disabled = true; $("#gp-addmsg").textContent = t("av.adding");
   try {
     const v = await api(`/api/gen/${GP.sel.job}/add`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ take: GP.sel.name, id: $("#gp-id").value, name: $("#gp-name").value.trim(), gender: GP.gender, lang: $("#gp-lang").value }) });
-    $("#gp-addmsg").textContent = "Added: " + v.name; voice = v.id; await loadVoices(); saveSession();
+    $("#gp-addmsg").textContent = t("gp.added", { name: v.name }); voice = v.id; await loadVoices(); saveSession();
     gpStopPlay(); gpReset(); $("#gp-name").value = $("#gp-id").value = ""; gpIdTouched = false; $("#genvoice").hidden = true;
   } catch (e) { $("#gp-addmsg").innerHTML = `<span class="err">${esc(e.message)}</span>`; gpAddCheck(); }
 };
 
 document.addEventListener("click", (ev) => { if (ev.target.closest("[data-open-adv]")) { ev.preventDefault(); $("#adv").open = true; $("#s-keys").scrollIntoView({ behavior: "smooth", block: "start" }); } });
 // ---- settings ---------------------------------------------------------------------------------
-const ENGINES = {
-  tts: ["Reading engine", "Reads the whole book aloud in the voice you chose. This is the heavy work and it runs on your computer."],
-  asr: ["Proofreader (speech recognition)", "Listens to every fragment after it is read and asks for a retake when words were misread. Also writes down your voice samples."],
-  llm: ["Text assistant", "A language model that writes voice descriptions and picks easy passages from your book for voice samples. Optional."],
-  voicegen: ["Voice-sample maker (command line)", "Used by “folivox voices design” in the terminal. On this page, voice samples are made by the online services in the voice section."],
-};
+const ENGINES = new Proxy({}, { get: (_, k) => ["tts", "asr", "llm", "voicegen"].includes(k) ? [t(`kind.${k}.h`), t(`kind.${k}.s`)] : undefined });
 async function loadSettings() {
   const s = await api("/api/settings");
   const order = ["asr", "llm", "voicegen"].filter(k => s.kinds[k]);
   $("#settings").innerHTML = order.map(k => { const v = s.kinds[k], [title, why] = ENGINES[k];
     return `<div class="eng"><div><b>${esc(title)}</b><div class="why">${esc(why)}</div></div>
-      <div class="pick"><select data-kind="${k}" aria-label="${esc(title)}">${v.providers.map(p => `<option value="${esc(p.name)}" ${p.name === v.selected ? "selected" : ""}>${esc(p.name)}${p.local ? "" : " — cloud, paid"}</option>`).join("")}</select>
+      <div class="pick"><select data-kind="${k}" aria-label="${esc(title)}">${v.providers.map(p => `<option value="${esc(p.name)}" ${p.name === v.selected ? "selected" : ""}>${esc(p.name)}${p.local ? "" : " — " + esc(t("set.cloudpaid"))}</option>`).join("")}</select>
       <div class="cap" data-cap="${k}"></div></div></div>`; }).join("");
-  const caption = (sel) => { const p = s.kinds[sel.dataset.kind].providers.find(x => x.name === sel.value); sel.parentElement.querySelector(".cap").innerHTML = p ? `${p.local ? "On this computer" : `<span class="warn">Online service (your key, your cost)</span>`} · ${esc(p.description)}` : ""; };
+  const caption = (sel) => { const p = s.kinds[sel.dataset.kind].providers.find(x => x.name === sel.value); sel.parentElement.querySelector(".cap").innerHTML = p ? `${p.local ? t("set.local") : `<span class="warn">${t("set.online")}</span>`} · ${esc(p.description)}` : ""; };
   document.querySelectorAll("#settings select").forEach(sel => { caption(sel); sel.onchange = () => caption(sel); });
-  $("#settings-note").textContent = "Settings file: " + s.config_path;
+  $("#settings-note").textContent = t("set.file", { path: s.config_path });
   $("#o-output_dir").placeholder = s.output_dir;
 }
 const SERVICE = { GEMINI_API_KEY: "Google Gemini", OPENAI_API_KEY: "OpenAI", ELEVENLABS_API_KEY: "ElevenLabs", CARTESIA_API_KEY: "Cartesia" };
-const USED_FOR = { tts: "reading the book", voicegen: "voice samples", asr: "speech recognition", llm: "text assistant" };
+const USED_FOR = new Proxy({}, { get: (_, k) => ["tts", "voicegen", "asr", "llm"].includes(k) ? t("used." + k) : undefined });
 async function loadKeys() {
   const { keys } = await api("/api/keys");
   $("#keys").innerHTML = keys.map(k => { const uses = [...new Set(k.used_by.map(u => USED_FOR[u.split("/")[0]] || u))];
-    return `<div class="keyrow" data-key="${esc(k.name)}"><div><b>${esc(SERVICE[k.name] || k.name)}</b><div class="why">Used for: ${esc(uses.join(", "))} · <code>${esc(k.name)}</code></div></div>
-    <div><div class="kstate ${k.saved || k.env ? "ok" : "none"}">${k.saved ? `✓ Saved <code>${esc(k.masked)}</code>` : k.env ? "✓ Set in the environment" : "No key yet"}${k.saved && k.env ? " (the environment variable wins)" : ""}</div>
-    <div class="kctl"><input type="password" autocomplete="off" placeholder="${k.saved ? "paste a new key to replace it" : "paste your key"}" aria-label="${esc(k.name)}"><button data-save>Save</button>${k.saved ? `<button data-remove class="chip">Remove</button>` : ""}</div></div></div>`; }).join("") || `<p class="mute" style="padding:12px 16px"><small>No online services installed.</small></p>`;
+    return `<div class="keyrow" data-key="${esc(k.name)}"><div><b>${esc(SERVICE[k.name] || k.name)}</b><div class="why">${esc(t("key.usedfor", { list: uses.join(", ") }))} · <code>${esc(k.name)}</code></div></div>
+    <div><div class="kstate ${k.saved || k.env ? "ok" : "none"}">${k.saved ? `✓ ${t("key.saved")} <code>${esc(k.masked)}</code>` : k.env ? "✓ " + t("key.env") : t("key.none")}${k.saved && k.env ? " (" + t("key.envwins") + ")" : ""}</div>
+    <div class="kctl"><input type="password" autocomplete="off" placeholder="${esc(k.saved ? t("key.ph.replace") : t("key.ph"))}" aria-label="${esc(k.name)}"><button data-save>${t("btn.save")}</button>${k.saved ? `<button data-remove class="chip">${t("av.remove")}</button>` : ""}</div></div></div>`; }).join("") || `<p class="mute" style="padding:12px 16px"><small>${t("key.noservices")}</small></p>`;
   document.querySelectorAll("#keys [data-key]").forEach(row => {
     const name = row.dataset.key, input = row.querySelector("input");
     row.querySelector("[data-save]").onclick = async () => {
@@ -1613,20 +1654,20 @@ async function loadKeys() {
       try { await api("/api/keys/" + name, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: input.value }) }); input.value = ""; loadKeys(); }
       catch (e) { alert(e.message); } };
     const rm = row.querySelector("[data-remove]");
-    if (rm) rm.onclick = async () => { if (confirm("Remove the saved key for " + (SERVICE[name] || name) + "?")) { await api("/api/keys/" + name, { method: "DELETE" }); loadKeys(); } };
+    if (rm) rm.onclick = async () => { if (confirm(t("key.confirmrm", { name: SERVICE[name] || name }))) { await api("/api/keys/" + name, { method: "DELETE" }); loadKeys(); } };
   });
 }
 $("#save-settings").onclick = async () => {
   const providers = {}; document.querySelectorAll("#settings select").forEach(s => providers[s.dataset.kind] = s.value);
-  try { await api("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ providers }) }); $("#settings-msg").textContent = "Saved."; }
+  try { await api("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ providers }) }); $("#settings-msg").textContent = t("saved"); }
   catch (e) { $("#settings-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 };
 
 $("#copy-diag").onclick = async () => {
   try {
     const d = await api("/api/diagnostics");
-    try { await navigator.clipboard.writeText(d.text); $("#diag-msg").textContent = "Copied."; }
-    catch (e) { window.prompt("Copy the diagnostics:", d.text); }
+    try { await navigator.clipboard.writeText(d.text); $("#diag-msg").textContent = t("diag.copied"); }
+    catch (e) { window.prompt(t("diag.prompt"), d.text); }
   } catch (e) { $("#diag-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 };
 
@@ -1637,17 +1678,32 @@ async function reconcile() {
     const cur = await api("/api/jobs/current");
     if (!online) { online = true; $("#offline").hidden = true; }
     if (!cur) {  // the server has no job: it was restarted while the page showed one
-      if (job && !job.final) { end("error"); log("The server restarted; this job is gone.", "warn"); $("#run-msg").textContent = "Server restarted. Progress is saved — press Render to resume."; }
+      if (job && !job.final) { end("error"); log(t("log.restarted"), "warn"); $("#run-msg").textContent = t("run.restarted"); }
       return;
     }
     if (typeof cur.id !== "string") return;
     const stale = !job || job.id !== cur.id || (cur.state !== "running" && !job.final) || (job.streamLost && !job.final);
-    if (stale) { attach(cur); if (cur.state === "running") $("#run-msg").textContent = "Showing the job that is running on the server."; }
+    if (stale) { attach(cur); if (cur.state === "running") $("#run-msg").textContent = t("run.showing"); }
   } catch (e) { online = false; $("#offline").hidden = false; }
 }
+// After a language switch: rebuild what JS drew (static markup is handled by applyI18n).
+let uiReady = false;
+function refreshUi() {
+  if (!uiReady) return;
+  const a = document.getElementById("eng-terms"); if (a && ENG.list.length && ENG.cur()) a.href = ENG.cur().terms_url || "#";
+  setRenderLabel(); syncPv();
+  document.querySelectorAll("#stages .stage").forEach(el => { const st = STAGES.find(([id]) => id === el.dataset.s); if (st) el.textContent = t(st[1]); });
+  if (S) updateTiles();
+  if (book) { showCover(book.cover || ""); renderBookInfo(); renderChapters(new Set(selected())); renderVoices(); }
+  if (ENG.list.length) engRelabel();
+  if (!$("#genvoice").hidden && GP.prov) { gpLoad(); gpTexts(GP.textSrc); if (GP.takes.length) gpShowTakes(); }
+  if (av) showSample();
+  loadSettings().catch(() => {}); loadKeys().catch(() => {});
+}
 (async () => {
-  try { await loadSettings(); loadKeys().catch(() => {}); await restoreSession(); await reconcile(); setInterval(reconcile, 4000); }
-  catch (e) { document.body.insertAdjacentHTML("afterbegin", `<p class="err" style="padding:16px">${esc(e.message)} — open the link printed by <code>folivox ui</code> once (it contains the access token and sets a cookie).</p>`); }
+  CAT_EN = await loadCatalog("en"); await setUiLang(pickUiLang(), false); engLoad();
+  try { await loadSettings(); loadKeys().catch(() => {}); await restoreSession(); await reconcile(); setInterval(reconcile, 4000); uiReady = true; }
+  catch (e) { document.body.insertAdjacentHTML("afterbegin", `<p class="err" style="padding:16px">${t("boot.fail", { msg: esc(e.message) })}</p>`); }
 })();
 </script>
 </body>
