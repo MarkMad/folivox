@@ -94,8 +94,10 @@ metadata or its text; `--lang` overrides it.
 <td width="33%" valign="top">
 
 **Text prepared for speech**<br>
-Numbers, dates, years, centuries, units and abbreviations read in full (with case and gender agreement in
-Russian); sentences split and packed into fragments; dialogue pauses.
+Numbers, dates, times, money, units, roman numerals and abbreviations read in full, with case and gender
+agreement where the language has it (Russian cases, Spanish `veintiuna`, French `une`, German `eine`, Korean
+native counters, Chinese `两`); sentences split and packed into fragments; dialogue pauses.
+[Per-language table](docs/how-it-works.md#what-the-normaliser-reads-out-per-language).
 
 </td>
 </tr>
@@ -190,6 +192,8 @@ redacted support bundle. Pluggable providers via entry points.
 - **Free for real.** The local engine has no limits and no bill; online engines are an option, not a requirement.
 - **A workhorse for long books.** Resumable, crash-safe, quality-checked, with a time forecast: start a
   ten-hour book and walk away.
+- **Speaks every book's language properly.** A text normaliser for each of the 9 languages reads numbers,
+  dates, money, units and roman numerals the way a narrator would, with gender and case agreement.
 - **Simple outside, deep inside.** A few clicks in the studio; every option is still there in the CLI.
 - **Any voice, consistent to the last page.** Yours, a bundled one, or one designed for the book.
 - **Honest about what leaves your computer.** Online use is opt-in, labelled, estimated and capped.
