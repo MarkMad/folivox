@@ -1210,8 +1210,9 @@ function gpProvider() {
   $("#gp-model").innerHTML = `<option value="auto">Best available (auto)</option>` + p.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${m.note ? " — " + esc(m.note) : ""}</option>`).join("") + `<option value="__custom">Other model id…</option>`;
   if ([...$("#gp-model").options].some(o => o.value === cur)) $("#gp-model").value = cur;
   if (!p.modes.includes(GP.mode)) GP.mode = p.modes[0];
-  const hints = { preset: "Use one of the service's ready-made voices", design: "Describe a new voice in words", localize: "Take a voice and give it the native accent of the language", clone: "Copy one of your own recorded voices" };
-  $("#gp-modes").innerHTML = p.modes.map(m => `<div class="gp-mode ${m === GP.mode ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${m === GP.mode}" data-m="${m}"><b>${esc(({ preset: "Ready-made voice", design: "Describe a voice", localize: "Native accent", clone: "Clone my voice" })[m] || m)}</b><small>${esc(hints[m] || "")}${(p.sample_usd || {})[m] != null ? " · " + money(p.sample_usd[m]) : ""}</small></div>`).join("");
+  const hints = { preset: "Use one of the service's ready-made voices", design: "Describe a new voice in words", localize: "Pick a professional voice (an English one is fine): it is adapted automatically to the language you choose, so it speaks it like a native and keeps its timbre", clone: "Copy one of your own recorded voices" };
+  const modeOrder = [...p.modes].sort((a, b) => (b === "localize") - (a === "localize"));  // the best option first
+  $("#gp-modes").innerHTML = modeOrder.map(m => `<div class="gp-mode ${m === GP.mode ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${m === GP.mode}" data-m="${m}"><b>${esc(({ preset: "Ready-made voice", design: "Describe a voice", localize: "Native accent", clone: "Clone my voice" })[m] || m)}${m === "localize" ? ' <span class="vbadge best">best option</span>' : ""}</b><small>${esc(hints[m] || "")}${(p.sample_usd || {})[m] != null ? " · " + money(p.sample_usd[m]) : ""}</small></div>`).join("");
   gpMode();
   if (!GP.textInit) { GP.textInit = true; gpTexts("builtin"); }
 }
