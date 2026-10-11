@@ -230,7 +230,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
       </div>
       <div id="gp-preset" hidden class="gp-grid">
         <label class="f"><span id="gp-speaker-label">Voice</span><select id="gp-speaker"></select></label>
-        <label class="f" id="gp-style-row">Narration style <small>(optional, English)</small><input id="gp-style" type="text" placeholder="e.g. calm audiobook narrator, slow and warm"></label>
+        <label class="f" id="gp-style-row">Narration style <small>(optional, English)</small><input id="gp-style" type="text" value="Audiobook narration: calm, steady pace, neutral emotion, clear diction" placeholder="empty = the voice's own manner"></label>
       </div>
       <div id="gp-clone" hidden class="gp-grid">
         <label class="f">Your voice to clone<select id="gp-ref"></select></label>
@@ -882,7 +882,7 @@ function handle(ev) {
 // -- generate a reference voice with a cloud provider -----------------------------------------------------------
 let GP = { providers: [], notice: "", prov: null, mode: "preset", textSrc: "builtin", job: null, es: null, takes: [], sel: null, player: null, gender: "", more: false };
 const IDEA_NAMES = ["Calm woman", "Deep storyteller", "Bright young voice", "Neutral documentary"];
-const IDEAS = ["A calm, warm woman in her forties, low voice, unhurried audiobook narrator", "A deep, gentle older man, slow pace, like a storyteller by the fire", "A bright, friendly young woman, clear and lively, light and easy", "A steady, neutral male voice, clear and precise, documentary style"];
+const IDEAS = ["A calm, warm woman in her forties, low voice, unhurried audiobook narrator", "A deep, gentle older man, audiobook narrator, steady unhurried pace, like a storyteller by the fire", "A bright, friendly young woman, audiobook narrator, clear and lively but even, easy to listen to", "A steady, neutral male voice, audiobook narrator, clear and precise, documentary style"];
 const money = (usd) => usd == null ? "" : usd < 0.005 ? "under 1 cent" : usd < 1 ? `about ${Math.max(1, Math.round(usd * 100))} cent${Math.round(usd * 100) > 1 ? "s" : ""}` : `about $${usd.toFixed(2)}`;
 function openGen() { closeAdd(); $("#genvoice").hidden = false; $("#genvoice").scrollIntoView({ behavior: "smooth", block: "nearest" }); gpLoad(); }
 function closeGen() { gpStop(); gpReset(); $("#genvoice").hidden = true; }

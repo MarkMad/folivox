@@ -133,7 +133,7 @@ class OpenAIVoice(CloudGenerator):
     name, label, modes, languages = "openai", "OpenAI", ("preset",), LANGS
     style = True
     blurb = (
-        "13 ready-made voices; a style note steers tone and pace ('calm, slow, warm'). No voice-from-"
+        "13 ready-made voices; a style note steers tone and pace ('audiobook narration, calm, steady pace'). No voice-from-"
         'description. Simple, reliable and cheap.'
     )
     key_env = "OPENAI_API_KEY"
