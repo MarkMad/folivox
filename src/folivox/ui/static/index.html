@@ -811,7 +811,7 @@ async function restoreSession() {
     voice = s.voice || ""; setBook(book, new Set(s.chapters || []), s.lang);
     for (const [id, v] of Object.entries(s.options || {})) { const e = document.getElementById(id); if (e) e.value = v; }
   } catch (e) { book = null; log("Could not restore the last book: " + e.message, "warn"); }  // never block the page over it
-  finally { restoring = false; }
+  finally { restoring = false; if (typeof ENG !== "undefined" && ENG.list.length && ENG.cur().name !== ENG.shown) engChange(); }  // the session may have set another engine
 }
 
 // ---- jobs: the studio view -----------------------------------------------------------------------
@@ -1034,7 +1034,7 @@ async function engLoad() {
   } catch (e) { /* the page still works with the local engine */ }
 }
 function engChange() {
-  const e = ENG.cur(); if (!e) return;
+  const e = ENG.cur(); if (!e) return; ENG.shown = e.name;
   try { localStorage.setItem("folivox.tts", e.name); } catch (x) {}
   document.querySelectorAll(".eng-cloud").forEach(el => el.hidden = !e.cloud);
   $("#v-local").hidden = false;
