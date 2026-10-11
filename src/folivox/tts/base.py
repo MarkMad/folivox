@@ -29,6 +29,8 @@ class TTSEngine:
     sample_rate: int = 24000
     device: str = "cpu"
     languages: tuple[str, ...] = ()  # ISO 639-1 codes the model can read
+    local: bool = True  # False → a paid cloud API (the text leaves the computer)
+    parallel: int = 1  # fragments prepared at the same time
 
     def prepare(self, text: str, voice: Voice, seed: int = 0) -> tuple[Any, float]:
         """Stage 1, thread-safe w.r.t. :meth:`finish`. Returns (intermediate, seconds)."""
@@ -59,7 +61,7 @@ class Prefetcher:
         from concurrent.futures import ThreadPoolExecutor
 
         self.engine, self.voice = engine, voice
-        self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="folivox-llm")
+        self.pool = ThreadPoolExecutor(max_workers=max(1, engine.parallel), thread_name_prefix="folivox-llm")
         self.futures: dict[tuple[str, int], object] = {}
 
     def submit(self, key: str, text: str, seed: int):

@@ -8,7 +8,7 @@ import uuid
 from collections.abc import Callable
 from pathlib import Path
 
-from folivox.pipeline import Cancelled, Events, RenderOptions
+from folivox.pipeline import Cancelled, CostCapReached, Events, RenderOptions
 
 
 class UIEvents(Events):
@@ -38,6 +38,9 @@ class UIEvents(Events):
 
     def download(self, name, done_bytes, total_bytes):
         self.job.emit("download", name=name, done=done_bytes, total=total_bytes)
+
+    def spend(self, chars, usd, cap):
+        self.job.emit("spend", chars=chars, usd=usd, cap=cap)
 
     def layout(self, chapters):
         self.job.emit("layout", chapters=chapters)
@@ -126,12 +129,13 @@ class JobManager:
             result = render(book, job.opts, UIEvents(job))
             job.result = str(result)
             job.finish("done", "done", result=job.result)
+        except CostCapReached as e:
+            job.finish("cancelled", "cancelled", reason="cost_cap", message=str(e))
         except Cancelled:
             job.finish("cancelled", "cancelled")
         except Exception as e:  # noqa: BLE001 — report any failure to the browser
             job.error = str(e) or type(e).__name__
             job.finish("error", "error", message=job.error)
-
 
     def start_task(self, job: Job, fn: Callable[[Job], str | None]) -> Job:
         """Run ``fn(job)`` in a worker thread as the current voice-generation job (events and cancel as a render)."""

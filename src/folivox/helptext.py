@@ -32,6 +32,18 @@ RENDER_EPILOG = """\
 [dim]Interrupted? Run the same command again.  More: folivox help resuming | voices | quality[/]"""
 
 TOPICS: dict[str, tuple[str, str]] = {
+    "cloud": ("Paid cloud reading engines", """\
+ElevenLabs, OpenAI, Gemini API and Cartesia can read the whole book instead of the local model.
+The book text is sent to the provider and [bold]billed to your account[/] (a whole book can cost tens of dollars).
+
+  [cyan]folivox render book.epub --tts elevenlabs --tts-voice Rachel --preview 600[/]   cheap test first
+  [cyan]folivox render book.epub --tts openai --tts-voice coral --max-cost 10 --yes[/]   cap the spend; resumable
+
+Before every cloud run Folivox shows an estimate and asks; [cyan]--yes[/] skips the question,
+[cyan]--max-cost N[/] stops cleanly at N USD (run again with a higher cap to continue).
+Voices: [cyan]folivox tts-voices ENGINE[/].
+Retakes after a QA mismatch are billed, so cloud runs use 2 takes by default. Reading speed and stress marks
+do not apply. Check the provider's terms before selling the audio; free plans are usually personal use only."""),
     "voices": ("Choosing and adding voices", """\
 Without [cyan]--voice[/] Folivox picks a catalog voice in the book's language.
 

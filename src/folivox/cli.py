@@ -31,6 +31,7 @@ COMMANDS = {"render", "inspect", "voices", "providers", "help", "ui", "--help", 
 # Option panels of `folivox render --help`
 P_INPUT, P_VOICE, P_TEXT, P_QA = "Input", "Voice", "Text", "Quality control"
 P_PROVIDERS, P_PERF, P_OUT, P_META = "Providers", "Performance", "Output", "Book details"
+P_CLOUD = "Cloud engines (paid)"
 
 
 class Stress(str, Enum):
@@ -201,6 +202,9 @@ class RichEvents(Events):
             self.retakes += len(attempts) - 1
         rtf = self.synth / self.audio if self.audio else 0
         info = f"RTF {rtf:.2f} · audio {fmt_duration(self.audio)}"
+        if self.spent is not None:
+            info = f"audio {fmt_duration(self.audio)} · ≈ ${self.spent:.2f}" + (
+                f" of ${self.cap:.2f}" if self.cap else "")
         if self.retakes:
             info += f" · retakes {self.retakes}"
         if self.task is not None:
@@ -208,6 +212,12 @@ class RichEvents(Events):
         if self.verbose or (take.score is not None and len(attempts) > 1):
             sc = ", ".join("—" if a is None else f"{a:.2f}" for a in attempts)
             self.progress.console.log(f"[dim]ch.{chunk.chapter + 1} #{chunk.idx}[/] [{sc}] {chunk.text[:70]}")
+
+    spent: float | None = None
+    cap: float | None = None
+
+    def spend(self, chars, usd, cap):
+        self.spent, self.cap = usd, cap
 
     def download(self, name, done_bytes, total_bytes):
         if not total_bytes:
@@ -252,10 +262,29 @@ def render(
                                   help="Russian only: none | yo (restore ё) | all (stress marks, experimental)."),
     qa: bool = typer.Option(True, "--qa/--no-qa", rich_help_panel=P_QA, show_default=False,
                             help="Check every fragment with speech recognition and retake mismatches (on)."),
-    takes: int = typer.Option(3, "--takes", rich_help_panel=P_QA,
-                              help="Max takes per fragment when QA finds a mismatch."),
+    takes: int | None = typer.Option(None, "--takes", rich_help_panel=P_QA, show_default="3 local, 2 cloud",
+                                     help="Max takes per fragment when QA finds a mismatch (cloud takes are billed)."),
     tts: str | None = typer.Option(None, "--tts", rich_help_panel=P_PROVIDERS, show_default="cosyvoice3",
                                    help="Speech synthesis provider (`folivox providers`)."),
+    tts_model: str = typer.Option("auto", "--tts-model", rich_help_panel=P_CLOUD,
+                                  help="Cloud engine model id, or auto = the newest the provider offers."),
+    tts_voice: str = typer.Option("", "--tts-voice", rich_help_panel=P_CLOUD,
+                                  help="Cloud voice id or name (`folivox tts-voices ENGINE`)."),
+    tts_style: str | None = typer.Option(None, "--tts-style", rich_help_panel=P_CLOUD,
+                                         show_default="neutral audiobook narration",
+                                         help="Narration note (OpenAI, Gemini; ElevenLabs v3/v4 tag)."),
+    tts_mode: str = typer.Option("preset", "--tts-mode", rich_help_panel=P_CLOUD,
+                                 help="preset | design (describe a voice) | localize | clone (your own voice)."),
+    tts_describe: str = typer.Option("", "--tts-describe", rich_help_panel=P_CLOUD,
+                                     help="Voice description for --tts-mode design."),
+    own_voice: bool = typer.Option(False, "--own-voice", rich_help_panel=P_CLOUD,
+                                   help="Confirm that the --voice you clone is your own (or you have permission)."),
+    max_cost: float | None = typer.Option(None, "--max-cost", rich_help_panel=P_CLOUD, show_default="no cap",
+                                          help="Stop cleanly (resumable) before spending more than N USD."),
+    keep_voice: bool = typer.Option(False, "--keep-voice", rich_help_panel=P_CLOUD,
+                                    help="Keep a voice made in the provider account after the run."),
+    yes: bool = typer.Option(False, "--yes", "-y", rich_help_panel=P_CLOUD,
+                             help="Agree to send the text to a paid cloud engine without asking."),
     asr: str | None = typer.Option(None, "--asr", rich_help_panel=P_PROVIDERS, show_default="auto",
                                    help="Speech recognition provider used by QA."),
     llm: LlmWeights = typer.Option(LlmWeights.rl, "--llm", rich_help_panel=P_PROVIDERS,
@@ -293,11 +322,17 @@ def render(
 ):
     """Render a book into an audiobook (m4b with chapters and cover)."""
     from folivox import config
-    from folivox.pipeline import RenderOptions
+    from folivox.pipeline import CostCapReached, RenderOptions
     from folivox.pipeline import render as run_render
     from folivox.providers import ProviderError
     book = _load(book_path, lang)
-    voice_path, voice_text, voice_lang = _resolve_voice(voice, voice_text, book.lang)
+    tts_name = config.provider("tts", tts) or "cosyvoice3"
+    cloud = _is_cloud(tts_name)
+    voice_path, voice_lang, voice_ref = None, "", None
+    if not cloud:
+        voice_path, voice_text, voice_lang = _resolve_voice(voice, voice_text, book.lang)
+    elif tts_mode == "clone":
+        voice_ref = _clone_source(voice, own_voice)
     if voice_lang and voice_lang != book.lang:
         console.print(f"[yellow]⚠ The voice sample is in {_lang_name(voice_lang)}, the book in "
                       f"{_lang_name(book.lang)}: the accent may carry over.[/]")
@@ -312,8 +347,11 @@ def render(
     opts = RenderOptions(output=output, voice_wav=voice_path, voice_text=voice_text, work_dir=work_dir,
                          chapters=chapters, preview=preview, depth=depth, max_chars=max_chars, stress=stress.value,
                          lang=book.lang, speed=speed, device=device.value, threads=threads,
-                         model_dir=str(model_dir) if model_dir else None, qa=qa, max_takes=takes, mp3=mp3,
-                         bitrate=bitrate, llm=llm.value, tts=config.provider("tts", tts) or "cosyvoice3",
+                         model_dir=str(model_dir) if model_dir else None, qa=qa,
+                         max_takes=takes or (2 if cloud else 3), mp3=mp3,
+                         bitrate=bitrate, llm=llm.value, tts=tts_name, tts_model=tts_model, tts_voice=tts_voice,
+                         tts_style=tts_style, tts_mode=tts_mode, tts_description=tts_describe, voice_ref=voice_ref,
+                         max_cost=max_cost, keep_voice=keep_voice,
                          asr=config.provider("asr", asr) or "auto", cover=cover_path,
                          no_cover=bool(cover) and cover.lower() == "none",
                          meta={k: v for k, v in {"title": title, "author": author, "narrator": narrator,
@@ -321,10 +359,16 @@ def render(
                                                  "description": description}.items() if v})
     console.print(f"[bold]{book.title}[/] — {book.author or 'unknown author'}; {_lang_name(book.lang)}; "
                   f"estimated audio ≈ {fmt_duration(book.estimated_seconds)}")
+    if cloud:
+        _confirm_cloud(book, opts, yes)
     events = RichEvents(verbose)
     t0 = time.time()
     try:
         result = run_render(book, opts, events)
+    except CostCapReached as e:
+        events.close()
+        console.print(f"\n[yellow]{e}[/]")
+        raise typer.Exit(3) from None
     except KeyboardInterrupt:
         events.close()
         console.print("\n[yellow]Stopped. Progress is saved — run the same command again to continue.[/]")
@@ -342,6 +386,50 @@ def render(
     if events.audio:
         console.print(f"Synthesis: {fmt_duration(events.synth)} for {fmt_duration(events.audio)} of audio, "
                       f"RTF {events.synth / events.audio:.2f}")
+
+
+def _is_cloud(name: str) -> bool:
+    from folivox.pipeline import is_cloud
+
+    return is_cloud(name)
+
+
+def _clone_source(voice: str, own_voice: bool) -> Path:
+    from folivox import voices as catalog
+
+    mine = next((v for v in catalog.user() if v.id == voice), None)
+    if mine is None:
+        console.print("[red]--tts-mode clone needs --voice = the id of one of your own voices (`folivox voices`)[/]")
+        raise typer.Exit(2)
+    if not own_voice and not typer.confirm(f"Is {mine.id!r} your own voice, or do you have the speaker's permission?",
+                                           default=False):
+        raise typer.Exit(1)
+    return mine.path
+
+
+def _confirm_cloud(book, opts, yes: bool) -> None:
+    """Show what a paid render will send and cost; ask unless --yes."""
+    from folivox.tts import cost
+    from folivox.tts.cloud import generator_class
+
+    cls = generator_class(opts.tts)
+    from folivox.pipeline import parse_selection
+
+    chosen = [i + 1 for i in parse_selection(opts.chapters, len(book.chapters(opts.depth)))]
+    chars = cost.book_chars(book, opts.depth, chosen, opts.preview)
+    model = opts.tts_model if opts.tts_model != "auto" else (cls.models[0]["id"] if cls.models else "")
+    est = cost.estimate(opts.tts, chars, model, opts.max_takes, opts.qa, opts.tts_mode)
+    console.print(f"[bold yellow]Paid cloud engine: {cls.label}[/] ({'model ' + model if model else 'model auto'})")
+    console.print(f"  {cost.describe(est)}")
+    if opts.max_cost is not None:
+        console.print(f"  Spending cap: ${opts.max_cost:.2f} — the run stops cleanly and can be resumed.")
+    console.print(f"  The book text leaves this computer and is billed to your {cls.label} account. {cls.price_note}\n"
+                  f"  Check the provider's terms before publishing the result: {cls.terms_url}")
+    if opts.preview is None:
+        console.print("  [dim]Tip: try `--preview 600` first — a minute of audio for a few cents.[/]")
+    if not yes and not typer.confirm("Send the text and pay for it?", default=False):
+        raise typer.Exit(1)
+    opts.accept_cloud = True
 
 
 def _version(value: bool):
@@ -670,6 +758,34 @@ def voices_sample_text(
         console.print("[yellow]Nothing suitable found.[/]")
 
 
+@app.command("tts-voices", help="List the voices of a cloud reading engine (needs its API key).",
+             rich_help_panel="Setup")
+def tts_voices(engine: str = typer.Argument(..., help="elevenlabs, openai, gemini or cartesia."),
+               lang: str | None = typer.Option(None, "--lang", help="Only voices for this language (Cartesia).")):
+    """List the voices of a cloud reading engine."""
+    from folivox.providers import ProviderError
+    from folivox.tts import ENGINES
+
+    try:
+        eng = ENGINES.create(engine)
+        if eng.local:
+            console.print(f"[red]{engine} is a local engine and has no voice list.[/]")
+            raise typer.Exit(2)
+        rows = eng.gen.speakers(lang)
+    except (ProviderError, ValueError) as e:
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(1) from None
+    t = Table(title=f"{engine} voices (use --tts-voice)")
+    for col in ("Id", "Name", "Sex", "Traits"):
+        t.add_column(col)
+    for vid, (_lang, sex) in rows.items():
+        d = getattr(eng.gen, "details", {}).get(vid, {})
+        t.add_row(vid, getattr(eng.gen, "names", {}).get(vid, ""), sex, d.get("traits", ""))
+    console.print(t)
+    if getattr(eng.gen, "voices_note", ""):
+        console.print(f"[dim]{eng.gen.voices_note}[/]")
+
+
 @app.command(help="List pluggable backends: TTS, speech recognition, voice generators, text LLMs.",
              rich_help_panel="Setup")
 def providers():
@@ -698,6 +814,16 @@ def providers():
     for cls in cloud_providers().values():
         c.add_row(cls.name, " + ".join(cls.modes), ", ".join(m["id"] for m in cls.models), cls.key_env)
     console.print(c)
+    from folivox.tts.cost import estimate
+
+    r = Table(title="Cloud reading engines (`folivox render --tts NAME`): approximate list price")
+    for col in ("Name", "Models (--tts-model; default auto)", "Per hour of audio", "Request limit", "Voice modes"):
+        r.add_column(col)
+    for cls in cloud_providers().values():
+        hour = estimate(cls.name, 14 * 3600, cls.models[0]["id"] if cls.models else "", 1, False)["per_hour"]
+        r.add_row(cls.name, ", ".join(m["id"] for m in cls.models), f"≈ ${hour:.2f}" if hour else "?",
+                  f"{cls.max_chars:,} chars", " + ".join(cls.modes))
+    console.print(r)
     console.print(f"[dim]* selected. Config: {config.config_path()}[/]")
 
 
