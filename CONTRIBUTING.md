@@ -124,6 +124,21 @@ date; never log or echo the key (it comes from `folivox.config.api_key`); tests 
 (`CloudGenerator(transport=fake)`, see `tests/test_cloud.py`), never the network or a real key; output
 is never bundled and voices made with it carry `commercial=True`.
 
+### Adding a cloud reading engine
+
+A reading engine for whole books is a cloud generator (above) plus one registration line; `folivox.tts.cloud.CloudTTS`
+adapts it (voice as a provider id, parallel requests, characters-sent counter for the cost cap, `check_budget`).
+Add the key variable and price in the generator (`estimate_for` is also the source of the cost estimate), then:
+
+```python
+register_cloud_engine("acme", "Acme TTS (cloud, paid): …", "ACME_API_KEY", target="my_pkg.acme:engine")
+# my_pkg/acme.py:  engine = folivox.tts.cloud.make_engine("acme")   # needs "acme" in cloud_providers()
+```
+
+Declare `max_chars` (or `LIMITS` per model: the pipeline splits fragments to fit), voices via `speakers()`, and
+`setup_voices`/`teardown_voices` if the provider can create a voice for a book (the engine then offers
+`design` / `localize` / `clone` automatically). Tests: fake transport, see `tests/test_cloud_tts.py`.
+
 ## Bundled voices
 
 Only audio that may be redistributed: public domain, CC0, or output of an openly licensed model

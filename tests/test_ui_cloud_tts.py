@@ -5,9 +5,9 @@ pytest.importorskip("starlette")
 pytest.importorskip("httpx")
 
 from starlette.testclient import TestClient  # noqa: E402
+from test_ui import TOKEN, upload, wait_done  # noqa: E402
 
 from folivox.ui.app import create_app  # noqa: E402
-from test_ui import BOOK, TOKEN, upload, wait_done  # noqa: E402
 
 
 @pytest.fixture

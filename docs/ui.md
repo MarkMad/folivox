@@ -76,12 +76,14 @@ browser (static HTML + small JS)  ⇄  HTTP + SSE  ⇄  folivox.ui (Starlette)  
 | POST | `/api/books` | upload → `{book_id, title, author, lang, chapters[], estimated_seconds}` |
 | GET | `/api/gen/providers` | cloud voice providers: capabilities, price/terms notes, key state (masked) |
 | POST | `/api/gen/suggest`, `/api/gen/texts`, `/api/gen/estimate`, `/api/gen/start` | design prompt (LLM), sample texts, cost estimate, start a generation job (events and cancel via `/api/jobs/{id}/…`) |
+| GET | `/api/tts/engines` | reading engines: local + paid cloud ones with models, price per hour, limits, key state |
+| POST | `/api/tts/estimate` | `{book_id, chapters, kind, options}` → approximate cost of the render or the preview |
 | GET | `/api/gen/voices/{provider}`, `/api/gen/{job}/takes/{name}` | preset voices; audio of a take |
 | POST | `/api/gen/{job}/add` | add a take to the catalog (marked commercial API) |
 | GET | `/api/voices` | catalog (id, name, lang, license) |
 | GET | `/api/voices/{id}/sample` | audio for audition |
 | POST | `/api/preview` | `{book_id, voice, options}` → `{audio_url}` (synchronous, short) |
-| POST | `/api/jobs` | start render `{book_id, voice, chapters, options}` → `{job_id}` (409 if busy) |
+| POST | `/api/jobs` | start render `{book_id, voice, chapters, options, acknowledged}` → `{job_id}` (409 if busy). A cloud `options.tts` needs `acknowledged: true` (the text is sent and billed), the key, and takes optional `tts_model`, `tts_voice`, `tts_mode`, `tts_style`, `max_cost`; events include `spend` and a `cancelled` with `reason: "cost_cap"` |
 | GET | `/api/jobs/{id}/events` | SSE stream of pipeline events |
 | POST | `/api/jobs/{id}/cancel` | cooperative stop |
 | GET | `/api/jobs/{id}/chapters/{n}.mp3` | built chapter audio |
