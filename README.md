@@ -291,6 +291,7 @@ press Render) again.
 
 **Whose voice may I clone?** Your own, or one you have explicit permission to use. Folivox ships no celebrity
 or third-party voices and has no feature for imitating real people.
+The bundled voices are real readers' public-domain recordings from LibriVox; a reader can ask for their recording to be removed, and the voice will then be dropped.
 
 ## Documentation
 
