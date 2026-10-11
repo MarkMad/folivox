@@ -216,9 +216,9 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
     <small class="mute" id="vc-title"></small>
     <div class="grid" style="margin-top:8px">
       <div style="grid-column:1/-1"><div class="chips" id="vc-modes" role="radiogroup" aria-label="Kind of voice"></div><select id="o-tts_mode" hidden></select><small class="mute" id="vc-modehint" style="display:block;margin-top:4px"></small></div>
-      <div class="eng-pick" style="grid-column:1/-1"><div class="chips" id="vc-sex" style="margin-bottom:6px"></div><div class="vgrid" id="vc-list" role="radiogroup" aria-label="Voice"></div><small class="mute" id="vc-note"></small><input type="hidden" id="o-tts_voice"></div>
       <label class="f eng-desc" hidden style="grid-column:1/-1">Describe the voice<input id="o-tts_description" type="text" placeholder="a calm, warm middle-aged woman, unhurried audiobook narrator"></label>
       <label class="f eng-style" style="grid-column:1/-1">Narration note (optional)<input id="o-tts_style" type="text" placeholder="default: neutral, steady audiobook narration"></label>
+      <div class="eng-pick" style="grid-column:1/-1"><small class="mute" style="display:block;margin-bottom:6px" id="vc-note"></small><div class="chips" id="vc-sex" style="margin-bottom:6px"></div><div class="vgrid" id="vc-list" role="radiogroup" aria-label="Voice"></div><input type="hidden" id="o-tts_voice"></div>
     </div>
     <label class="consent eng-own" hidden style="margin-top:8px"><input type="checkbox" id="eng-own"><span>The voice I select in the list below is my own, or I have the speaker's permission to clone it. The clone exists in the provider's account while the book is made, then it is deleted.</span></label>
   </div>
