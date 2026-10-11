@@ -122,7 +122,7 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 #av-timer { font-variant-numeric:tabular-nums; min-width:38px; } .meter { flex:1; height:6px; background:var(--seg-pending); border-radius:3px; overflow:hidden; } .meter i { display:block; height:100%; width:0; background:var(--accent); transition:width .08s; }
 .av-sample { display:flex; gap:12px; align-items:center; background:var(--bg); border-radius:10px; padding:10px 12px; } .av-sample .vplay { flex:none; }
 .av-sample .ok { color:var(--seg-done); } .av-sample .bad { color:var(--warn); } .av-sample .stop { color:var(--err); }
-.gp { display:none; flex-direction:column; gap:12px; } .av.gen .gp { display:flex; } .av.gen .av-body { display:none; }
+.gp { display:flex; flex-direction:column; gap:12px; }
 .gp-notice { border:1px solid var(--warn); border-radius:10px; padding:9px 12px; font-size:13px; color:var(--ink); background:var(--bg); }
 .gp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px 20px; }
 .gp-take { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,200px) 18px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; }
@@ -162,7 +162,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
   <div class="vgrid" id="voices" role="radiogroup" aria-label="Voice"></div>
   <div class="mute" id="vcount" style="margin-top:6px"><small></small></div>
   <div id="addvoice" class="av" hidden>
-    <div class="av-head"><b>Add your own voice</b><div class="seg" id="av-source"><button type="button" data-src="sample" class="on">Upload or record</button><button type="button" data-src="gen">Generate with a provider</button></div><span class="mute" id="av-sub">6–15 s of clean speech: no music, no noise, an even calm pace</span>
+    <div class="av-head"><b>Add your own voice</b><span class="mute" id="av-sub">6–15 s of clean speech: no music, no noise, an even calm pace</span>
       <button id="av-close" class="chip" style="margin-left:auto">Close</button></div>
     <div class="av-body">
       <div class="av-left">
@@ -189,6 +189,10 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
         <div class="row"><button id="av-submit" class="primary" disabled>Add voice</button><span id="av-msg" class="mute grow"></span></div>
       </div>
     </div>
+  </div>
+  <div id="genvoice" class="av" hidden>
+    <div class="av-head"><b>Generate a voice with a provider</b><span class="mute">Cloud TTS reads a short text; you pick the best take — your key, your cost</span>
+      <button id="gp-close" class="chip" style="margin-left:auto">Close</button></div>
     <div class="gp" id="gp">
       <div class="gp-notice" id="gp-notice"></div>
       <div class="gp-grid">
@@ -416,7 +420,7 @@ $("#voices").addEventListener("click", async (e) => {
   const play = e.target.closest("[data-play]"), del = e.target.closest("[data-del]"), fav = e.target.closest("[data-fav]"), card = e.target.closest(".vcard");
   if (fav) { e.stopPropagation(); return toggleFav(fav.dataset.fav); }
   if (card && card.id === "add-card") return openAdd();
-  if (card && card.id === "gen-card") return openAdd("gen");
+  if (card && card.id === "gen-card") return openGen();
   if (e.target.id === "vall") { e.preventDefault(); vf.lang = "all"; vf.manual = true; return renderVoices(); }
   if (play) { e.stopPropagation(); return playVoice(play.dataset.play); }
   if (del) { e.stopPropagation(); if (confirm("Remove voice " + del.dataset.del + "?")) { await api("/api/voices/" + del.dataset.del, { method: "DELETE" }); if (voice === del.dataset.del) voice = ""; loadVoices(); saveSession(); } return; }
@@ -424,7 +428,7 @@ $("#voices").addEventListener("click", async (e) => {
 });
 $("#voices").addEventListener("keydown", (e) => {
   const card = e.target.closest(".vcard"); if (!card || e.target.tagName === "BUTTON") return;
-  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); card.id === "add-card" ? openAdd() : card.id === "gen-card" ? openAdd("gen") : pickVoice(card.dataset.id); }
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); card.id === "add-card" ? openAdd() : card.id === "gen-card" ? openGen() : pickVoice(card.dataset.id); }
   if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault();
     const all = [...document.querySelectorAll(".vcard")], i = all.indexOf(card), j = Math.max(0, Math.min(all.length - 1, i + (e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : -1))); all[j].focus(); }
 });
@@ -455,8 +459,8 @@ const TR = { а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ё:"e",ж:"zh",з:"z",и:
 let av = null, avDirty = false, avRec = null, idTouched = false;
 const slug = (n) => n.toLowerCase().split("").map(c => TR[c] ?? c).join("").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
 function freeId(base) { base = base || "voice"; let id = base, i = 2; const taken = new Set(VOICES.map(v => v.id)); while (taken.has(id)) id = `${base}-${i++}`; return id; }
-function openAdd(src) { setSource(src === "gen" ? "gen" : "sample"); $("#addvoice").hidden = false; $("#addvoice").scrollIntoView({ behavior: "smooth", block: "nearest" }); $("#av-name").focus({ preventScroll: true }); }
-function closeAdd() { stopRec(true); resetAdd(); gpStop(); gpReset(); $("#addvoice").hidden = true; }
+function openAdd() { closeGen(); $("#addvoice").hidden = false; $("#addvoice").scrollIntoView({ behavior: "smooth", block: "nearest" }); $("#av-name").focus({ preventScroll: true }); }
+function closeAdd() { stopRec(true); resetAdd(); $("#addvoice").hidden = true; }
 function resetAdd() { av = null; avDirty = false; idTouched = false; abp.reset();
   ["#av-name", "#av-id", "#av-text"].forEach(i => $(i).value = ""); $("#av-consent").checked = false; $("#av-msg").textContent = ""; $("#av-file").value = "";
   $("#av-sample").hidden = true; $("#av-script").hidden = true; $("#av-drop").hidden = false; checkAdd(); }
@@ -852,13 +856,9 @@ function handle(ev) {
 
 // -- generate a reference voice with a cloud provider -----------------------------------------------------------
 let GP = { providers: [], notice: "", prov: null, mode: "preset", textSrc: "builtin", job: null, es: null, takes: [], sel: "", player: null, gender: "" };
-function setSource(src) {
-  $("#addvoice").classList.toggle("gen", src === "gen");
-  document.querySelectorAll("#av-source button").forEach(b => b.classList.toggle("on", b.dataset.src === src));
-  $("#av-sub").textContent = src === "gen" ? "Create a reference voice with a cloud TTS provider — your key, your cost" : "6–15 s of clean speech: no music, no noise, an even calm pace";
-  if (src === "gen") gpLoad();
-}
-document.querySelectorAll("#av-source button").forEach(b => b.onclick = () => setSource(b.dataset.src));
+function openGen() { closeAdd(); $("#genvoice").hidden = false; $("#genvoice").scrollIntoView({ behavior: "smooth", block: "nearest" }); gpLoad(); }
+function closeGen() { gpStop(); gpReset(); $("#genvoice").hidden = true; }
+$("#gp-close").onclick = closeGen;
 async function gpLoad() {
   if (!$("#gp-lang").options.length) $("#gp-lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}">${n}</option>`).join("");
   if (!GP.job) $("#gp-lang").value = "en";
@@ -1040,7 +1040,7 @@ $("#gp-add").onclick = async () => {
   try {
     const v = await api(`/api/gen/${GP.job.id}/add`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ take: GP.sel, id: $("#gp-id").value, name: $("#gp-name").value.trim(), gender: GP.gender, lang: $("#gp-lang").value }) });
     $("#gp-addmsg").textContent = "Added: " + v.name; voice = v.id; await loadVoices(); saveSession();
-    gpStopPlay(); gpReset(); $("#gp-name").value = $("#gp-id").value = ""; gpIdTouched = false; $("#addvoice").hidden = true;
+    gpStopPlay(); gpReset(); $("#gp-name").value = $("#gp-id").value = ""; gpIdTouched = false; $("#genvoice").hidden = true;
   } catch (e) { $("#gp-addmsg").innerHTML = `<span class="err">${esc(e.message)}</span>`; gpAddCheck(); }
 };
 
