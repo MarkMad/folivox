@@ -134,6 +134,7 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 .gp-key { background:var(--bg); border-radius:10px; padding:10px 12px; display:flex; flex-direction:column; gap:6px; }
 .spin { display:inline-block; width:12px; height:12px; border:2px solid var(--seg-pending); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; vertical-align:-2px; margin-right:6px; } @keyframes spin { to { transform:rotate(360deg); } }
 .wk-cancel { margin-left:8px; } @media (prefers-reduced-motion: reduce) { .spin { animation-duration:3s; } }
+.gp-vinfo { background:var(--bg); border-radius:10px; padding:8px 12px; font-size:14px; line-height:1.45; }
 .gp-adv summary { cursor:pointer; color:var(--mute); font-size:13px; } .gp-est { font-size:14px; }
 .gp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px 20px; }
 .gp-take { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,200px) 18px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; }
@@ -231,9 +232,10 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
         <div class="chips" id="gp-ideas" style="margin-top:6px"></div>
       </div>
       <div id="gp-preset" hidden class="gp-grid">
-        <label class="f"><span id="gp-speaker-label">Voice</span><select id="gp-speaker"></select></label>
+        <div class="f"><span id="gp-speaker-label">Voice</span><div class="chips" id="gp-vsex" style="margin-bottom:4px"></div><select id="gp-speaker"></select></div>
         <label class="f" id="gp-style-row">Narration style <small>(optional, English)</small><input id="gp-style" type="text" value="Audiobook narration: calm, steady pace, neutral emotion, clear diction" placeholder="empty = the voice's own manner"></label>
       </div>
+      <div id="gp-vinfo" class="gp-vinfo" hidden><span id="gp-vdesc"></span> <button type="button" class="chip" id="gp-vplay" hidden>▶ Hear a free sample</button><div class="mute"><small id="gp-vnote"></small></div></div>
       <div id="gp-clone" hidden class="gp-grid">
         <label class="f">Your voice to clone<select id="gp-ref"></select></label>
         <label class="consent"><input type="checkbox" id="gp-own"><span>This is my own voice, or I have the speaker's permission to clone it. The clone exists in the provider's account only while the takes are made, then it is deleted.</span></label>
@@ -950,10 +952,33 @@ async function gpVoices() {
   try {
     const r = await api(`/api/gen/voices/${p}` + (GP.mode === "localize" ? "" : `?lang=${$("#gp-lang").value}`));
     if (GP.prov.name !== p) return;
-    box.innerHTML = r.voices.map(v => `<option value="${esc(v.id)}">${esc(v.name)}${v.gender ? " · " + (GENDER[v.gender] || v.gender) : ""}</option>`).join("") || `<option value="">no voices for this language</option>`;
+    GP.voices = r.voices; GP.vnote = r.note || ""; GP.vsex = GP.vsex || ""; gpRenderVoices();
   } catch (e) { box.innerHTML = `<option value="">—</option>`; $("#gp-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
   gpCheck();
 }
+function gpRenderVoices() {
+  const all = GP.voices || [], sexes = [...new Set(all.map(v => v.gender).filter(Boolean))];
+  if (GP.vsex && !sexes.includes(GP.vsex)) GP.vsex = "";
+  $("#gp-vsex").innerHTML = sexes.length > 1 ? [["", "Any"], ["f", "Female"], ["m", "Male"]].map(([g, n]) => `<button type="button" class="chip ${GP.vsex === g ? "on" : ""}" data-vsex="${g}">${n}</button>`).join("") : "";
+  const list = all.filter(v => !GP.vsex || v.gender === GP.vsex), keep = $("#gp-speaker").value;
+  $("#gp-speaker").innerHTML = list.map(v => `<option value="${esc(v.id)}">${esc(v.name.split(" - ")[0])}${v.gender || v.traits ? " — " : ""}${[GENDER[v.gender], v.traits].filter(Boolean).map(esc).join(", ")}</option>`).join("") || `<option value="">no voices for this language</option>`;
+  if (list.some(v => v.id === keep)) $("#gp-speaker").value = keep;
+  gpVoiceInfo(); gpCheck();
+}
+function gpVoiceInfo() {
+  const v = (GP.voices || []).find(x => x.id === $("#gp-speaker").value);
+  $("#gp-vinfo").hidden = !v; if (!v) return;
+  $("#gp-vdesc").textContent = v.description || (v.traits ? v.traits : "");
+  $("#gp-vplay").hidden = !v.preview_url; $("#gp-vplay").dataset.url = v.preview_url || "";
+  $("#gp-vnote").textContent = v.preview_url ? "Samples are provided free of charge by the service." : GP.vnote;
+}
+$("#gp-vsex").addEventListener("click", (e) => { const b = e.target.closest("[data-vsex]"); if (b) { GP.vsex = b.dataset.vsex; gpRenderVoices(); } });
+$("#gp-speaker").addEventListener("change", gpVoiceInfo);
+$("#gp-vplay").onclick = () => {
+  if (GP.vaudio && !GP.vaudio.paused) { GP.vaudio.pause(); $("#gp-vplay").textContent = "▶ Hear a free sample"; return; }
+  GP.vaudio = new Audio($("#gp-vplay").dataset.url); $("#gp-vplay").textContent = "❚❚ Stop";
+  GP.vaudio.onended = GP.vaudio.onpause = () => { $("#gp-vplay").textContent = "▶ Hear a free sample"; }; GP.vaudio.play().catch(() => { $("#gp-vplay").textContent = "▶ Hear a free sample"; });
+};
 $("#gp-lang").onchange = () => { if (GP.prov && GP.mode !== "design") gpVoices(); if (GP.textSrc === "builtin") gpTexts("builtin"); };
 $("#gp-model").addEventListener("change", () => { $("#gp-model-custom").hidden = $("#gp-model").value !== "__custom"; gpCheck(); });
 $("#gp-keysave").onclick = async () => {

@@ -155,7 +155,8 @@ class CloudGenerator(VoiceGenerator):
         return {"name": cls.name, "label": cls.label or cls.name, "modes": list(cls.modes),
                 "languages": list(cls.languages), "key_env": cls.key_env, "price_note": cls.price_note,
                 "terms_url": cls.terms_url, "docs_url": cls.docs_url, "commercial": cls.commercial,
-                "max_chars": cls.max_chars, "blurb": cls.blurb, "models": list(cls.models), "style": cls.style,
+                "max_chars": cls.max_chars, "blurb": cls.blurb, "voices_note": cls.voices_note,
+                "models": list(cls.models), "style": cls.style,
                 "mode_labels": dict(cls.mode_labels)}
 
     @classmethod
@@ -168,6 +169,8 @@ class CloudGenerator(VoiceGenerator):
         return {}
 
     names: dict[str, str] = {}  # voice id → display name, when the id is not readable
+    details: dict[str, dict] = {}  # voice id → {"traits", "description", "preview_url"} for the voice picker
+    voices_note = ""  # shown under the voice list (e.g. where free samples can be heard)
 
     # ---- HTTP ------------------------------------------------------------------------------------
     def headers(self) -> dict[str, str]:

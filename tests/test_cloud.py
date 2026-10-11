@@ -340,3 +340,28 @@ def test_estimates_follow_the_model():
     assert OpenAIVoice.estimate_for(1000, 1, "preset", "tts-1")["usd"] == pytest.approx(0.015)
     assert ElevenLabs.estimate_for(1000, 1, "preset", "eleven_flash_v2_5")["usd"] == pytest.approx(0.04)
     assert Cartesia.estimate_for(100, 1, "localize")["chars"] == 325
+
+
+def test_voice_details_for_the_picker():
+    gem = Fake(ok({"voices": [{"display_name": "Kore", "gender": "female", "persona": "Storyteller & Narrator",
+                               "pitch": "high", "description": "Soft and calm."},
+                              {"display_name": "Library Voice 1", "gender": "male"}]}))
+    g = make(Gemini, gem)
+    assert g.speakers()["Kore"] == ("", "f") and "Library Voice 1" not in g.speakers()  # only the 30 documented names
+    assert g.details["Kore"] == {"traits": "Storyteller & Narrator · high pitch", "description": "Soft and calm."}
+    assert "language_code=en-US" in gem.calls[0]["url"]
+    down = make(Gemini, Fake(ok({"error": {"message": "x"}}, status=503)))
+    assert len(down.speakers()) == 30 and down.details == {}  # falls back to the declared names
+    el = Fake(ok({"voices": [{"voice_id": "v1", "name": "Sarah", "labels": {"gender": "female", "age": "middle_aged",
+                                                                           "accent": "american"},
+                              "description": "Warm.", "preview_url": "https://cdn.example/s.mp3"}], "has_more": False}))
+    e = make(ElevenLabs, el)
+    e.speakers()
+    assert e.details["v1"] == {"traits": "middle aged · american", "description": "Warm.",
+                               "preview_url": "https://cdn.example/s.mp3"}
+    ca = make(Cartesia, Fake(ok({"data": [{"id": "u", "name": "Ann", "gender": "feminine", "tagline": "Calm",
+                                           "description": "Friendly.", "preview_file_url": None}], "has_more": False})))
+    ca.speakers("ru")
+    assert ca.details["u"] == {"traits": "Calm", "description": "Friendly.", "preview_url": ""}
+    oa = make(OpenAIVoice, Fake(ok({})))
+    assert oa.speakers()["onyx"] == ("", "m") and "openai.fm" in oa.voices_note and oa.details["onyx"]["traits"]

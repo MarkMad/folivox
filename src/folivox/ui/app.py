@@ -552,9 +552,10 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             return JSONResponse({"voices": []})
         speakers = await gen_call(gen.speakers, request.query_params.get("lang"))
         lang = request.query_params.get("lang")
-        names = getattr(gen, "names", {})
-        return JSONResponse({"voices": [{"id": k, "lang": v[0], "gender": v[1], "name": names.get(k, k)}
-                                        for k, v in speakers.items() if not lang or v[0] in (lang, "")]})
+        names, details = getattr(gen, "names", {}), getattr(gen, "details", {})
+        rows = [{"id": k, "lang": v[0], "gender": v[1], "name": names.get(k, k), **details.get(k, {})}
+                for k, v in speakers.items() if not lang or v[0] in (lang, "")]
+        return JSONResponse({"voices": rows, "note": getattr(gen, "voices_note", "")})
 
     async def gen_suggest(request: Request):
         from folivox.voices.suggest import suggest_design_prompt

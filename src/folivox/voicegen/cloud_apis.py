@@ -74,7 +74,23 @@ class Gemini(CloudGenerator):
         return {"chars": chars * takes, "usd": round(seconds * 0.00225 / 10, 3), "note": cls.price_note}
 
     def speakers(self, lang=None):
-        return {v: ("", "") for v in self.VOICES}
+        if self._speakers is None:
+            out: dict = {}
+            self.details = {}
+            try:  # the API describes its prebuilt voices: sex, role, pitch, a sentence of character
+                url = f"{self.BASE}/voices?type=prebuilt&language_code=en-US&page_size=1000"
+                for v in self.call("GET", url).json().get("voices", []):
+                    name = v.get("display_name") or v.get("id", "")
+                    sex = {"female": "f", "male": "m"}.get(v.get("gender", ""), "")
+                    out[name] = ("", sex)
+                    pitch = f"{v['pitch']} pitch" if v.get("pitch") else ""
+                    traits = [x for x in (v.get("persona"), pitch) if x]
+                    self.details[name] = {"traits": " · ".join(traits), "description": v.get("description", "")}
+            except CloudError as e:
+                if e.kind == "auth":
+                    raise
+            self._speakers = {k: out[k] for k in self.VOICES if k in out} or {v: ("", "") for v in self.VOICES}
+        return self._speakers
 
     def setup_voices(self, jobs):
         if self.mode != "design":
@@ -151,6 +167,7 @@ class OpenAIVoice(CloudGenerator):
     def __init__(self, base_url: str = "https://api.openai.com/v1", **kw):
         super().__init__(**kw)
         self.base_url = base_url.rstrip("/")
+        self.details = {}
 
     def headers(self):
         return {"Authorization": f"Bearer {self.key}"}
@@ -171,9 +188,19 @@ class OpenAIVoice(CloudGenerator):
         usd = n / 1e6 * (30 if model == "tts-1-hd" else 15) if model.startswith("tts-1") else n / 14 / 60 * 0.015
         return {"chars": n, "usd": round(usd, 3), "note": cls.price_note}
 
+    voices_note = ("OpenAI publishes no descriptions of its voices: sex and character here are approximate "
+                   "impressions. Listen to them for free at https://www.openai.fm")
+    IMPRESSION = {"alloy": ("", "neutral, balanced"), "ash": ("m", "warm, steady"), "ballad": ("m", "soft, gentle"),
+                  "coral": ("f", "warm, friendly"), "echo": ("m", "clear, calm"),
+                  "fable": ("m", "expressive storyteller"),
+                  "nova": ("f", "bright, energetic"), "onyx": ("m", "deep, authoritative"),
+                  "sage": ("f", "calm, composed"), "shimmer": ("f", "light, gentle"), "verse": ("m", "expressive"),
+                  "marin": ("f", "natural, clear"), "cedar": ("m", "natural, warm")}
+
     def speakers(self, lang=None):
         voices = self.VOICES if self.model.startswith("gpt-") else self.CLASSIC
-        return {v: ("", "") for v in voices}
+        self.details = {v: {"traits": self.IMPRESSION[v][1], "description": ""} for v in voices}
+        return {v: ("", self.IMPRESSION[v][0]) for v in voices}
 
     def synth(self, job: Job) -> bytes:
         voice = job.speaker or "coral"
@@ -215,7 +242,7 @@ class ElevenLabs(CloudGenerator):
     def __init__(self, design_model: str = "eleven_ttv_v3", **kw):
         super().__init__(**kw)
         self.design_model = design_model
-        self.names = {}
+        self.names, self.details = {}, {}
 
     def headers(self):
         return {"xi-api-key": self.key}
@@ -249,6 +276,11 @@ class ElevenLabs(CloudGenerator):
                     sex = {"female": "f", "male": "m"}.get((v.get("labels") or {}).get("gender", ""), "")
                     out[v["voice_id"]] = ("", sex)
                     self.names[v["voice_id"]] = v.get("name", v["voice_id"])
+                    lb = v.get("labels") or {}
+                    self.details[v["voice_id"]] = {
+                        "traits": " · ".join(x.replace("_", " ") for x in (
+                            lb.get("age"), lb.get("accent"), lb.get("descriptive"), lb.get("use_case")) if x),
+                        "description": v.get("description") or "", "preview_url": v.get("preview_url") or ""}
                 token = data.get("next_page_token")
                 if not data.get("has_more") or not token:
                     break
@@ -341,13 +373,16 @@ class Cartesia(CloudGenerator):
         if key not in cache:
             out, after = {}, None
             for _ in range(3):  # at most 300 voices
-                q = {"limit": 100, **({"language": lang} if lang else {}),
+                q = {"limit": 100, "expand[]": "preview_file_url", **({"language": lang} if lang else {}),
                      **({"starting_after": after} if after else {})}
                 data = self.call("GET", f"{self.BASE}/voices?{urllib.parse.urlencode(q)}").json()
                 for v in data.get("data", []):
                     sex = {"feminine": "f", "masculine": "m"}.get(v.get("gender", ""), "")
                     out[v["id"]] = (lang or v.get("language") or "", sex)
                     self.names[v["id"]] = v.get("name", v["id"])
+                    self.details[v["id"]] = {"traits": v.get("tagline") or "",
+                                             "description": v.get("description") or "",
+                                             "preview_url": v.get("preview_file_url") or ""}
                 rows = data.get("data") or []
                 if not data.get("has_more") or not rows:
                     break

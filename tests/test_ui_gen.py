@@ -282,3 +282,21 @@ def test_clone_and_localize_rules(env, monkeypatch):
     assert r.status_code == 202
     wait(c, r.json()["id"])
     assert holder["gen"].seen[0].reference.name == "voice.flac" and holder["gen"].mode == "clone"
+
+
+def test_voice_list_carries_sex_traits_and_preview(env, monkeypatch):
+    holder, make, _ = env
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "k")
+
+    class Rich(FakeGen):
+        names = {"v1": "Sarah"}
+        details = {"v1": {"traits": "american", "description": "Warm.", "preview_url": "https://cdn.example/s.mp3"}}
+        voices_note = "note"
+
+        def speakers(self, lang=None):
+            return {"v1": ("", "f")}
+
+    holder["gen"] = Rich(ElevenLabs)
+    r = make().get("/api/gen/voices/elevenlabs?lang=ru").json()
+    assert r["voices"] == [{"id": "v1", "lang": "", "gender": "f", "name": "Sarah", "traits": "american",
+                            "description": "Warm.", "preview_url": "https://cdn.example/s.mp3"}] and r["note"] == "note"
