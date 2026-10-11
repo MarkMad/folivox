@@ -112,6 +112,8 @@ def test_providers_list_shows_capabilities_and_masked_key_state(env, monkeypatch
     c = make()
     r = c.get("/api/gen/providers").json()
     by = {p["name"]: p for p in r["providers"]}
+    assert [p["name"] for p in r["providers"]] == ["gemini", "cartesia", "elevenlabs", "openai"]
+    assert by["gemini"]["tag"] == "cheap and best" and "non-English" in by["openai"]["tag"]
     assert set(by) == {"openai", "gemini", "elevenlabs", "cartesia"} and "billed" in r["notice"]
     assert by["elevenlabs"]["modes"] == ["preset", "design"] and by["gemini"]["key_env"] == "GEMINI_API_KEY"
     assert by["elevenlabs"]["key_saved"] and by["elevenlabs"]["key_masked"].endswith("3456")

@@ -734,6 +734,11 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
 
         out = [{**cls.capabilities(), **key_state(cls), "sample_usd": sample_usd(cls)}
                for cls in cloud_providers().values()]
+        order = ["gemini", "cartesia", "elevenlabs", "openai"]  # by value for money
+        tags = {"gemini": "cheap and best", "openai": "low quality for non-English"}
+        for p in out:
+            p["tag"] = tags.get(p["name"], "")
+        out.sort(key=lambda p: order.index(p["name"]) if p["name"] in order else len(order))
         return JSONResponse({"providers": out, "notice": COMMERCIAL_NOTICE})
 
     async def tts_engines(request: Request):
