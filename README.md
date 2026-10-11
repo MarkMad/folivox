@@ -269,11 +269,11 @@ redacted support bundle. Pluggable providers via entry points.
 <table>
 <tr>
 <td width="50%"><img src="docs/img/studio-book.png" alt="A loaded book with its chapters and estimated length"><br><sub>Drop a book: chapters, language, cover, details and estimated length.</sub></td>
-<td width="50%"><img src="docs/img/studio-voices.png" alt="Reading engine and voice gallery"><br><sub>Choose the engine and a voice: audition, favourites, record your own or generate one.</sub></td>
+<td width="50%"><img src="docs/img/studio-voices.png" alt="Reading engine and voice gallery"><br><sub>The voice for your book: the best match is picked automatically; audition others, record your own or generate one.</sub></td>
 </tr>
 <tr>
 <td width="50%"><img src="docs/img/studio-done.png" alt="The audiobook is ready card"><br><sub>Done: the file, its length and how long it took.</sub></td>
-<td width="50%"><img src="docs/img/studio-ru.png" alt="The studio in Russian"><br><sub>The same studio in Russian, one of nine interface languages.</sub></td>
+<td width="50%"><img src="docs/img/studio-gallery.png" alt="Voice gallery with 64 bundled voices filtered by language"><br><sub>The bundled voice library: filter by language and sex, audition, star favourites.</sub></td>
 </tr>
 </table>
 
