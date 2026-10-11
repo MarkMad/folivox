@@ -33,3 +33,6 @@ build/
 # synthetic test fixtures are allowed
 !tests/fixtures/**
 !src/folivox/voices/*.flac
+
+# personal notes, kept locally
+/recording/
