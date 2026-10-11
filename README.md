@@ -324,8 +324,8 @@ Found a bug, a mispronounced word or a book that does not open? Please
 [open an issue](https://github.com/alex-vatavu/folivox/issues) with the steps to reproduce; for crashes attach
 the redacted bundle from `folivox doctor --bundle`. Ideas and feature requests are welcome there too.
 
-Folivox is developed by one maintainer, and at this stage pull requests are not being accepted: please
-describe the problem or idea in an issue instead. You are free to fork the project under its licence.
+Folivox is maintained by one person, so before writing code for a larger change, please open an issue
+first to talk it over.
 
 ## Acknowledgements
 
