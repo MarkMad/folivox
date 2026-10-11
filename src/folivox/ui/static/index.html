@@ -392,6 +392,7 @@ const fmt = (s) => { s = Math.round(s); const h = Math.floor(s/3600), m = Math.f
   return h ? `${h} h ${String(m).padStart(2,"0")} min` : `${m} min ${String(x).padStart(2,"0")} s`; };
 const num = (n) => n.toLocaleString("en").replace(/,/g, " ");
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const linkify = (text) => esc(text).replace(/https?:\/\/[^\s<]+[^\s<.,;)]/g, (u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`);
 const tok = (url) => TOKEN ? url + (url.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(TOKEN) : url;  // else the session cookie authenticates
 async function api(url, opts = {}) {
   opts.headers = { "X-Folivox-Token": TOKEN, ...(opts.headers || {}) };
@@ -1061,7 +1062,7 @@ function engRenderVoices() {
     <div style="min-width:0"><div class="vname"><span class="n">${esc((v.name || v.id).split(" - ")[0])}</span><span class="vbadge warn">online · paid</span></div>
       <div class="vmeta">${esc([GENDER[v.gender], v.traits, v.description].filter(Boolean).join(" · "))}</div></div>
     <span>${v.id === cur ? "✓" : ""}</span></div>`).join("") || `<div class="mute">No voices for this language.</div>`;
-  $("#vc-note").textContent = (all.some(v => v.preview_url) ? "Samples play free of charge. " : "") + (ENG.vnote || "") + ` Reading the book with ${e.label} is paid${e.per_hour != null ? " (≈ $" + e.per_hour.toFixed(2) + " per hour of audio)" : ""}, whichever voice you pick.`;
+  $("#vc-note").innerHTML = linkify((all.some(v => v.preview_url) ? "Samples play free of charge. " : "") + (ENG.vnote || "") + ` Reading the book with ${e.label} is paid${e.per_hour != null ? " (≈ $" + e.per_hour.toFixed(2) + " per hour of audio)" : ""}, whichever voice you pick.`);
 }
 $("#vc-sex").addEventListener("click", (ev) => { const b = ev.target.closest("[data-vsex]"); if (b) { ENG.vsex = b.dataset.vsex; engRenderVoices(); } });
 function engStop() { if (ENG.audio) { ENG.audio.pause(); ENG.audio = null; } document.querySelectorAll("#vc-list .vcard.playing").forEach(c => { c.classList.remove("playing"); c.querySelector(".vplay").textContent = "▶"; }); }
@@ -1180,7 +1181,7 @@ function gpVoiceInfo() {
   $("#gp-vinfo").hidden = !v; if (!v) return;
   $("#gp-vdesc").textContent = v.description || (v.traits ? v.traits : "");
   $("#gp-vplay").hidden = !v.preview_url; $("#gp-vplay").dataset.url = v.preview_url || "";
-  $("#gp-vnote").textContent = v.preview_url ? "Samples are provided free of charge by the service." : GP.vnote;
+  $("#gp-vnote").innerHTML = v.preview_url ? "Samples are provided free of charge by the service." : linkify(GP.vnote);
 }
 $("#gp-vsex").addEventListener("click", (e) => { const b = e.target.closest("[data-vsex]"); if (b) { GP.vsex = b.dataset.vsex; gpRenderVoices(); } });
 $("#gp-speaker").addEventListener("change", gpVoiceInfo);
