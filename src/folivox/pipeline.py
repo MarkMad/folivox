@@ -347,6 +347,21 @@ def is_cloud(name: str) -> bool:
     return not ENGINES.get(name).local
 
 
+def _default_voice_name(engine, opts: RenderOptions) -> str:
+    """A readable name for a kept voice when the user gave none: never a bare provider id."""
+    from folivox import lang as languages
+
+    if opts.tts_mode == "design" and opts.tts_description:
+        return opts.tts_description[:40].strip(" ,.")
+    base = getattr(engine.gen, "names", {}).get(opts.tts_voice, "")
+    language = languages.get(opts.lang).name
+    if opts.tts_mode == "localize" and base:
+        return f"{base} · {language}"
+    if opts.tts_mode == "clone" and opts.voice_ref:
+        return f"{Path(opts.voice_ref).parent.name or 'My voice'} (clone)"
+    return f"My {language} voice"
+
+
 def _cloud_voice(engine, opts: RenderOptions, journal: Journal, events: Events):
     """The provider voice for the whole run → ``(voice, owned)``.
 
@@ -373,7 +388,7 @@ def _cloud_voice(engine, opts: RenderOptions, journal: Journal, events: Events):
     if not remembered:
         events.stage("voice", f"Created a voice in your {type(engine.gen).label} account for this book")
     if opts.keep_voice:
-        name = opts.tts_voice_name or opts.tts_description[:40] or opts.tts_voice or "My voice"
+        name = opts.tts_voice_name or _default_voice_name(engine, opts)
         saved.add(opts.tts, voice.speaker, name, opts.tts_mode, opts.tts_description, opts.lang)
         events.stage("voice", f"Voice “{name}” is kept in your account and listed for other books")
     return voice, True

@@ -56,3 +56,13 @@ def _write(items: list[dict]) -> None:
     tmp = p.with_suffix(".tmp")
     tmp.write_text(json.dumps(items, ensure_ascii=False, indent=1), encoding="utf-8")
     tmp.replace(p)
+
+
+def rename(provider: str, voice_id: str, name: str) -> bool:
+    items = _read()
+    for v in items:
+        if v.get("provider") == provider and v["id"] == voice_id:
+            v["name"] = " ".join(name.split())[:60] or v["name"]
+            _write(items)
+            return True
+    return False

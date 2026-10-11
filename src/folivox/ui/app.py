@@ -797,6 +797,16 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
 
         return JSONResponse({"voices": saved.listing(request.path_params["provider"])})
 
+    async def tts_saved_rename(request: Request):
+        from folivox.tts import saved
+
+        name = " ".join(str((await request.json()).get("name", "")).split())[:60]
+        if not name:
+            raise ApiError("Give the voice a name")
+        if not saved.rename(request.path_params["provider"], request.path_params["voice"], name):
+            raise ApiError("Unknown saved voice", 404)
+        return JSONResponse({"ok": True})
+
     async def tts_saved_delete(request: Request):
         """Forget a kept voice and delete it from the provider's account."""
         from folivox.providers import ProviderError
@@ -1063,6 +1073,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/tts/{provider}/sample/{voice}", tts_sample),
         Route("/api/tts/{provider}/saved", tts_saved_list),
         Route("/api/tts/{provider}/saved/{voice}", tts_saved_delete, methods=["DELETE"]),
+        Route("/api/tts/{provider}/saved/{voice}", tts_saved_rename, methods=["PUT"]),
         Route("/api/tts/estimate", tts_estimate, methods=["POST"]),
         Route("/api/gen/suggest", gen_suggest, methods=["POST"]),
         Route("/api/gen/texts", gen_texts, methods=["POST"]),

@@ -146,6 +146,10 @@ def test_saved_voices_list_delete_and_reuse(env, tmp_path, monkeypatch):
     wait_done(c, r.json()["id"])
     o = seen["opts"]
     assert o.tts_voice == "v-1" and o.keep_voice is False  # a kept voice is reused, never re-created
+    assert c.put("/api/tts/gemini/saved/v-1", json={"name": "Warm narrator"}).status_code == 200
+    assert c.put("/api/tts/gemini/saved/v-1", json={"name": " "}).status_code == 400
+    assert c.put("/api/tts/gemini/saved/nope", json={"name": "x"}).status_code == 404
+    assert saved.find("gemini", "warm narrator")["id"] == "v-1"
     assert c.delete("/api/tts/gemini/saved/nope").status_code == 404
     assert c.delete("/api/tts/gemini/saved/v-1").status_code == 200
     assert calls == [["v-1"]] and saved.listing("gemini") == []

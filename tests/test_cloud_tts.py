@@ -1,5 +1,6 @@
 """Cloud reading engines with a fake transport: no network, no keys."""
 import json
+from pathlib import Path
 
 import pytest
 from test_cloud import Fake, make, ok, wav_bytes
@@ -248,3 +249,18 @@ def test_openai_tts1_cannot_fix_the_accent_and_says_so():
     v = eng.make_voice("coral", None, "ru")
     assert v.warnings and "gpt-4o-mini-tts" in v.warnings[0] and "accent" not in v.style
     assert not eng.make_voice("coral", None, "en").warnings
+
+
+def test_kept_voice_without_a_name_gets_a_readable_one_never_an_id():
+    from types import SimpleNamespace
+
+    from folivox.pipeline import _default_voice_name
+
+    eng = SimpleNamespace(gen=SimpleNamespace(names={"db6b0ed5-id": "Skylar"}))
+    loc = RenderOptions(output=Path("o.m4b"), tts="cartesia", tts_mode="localize", tts_voice="db6b0ed5-id", lang="ru")
+    assert _default_voice_name(eng, loc) == "Skylar · Russian"
+    unknown = RenderOptions(output=Path("o.m4b"), tts="cartesia", tts_mode="localize", tts_voice="zzz", lang="ru")
+    assert "zzz" not in _default_voice_name(eng, unknown)
+    des = RenderOptions(output=Path("o.m4b"), tts="gemini", tts_mode="design", lang="en",
+                        tts_description="a calm, warm woman in her forties, unhurried narrator")
+    assert _default_voice_name(eng, des).startswith("a calm, warm woman")
