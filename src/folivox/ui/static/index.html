@@ -469,7 +469,7 @@ function setBook(b, keep, lang) {
   $("#lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}" ${c === b.lang ? "selected" : ""}>${n}</option>`).join("");
   if (lang) $("#lang").value = lang;
   renderChapters(keep);
-  if (typeof ENG !== "undefined" && ENG.list.length) { engVoices(); engEstimate(); }
+  if (typeof ENG !== "undefined" && ENG.list.length) engChange();
   ["#s-chapters", "#s-engine", "#s-voice", "#s-run"].forEach(s => $(s).classList.remove("disabled"));
   loadVoices();
 }
@@ -1033,18 +1033,20 @@ function engChange() {
   $("#o-tts_mode").innerHTML = e.voice_modes.map(m => `<option value="${m}">${esc((e.mode_labels || {})[m] || m)}</option>`).join("");
   $("#eng-terms").href = e.terms_url || "#"; $("#o-tts_mode").parentElement.hidden = e.voice_modes.length < 2;
   $("#o-tts_style").parentElement.hidden = !e.style;
+  // voices of non-English books sound right only after adaptation to the language: prefer it where offered
+  if (e.voice_modes.includes("localize") && book && book.lang && book.lang !== "en") $("#o-tts_mode").value = "localize";
   engMode(); engVoices(); engEstimate();
 }
 const MODE_UI = { preset: ["Pick a voice", "Choose one of the service's ready-made voices."],
   design: ["✨ Create a voice from a description", "Describe the narrator in words: the voice is made for this book and deleted from your account afterwards."],
-  localize: ["Native accent of the language", "Take a voice and give it the native accent of your book's language."],
+  localize: ["Native accent of the language", "Recommended for books that are not in English: pick any voice and it is adapted to speak your book's language like a native. Without this step ready-made voices often keep a foreign accent."],
   clone: ["Clone my own voice", "Only your own voice, or one you have permission for."] };
 function engModes() {
   const e = ENG.cur(), cur = $("#o-tts_mode").value;
-  $("#vc-modes").innerHTML = e.voice_modes.map(m => `<button type="button" class="chip ${m === cur ? "on" : ""} ${m === "design" ? "hot" : ""}" role="radio" aria-checked="${m === cur}" data-mode="${m}">${esc(MODE_UI[m] ? MODE_UI[m][0] : m)}</button>`).join("");
+  $("#vc-modes").innerHTML = e.voice_modes.map(m => `<button type="button" class="chip ${m === cur ? "on" : ""} ${m === "design" ? "hot" : ""}" role="radio" aria-checked="${m === cur}" data-mode="${m}">${esc(MODE_UI[m] ? MODE_UI[m][0] : m)}${m === "localize" && book && book.lang !== "en" ? " ★" : ""}</button>`).join("");
   $("#vc-modehint").textContent = MODE_UI[cur] ? MODE_UI[cur][1] : "";
 }
-$("#vc-modes").addEventListener("click", (ev) => { const b = ev.target.closest("[data-mode]"); if (!b) return; $("#o-tts_mode").value = b.dataset.mode; engMode(); engEstimate(); });
+$("#vc-modes").addEventListener("click", (ev) => { const b = ev.target.closest("[data-mode]"); if (!b) return; $("#o-tts_mode").value = b.dataset.mode; engMode(); engVoices(); engEstimate(); });
 function engMode() {
   engModes();
   const e = ENG.cur(); if (!e || !e.cloud) return; const m = $("#o-tts_mode").value;
@@ -1058,7 +1060,7 @@ async function engVoices() {
   if (!e.key_in_env && !e.key_saved) { box.innerHTML = `<div class="mute">No API key for ${esc(e.label)} — add it in “Paid online services” at the bottom of the page.</div>`; $("#vc-sex").innerHTML = ""; return; }
   box.innerHTML = `<div class="mute">Loading the voices…</div>`;
   try {
-    const lang = (book && book.lang) || "", r = ENG.voices[e.name + lang] || (ENG.voices[e.name + lang] = await api(`/api/gen/voices/${e.name}?lang=${encodeURIComponent(lang)}`));
+    const lang = $("#o-tts_mode").value === "localize" ? "" : (book && book.lang) || "", r = ENG.voices[e.name + lang] || (ENG.voices[e.name + lang] = await api(`/api/gen/voices/${e.name}?lang=${encodeURIComponent(lang)}`));
     ENG.vlist = (e.name === "elevenlabs" || e.name === "cartesia" ? [] : [{ id: "", name: "Provider default", traits: "a neutral voice", gender: "" }]).concat(r.voices);
     ENG.vnote = r.note || ""; ENG.vname = e.name;
     if (!ENG.vlist.some(v => v.id === $("#o-tts_voice").value)) $("#o-tts_voice").value = ENG.vlist[0] ? ENG.vlist[0].id : "";
