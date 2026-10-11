@@ -1,0 +1,46 @@
+# Command line reference
+
+
+```bash
+folivox inspect book.epub                     # chapter tree, size, estimated duration
+folivox book.fb2 -v me.wav -o book.m4b        # render the whole book
+folivox book.fb2 -v me.wav -c 1-2             # only chapters 1–2
+folivox book.pdf -v me.wav --mp3 -o out/      # one mp3 per chapter
+```
+
+Run `folivox` with no arguments for a quick start, `folivox --help` / `folivox render --help` for
+all options (grouped by purpose, with defaults and examples), and `folivox help <topic>` for
+longer explanations (`voices`, `providers`, `config`, `languages`, `resuming`, `quality`).
+
+`folivox render` options (the same groups as in `--help`):
+
+| Group | Option | Default | |
+|---|---|---|---|
+| Input | `--lang` | from the book | `ru en de fr es it zh ja ko` |
+| | `--chapters`, `-c` | all | `1-3,5` |
+| | `--depth` | 2 | how deep to split the book into chapters |
+| | `--preview N` | off | only the first N characters of each chapter (quick test) |
+| Voice | `--voice`, `-v` | by book language | catalog id or a WAV/FLAC file |
+| | `--voice-text` | `.txt` next to the sample, else Whisper | transcript of the voice sample |
+| | `--speed` | 1.0 | speaking rate |
+| Text | `--max-chars` | 400 | longest fragment sent to the model at once |
+| | `--stress` | `yo` | `none`, `yo` (restore ё), `all` (acute stress marks, experimental) |
+| Quality control | `--qa` / `--no-qa` | on | check each fragment with speech recognition (faster without) |
+| | `--takes` | 3 | max takes per fragment when QA finds a mismatch |
+| Providers | `--tts` | `cosyvoice3` | TTS provider (`folivox providers`) |
+| | `--asr` | `auto` | speech recognition for QA: `mlx-whisper`, `faster-whisper`, `openai` |
+| | `--llm` | `rl` | CosyVoice language-model weights: `rl` or `base` |
+| | `--model-dir` | downloaded on first run | folder with CosyVoice 3 weights |
+| Performance | `--device` | `auto` | `cpu`, `cuda`, `mps` |
+| | `--threads` | PyTorch default | CPU threads |
+| Output | `--output`, `-o` | `<book>.m4b` | output file (a folder with `--mp3`) |
+| | `--mp3` | | one mp3 per chapter instead of an m4b |
+| | `--bitrate` | `64k` | AAC/MP3 bitrate |
+| Book details | `--title` `--author` `--narrator` `--series` `--series-number` `--year` `--description` | from the book | what the player shows; the series is written as the Grouping tag |
+| | `--cover` | the book's own | an image (JPEG, PNG, WebP) to embed instead, or `none`; shrunk to 1600 px |
+| | `--work-dir` | `<output>.folivox/` | cache and journal; delete it when done |
+| | `--verbose` | | print every fragment |
+
+## Interface language
+
+The command line interface is in English only.
