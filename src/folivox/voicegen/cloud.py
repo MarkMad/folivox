@@ -99,13 +99,18 @@ class CloudGenerator(VoiceGenerator):
     languages: tuple[str, ...] = ("en",)  # ISO 639-1 codes the provider can speak
     key_env = ""
     price_note = ""
+    mode_labels: dict[str, str] = {"preset": "Pick a voice", "design": "Describe a voice"}
     terms_url = ""
     docs_url = ""
     max_chars = 2000  # per request
     retries = 2
 
+    models: tuple[dict, ...] = ()  # {"id", "label", "note"}, best first; ids the provider accepts
+    style = False  # preset voices accept a free-text style / narration note
+    license = "Cloud API output — personal use as a cloning prompt, see the provider's terms"
+
     def __init__(self, api_key_env: str = "", transport: Transport | None = None, sleep=time.sleep,
-                 api_key: str | None = None, **options):
+                 api_key: str | None = None, model: str = "auto", **options):
         from folivox.config import api_key as lookup
 
         self.key_env = api_key_env or type(self).key_env
@@ -113,7 +118,35 @@ class CloudGenerator(VoiceGenerator):
         self.transport, self._sleep = transport or urllib_transport, sleep
         self.mode = type(self).mode if type(self).mode in self.modes else self.modes[0]
         self.options = options
+        self.requested = model or "auto"  # "auto" = the best model the provider offers, found through its API
+        self._auto: str | None = None
         self._speakers: dict[str, tuple[str, str]] | None = None
+
+    # ---- models ----------------------------------------------------------------------------------
+    def discover_models(self) -> list[str]:
+        """Model ids the provider reports for this key (empty when it has no such endpoint)."""
+        return []
+
+    @classmethod
+    def rank(cls, model_id: str) -> tuple:
+        """Sort key, higher = better; override to prefer newer versions."""
+        return ()
+
+    @property
+    def model(self) -> str:
+        """The model to use: the one asked for, else the best discovered, else the first declared."""
+        if self.requested not in ("auto", "latest"):
+            return self.requested
+        if self._auto is None:
+            try:
+                found = [m for m in self.discover_models() if self.rank(m)]
+                self._auto = max(found, key=self.rank) if found else ""
+            except CloudError as e:
+                if e.kind == "auth":
+                    raise
+                self._auto = ""
+            self._auto = self._auto or (self.models[0]["id"] if self.models else "")
+        return self._auto
 
     # ---- declared capabilities -------------------------------------------------------------------
     @classmethod
@@ -121,10 +154,11 @@ class CloudGenerator(VoiceGenerator):
         return {"name": cls.name, "label": cls.label or cls.name, "modes": list(cls.modes),
                 "languages": list(cls.languages), "key_env": cls.key_env, "price_note": cls.price_note,
                 "terms_url": cls.terms_url, "docs_url": cls.docs_url, "commercial": cls.commercial,
-                "max_chars": cls.max_chars}
+                "max_chars": cls.max_chars, "models": list(cls.models), "style": cls.style,
+                "mode_labels": dict(cls.mode_labels)}
 
     @classmethod
-    def estimate_for(cls, chars: int, takes: int = 1, mode: str = "preset") -> dict:
+    def estimate_for(cls, chars: int, takes: int = 1, mode: str = "preset", model: str = "") -> dict:
         """Characters sent and, where the provider documents a price, an approximate cost (``usd`` else None)."""
         return {"chars": chars * takes, "usd": None, "note": cls.price_note}
 
@@ -197,20 +231,34 @@ class CloudGenerator(VoiceGenerator):
                              f"{', '.join(self.languages)}", "bad_request")
 
     # ---- generation ------------------------------------------------------------------------------
-    license = "Cloud API output — personal use as a cloning prompt, see the provider's terms"
-
     def synth(self, job: Job) -> bytes:
         """One take as WAV bytes (preset / instruction mode)."""
         raise NotImplementedError
 
+    def setup_voices(self, jobs: list[Job]) -> list[str]:
+        """Modes that create a temporary voice in the provider's account point ``job.speaker`` at it and
+        return the ids to delete afterwards."""
+        return []
+
+    def teardown_voices(self, ids: list[str]) -> None:
+        pass
+
     def generate(self, jobs: list[Job], progress=None) -> list[Path]:
         for j in jobs:
-            t0 = time.time()
             self.check_text(j.text)
             self.check_lang(j.lang)
-            Path(j.out).write_bytes(self.synth(j))
-            if progress:
-                progress(j, time.time() - t0)
+        created = self.setup_voices(jobs)
+        try:
+            for j in jobs:
+                t0 = time.time()
+                Path(j.out).write_bytes(self.synth(j))
+                if progress:
+                    progress(j, time.time() - t0)
+        finally:
+            try:
+                self.teardown_voices(created)  # never leave test voices in the user's account
+            except CloudError:
+                pass
         return [j.out for j in jobs]
 
 
@@ -230,6 +278,11 @@ def to_wav(data: bytes, rate: int = 24000) -> bytes:
     buf = io.BytesIO()
     sf.write(buf, audio.mean(axis=1), sr, format="WAV", subtype="PCM_16")
     return buf.getvalue()
+
+
+def file_as_wav(path: Path) -> bytes:
+    """Any audio file (FLAC from the voice catalog, …) as WAV bytes."""
+    return to_wav(Path(path).read_bytes())
 
 
 def pcm_to_wav(pcm: bytes, sample_rate: int = 24000) -> bytes:

@@ -33,12 +33,13 @@ class Candidate:
 
 
 def generate_takes(generator, texts: list[str], lang: str, out_dir: Path, *, description: str = "",
-                   speaker: str = "", takes: int = 3, prefix: str = "take", progress=None) -> list[Path]:
+                   speaker: str = "", takes: int = 3, prefix: str = "take", progress=None,
+                   reference: Path | None = None) -> list[Path]:
     from folivox.voicegen import Job
 
     out_dir.mkdir(parents=True, exist_ok=True)
     jobs = [Job(text, lang, seed=1000 * k + 7, description=description, speaker=speaker,
-                out=out_dir / f"{prefix}_t{ti + 1}_{k}.wav")
+                out=out_dir / f"{prefix}_t{ti + 1}_{k}.wav", reference=reference)
             for ti, text in enumerate(texts) for k in range(takes)]
     todo = [j for j in jobs if not j.out.exists()]
     if todo:

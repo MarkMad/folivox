@@ -447,6 +447,11 @@ def voices_design(
     keep: Path | None = typer.Option(None, "--keep", show_default="temporary",
                                  help="Folder to keep every take for listening."),
     add: bool = typer.Option(True, "--add/--no-add", help="Add the best take to the catalog."),
+    model: str | None = typer.Option(None, "--model", show_default="auto = newest the provider offers",
+                                     help="Cloud provider model id (see `folivox providers`)."),
+    mode: str | None = typer.Option(None, "--mode", show_default="from --describe / --speaker",
+                                    help="preset, design, localize (Cartesia) or clone (Cartesia)."),
+    reference: str | None = typer.Option(None, "--reference", help="Your own catalog voice to clone (clone mode)."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Do not ask before sending text to a cloud provider."),
 ):
     """Generate a reference voice with a voice generator, pick the best take by speech recognition."""
@@ -461,19 +466,34 @@ def voices_design(
 
     lang = _check_lang(lang)
     try:
-        gen = GENERATORS.create(config.provider("voicegen", generator))
-    except (ProviderError, ValueError) as e:
+        gen = GENERATORS.create(config.provider("voicegen", generator), model=model)
+    except (ProviderError, ValueError, TypeError) as e:
         console.print(f"[red]{e}[/]")
         raise typer.Exit(1) from None
     modes = getattr(gen, "modes", (gen.mode,))
-    if describe and "design" in modes:
+    if mode:
+        if mode not in modes:
+            console.print(f"[red]{gen.name} supports: {', '.join(modes)}[/]")
+            raise typer.Exit(2)
+        gen.mode = mode
+    elif describe and "design" in modes:
         gen.mode = "design"
     elif speaker and "preset" in modes:
         gen.mode = "preset"
+    ref_path = None
+    if gen.mode == "clone":
+        mine = next((v for v in catalog.user() if v.id == reference), None)
+        if mine is None:
+            console.print("[red]--reference must be the id of one of your own voices (`folivox voices`)[/]")
+            raise typer.Exit(2)
+        if not yes and not typer.confirm(f"Is {mine.id!r} your own voice, or do you have the speaker's permission?",
+                                         default=False):
+            raise typer.Exit(1)
+        ref_path = mine.path
     if gen.mode == "design" and not describe:
         console.print(f"[red]--describe is required for {gen.name}[/]")
         raise typer.Exit(2)
-    if gen.mode == "preset" and not speaker:
+    if gen.mode in ("preset", "localize") and not speaker:
         try:
             names = ", ".join(gen.speakers())
         except ProviderError as e:
@@ -485,7 +505,7 @@ def voices_design(
         console.print(f"[red]No built-in texts for {lang}; pass --text[/]")
         raise typer.Exit(2)
     if not gen.local:
-        est = type(gen).estimate_for(sum(len(t) for t in texts), takes, gen.mode)
+        est = type(gen).estimate_for(sum(len(t) for t in texts), takes, gen.mode, gen.model)
         cost = f", about ${est['usd']:.2f}" if est.get("usd") is not None else ""
         console.print(f"[yellow]{gen.label or gen.name}: {est['chars']} characters will be sent to the provider and "
                       f"billed to your account{cost}.[/] {est['note']}")
@@ -501,10 +521,11 @@ def voices_design(
         done[0] += 1
         console.log(f"take {done[0]}/{total} ({seconds:.0f} s)")
 
-    console.log(f"Generating {total} takes with {gen.name}…")
+    console.log(f"Generating {total} takes with {gen.name}" + (f" ({gen.model})" if hasattr(gen, "requested") else "")
+                + "…")
     try:
         paths = generate_takes(gen, texts, lang, out_dir, description=describe, speaker=speaker, takes=takes,
-                               prefix=voice_id, progress=progress)
+                               prefix=voice_id, progress=progress, reference=ref_path)
     except ProviderError as e:
         console.print(f"[red]{e}[/]")
         raise typer.Exit(1) from None
@@ -521,7 +542,8 @@ def voices_design(
     best = ranked[0]
     if add:
         commercial = bool(getattr(gen, "commercial", False))
-        source = f"{gen.label or gen.name}{' (commercial API)' if commercial else ''}: {describe or speaker}"
+        source = (f"{gen.label or gen.name}{' ' + gen.model if commercial else ''}"
+                  f"{' (commercial API)' if commercial else ''}: {describe or speaker or gen.mode}")
         entry = catalog.add(voice_id, best.path, best.text, gender=gender, lang=lang, source=source,
                             license=gen.license, overwrite=True, commercial=commercial)
         console.print(f"[green]Voice added:[/] {entry.id} ← {best.path.name}")
@@ -647,10 +669,10 @@ def providers():
     from folivox.voicegen.cloud import cloud_providers
 
     c = Table(title="Cloud voice generation (`folivox voices design -g NAME`)")
-    for col in ("Name", "Modes", "API key", "Terms"):
+    for col in ("Name", "Modes", "Models (--model; default auto = newest)", "API key"):
         c.add_column(col)
     for cls in cloud_providers().values():
-        c.add_row(cls.name, " + ".join(cls.modes), cls.key_env, cls.terms_url)
+        c.add_row(cls.name, " + ".join(cls.modes), ", ".join(m["id"] for m in cls.models), cls.key_env)
     console.print(c)
     console.print(f"[dim]* selected. Config: {config.config_path()}[/]")
 

@@ -103,17 +103,20 @@ class Acme(CloudGenerator):
     price_note = "about $X per 1,000 characters (price list seen <month year>)"
     terms_url = "https://acme.example/terms"
     max_chars = 4000
+    style = False                          # preset voices accept a free-text narration note (Job.description)
+    models = ({"id": "acme-2", "label": "Acme 2", "note": ""},)      # best first; used when discovery fails
 
     def headers(self): return {"Authorization": f"Bearer {self.key}"}
     def speakers(self, lang=None): return {"anna": ("en", "f")}      # id -> (language, sex)
     @classmethod
-    def estimate_for(cls, chars, takes=1, mode="preset"): ...        # {"chars", "usd" or None, "note"}
+    def estimate_for(cls, chars, takes=1, mode="preset", model=""): ...  # {"chars", "usd" or None, "note"}
+    def discover_models(self): ...         # optional: model ids the key can use; `rank()` picks the newest ("auto")
     def synth(self, job): return self.call("POST", URL, {...}).body   # WAV bytes (see to_wav / pcm_to_wav)
 ```
 
 `call()` retries rate limits and 5xx with back-off and maps HTTP errors to `CloudError` with a clear
 message (`kind` = auth / quota / rate_limit / bad_request / server / network); override `map_error`
-for a provider's special cases. A design generator overrides `generate()` (see `ElevenLabs`). Register
+for a provider's special cases. Modes that create a temporary voice implement `setup_voices` / `teardown_voices` (see `Gemini`, `Cartesia`); previews-style design overrides `generate()` (see `ElevenLabs`). Register
 it with `GENERATORS.register("acme", "my_pkg.acme:Acme", "…", local=False, needs="ACME_API_KEY")`.
 
 Rules: read endpoints, model names and prices from the provider's **official docs** and note the

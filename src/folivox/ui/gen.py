@@ -39,9 +39,10 @@ def run_generation(job: GenJob, gen, texts: list[str], *, asr_factory: Callable[
         if job.cancel_requested.is_set():
             raise Cancelled
 
-    job.emit("stage", name="generate", detail=f"Generating {total} takes with {gen.label or gen.name}")
+    p["model"] = gen.model  # "auto" resolved to a concrete model, recorded in the voice's source
+    job.emit("stage", name="generate", detail=f"Generating {total} takes with {gen.label or gen.name} ({p['model']})")
     paths = generate_takes(gen, texts, lang, job.out_dir, description=p["description"], speaker=p["speaker"],
-                           takes=n_takes, prefix="take", progress=progress)
+                           takes=n_takes, prefix="take", progress=progress, reference=p.get("reference"))
     if job.cancel_requested.is_set():
         raise Cancelled
     by_path = {path: texts[i // n_takes] for i, path in enumerate(paths)}

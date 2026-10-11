@@ -33,6 +33,7 @@ class Job:
     description: str = ""  # natural-language voice description (design mode)
     speaker: str = ""  # preset speaker (preset mode)
     out: Path = field(default_factory=Path)
+    reference: Path | None = None  # audio of a voice to clone (clone mode)
 
 
 class VoiceGenerator:

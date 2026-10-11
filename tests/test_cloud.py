@@ -43,6 +43,7 @@ def ok(body=b"", status=200, **headers):
 
 
 def make(cls, fake, **kw):
+    kw.setdefault("model", cls.models[0]["id"])  # pinned: "auto" would first ask the provider which models exist
     return cls(api_key=KEY, transport=fake, sleep=lambda s: None, **kw)
 
 
@@ -59,7 +60,9 @@ def test_registry_and_capabilities():
         assert caps["key_env"].endswith("_API_KEY") and caps["languages"] and caps["terms_url"].startswith("https://")
         assert caps["commercial"] is True and not GENERATORS.get(name).local
         assert GENERATORS.get(name).needs == cls.key_env
-    assert all("design" not in found[n].modes for n in ("openai", "gemini", "cartesia"))
+    assert found["gemini"].modes == ("preset", "design") and found["openai"].modes == ("preset",)
+    assert found["cartesia"].modes == ("preset", "localize", "clone")
+    assert all(found[n].models and found[n].models[0]["id"] for n in found)
 
 
 def test_missing_key_message(monkeypatch):
@@ -135,7 +138,7 @@ def test_elevenlabs_preset(tmp_path):
     c = fake.calls[0]
     assert c["url"] == "https://api.elevenlabs.io/v1/text-to-speech/abc123?output_format=pcm_24000"
     assert c["headers"]["xi-api-key"] == KEY
-    assert c["json"] == {"text": "A calm morning.", "model_id": "eleven_multilingual_v2", "seed": 7}
+    assert c["json"] == {"text": "A calm morning.", "model_id": "eleven_v4", "seed": 7}
     assert sf.read(str(tmp_path / "t.wav"))[1] == 24000
 
 
@@ -224,3 +227,116 @@ def test_retry_then_success_and_network_error(tmp_path):
 def test_pcm_helper():
     assert pcm_to_wav(b"\0\0" * 10)[:4] == b"RIFF"
     assert isinstance(Path, type)
+
+
+def test_auto_model_picks_the_newest_the_provider_lists(tmp_path):
+    gem = Fake(ok({"models": [{"name": f"models/{n}", "supportedGenerationMethods": ["generateContent"]} for n in (
+        "gemini-2.5-pro-preview-tts", "gemini-3.1-flash-tts-preview", "gemini-3.8-flash-lite-tts",
+        "gemini-3.9-flash-tts", "gemini-3.8-flash-tts", "gemini-2.5-flash-native-audio-latest")]}))
+    assert Gemini(api_key=KEY, transport=gem).model == "gemini-3.9-flash-tts"
+    ids = ("tts-1", "gpt-4o-mini-tts", "gpt-4o-mini-tts-2025-12-15", "gpt-audio")
+    oa = Fake(ok({"data": [{"id": i} for i in ids]}))
+    assert OpenAIVoice(api_key=KEY, transport=oa).model == "gpt-4o-mini-tts"
+    el = Fake(ok({"data": []}))  # unexpected shape: falls back to the declared best
+    assert ElevenLabs(api_key=KEY, transport=el).model == "eleven_v4"
+    el = Fake(ok([{"model_id": i, "can_do_text_to_speech": True} for i in
+                  ("eleven_v3", "eleven_v5", "eleven_v4_turbo", "eleven_flash_v2_5")]))
+    assert ElevenLabs(api_key=KEY, transport=el).model == "eleven_v5"
+    assert Cartesia(api_key=KEY, transport=Fake(ok({}))).model == "sonic-3.6"
+    assert Gemini(api_key=KEY, transport=Fake(ok({}, status=503)), sleep=lambda s: None).model == "gemini-3.8-flash-tts"
+
+
+def test_pinned_model_is_used_without_discovery_and_bad_key_surfaces(tmp_path):
+    fake = Fake(ok(wav_bytes()))
+    g = make(OpenAIVoice, fake, model="tts-1-hd")
+    g.generate([job(tmp_path, speaker="coral")])
+    assert [c["url"].rsplit("/", 1)[-1] for c in fake.calls] == ["speech"]
+    assert fake.calls[0]["json"]["model"] == "tts-1-hd"
+    with pytest.raises(CloudError, match="rejected the API key"):
+        Gemini(api_key=KEY, transport=Fake(ok({"error": {}}, status=401))).model  # noqa: B018
+
+
+def test_elevenlabs_v4_style_becomes_an_audio_tag_other_models_ignore_it(tmp_path):
+    fake = Fake(ok(np.zeros(2400, dtype="<i2").tobytes()))
+    make(ElevenLabs, fake).generate([job(tmp_path, speaker="v", description="calm, slow narration")])
+    assert fake.calls[0]["json"]["text"] == "[calm, slow narration] A calm morning."
+    make(ElevenLabs, fake, model="eleven_multilingual_v2").generate([job(tmp_path, speaker="v", description="calm")])
+    assert fake.calls[1]["json"]["text"] == "A calm morning."
+
+
+def test_gemini_design_creates_uses_and_deletes_the_voice(tmp_path):
+    audio = {"candidates": [{"content": {"parts": [{"inlineData": {"data": base64.b64encode(wav_bytes()).decode()}}]}}]}
+    fake = Fake(ok({"id": "voice_abc"}), ok(audio), ok(audio), ok(b""))
+    g = make(Gemini, fake)
+    g.mode = "design"
+    jobs = [job(tmp_path, description="A calm middle-aged woman, warm low voice", lang="ru", out=tmp_path / f"{i}.wav")
+            for i in range(2)]
+    g.generate(jobs)
+    create, s1, s2, delete = fake.calls
+    assert create["method"] == "POST" and create["url"].endswith("/v1beta/voices")
+    v = create["json"]["voice"]
+    assert create["json"]["store"] is True and v["type"] == "prompted" and v["language_code"] == "ru-RU"
+    assert v["prompted"]["input"].startswith("A calm middle-aged") and v["model"] == "gemini-3.8-flash-tts"
+    assert s1["json"]["generationConfig"]["speechConfig"]["voiceConfig"] == {"voice": "voice_abc"}
+    assert "speech_metadata" not in s1["json"]["contents"][0]["parts"][0]
+    assert delete["method"] == "DELETE" and delete["url"].endswith("/v1beta/voices/voice_abc")  # one voice, removed
+    g2 = make(Gemini, Fake(ok({})), model="gemini-2.5-flash-preview-tts")
+    g2.mode = "design"
+    with pytest.raises(CloudError, match="gemini-3.8"):
+        g2.generate([job(tmp_path, description="x" * 30)])
+
+
+def test_gemini_design_deletes_the_voice_even_when_synthesis_fails(tmp_path):
+    fake = Fake(ok({"id": "voice_abc"}), ok({"error": {"message": "bad"}}, status=400), ok(b""))
+    g = make(Gemini, fake)
+    g.mode = "design"
+    with pytest.raises(CloudError):
+        g.generate([job(tmp_path, description="A calm middle-aged woman")])
+    assert fake.calls[-1]["method"] == "DELETE"
+
+
+def test_cartesia_localize_and_cleanup(tmp_path):
+    accents = {"accents": [{"id": "russian", "language": "ru", "is_locale_default": True},
+                           {"id": "other-ru", "language": "ru", "is_locale_default": False}]}
+    fake = Fake(ok(accents), ok({"id": "new-voice"}), ok(wav_bytes()), ok(b"", status=204))
+    g = make(Cartesia, fake)
+    g.mode = "localize"
+    g.generate([job(tmp_path, lang="ru", speaker="base-voice")])
+    acc, loc, tts, delete = fake.calls
+    assert "accents" in acc["url"] and loc["url"].endswith("/voices/localize")
+    assert loc["json"]["voice_id"] == "base-voice" and loc["json"]["accent"] == "russian"
+    assert tts["json"]["voice"] == {"id": "new-voice"} and tts["json"]["language"] == "ru"
+    assert delete["method"] == "DELETE" and delete["url"].endswith("/voices/new-voice")
+    g = make(Cartesia, Fake(ok({"accents": []})))
+    g.mode = "localize"
+    with pytest.raises(CloudError, match="cannot localize"):
+        g.generate([job(tmp_path, lang="ru", speaker="b")])
+
+
+def test_cartesia_clone_uploads_the_sample_and_deletes_the_clone(tmp_path):
+    clip = tmp_path / "me.flac"
+    sf.write(str(clip), (0.1 * np.sin(np.arange(24000) / 20)).astype("float32"), 24000)
+    seen = []
+
+    def transport(method, url, headers, body, timeout):
+        seen.append((method, url, headers, body))
+        if url.endswith("/voices/clone"):
+            return ok({"id": "clone-1"})
+        return ok(wav_bytes()) if url.endswith("/tts/bytes") else ok(b"", status=204)
+
+    g = make(Cartesia, transport)
+    g.mode = "clone"
+    g.generate([job(tmp_path, speaker="", lang="en", reference=clip)])
+    m, url, headers, body = seen[0]
+    assert url.endswith("/voices/clone") and headers["Content-Type"].startswith("multipart/form-data; boundary=")
+    assert b'name="clip"' in body and b"RIFF" in body and b'name="language"' in body  # FLAC sent as WAV
+    assert seen[-1][0] == "DELETE" and seen[-1][1].endswith("/voices/clone-1")
+    with pytest.raises(CloudError, match="own voices"):
+        g.generate([job(tmp_path, reference=None)])
+
+
+def test_estimates_follow_the_model():
+    assert OpenAIVoice.estimate_for(1000, 1, "preset", "tts-1-hd")["usd"] == pytest.approx(0.03)
+    assert OpenAIVoice.estimate_for(1000, 1, "preset", "tts-1")["usd"] == pytest.approx(0.015)
+    assert ElevenLabs.estimate_for(1000, 1, "preset", "eleven_flash_v2_5")["usd"] == pytest.approx(0.04)
+    assert Cartesia.estimate_for(100, 1, "localize")["chars"] == 325

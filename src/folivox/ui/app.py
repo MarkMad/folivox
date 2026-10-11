@@ -472,7 +472,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         return {"key_env": env, "key_in_env": bool(os.environ.get(env)), "key_saved": bool(stored),
                 "key_masked": mask(stored) if stored else ""}
 
-    def make_generator(name: str):
+    def make_generator(name: str, model: str = ""):
         from folivox.providers import ProviderError
 
         cls = gen_class(name)
@@ -481,16 +481,18 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             raise ApiError(f"No API key for {cls.label}: paste it below or set {ks['key_env']} in the environment",
                            412, missing_key=ks["key_env"], provider=name)
         try:
-            return services["generator"](name) if "generator" in services else GENERATORS_create(name)
+            if "generator" in services:
+                return services["generator"](name, model=model)
+            return GENERATORS_create(name, model)
         except ProviderError as e:
             raise ApiError(str(e), 502) from None
         except ValueError as e:
             raise ApiError(str(e), 412, missing_key=ks["key_env"], provider=name) from None
 
-    def GENERATORS_create(name: str):
+    def GENERATORS_create(name: str, model: str = ""):
         from folivox.voicegen import GENERATORS
 
-        return GENERATORS.create(name)
+        return GENERATORS.create(name, model=model or None)
 
     async def gen_call(fn, *args):
         """Run a blocking provider call; a provider failure becomes a clear API error (never the key)."""
@@ -602,8 +604,21 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         takes = int(body.get("takes", 3))
         if not 1 <= takes <= 6:
             raise ApiError("takes must be between 1 and 6")
+        model = str(body.get("model") or "auto").strip()
+        if not re.fullmatch(r"[\w.\-]{1,80}", model):
+            raise ApiError("Bad model name")
         description = " ".join(str(body.get("description") or "").split())
         speaker = str(body.get("speaker") or "").strip()
+        reference = None
+        if mode == "clone":
+            mine = next((v for v in catalog.user() if v.id == body.get("reference")), None)
+            if mine is None or not mine.path.exists():
+                raise ApiError("Choose one of your own voices to clone")
+            if body.get("own_voice") is not True:
+                raise ApiError("Confirm that this is your own voice or you have the speaker's permission")
+            reference = mine.path
+        if mode == "localize" and not speaker:
+            raise ApiError("Pick the voice whose accent should be localised")
         if mode == "design" and len(description) < 10:
             raise ApiError("Describe the voice (at least a few words), or press Suggest")
         if mode == "preset" and not speaker:
@@ -611,14 +626,15 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         if len(description) > 1000:
             raise ApiError("The description is too long (1000 characters at most)")
         return {"cls": cls, "mode": mode, "lang": lang, "texts": texts, "takes": takes, "description": description,
-                "speaker": speaker}
+                "speaker": speaker, "model": model, "reference": reference}
 
     async def gen_estimate(request: Request):
         from folivox.voicegen.cloud import COMMERCIAL_NOTICE
 
         prm = gen_params(await request.json())
         cls = prm["cls"]
-        est = cls.estimate_for(sum(len(t) for t in prm["texts"]), prm["takes"], prm["mode"])
+        model = cls.models[0]["id"] if prm["model"] in ("auto", "latest") and cls.models else prm["model"]
+        est = cls.estimate_for(sum(len(t) for t in prm["texts"]), prm["takes"], prm["mode"], model)
         return JSONResponse({**est, "notice": COMMERCIAL_NOTICE, "terms_url": cls.terms_url})
 
     async def gen_start(request: Request):
@@ -631,11 +647,12 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         if state.manager.busy():
             raise ApiError("Another job is running; cancel it or wait", 409)
         name = prm["cls"].name
-        gen = make_generator(name)
+        gen = make_generator(name, prm["model"])
         gen.mode = prm["mode"]
         out_dir = state.data_dir / "gen" / uuid.uuid4().hex[:10]
         out_dir.mkdir(parents=True)
-        job = GenJob(name, str(body.get("book_id") or ""), out_dir, {k: v for k, v in prm.items() if k != "cls"})
+        job = GenJob(name, str(body.get("book_id") or ""), out_dir,
+                     {k: v for k, v in prm.items() if k != "cls"})
         texts = prm["texts"]
 
         def asr_factory(lang):
@@ -680,7 +697,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             entry = await asyncio.to_thread(
                 catalog.add, str(body.get("id", "")).strip(), job.out_dir / take["name"], take["text"],
                 name=str(body.get("name") or ""), gender=str(body.get("gender") or ""), lang=code,
-                source=f"{cls.label} (commercial API): {job.params['description'] or job.params['speaker']}",
+                source=f"{cls.label} {job.params['model']} (commercial API): "
+                       f"{job.params['description'] or job.params['speaker'] or job.params['mode']}",
                 license=cls.license, url=cls.terms_url, commercial=True)
         except (ValueError, FileExistsError) as e:
             raise ApiError(str(e)) from None

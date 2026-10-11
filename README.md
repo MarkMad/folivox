@@ -127,17 +127,25 @@ models carry their own accent into other languages.
 A third source of voices, besides uploaded and recorded samples: let a cloud TTS provider read a
 short text, listen to the takes (ranked by Whisper), keep the best one as your cloning prompt.
 
-| Provider (`-g`) | Modes | API key variable | Notes |
+| Provider (`-g`) | Modes (`--mode`) | Models (`--model`, default `auto` = newest the provider lists) | API key variable |
 |---|---|---|---|
-| `gemini` | preset (30 voices, style note) | `GEMINI_API_KEY` | Gemini API speech generation; free tier exists (Google may then use your text) |
-| `openai` | preset (13 voices + style instructions) | `OPENAI_API_KEY` | `gpt-4o-mini-tts` (instructions), `tts-1` / `tts-1-hd` via `[voicegen.openai] model` |
-| `elevenlabs` | preset **and design** (voice from a text description) | `ELEVENLABS_API_KEY` | Voice Design previews: 3 takes per request, billed once; free plan: personal use, no library voices via API |
-| `cartesia` | preset | `CARTESIA_API_KEY` | no text-based design in the API; commercial use of output needs a paid plan |
+| `gemini` | `preset` (30 voices + narration style), `design` (voice from a description; made for the run, then deleted) | `gemini-3.8-flash-tts`, `-flash-lite-tts`, 3.1 preview, 2.5 | `GEMINI_API_KEY` |
+| `openai` | `preset` (13 voices + style instructions on `gpt-*-tts`) | `gpt-4o-mini-tts`, `tts-1-hd`, `tts-1` | `OPENAI_API_KEY` |
+| `elevenlabs` | `preset` (premade voices; `[style]` audio tags on v3/v4), `design` (3 previews per request, billed once) | `eleven_v4`, `eleven_v3`, `eleven_multilingual_v2`, `eleven_flash_v2_5` (design: `eleven_ttv_v3`) | `ELEVENLABS_API_KEY` |
+| `cartesia` | `preset`, `localize` (same voice with the native accent of the language), `clone` (one of your own voices) | `sonic-3.6`, `sonic-3.5`, `sonic-3`, `sonic-latest` | `CARTESIA_API_KEY` |
+
+Texts here are a few hundred characters, so use the best model: with `auto` Folivox asks the provider
+which models your key can use and takes the newest one (new releases are picked up without a Folivox
+update); pin a model with `--model`, in the UI model list, or `[voicegen.gemini] model = "…"` in
+`config.toml`. Temporary voices (Gemini design, Cartesia localize/clone) are deleted from your account
+when the takes are made. Free-plan accounts may lack some of this (ElevenLabs library voices, Cartesia cloning).
 
 ```bash
 export GEMINI_API_KEY=…                                    # or save it in `folivox ui`
 folivox voices speakers -g gemini                          # preset voices
-folivox voices design narrator -g gemini --speaker Kore --lang en --keep takes/
+folivox voices design narrator -g gemini --speaker Kore --lang en --describe "calm audiobook narrator" --keep takes/
+folivox voices design narrator -g gemini --mode design --lang ru --describe "calm woman in her forties, warm low voice"
+folivox voices design narrator -g cartesia --mode localize --speaker <voice-id> --lang ru   # `voices speakers -g cartesia`
 folivox voices suggest-prompt book.fb2 -g elevenlabs       # a design prompt from the book (text LLM)
 folivox voices design narrator -g elevenlabs --lang en \
   --describe "calm, warm woman in her forties, low timbre, unhurried pace" --yes
@@ -145,7 +153,7 @@ folivox voices design narrator -g elevenlabs --lang en \
 
 In `folivox ui`: voice gallery → **Generate with a provider**. Pick a provider (the key is requested
 there if missing and stored in the OS keychain, never sent back to the browser), describe a voice
-(**Suggest** asks your text LLM to write the prompt from the book) or pick a preset voice, choose
+(**Suggest** asks your text LLM to write the prompt from the book) or pick a preset voice (with an optional narration style), choose the model, choose
 the text (a built-in calm English sample, passages from the book, or your own), see the number of
 characters and an approximate price, generate 3 takes, audition, name and add. Generation can be
 stopped at any time.

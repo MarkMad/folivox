@@ -45,6 +45,8 @@ Without [cyan]--voice[/] Folivox picks a catalog voice in the book's language.
   [cyan]folivox voices speakers -g gemini[/]           preset voices of a generator
   [cyan]folivox voices design anna -g gemini --speaker Kore --lang en[/]   cloud provider (your key, paid)
   [cyan]folivox voices design anna -g elevenlabs --describe "calm warm woman, low voice"[/]
+  [cyan]folivox voices design anna -g cartesia --mode localize --speaker <id> --lang ru[/]   native accent
+  [cyan]--model NAME[/] pins a cloud model; the default [cyan]auto[/] uses the newest the provider lists.
 
 Cloud generators ([cyan]openai[/], [cyan]gemini[/], [cyan]elevenlabs[/], [cyan]cartesia[/]) need an API key in
 [cyan]OPENAI_API_KEY[/], [cyan]GEMINI_API_KEY[/], [cyan]ELEVENLABS_API_KEY[/], [cyan]CARTESIA_API_KEY[/]

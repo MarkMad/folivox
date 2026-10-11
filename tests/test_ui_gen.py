@@ -26,7 +26,7 @@ class FakeGen:
 
     def __init__(self, cls, gate=None, fail=None):
         self.name, self.label, self.mode, self.local = cls.name, cls.label, cls.modes[0], False
-        self.modes, self.gate, self.fail, self.seen = cls.modes, gate, fail, []
+        self.modes, self.gate, self.fail, self.seen, self.model = cls.modes, gate, fail, [], cls.models[0]["id"]
 
     def generate(self, jobs, progress=None):
         for j in jobs:
@@ -70,7 +70,7 @@ def env(tmp_path, monkeypatch):
 
     def make(**services):
         app = create_app(token=TOKEN, port=8765, data_dir=tmp_path / "ui",
-                         services={"generator": lambda n: holder["gen"], "llm": lambda n: FakeLLM(),
+                         services={"generator": lambda n, model="": holder["gen"], "llm": lambda n: FakeLLM(),
                                    "asr": lambda lang: FakeASR(), **services})
         return TestClient(app, base_url="http://127.0.0.1:8765", headers={"X-Folivox-Token": TOKEN})
 
@@ -160,7 +160,7 @@ def test_save_key_then_generate_and_add(env, monkeypatch):
                                                  "gender": "f"})
     assert added.status_code == 200, added.text
     meta = json.loads((tmp / "voices" / "mist" / "meta.json").read_text())
-    assert meta["commercial"] is True and "Gemini API (commercial API): Kore" == meta["source"]
+    assert meta["commercial"] is True and "Gemini API gemini-3.8-flash-tts (commercial API): Kore" == meta["source"]
     assert meta["transcript"] == TEXT and "terms" in meta["license"].lower()
     assert c.post(f"/api/gen/{job}/add", json={"take": "take_t9_9.wav", "id": "x"}).status_code == 404
 
@@ -247,3 +247,38 @@ def test_generated_voices_are_never_bundled(env):
 
     assert not any(v.commercial for v in voices.bundled())
     assert not any("commercial" in v.source.lower() for v in voices.bundled())
+
+
+def test_models_are_listed_and_a_model_can_be_chosen(env, monkeypatch):
+    holder, make, _ = env
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    holder["gen"] = FakeGen(Gemini)
+    c = make()
+    by = {p["name"]: p for p in c.get("/api/gen/providers").json()["providers"]}
+    assert [m["id"] for m in by["gemini"]["models"]][0] == "gemini-3.8-flash-tts" and by["gemini"]["style"]
+    assert by["cartesia"]["modes"] == ["preset", "localize", "clone"]
+    assert "native accent" in by["cartesia"]["mode_labels"]["localize"]
+    assert c.post("/api/gen/estimate", json=start_body(model="gemini-3.8-flash-lite-tts")).status_code == 200
+    assert c.post("/api/gen/start", json=start_body(book_id=book(c), model="bad model!")).status_code == 400
+
+
+def test_clone_and_localize_rules(env, monkeypatch):
+    from folivox import voices
+    from folivox.voicegen.cloud_apis import Cartesia
+
+    holder, make, tmp = env
+    monkeypatch.setenv("CARTESIA_API_KEY", "k")
+    holder["gen"] = FakeGen(Cartesia)
+    sf.write(str(tmp / "me.wav"), (0.2 * np.sin(np.arange(24000 * 7) / 15)).astype("float32"), 24000)
+    voices.add("me", tmp / "me.wav", "My own voice.", name="Me", lang="en")
+    c = make()
+    b = book(c)
+    base = {"provider": "cartesia", "lang": "ru", "texts": [TEXT], "takes": 1, "acknowledged": True, "book_id": b}
+    assert c.post("/api/gen/start", json={**base, "mode": "localize"}).status_code == 400  # needs a base voice
+    assert c.post("/api/gen/start", json={**base, "mode": "clone", "reference": "me"}).status_code == 400  # no consent
+    assert c.post("/api/gen/start", json={**base, "mode": "clone", "reference": "russlib",
+                                          "own_voice": True}).status_code == 400  # bundled voices are not yours
+    r = c.post("/api/gen/start", json={**base, "mode": "clone", "reference": "me", "own_voice": True})
+    assert r.status_code == 202
+    wait(c, r.json()["id"])
+    assert holder["gen"].seen[0].reference.name == "voice.flac" and holder["gen"].mode == "clone"

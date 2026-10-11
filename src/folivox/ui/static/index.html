@@ -194,6 +194,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
       <div class="gp-grid">
         <label class="f">Provider<select id="gp-provider"></select><small class="mute" id="gp-pinfo"></small></label>
         <label class="f">Language of the sample<select id="gp-lang"></select></label>
+        <label class="f">Model<select id="gp-model"></select><input id="gp-model-custom" type="text" placeholder="model id exactly as the provider names it" hidden><small class="mute" id="gp-minfo"></small></label>
       </div>
       <div id="gp-keybox" class="row" hidden><span class="warn" id="gp-keymsg"></span>
         <input type="password" id="gp-key" autocomplete="off" placeholder="paste the API key" style="width:240px"><button type="button" id="gp-keysave">Save key</button>
@@ -206,8 +207,12 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
           <div class="row"><button type="button" id="gp-suggest" class="chip">✦ Suggest from the book</button><span class="mute" id="gp-suggest-msg"></span></div>
         </div>
         <div id="gp-preset" hidden class="gp-grid">
-          <label class="f">Voice<select id="gp-speaker"></select></label>
-          <label class="f" id="gp-style-row">Style <small>(optional, English)</small><input id="gp-style" type="text" placeholder="e.g. slow, warm, gentle"></label>
+          <label class="f"><span id="gp-speaker-label">Voice</span><select id="gp-speaker"></select></label>
+          <label class="f" id="gp-style-row">Narration style <small>(optional, English)</small><input id="gp-style" type="text" placeholder="e.g. calm audiobook narrator, slow, warm"></label>
+        </div>
+        <div id="gp-clone" hidden class="gp-grid">
+          <label class="f">Your voice to clone<select id="gp-ref"></select></label>
+          <label class="consent"><input type="checkbox" id="gp-own"><span>This is my own voice, or I have the speaker's permission to clone it. The clone exists in the provider's account only while the takes are made, then it is deleted.</span></label>
         </div>
         <div style="margin-top:12px"><div class="row"><span>Text to be spoken</span><div class="seg" id="gp-textseg"><button type="button" data-t="builtin" class="on">Built-in sample</button><button type="button" data-t="book">From the book</button><button type="button" data-t="custom">My own</button></div><span class="mute" id="gp-text-msg"></span></div>
           <textarea id="gp-text" rows="4" style="margin-top:8px"></textarea>
@@ -875,22 +880,30 @@ function gpProvider() {
   $("#gp-keymsg").textContent = `No API key for ${p.label} (${p.key_env}).`;
   $("#gp-keyok small").textContent = `API key: ${p.key_in_env ? "from the environment" : "saved " + p.key_masked} (${p.key_env}). Change it under Providers → API keys.`;
   if (!p.modes.includes(GP.mode)) GP.mode = p.modes[0];
-  $("#gp-modeseg").innerHTML = p.modes.length > 1 ? p.modes.map(m => `<button type="button" data-m="${m}" class="${m === GP.mode ? "on" : ""}">${m === "design" ? "Describe a voice" : "Pick a voice"}</button>`).join("") : "";
+  $("#gp-modeseg").innerHTML = p.modes.length > 1 ? p.modes.map(m => `<button type="button" data-m="${m}" class="${m === GP.mode ? "on" : ""}">${esc(p.mode_labels[m] || m)}</button>`).join("") : "";
+  const cur = $("#gp-model").value;
+  $("#gp-model").innerHTML = `<option value="auto">Best available (auto)</option>` + p.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${m.note ? " — " + esc(m.note) : ""}</option>`).join("") + `<option value="__custom">Other model id…</option>`;
+  if ([...$("#gp-model").options].some(o => o.value === cur)) $("#gp-model").value = cur;
+  $("#gp-minfo").textContent = "Auto asks the provider for its newest model each time.";
   $("#gp-modes").hidden = p.modes.length < 2;
   gpMode();
   if (hasKey && !GP.job) { gpVoices(); if (!$("#gp-text").value) gpTexts("builtin"); }
 }
 function gpMode() {
-  $("#gp-design").hidden = GP.mode !== "design"; $("#gp-preset").hidden = GP.mode !== "preset";
-  $("#gp-style-row").hidden = GP.mode !== "preset" || !["openai", "gemini"].includes(GP.prov.name);
+  const voiceMode = GP.mode === "preset" || GP.mode === "localize";
+  $("#gp-design").hidden = GP.mode !== "design"; $("#gp-preset").hidden = !voiceMode; $("#gp-clone").hidden = GP.mode !== "clone";
+  $("#gp-style-row").hidden = GP.mode !== "preset" || !GP.prov.style;
+  $("#gp-speaker-label").textContent = GP.mode === "localize" ? "Voice to give a native accent" : "Voice";
+  $("#gp-ref").innerHTML = VOICES.filter(v => !v.bundled).map(v => `<option value="${esc(v.id)}">${esc(v.name)}</option>`).join("") || `<option value="">no voices of yours yet — add one first</option>`;
+  if (hasVoices()) gpVoices();
   document.querySelectorAll("#gp-modeseg button").forEach(b => b.classList.toggle("on", b.dataset.m === GP.mode));
   gpCheck();
 }
+const hasVoices = () => !$("#gp-body").hidden && ($("#gp-preset").hidden === false);
 async function gpVoices() {
-  if (GP.mode !== "preset" && GP.prov.modes.length === 1) return;
   const p = GP.prov.name, box = $("#gp-speaker"); box.innerHTML = `<option>loading…</option>`;
   try {
-    const r = await api(`/api/gen/voices/${p}?lang=${$("#gp-lang").value}`);
+    const r = await api(`/api/gen/voices/${p}` + (GP.mode === "localize" ? "" : `?lang=${$("#gp-lang").value}`));
     if (GP.prov.name !== p) return;
     box.innerHTML = r.voices.map(v => `<option value="${esc(v.id)}">${esc(v.name)}${v.gender ? " · " + (GENDER[v.gender] || v.gender) : ""}</option>`).join("") || `<option value="">no voices for this language</option>`;
   } catch (e) { box.innerHTML = `<option value="">—</option>`; $("#gp-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
@@ -925,16 +938,17 @@ async function gpTexts(src) {
 }
 $("#gp-textseg").addEventListener("click", (e) => { const b = e.target.closest("[data-t]"); if (b) gpTexts(b.dataset.t); });
 function gpBody() {
+  let model = $("#gp-model").value; if (model === "__custom") model = $("#gp-model-custom").value.trim() || "auto";
   const texts = $("#gp-text").value.split(/\n\s*\n/).map(t => t.trim()).filter(Boolean);
   const style = $("#gp-style").value.trim();
-  return { provider: GP.prov.name, mode: GP.mode, lang: $("#gp-lang").value, texts, takes: +$("#gp-takes").value || 3,
+  return { provider: GP.prov.name, mode: GP.mode, model, reference: GP.mode === "clone" ? $("#gp-ref").value : "", own_voice: $("#gp-own").checked, lang: $("#gp-lang").value, texts, takes: +$("#gp-takes").value || 3,
            description: GP.mode === "design" ? $("#gp-desc").value.trim() : (style && !$("#gp-style-row").hidden ? style : ""),
-           speaker: GP.mode === "preset" ? $("#gp-speaker").value : "", book_id: book ? book.book_id : "" };
+           speaker: GP.mode === "preset" || GP.mode === "localize" ? $("#gp-speaker").value : "", book_id: book ? book.book_id : "" };
 }
 let gpEstTimer = null;
 function gpCheck() {
   if (!GP.prov || $("#gp-body").hidden) return;
-  const b = gpBody(), ready = b.texts.length && (GP.mode === "preset" ? b.speaker : b.description.length >= 10);
+  const b = gpBody(), ready = b.texts.length && (GP.mode === "design" ? b.description.length >= 10 : GP.mode === "clone" ? b.reference && b.own_voice : b.speaker);
   $("#gp-go").disabled = !(ready && $("#gp-ack").checked) || !!(GP.job && !GP.job.final);
   clearTimeout(gpEstTimer);
   if (!ready) { $("#gp-est").textContent = ""; return; }
@@ -944,7 +958,9 @@ function gpCheck() {
     catch (err) { $("#gp-est").innerHTML = `<span class="err">${esc(err.message)}</span>`; }
   }, 300);
 }
-["#gp-text", "#gp-desc", "#gp-style", "#gp-takes", "#gp-speaker", "#gp-ack"].forEach(i => $(i).addEventListener("input", gpCheck));
+$("#gp-model").addEventListener("change", () => { $("#gp-model-custom").hidden = $("#gp-model").value !== "__custom"; });
+$("#gp-model-custom").addEventListener("input", gpCheck);
+["#gp-text", "#gp-desc", "#gp-style", "#gp-takes", "#gp-speaker", "#gp-ack", "#gp-model", "#gp-ref", "#gp-own"].forEach(i => $(i).addEventListener("input", gpCheck));
 $("#gp-ack").addEventListener("change", gpCheck);
 $("#gp-go").onclick = async () => {
   gpStopPlay(); GP.takes = []; GP.sel = ""; $("#gp-takes-box").hidden = true; $("#gp-msg").textContent = "Starting…";
