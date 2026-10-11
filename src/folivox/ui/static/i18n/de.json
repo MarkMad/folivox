@@ -458,5 +458,13 @@
  "run.restarted": "Server neu gestartet. Der Fortschritt ist gespeichert – zum Fortsetzen „Erzeugen“ drücken.",
  "run.showing": "Es wird der Auftrag angezeigt, der auf dem Server läuft.",
  "boot.fail": "{msg} – öffnen Sie einmal den Link, den <code>folivox ui</code> ausgibt (er enthält das Zugriffstoken und setzt ein Cookie).",
- "gp.stopped": "Angehalten."
+ "gp.stopped": "Angehalten.",
+ "engine.cosyvoice3.label": "Auf diesem Computer (CosyVoice 3)",
+ "engine.cosyvoice3.blurb": "Kostenlos, privat, funktioniert offline. Klont eine Stimme aus einer kurzen Aufnahme. Langsamer, die Qualität hängt von Ihrer Hardware ab.",
+ "engine.gemini.tag": "günstig und am besten",
+ "engine.openai.tag": "schwach außer auf Englisch",
+ "engine.gemini.blurb": "Stimmen von Google: 30 fertige oder eine neue Stimme aus einer Beschreibung (sie existiert nur, solange die Aufnahmen entstehen). Versteht Hinweise wie „ruhiger Hörbuchsprecher“. Es gibt eine kostenlose Stufe (Google darf dann Ihren Text verwenden); die bezahlte kostet Bruchteile eines Cents pro Probe.",
+ "engine.openai.blurb": "13 fertige Stimmen; ein Stilhinweis steuert Ton und Tempo („Hörbuch, ruhig, gleichmäßiges Tempo“). Keine Stimme aus einer Beschreibung. Einfach, zuverlässig und günstig.",
+ "engine.elevenlabs.blurb": "Sehr natürliche Stimmen. Beschreiben Sie eine Stimme und erhalten Sie gleich 3 Varianten, oder wählen Sie eine fertige. Der kostenlose Plan ist nur für private, nicht kommerzielle Nutzung; verkaufte Hörbücher brauchen einen bezahlten Plan.",
+ "engine.cartesia.blurb": "Klare, schnelle Stimmen in über 40 Sprachen. Wählen Sie eine Stimme, geben Sie ihr den muttersprachlichen Akzent Ihres Buches oder klonen Sie eine Ihrer eigenen Stimmen aus Ihrer Aufnahme. Keine Stimme aus einer Beschreibung. Klonen braucht einen bezahlten Plan."
 }

@@ -497,7 +497,9 @@ $("#file").onchange = (e) => e.target.files[0] && upload(e.target.files[0]);
 ["dragover","dragenter"].forEach(t => $("#drop").addEventListener(t, (e) => { e.preventDefault(); $("#drop").classList.add("over"); }));
 ["dragleave","drop"].forEach(t => $("#drop").addEventListener(t, (e) => { e.preventDefault(); $("#drop").classList.remove("over"); }));
 $("#drop").addEventListener("drop", (e) => e.dataTransfer.files[0] && upload(e.dataTransfer.files[0]));
+let uploads = 0;  // a book dropped while the previous session is still being restored wins over that session
 async function upload(file) {
+  uploads++;
   $("#book-info").textContent = t("book.reading", { name: file.name });
   const fd = new FormData(); fd.append("file", file);
   try { setBook(await api("/api/books", { method: "POST", body: fd })); }
@@ -884,11 +886,14 @@ function saveSession() {
 }
 document.addEventListener("change", saveSession);
 async function restoreSession() {
-  const s = await api("/api/session"); if (!s) return;
+  const seen = uploads;
+  const s = await api("/api/session"); if (!s || uploads !== seen) return;
   restoring = true;
   try {
+    const restored = await api(`/api/books/${s.book_id}/chapters?depth=${s.depth || 2}&lang=${s.lang || ""}`);
+    if (uploads !== seen) return;
     $("#depth").value = s.depth || 2;
-    book = await api(`/api/books/${s.book_id}/chapters?depth=${s.depth || 2}&lang=${s.lang || ""}`);
+    book = restored;
     voice = s.voice || ""; setBook(book, new Set(s.chapters || []), s.lang);
     for (const [id, v] of Object.entries(s.options || {})) { const e = document.getElementById(id); if (e) e.value = v; }
   } catch (e) { book = null; log(t("log.restorefail", { msg: e.message }), "warn"); }  // never block the page over it
@@ -1151,8 +1156,10 @@ function engOptions() {
   return { ...base, tts_mode: mode, tts_voice: $("#o-tts_voice").value, tts_description: $("#o-tts_description").value, own_voice: $("#eng-own").checked,
            keep_voice: mode !== "preset" && $("#vc-keep").checked };
 }
-const engTtsOptions = (list) => list.map(e => `<option value="${esc(e.name)}">${esc(e.label)}${" — " + (e.cloud ? t("eng.paid") : t("eng.free"))}${e.tag ? " (" + esc(e.tag) + ")" : ""}</option>`).join("");
-const engBlurb = (e) => esc(e.blurb || "") + (e.cloud ? ` <span class="warn">${esc(t("eng.paidper", { p: e.per_hour != null ? "$" + dec(e.per_hour, 2) : "?" }))}</span>` : "");
+// engine texts come from the server in English; the catalog has them per engine name ("engine.<name>.label|blurb|tag")
+const engText = (e, f) => { const k = "engine." + e.name + "." + f; return (k in CAT || k in CAT_EN) ? t(k) : (e[f] || ""); };
+const engTtsOptions = (list) => list.map(e => `<option value="${esc(e.name)}">${esc(engText(e, "label"))}${" — " + (e.cloud ? t("eng.paid") : t("eng.free"))}${e.tag ? " (" + esc(engText(e, "tag")) + ")" : ""}</option>`).join("");
+const engBlurb = (e) => esc(engText(e, "blurb")) + (e.cloud ? ` <span class="warn">${esc(t("eng.paidper", { p: e.per_hour != null ? "$" + dec(e.per_hour, 2) : "?" }))}</span>` : "");
 const engModelOptions = (e) => `<option value="auto">${esc(t("eng.autonew"))}</option>` + e.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${e.prices[m.id] != null ? ` (≈ $${dec(e.prices[m.id], 2)}/${t("u.h")})` : ""}${m.note ? " — " + esc(m.note) : ""}</option>`).join("");
 function engRelabel() {  // after a UI language switch: same selections, new labels
   const e = ENG.cur(); if (!e) return; const keep = $("#o-tts").value;
@@ -1388,13 +1395,13 @@ function gpProviders() {
     const hasKey = p.key_in_env || p.key_saved, costs = Object.values(p.sample_usd || {}).filter(v => v != null), hi = costs.length ? Math.max(...costs) : null;
     return `<div class="gp-prov ${p.name === GP.prov.name ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${p.name === GP.prov.name}" data-p="${esc(p.name)}">
       <div class="vname"><span class="n">${esc(p.label)}</span><span class="vbadge ${hasKey ? "mine" : "warn"}">${hasKey ? t("gp.keyset") : t("gp.needskey")}</span></div>
-      <div class="gp-pcost">${t("gp.perset", { v: `<b>${hi == null ? t("gp.seeprices") : money(hi)}</b>` })}</div>${p.tag ? `<div class="gp-tag">${esc(p.tag)}</div>` : ""}</div>`;
+      <div class="gp-pcost">${t("gp.perset", { v: `<b>${hi == null ? t("gp.seeprices") : money(hi)}</b>` })}</div>${p.tag ? `<div class="gp-tag">${esc(engText(p, "tag"))}</div>` : ""}</div>`;
   }).join("");
   gpProvider();
 }
 function gpProvider() {
   const p = GP.prov, hasKey = p.key_in_env || p.key_saved;
-  $("#gp-provblurb").textContent = p.blurb || "";
+  $("#gp-provblurb").textContent = engText(p, "blurb");
   $("#gp-pinfo").innerHTML = `${esc(p.price_note)} <a href="${esc(p.terms_url)}" target="_blank" rel="noopener noreferrer">${t("gp.terms")}</a>`;
   $("#gp-keybox").hidden = hasKey; $("#gp-keyok").hidden = !hasKey;
   $("#gp-keymsg").textContent = t("gp.keymsg", { label: p.label, env: p.key_env });

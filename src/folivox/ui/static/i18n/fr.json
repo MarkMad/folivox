@@ -458,5 +458,13 @@
  "run.restarted": "Le serveur a redémarré. La progression est enregistrée : appuyez sur « Générer » pour reprendre.",
  "run.showing": "Affichage de la tâche en cours sur le serveur.",
  "boot.fail": "{msg} — ouvrez une fois le lien affiché par <code>folivox ui</code> (il contient le jeton d’accès et dépose un cookie).",
- "gp.stopped": "Arrêté."
+ "gp.stopped": "Arrêté.",
+ "engine.cosyvoice3.label": "Sur cet ordinateur (CosyVoice 3)",
+ "engine.cosyvoice3.blurb": "Gratuit, privé, fonctionne hors ligne. Clone une voix à partir d'un court enregistrement. Plus lent, la qualité dépend de votre matériel.",
+ "engine.gemini.tag": "bon marché et le meilleur",
+ "engine.openai.tag": "faible hors anglais",
+ "engine.gemini.blurb": "Les voix de Google : 30 prêtes à l'emploi, ou une nouvelle voix décrite avec des mots (elle n'existe que le temps des prises). Comprend une indication comme « narrateur de livre audio calme ». Il existe une offre gratuite (Google peut alors utiliser votre texte) ; l'offre payante coûte une fraction de centime par échantillon.",
+ "engine.openai.blurb": "13 voix prêtes à l'emploi ; une indication de style règle le ton et le rythme (« lecture de livre audio, calme, rythme régulier »). Pas de voix à partir d'une description. Simple, fiable et bon marché.",
+ "engine.elevenlabs.blurb": "Voix très naturelles. Décrivez une voix avec des mots et obtenez 3 candidates d'un coup, ou choisissez-en une toute prête. L'offre gratuite est réservée à un usage personnel non commercial ; les livres audio que vous vendez exigent une offre payante.",
+ "engine.cartesia.blurb": "Voix nettes et rapides dans plus de 40 langues. Choisissez une voix, donnez-lui l'accent natif de la langue du livre, ou clonez l'une de vos propres voix à partir de votre enregistrement. Pas de voix à partir d'une description. Le clonage exige une offre payante."
 }

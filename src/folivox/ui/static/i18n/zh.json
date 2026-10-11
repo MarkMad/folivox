@@ -458,5 +458,13 @@
  "run.restarted": "服务器已重启。进度已保存——点击“生成”即可继续。",
  "run.showing": "正在显示服务器上运行的任务。",
  "boot.fail": "{msg} — 请先打开一次 <code>folivox ui</code> 打印的链接（其中包含访问令牌，并会设置 Cookie）。",
- "gp.stopped": "已停止。"
+ "gp.stopped": "已停止。",
+ "engine.cosyvoice3.label": "在本机运行（CosyVoice 3）",
+ "engine.cosyvoice3.blurb": "免费、私密、可离线使用。用一段简短录音克隆声音。速度较慢，质量取决于你的硬件。",
+ "engine.gemini.tag": "便宜且最好",
+ "engine.openai.tag": "非英语效果较差",
+ "engine.gemini.blurb": "Google 的声音：30 个现成声音，或用文字描述一个新声音（只在生成试音期间存在）。能理解“沉稳的有声书朗读者”这样的提示。有免费档（Google 可能会使用你的文本）；付费档每个样本只需不到一美分。",
+ "engine.openai.blurb": "13 个现成声音；风格提示可调整语气和语速（“有声书朗读，平静，语速均匀”）。不支持按描述生成声音。简单、可靠、便宜。",
+ "engine.elevenlabs.blurb": "非常自然的声音。用文字描述声音，一次得到 3 个不同候选，或选择现成声音。免费方案仅限个人非商业用途；出售的有声书需要付费方案。",
+ "engine.cartesia.blurb": "清晰、快速的声音，支持 40 多种语言。选择一个声音，让它带上书籍语言的母语口音，或用你的录音克隆你自己的声音。不支持按描述生成声音。克隆需要付费方案。"
 }

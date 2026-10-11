@@ -15,7 +15,7 @@ INDEX = (STATIC / "index.html").read_text(encoding="utf-8")
 # Keys a language may leave untranslated (it then shows the English text): {code: {key, ...}}. Keep this short.
 ALLOW_MISSING: dict[str, set[str]] = {}
 # Keys built at run time ("cover.state." + kind), so a literal scan cannot see them.
-DYNAMIC_PREFIXES = ("cover.state.", "g.", "used.", "mode.", "kind.", "stage.", "gp.idea.")
+DYNAMIC_PREFIXES = ("cover.state.", "g.", "used.", "mode.", "kind.", "stage.", "gp.idea.", "engine.")
 NATIVE = {"ru": "Русский", "es": "Español", "de": "Deutsch", "fr": "Français", "it": "Italiano",
           "zh": "中文", "ja": "日本語", "ko": "한국어", "en": "English"}
 
@@ -82,6 +82,8 @@ def test_dynamic_key_families_exist():
         assert key in EN, key
     for mode in ("preset", "design", "localize", "clone"):
         assert f"mode.{mode}.h" in EN and f"mode.{mode}.s" in EN
+    for name in ("cosyvoice3", "gemini", "openai", "elevenlabs", "cartesia"):
+        assert f"engine.{name}.blurb" in EN
     for kind in ("tts", "asr", "llm", "voicegen"):
         assert f"kind.{kind}.h" in EN and f"kind.{kind}.s" in EN
 

@@ -458,5 +458,13 @@
  "run.restarted": "Il server si è riavviato. L’avanzamento è salvato: premi «Genera» per riprendere.",
  "run.showing": "Viene mostrata l’attività in esecuzione sul server.",
  "boot.fail": "{msg} — apri una volta il link stampato da <code>folivox ui</code> (contiene il token di accesso e imposta un cookie).",
- "gp.stopped": "Fermato."
+ "gp.stopped": "Fermato.",
+ "engine.cosyvoice3.label": "Su questo computer (CosyVoice 3)",
+ "engine.cosyvoice3.blurb": "Gratis, privato, funziona offline. Clona una voce da una breve registrazione. Più lento; la qualità dipende dal tuo hardware.",
+ "engine.gemini.tag": "economico e il migliore",
+ "engine.openai.tag": "debole fuori dall'inglese",
+ "engine.gemini.blurb": "Le voci di Google: 30 pronte, oppure descrivi a parole una voce nuova (esiste solo mentre si fanno le prove). Capisce un'indicazione come «narratore di audiolibri calmo». Esiste un livello gratuito (Google può allora usare il tuo testo); quello a pagamento costa una frazione di centesimo per campione.",
+ "engine.openai.blurb": "13 voci pronte; un'indicazione di stile regola tono e ritmo («lettura di audiolibro, calma, ritmo costante»). Nessuna voce da descrizione. Semplice, affidabile ed economico.",
+ "engine.elevenlabs.blurb": "Voci molto naturali. Descrivi a parole una voce e ottieni subito 3 candidate, oppure scegline una pronta. Il piano gratuito è solo per uso personale non commerciale; gli audiolibri che vendi richiedono un piano a pagamento.",
+ "engine.cartesia.blurb": "Voci pulite e veloci in oltre 40 lingue. Scegli una voce, dalle l'accento nativo della lingua del libro o clona una delle tue voci dalla tua registrazione. Nessuna voce da descrizione. La clonazione richiede un piano a pagamento."
 }

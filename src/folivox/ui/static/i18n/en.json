@@ -458,5 +458,13 @@
  "run.restarted": "Server restarted. Progress is saved — press Render to resume.",
  "run.showing": "Showing the job that is running on the server.",
  "boot.fail": "{msg} — open the link printed by <code>folivox ui</code> once (it contains the access token and sets a cookie).",
- "gp.stopped": "Stopped."
+ "gp.stopped": "Stopped.",
+ "engine.cosyvoice3.label": "On this computer (CosyVoice 3)",
+ "engine.cosyvoice3.blurb": "Free, private, works offline. Clones a voice from a short recording. Slower and the quality depends on your hardware.",
+ "engine.gemini.tag": "cheap and best",
+ "engine.openai.tag": "low quality for non-English",
+ "engine.gemini.blurb": "Google's voices: 30 ready-made ones, or describe a new voice in words (it exists only while the takes are made). Understands a note like 'calm audiobook narrator'. A free tier exists (Google may then use your text); the paid tier costs a fraction of a cent per sample.",
+ "engine.openai.blurb": "13 ready-made voices; a style note steers tone and pace ('audiobook narration, calm, steady pace'). No voice-from-description. Simple, reliable and cheap.",
+ "engine.elevenlabs.blurb": "Very natural voices. Describe a new voice in words and get 3 different candidates at once, or pick a ready-made one. The free plan is for personal, non-commercial use; audiobooks you sell need a paid plan.",
+ "engine.cartesia.blurb": "Clean, fast voices in 40+ languages. Pick a voice, give it the native accent of your book's language, or clone one of your own voices from your recording. No voice-from-description. Cloning needs a paid plan."
 }
