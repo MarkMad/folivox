@@ -62,7 +62,7 @@ use and takes the newest one, so new releases are picked up without updating Fol
 
 ## A voice for every book
 
-- **Ready to use:** a bundled public-domain voice (`russlib`, from a LibriVox recording) for a first render.
+- **Ready to use:** a bundled catalog of public-domain narrator voices for the book languages, with audition.
 - **Your own voice:** record it with the microphone right in the studio or upload a 6–15 second sample;
   optional gentle noise reduction.
 - **Designed for this book:** describe the narrator, or press **Suggest from my book** and a text LLM writes
@@ -272,7 +272,7 @@ Folivox stands on the work of many people who shared it openly. Thank you:
   (OpenAI), parts of which are vendored; [faster-whisper](https://github.com/SYSTRAN/faster-whisper) and
   [mlx-whisper](https://github.com/ml-explore/mlx-examples) for the quality check.
 - [LibriVox](https://librivox.org/) and its volunteer readers, who record public-domain books and give the
-  recordings to the public domain; the bundled voice comes from a LibriVox recording.
+  recordings to the public domain; the bundled voices come from LibriVox recordings.
 - [Qwen3-TTS](https://github.com/QwenLM) for local voice design.
 - [ruaccent](https://github.com/Den4ikAI/ruaccent) (stress and `ё`), [razdel](https://github.com/natasha/razdel)
   (Natasha project, sentence splitting) and [num2words](https://github.com/savoirfairelinux/num2words).
