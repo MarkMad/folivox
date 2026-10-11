@@ -27,7 +27,7 @@ app = typer.Typer(add_completion=False, no_args_is_help=False, invoke_without_co
                   rich_markup_mode="rich", epilog=MAIN_EPILOG, context_settings={"help_option_names": ["-h", "--help"]},
                   help="Turn e-books (FB2, EPUB, DOCX, PDF, TXT) into m4b audiobooks, locally.")
 console = Console()
-COMMANDS = {"render", "inspect", "voices", "providers", "help", "ui", "doctor", "--help", "-h", "--version"}
+COMMANDS = {"render", "inspect", "voices", "providers", "help", "ui", "doctor", "setup", "--help", "-h", "--version"}
 
 # Option panels of `folivox render --help`
 P_INPUT, P_VOICE, P_TEXT, P_QA = "Input", "Voice", "Text", "Quality control"
@@ -904,6 +904,73 @@ def ui(port: int = typer.Option(8765, "--port", help="Port to listen on (127.0.0
     from folivox.ui import run
 
     run(port=port, open_browser=open_browser)
+
+
+GUIDE = """[bold green]Folivox is ready.[/]
+
+[bold]How to start it whenever you need it[/]
+  1. Open a terminal (macOS: Terminal; Windows: PowerShell; Linux: any terminal).
+  2. Type  [cyan]folivox ui[/]  and press Enter. Your browser opens the studio (if not, open the address it prints).
+  3. Work in the studio. To stop it, return to the terminal and press [cyan]Ctrl+C[/].
+  Nothing runs in the background and nothing starts by itself: when you close the terminal, Folivox is off.
+
+[bold]Without the browser[/]
+  [cyan]folivox render book.fb2[/]   one command, the audiobook appears next to the book
+  Interrupted? Run the same command again: it continues where it stopped.
+
+[bold]If something goes wrong[/]
+  [cyan]folivox doctor[/]            checks ffmpeg, hardware and models
+  [cyan]folivox doctor --bundle ~/Desktop[/]   saves a file to send to support
+  [cyan]folivox help[/]              short guides: voices, providers, resuming, quality
+
+Update: [cyan]uv tool upgrade folivox[/]    Remove: [cyan]uv tool uninstall folivox[/]
+"""
+
+
+@app.command(help="First-time setup: check the machine, download the models with progress, show how to start.",
+             rich_help_panel="Main commands")
+def setup(skip_models: bool = typer.Option(False, "--skip-models", help="Only check the machine; download models "
+                                           "later, on first use."),
+          skip_asr: bool = typer.Option(False, "--skip-asr", help="Do not download the speech-recognition model "
+                                        "(the quality check is then off until it is available).")):
+    """Safe to run again: whatever is already downloaded is kept."""
+    from folivox import diag
+
+    console.rule("[bold]Your computer")
+    data = diag.report()
+    console.print(diag.render_report_text(data), markup=False, highlight=False)
+    if not data["ffmpeg"]["found"]:
+        console.print("\n[red]ffmpeg is missing.[/] Install it (macOS: brew install ffmpeg · Windows: winget install "
+                      "ffmpeg · Linux: apt install ffmpeg) and run [cyan]folivox setup[/] again.")
+        raise typer.Exit(1)
+    if not skip_models:
+        events = RichEvents()
+        console.rule("[bold]Models (downloaded once, about 6 GB for the voice)")
+        try:
+            from folivox.tts import weights
+
+            with weights.reporting(events.download):
+                model_dir = weights.resolve_model_dir()
+                weights.ensure_llm(model_dir, "rl")
+            console.print(f"[green]✓[/] Voice model ready: {model_dir}")
+            if not skip_asr:
+                from folivox.qa.asr import ASR_PROVIDERS
+
+                console.print("Speech recognition model (quality check, about 1.6 GB)…")
+                ASR_PROVIDERS.create("auto", language="en")
+                console.print("[green]✓[/] Speech recognition model ready")
+        except ImportError as e:
+            console.print(f"[red]Missing component:[/] {e}. Reinstall with the installer script, or "
+                          "pip install \"folivox[all]\".")
+            raise typer.Exit(1) from None
+        except Exception as e:  # noqa: BLE001
+            events.close()
+            console.print(f"[red]Setup stopped:[/] {e}\nRun [cyan]folivox setup[/] again: the download continues "
+                          "where it stopped.")
+            raise typer.Exit(1) from None
+        events.close()
+    console.rule()
+    console.print(GUIDE)
 
 
 @app.command(help="Check the setup (ffmpeg, model, devices, disk) and optionally write a redacted support bundle.",

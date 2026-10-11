@@ -28,6 +28,9 @@ folivox book.fb2 --voice me.wav -o book.m4b
 
 ## Install
 
+Shortest way: `./scripts/install.sh` (macOS/Linux) or `scripts\install.ps1` (Windows); see [docs/install.md](docs/install.md)
+for what it does and how to start the studio. Manual steps:
+
 Requires Python 3.10–3.12 and [ffmpeg](https://ffmpeg.org/) (`brew install ffmpeg`,
 `winget install ffmpeg`, `apt install ffmpeg`).
 
