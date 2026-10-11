@@ -43,7 +43,7 @@ browser (static HTML + small JS)  ⇄  HTTP + SSE  ⇄  folivox.ui (Starlette)  
   `cancelled() -> bool` polled between fragments (default `False`); `render()` stops cleanly with the
   journal consistent, exactly as after Ctrl+C. The CLI's `KeyboardInterrupt` path is unchanged.
 - **Security:** bind to loopback only, refuse non-loopback `Host`/`Origin` headers (DNS-rebinding
-  guard), random per-session token in the URL the CLI prints, uploads limited to book formats and
+  guard), a persistent random token (private file `ui_token` in the user data dir) in the link the CLI prints, traded for an HttpOnly SameSite=Strict cookie on first open so the address bar stays clean, uploads limited to book formats and
   stored in a temp dir, no path parameters taken from the browser (files are addressed by id).
   API keys are never accepted or stored by the UI — it only shows which environment variables are set.
 

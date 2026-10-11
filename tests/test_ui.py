@@ -253,3 +253,28 @@ def test_favorites_roundtrip(client, tmp_path):
     app2 = create_app(token=TOKEN, port=8765, data_dir=tmp_path / "ui", render=fake_render)
     c2 = TestClient(app2, base_url="http://127.0.0.1:8765", headers={"X-Folivox-Token": TOKEN})
     assert c2.get("/api/voices").json()["favorites"] == ["russlib", "xenia"]
+
+
+def test_token_link_sets_a_cookie_and_the_clean_url_works(tmp_path):
+    app = create_app(token=TOKEN, port=8765, data_dir=tmp_path / "ui", render=fake_render)
+    c = TestClient(app, base_url="http://127.0.0.1:8765", follow_redirects=False)
+    assert c.get("/api/settings").status_code == 401
+    assert c.get("/?token=wrong").status_code == 401 and not c.cookies
+    r = c.get(f"/?token={TOKEN}")
+    assert r.status_code == 303 and r.headers["location"] == "/"  # the token is not left in the address bar
+    sc = r.headers["set-cookie"].lower()
+    assert "httponly" in sc and "samesite=strict" in sc and TOKEN not in r.headers["set-cookie"]
+    assert c.get("/api/settings").status_code == 200  # cookie only, no header, no query
+    other = TestClient(app, base_url="http://127.0.0.1:8765", cookies={"folivox_session_8765": "guess"})
+    assert other.get("/api/settings").status_code == 401
+
+
+def test_ui_token_is_stable_and_private(tmp_path, monkeypatch):
+    import stat
+
+    monkeypatch.setattr("platformdirs.user_data_dir", lambda *a, **k: str(tmp_path))
+    from folivox.ui import ui_token
+
+    first = ui_token()
+    assert len(first) >= 24 and ui_token() == first
+    assert stat.S_IMODE((tmp_path / "ui_token").stat().st_mode) == 0o600

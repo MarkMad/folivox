@@ -298,7 +298,7 @@ const fmt = (s) => { s = Math.round(s); const h = Math.floor(s/3600), m = Math.f
   return h ? `${h} h ${String(m).padStart(2,"0")} min` : `${m} min ${String(x).padStart(2,"0")} s`; };
 const num = (n) => n.toLocaleString("en").replace(/,/g, " ");
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const tok = (url) => url + (url.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(TOKEN);
+const tok = (url) => TOKEN ? url + (url.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(TOKEN) : url;  // else the session cookie authenticates
 async function api(url, opts = {}) {
   opts.headers = { "X-Folivox-Token": TOKEN, ...(opts.headers || {}) };
   const r = await fetch(url, opts);
@@ -1092,7 +1092,7 @@ async function reconcile() {
 }
 (async () => {
   try { await loadSettings(); loadKeys().catch(() => {}); await restoreSession(); await reconcile(); setInterval(reconcile, 4000); }
-  catch (e) { document.body.insertAdjacentHTML("afterbegin", `<p class="err" style="padding:16px">${esc(e.message)} — open the URL printed by <code>folivox ui</code> (it contains the access token).</p>`); }
+  catch (e) { document.body.insertAdjacentHTML("afterbegin", `<p class="err" style="padding:16px">${esc(e.message)} — open the link printed by <code>folivox ui</code> once (it contains the access token and sets a cookie).</p>`); }
 })();
 </script>
 </body>

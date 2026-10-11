@@ -86,7 +86,7 @@ longer explanations (`voices`, `providers`, `config`, `languages`, `resuming`, `
 
 ```bash
 uv tool install "folivox[all]"   # `all` includes the `ui` extra
-folivox ui                       # http://127.0.0.1:8765, local only; the URL contains an access token
+folivox ui                       # http://127.0.0.1:8765, local only; open the printed link once (access token → cookie), then bookmark http://127.0.0.1:8765/
 ```
 
 Pick a book, choose chapters and a voice (with audition), render a short preview, then the whole

@@ -14,7 +14,7 @@ from pathlib import Path
 from platformdirs import user_data_dir
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
+from starlette.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from starlette.routing import Route
 
 from folivox import config
@@ -117,10 +117,19 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     """``services`` (tests): ``generator(name)``, ``llm(name)`` and ``asr(lang)`` factories replacing the real ones."""
     state = State(data_dir or Path(user_data_dir("folivox", appauthor=False)) / "ui", render)
     services = services or {}
+    session = secrets.token_urlsafe(24)  # per run; what the cookie holds, so the saved token itself never sits in it
+    cookie_name = f"folivox_session_{port or 0}"
     allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"} if port else None
 
     # ---- handlers -------------------------------------------------------------------------------
     async def index(request: Request):
+        given = request.query_params.get("token")
+        if token and given is not None:  # the link printed by `folivox ui`: trade the token for a cookie, hide it
+            if not secrets.compare_digest(given, token):
+                return JSONResponse({"error": "Wrong token"}, status_code=401)
+            resp = RedirectResponse("/", status_code=303)
+            resp.set_cookie(cookie_name, session, httponly=True, samesite="strict", path="/")
+            return resp
         return HTMLResponse((STATIC / "index.html").read_text(encoding="utf-8"))
 
     async def upload_book(request: Request):
@@ -710,7 +719,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             return JSONResponse({"error": "Bad Host header"}, status_code=403)  # DNS-rebinding guard
         if token and request.url.path.startswith("/api/"):
             given = request.headers.get("x-folivox-token") or request.query_params.get("token") or ""
-            if not secrets.compare_digest(given, token):
+            cookie = request.cookies.get(cookie_name) or ""
+            if not (secrets.compare_digest(given, token) or secrets.compare_digest(cookie, session)):
                 return JSONResponse({"error": "Missing or wrong token"}, status_code=401)
         return None
 
