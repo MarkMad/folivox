@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from enum import Enum
@@ -385,6 +386,12 @@ def render(
         from folivox.tts.voice import VoiceError
 
         diag.event("render failed", level=40, exc_info=True, error=str(e))
+        from folivox.tts.base import SynthTimeout
+
+        if isinstance(e, SynthTimeout):
+            console.print(f"[red]Error:[/] {e}")
+            sys.stdout.flush()
+            os._exit(1)  # the stuck worker thread cannot be stopped and would keep the process alive
 
         if isinstance(e, (VoiceError, ValueError, FileNotFoundError, RuntimeError, ProviderError)):
             console.print(f"[red]Error:[/] {e}")

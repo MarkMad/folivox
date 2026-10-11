@@ -13,6 +13,7 @@ disk is free, so a missing ffmpeg does not show up after ten hours of synthesis.
 ## What is retried, and what is not
 
 - Model download: up to 4 attempts, continuing from the part already downloaded.
+- A local fragment that runs longer than 180 s + 2 s per character is treated as stuck: the render stops with progress saved (`FOLIVOX_SYNTH_TIMEOUT=seconds` changes the limit, `0` turns it off).
 - A model that fails on the GPU (`mps`/`cuda`) is loaded on the CPU instead, with a warning (slower).
 - Speech recognition (quality check) that cannot load or fails on a fragment: the render goes on without the check.
 - Online engines: timeouts, 429 and 5xx are retried with growing, randomised pauses. If the network or the provider

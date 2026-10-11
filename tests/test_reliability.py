@@ -231,3 +231,33 @@ def test_cap_is_checked_before_the_request():
 
 def test_cancel_exception_exists_for_pipeline():
     assert issubclass(Cancelled, Exception)
+
+
+# --- stuck local synthesis -------------------------------------------------------------------------
+def test_stuck_local_fragment_times_out_with_a_resume_hint(monkeypatch):
+    import threading
+
+    from folivox.tts.base import Prefetcher, SynthTimeout, TTSEngine
+
+    release = threading.Event()
+
+    class Stuck(TTSEngine):
+        def prepare(self, text, voice, seed=0):
+            release.wait(10)
+            return (text, seed), 0.0
+
+    monkeypatch.setenv("FOLIVOX_SYNTH_TIMEOUT", "0.2")
+    pf = Prefetcher(Stuck(), None)
+    with pytest.raises(SynthTimeout, match="Progress is saved"):
+        pf.synthesize("k", "text", 0)
+    pf.close()  # must return although the worker is still blocked
+    release.set()
+
+
+def test_timeout_scales_with_text_and_can_be_disabled(monkeypatch):
+    from folivox.tts.base import synth_timeout
+
+    monkeypatch.delenv("FOLIVOX_SYNTH_TIMEOUT", raising=False)
+    assert synth_timeout(400) > synth_timeout(10) >= 180
+    monkeypatch.setenv("FOLIVOX_SYNTH_TIMEOUT", "0")
+    assert synth_timeout(400) == 0

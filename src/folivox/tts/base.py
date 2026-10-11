@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass
 from typing import Any
 
@@ -50,6 +52,22 @@ class TTSEngine:
         return Synthesis(audio, self.sample_rate, t1 + t2)
 
 
+class SynthTimeout(RuntimeError):
+    """A local fragment did not finish in time (a hung or runaway generation)."""
+
+
+def synth_timeout(chars: int) -> float:
+    """Seconds a local fragment may take: generous for slow CPUs, but finite. FOLIVOX_SYNTH_TIMEOUT overrides
+    (seconds per fragment; 0 turns the limit off)."""
+    env = os.environ.get("FOLIVOX_SYNTH_TIMEOUT")
+    if env:
+        try:
+            return float(env)
+        except ValueError:
+            pass
+    return 180.0 + 2.0 * chars
+
+
 class Prefetcher:
     """Runs stage 1 (:meth:`TTSEngine.prepare`) for upcoming fragments in a background thread.
 
@@ -63,6 +81,7 @@ class Prefetcher:
         self.engine, self.voice = engine, voice
         self.pool = ThreadPoolExecutor(max_workers=max(1, engine.parallel), thread_name_prefix="folivox-llm")
         self.futures: dict[tuple[str, int], object] = {}
+        self.hung = False
 
     def submit(self, key: str, text: str, seed: int):
         k = (key, seed)
@@ -71,7 +90,15 @@ class Prefetcher:
         return self.futures[k]
 
     def synthesize(self, key: str, text: str, seed: int, speed: float = 1.0) -> Synthesis:
-        tokens, t_llm = self.submit(key, text, seed).result()
+        limit = synth_timeout(len(text)) if getattr(self.engine, "local", True) else 0
+        try:
+            tokens, t_llm = self.submit(key, text, seed).result(timeout=limit or None)
+        except FutureTimeout:
+            self.hung = True
+            raise SynthTimeout(f"Synthesis of one fragment ({len(text)} characters) did not finish in "
+                               f"{limit:.0f} s and looks stuck. Progress is saved: run the same command again "
+                               "to continue (set FOLIVOX_SYNTH_TIMEOUT=seconds to change the limit, 0 to turn it "
+                               "off).") from None
         self.futures.pop((key, seed), None)
         audio, t_wav = self.engine.finish(tokens, self.voice, speed)
         return Synthesis(audio, self.engine.sample_rate, t_llm + t_wav)
@@ -79,4 +106,4 @@ class Prefetcher:
     def close(self) -> None:
         for fut in self.futures.values():
             fut.cancel()
-        self.pool.shutdown(wait=True)
+        self.pool.shutdown(wait=not self.hung, cancel_futures=True)  # never wait for a stuck worker
