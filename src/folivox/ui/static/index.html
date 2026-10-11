@@ -891,7 +891,7 @@ async function gpLoad() {
   try {
     const r = await api("/api/gen/providers"); GP.providers = r.providers; GP.notice = r.notice;
     $("#gp-notice").textContent = r.notice;
-    const worst = Math.max(...r.providers.flatMap(p => Object.values(p.sample_usd).filter(v => v != null)));
+    const worst = Math.max(...r.providers.flatMap(p => Object.values(p.sample_usd || {}).filter(v => v != null)));
     $("#gp-cost").textContent = `Cost: ${money(worst) === "under 1 cent" ? "under 1 cent" : "up to " + money(worst).replace("about ", "")} per set of attempts, depending on the service. The book itself is never sent anywhere.`;
     if (!GP.prov || !r.providers.some(p => p.name === GP.prov.name)) GP.prov = r.providers[0];
     else GP.prov = r.providers.find(p => p.name === GP.prov.name);
@@ -902,10 +902,10 @@ async function gpLoad() {
 }
 function gpProviders() {
   $("#gp-provs").innerHTML = GP.providers.map(p => {
-    const hasKey = p.key_in_env || p.key_saved, costs = Object.values(p.sample_usd).filter(v => v != null), hi = costs.length ? Math.max(...costs) : null;
+    const hasKey = p.key_in_env || p.key_saved, costs = Object.values(p.sample_usd || {}).filter(v => v != null), hi = costs.length ? Math.max(...costs) : null;
     return `<div class="gp-prov ${p.name === GP.prov.name ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${p.name === GP.prov.name}" data-p="${esc(p.name)}">
       <div class="vname"><span class="n">${esc(p.label)}</span><span class="vbadge ${hasKey ? "mine" : "warn"}">${hasKey ? "key set" : "needs key"}</span></div>
-      <div class="gp-blurb">${esc(p.blurb)}</div>
+      <div class="gp-blurb">${esc(p.blurb || "")}</div>
       <div class="gp-pcost">Per set of attempts: <b>${hi == null ? "see price list" : money(hi)}</b></div></div>`;
   }).join("");
   gpProvider();
@@ -921,7 +921,7 @@ function gpProvider() {
   if ([...$("#gp-model").options].some(o => o.value === cur)) $("#gp-model").value = cur;
   if (!p.modes.includes(GP.mode)) GP.mode = p.modes[0];
   const hints = { preset: "Use one of the service's ready-made voices", design: "Describe a new voice in words", localize: "Take a voice and give it the native accent of the language", clone: "Copy one of your own recorded voices" };
-  $("#gp-modes").innerHTML = p.modes.map(m => `<div class="gp-mode ${m === GP.mode ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${m === GP.mode}" data-m="${m}"><b>${esc(({ preset: "Ready-made voice", design: "Describe a voice", localize: "Native accent", clone: "Clone my voice" })[m] || m)}</b><small>${esc(hints[m] || "")}${p.sample_usd[m] != null ? " · " + money(p.sample_usd[m]) : ""}</small></div>`).join("");
+  $("#gp-modes").innerHTML = p.modes.map(m => `<div class="gp-mode ${m === GP.mode ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${m === GP.mode}" data-m="${m}"><b>${esc(({ preset: "Ready-made voice", design: "Describe a voice", localize: "Native accent", clone: "Clone my voice" })[m] || m)}</b><small>${esc(hints[m] || "")}${(p.sample_usd || {})[m] != null ? " · " + money(p.sample_usd[m]) : ""}</small></div>`).join("");
   gpMode();
   if (!$("#gp-text").value) gpTexts("builtin");
 }
