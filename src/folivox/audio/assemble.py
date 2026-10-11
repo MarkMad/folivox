@@ -19,8 +19,10 @@ class FFmpegMissing(RuntimeError):
     pass
 
 
-# Any image (PNG, WebP, a 6000 px scan…) becomes a JPEG of at most 1600 px wide: what players expect, and small.
-COVER_ARGS = ["-c:v", "mjpeg", "-vf", "scale='min(1600,iw)':-2:flags=lanczos,format=yuvj420p", "-q:v", "3",
+# Any image (PNG, WebP, a 6000 px scan…) is centre-cropped to a square and becomes a JPEG of at most 1600 px:
+# what players expect (square art), and small.
+COVER_ARGS = ["-c:v", "mjpeg", "-vf",
+              "crop='min(iw,ih)':'min(iw,ih)',scale='min(1600,iw)':-2:flags=lanczos,format=yuvj420p", "-q:v", "3",
               "-disposition:v:0", "attached_pic"]
 
 
