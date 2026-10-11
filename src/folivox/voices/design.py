@@ -69,8 +69,10 @@ def score_takes(paths: list[Path], texts_by_path: dict[Path, str], asr, lang: st
 SELECT_PROMPT = """You pick passages from a book to be read aloud as a short voice sample by a
 text-to-speech model that makes mistakes on difficult words. From the text below, copy {n}
 passages EXACTLY as written (do not change a single character). Each passage:
-- {min_chars}–{max_chars} characters, two or three complete sentences in a row;
-- calm narration: no dialogue, no exclamations, no questions, no strong emotion;
+- {min_chars}–{max_chars} characters (about 10 seconds when read aloud, never longer), two complete
+  sentences in a row (a third only if all are very short);
+- calm narration: no dialogue, no exclamations, no questions, no strong emotion, no lists or
+  enumerations, no headings, no slashes;
 - only common everyday words; NO names of people or places, NO numbers or dates, NO abbreviations,
   NO foreign words, NO words whose stress or meaning depends on context (homographs){extra};
 - normal punctuation.
@@ -82,9 +84,20 @@ TEXT:
 EXTRA_RULES = {"ru": ", no words where е/ё is ambiguous (все/всё, небо/нёбо), no замок, мука, атлас, орган"}
 
 
-def pick_book_texts(book_text: str, lang: str, llm, n: int = 3, min_chars: int = 100,
-                    max_chars: int = 220, window: int = 12000) -> list[str]:
+# characters of calm narration that make about 10 seconds of speech (6–16 s is accepted for a sample)
+CHAR_RANGE = {"zh": (28, 55), "ja": (35, 65), "ko": (55, 100)}
+DEFAULT_RANGE = (90, 150)
+
+
+def char_range(lang: str) -> tuple[int, int]:
+    return CHAR_RANGE.get(lang, DEFAULT_RANGE)
+
+
+def pick_book_texts(book_text: str, lang: str, llm, n: int = 3, min_chars: int | None = None,
+                    max_chars: int | None = None, window: int = 12000) -> list[str]:
     """Ask the LLM for passages and keep only those that really occur in the book and pass checks."""
+    lo, hi = char_range(lang)
+    min_chars, max_chars = min_chars or lo, max_chars or hi
     found: list[str] = []
     for start in range(0, max(1, len(book_text)), window):
         chunk = book_text[start:start + window]
@@ -105,9 +118,11 @@ def pick_book_texts(book_text: str, lang: str, llm, n: int = 3, min_chars: int =
     return found[:n]
 
 
-def is_safe(text: str, lang: str, min_chars: int = 100, max_chars: int = 220) -> bool:
+def is_safe(text: str, lang: str, min_chars: int | None = None, max_chars: int | None = None) -> bool:
     """Mechanical checks on top of the LLM's judgement."""
-    if not min_chars <= len(text) <= max_chars or re.search(r"\d|[!?«»\"“”—]|\.\.\.|…", text):
+    lo, hi = char_range(lang)
+    min_chars, max_chars = min_chars or lo, max_chars or hi
+    if not min_chars <= len(text) <= max_chars or re.search(r"\d|[!?«»\"“”—/]|\.\.\.|…", text):
         return False
     words = text.split()
     # a capitalised word that does not start a sentence is probably a name

@@ -323,7 +323,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
       <small class="mute" id="gp-text-hint"></small>
 
       <div class="gp-step"><span>4</span> Generate attempts</div>
-      <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:6px">Attempts <input id="gp-takes" type="number" min="1" max="6" value="3" style="width:60px"></label>
+      <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:6px">Attempts <input id="gp-takes" type="number" min="1" max="6" value="2" style="width:60px"></label>
         <span id="gp-est" class="gp-est grow"></span></div>
       <label class="consent"><input type="checkbox" id="gp-ack"> <span>I understand that this short text is sent to the provider and billed to my account, and I will check the provider's terms before using the audio. Generated voices stay on this computer and are marked <b>commercial API</b>.</span></label>
       <div class="row"><button id="gp-go" class="primary" disabled>Generate</button><button id="gp-cancel" disabled>Stop</button><span id="gp-msg" class="mute grow"></span></div>
@@ -1328,7 +1328,7 @@ $("#gp-textseg").addEventListener("click", (e) => { const b = e.target.closest("
 function gpBody() {
   let model = $("#gp-model").value; if (model === "__custom") model = $("#gp-model-custom").value.trim() || "auto";
   const texts = gpTextList(), style = $("#gp-style").value.trim();
-  return { provider: GP.prov.name, mode: GP.mode, model, reference: GP.mode === "clone" ? $("#gp-ref").value : "", own_voice: $("#gp-own").checked, lang: $("#gp-lang").value, texts, takes: +$("#gp-takes").value || 3,
+  return { provider: GP.prov.name, mode: GP.mode, model, reference: GP.mode === "clone" ? $("#gp-ref").value : "", own_voice: $("#gp-own").checked, lang: $("#gp-lang").value, texts, takes: +$("#gp-takes").value || 2,
            description: GP.mode === "design" ? $("#gp-desc").value.trim() : (style && !$("#gp-style-row").hidden ? style : ""),
            speaker: GP.mode === "preset" || GP.mode === "localize" ? $("#gp-speaker").value : "", book_id: book ? book.book_id : "" };
 }

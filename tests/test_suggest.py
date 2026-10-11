@@ -32,3 +32,14 @@ def test_long_reply_is_cut_at_a_sentence():
 def test_unusable_reply(reply):
     with pytest.raises(ValueError):
         suggest_design_prompt("text " * 100, "en", FakeLLM(reply))
+
+
+def test_book_passages_are_about_ten_seconds_and_without_lists():
+    from folivox.voices.design import char_range, is_safe
+
+    lo, hi = char_range("ru")
+    assert (lo, hi) == (90, 150) and char_range("zh")[1] < 70  # character scripts are shorter per second
+    ok = "Утром над рекой поднялся лёгкий туман. Старый мост медленно выступал из белой дымки, и стало тихо."
+    assert lo <= len(ok) <= hi and is_safe(ok, "ru")
+    assert not is_safe(ok + " Потом наступил вечер, и тёплый свет лёг на воду и на дальний берег.", "ru")  # too long
+    assert not is_safe("Проверка укладки камня/плитки. Проверка расположения потолочных карнизов в доме.", "ru")
