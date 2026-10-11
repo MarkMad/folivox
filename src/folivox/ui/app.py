@@ -750,6 +750,11 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             out.append({**cls.capabilities(), **key_state(cls), "local": False, "cloud": True,
                         "voice_modes": list(voice_modes_of(cls)), "per_hour": prices.get(cls.models[0]["id"])
                         if cls.models else None, "prices": prices})
+        order = ["cosyvoice3", "gemini", "cartesia", "elevenlabs", "openai"]  # free first, then by value for money
+        tags = {"gemini": "cheap and best", "openai": "low quality for non-English"}
+        for e in out:
+            e["tag"] = tags.get(e["name"], "")
+        out.sort(key=lambda e: order.index(e["name"]) if e["name"] in order else len(order))
         return JSONResponse({"engines": out, "notice": COMMERCIAL_NOTICE})
 
     async def tts_estimate(request: Request):

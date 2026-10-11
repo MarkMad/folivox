@@ -1071,7 +1071,7 @@ async function engLoad() {
     const r = await api("/api/tts/engines"); ENG.list = r.engines;
     const st = await api("/api/settings").catch(() => null), pref = (st && st.kinds && st.kinds.tts && st.kinds.tts.selected) || "cosyvoice3";
     let saved = ""; try { saved = localStorage.getItem("folivox.tts") || ""; } catch (e) {}
-    $("#o-tts").innerHTML = r.engines.map(e => `<option value="${esc(e.name)}">${esc(e.label)}${e.cloud ? " — online, paid" : " — free, local"}</option>`).join("");
+    $("#o-tts").innerHTML = r.engines.map(e => `<option value="${esc(e.name)}">${esc(e.label)}${e.cloud ? " — online, paid" : " — free, local"}${e.tag ? " (" + esc(e.tag) + ")" : ""}</option>`).join("");
     $("#o-tts").value = r.engines.some(e => e.name === saved) ? saved : r.engines.some(e => e.name === pref) ? pref : "cosyvoice3";
     engChange();
   } catch (e) { /* the page still works with the local engine */ }

@@ -35,6 +35,8 @@ def test_engine_list_has_prices_limits_and_badges(env):
     c, _ = env
     data = c.get("/api/tts/engines").json()
     by = {e["name"]: e for e in data["engines"]}
+    assert [e["name"] for e in data["engines"]] == ["cosyvoice3", "gemini", "cartesia", "elevenlabs", "openai"]
+    assert by["gemini"]["tag"] == "cheap and best" and "non-English" in by["openai"]["tag"]
     assert by["cosyvoice3"]["local"] and not by["openai"]["local"]
     assert set(by) >= {"elevenlabs", "openai", "gemini", "cartesia"}
     assert by["openai"]["per_hour"] > 0 and by["openai"]["max_chars"] == 4096 and by["openai"]["key_in_env"]
