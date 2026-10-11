@@ -132,6 +132,8 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 .gp-prov.sel, .gp-mode.sel { border-color:var(--accent); box-shadow:0 0 0 3px var(--glow); }
 .gp-blurb { font-size:13px; color:var(--mute); line-height:1.4; } .gp-pcost { font-size:13px; margin-top:auto; } .gp-mode small { color:var(--mute); }
 .gp-key { background:var(--bg); border-radius:10px; padding:10px 12px; display:flex; flex-direction:column; gap:6px; }
+.spin { display:inline-block; width:12px; height:12px; border:2px solid var(--seg-pending); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; vertical-align:-2px; margin-right:6px; } @keyframes spin { to { transform:rotate(360deg); } }
+.wk-cancel { margin-left:8px; } @media (prefers-reduced-motion: reduce) { .spin { animation-duration:3s; } }
 .gp-adv summary { cursor:pointer; color:var(--mute); font-size:13px; } .gp-est { font-size:14px; }
 .gp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px 20px; }
 .gp-take { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,200px) 18px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; }
@@ -956,23 +958,31 @@ $("#gp-keysave").onclick = async () => {
   try { await api("/api/keys/" + GP.prov.key_env, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: v }) }); $("#gp-key").value = ""; await gpLoad(); loadKeys().catch(() => {}); }
   catch (e) { $("#gp-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 };
+// A spinner with a running seconds counter and a Cancel button, so a slow local model never looks like a hang.
+function working(el, label, hint, abort) {
+  const t0 = Date.now(); el.innerHTML = `<span class="spin"></span><span class="wk"></span><button type="button" class="chip wk-cancel">Cancel</button>`;
+  const txt = el.querySelector(".wk"), tick = () => { const s = Math.round((Date.now() - t0) / 1000); txt.textContent = `${label} ${s} s` + (s >= 6 ? ` — ${hint}` : ""); };
+  tick(); const id = setInterval(tick, 500); el.querySelector(".wk-cancel").onclick = () => abort.abort();
+  return () => { clearInterval(id); el.textContent = ""; };
+}
+const LLM_HINT = "a local model may need up to a minute, the first request loads it into memory";
 $("#gp-suggest").onclick = async () => {
-  $("#gp-suggest").disabled = true; $("#gp-suggest-msg").textContent = "Asking the text LLM…";
-  try { const r = await api("/api/gen/suggest", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ book_id: book.book_id }) });
-    $("#gp-desc").value = r.prompt; $("#gp-suggest-msg").textContent = "Suggested by " + (r.llm || "the LLM") + " from your book — edit freely."; gpCheck(); }
-  catch (e) { $("#gp-suggest-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  $("#gp-suggest").disabled = true; const ab = new AbortController(), done = working($("#gp-suggest-msg"), "Asking the text LLM…", LLM_HINT, ab);
+  try { const r = await api("/api/gen/suggest", { method: "POST", signal: ab.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ book_id: book.book_id }) });
+    done(); $("#gp-desc").value = r.prompt; $("#gp-suggest-msg").textContent = "Suggested by " + (r.llm || "the LLM") + " from your book — edit freely."; gpCheck(); }
+  catch (e) { done(); $("#gp-suggest-msg").innerHTML = e.name === "AbortError" ? "Cancelled." : `<span class="err">${esc(e.message)}</span>`; }
   $("#gp-suggest").disabled = false;
 };
 async function gpTexts(src) {
   GP.textSrc = src; document.querySelectorAll("#gp-textseg button").forEach(b => b.classList.toggle("on", b.dataset.t === src));
   $("#gp-text-msg").textContent = "";
   if (src === "custom") { $("#gp-text").focus(); gpCheck(); return; }
-  $("#gp-text-msg").textContent = src === "book" ? "Asking the text LLM to pick passages…" : "";
+  const ab = new AbortController(), done = src === "book" ? working($("#gp-text-msg"), "Asking the text LLM to pick passages…", LLM_HINT, ab) : () => {};
   try {
-    const r = await api("/api/gen/texts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ source: src, lang: $("#gp-lang").value, book_id: book.book_id }) });
-    $("#gp-text").value = (src === "builtin" ? r.texts.slice(0, 1) : r.texts).join("\n\n"); $("#gp-text-msg").textContent = "";
+    const r = await api("/api/gen/texts", { method: "POST", signal: ab.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ source: src, lang: $("#gp-lang").value, book_id: book.book_id }) });
+    done(); $("#gp-text").value = (src === "builtin" ? r.texts.slice(0, 1) : r.texts).join("\n\n"); $("#gp-text-msg").textContent = "";
     if (src === "book" && r.lang && $("#gp-lang").value !== r.lang && LANGS[r.lang]) { $("#gp-lang").value = r.lang; if (GP.mode !== "design") gpVoices(); }
-  } catch (e) { $("#gp-text-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  } catch (e) { done(); $("#gp-text-msg").innerHTML = e.name === "AbortError" ? "Cancelled." : `<span class="err">${esc(e.message)}</span>`; }
   gpCheck();
 }
 $("#gp-textseg").addEventListener("click", (e) => { const b = e.target.closest("[data-t]"); if (b) gpTexts(b.dataset.t); });
