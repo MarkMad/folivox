@@ -90,6 +90,12 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 .vgrid { display:flex; flex-direction:column; gap:6px; max-height:440px; overflow:auto; padding:3px; margin:-3px; }
 .vcard { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,170px) 18px 28px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; transition:border-color .2s, box-shadow .2s, background .2s; }
 #vc-modes .chip { padding:8px 16px; font-size:14px; } #vc-modes .chip.hot:not(.on) { border-color:var(--accent); color:var(--accent); }
+.vactions { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; margin-bottom:12px; }
+.vact { display:flex; gap:12px; align-items:center; text-align:left; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; }
+.vact:hover { border-color:var(--accent); } .vact.hot { border-color:var(--accent); background:linear-gradient(90deg,var(--glow),transparent 85%); }
+.vact b { display:block; font-size:14px; } .vact small { display:block; color:var(--mute); font-size:12px; font-weight:400; margin-top:2px; line-height:1.35; }
+.vact-i { flex:none; width:34px; height:34px; border-radius:50%; display:grid; place-items:center; font-size:20px; background:var(--bg); border:1px solid var(--line); }
+.vact.hot .vact-i { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
 .vcard.pv { grid-template-columns:34px minmax(0,1fr) 18px; } .vcard.pv .vmeta { white-space:normal; }
 .vcard:hover { border-color:var(--mute); } .vcard:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .vcard.sel { border-color:var(--accent); box-shadow:0 0 0 3px var(--glow); } .vcard.off { opacity:.62; }
@@ -225,6 +231,10 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
     <label class="consent eng-own" hidden style="margin-top:8px"><input type="checkbox" id="eng-own"><span>The voice I select in the list below is my own, or I have the speaker's permission to clone it. The clone exists in the provider's account while the book is made, then it is deleted.</span></label>
   </div>
   <div id="v-local">
+  <div class="vactions">
+    <button type="button" class="vact" id="add-card"><span class="vact-i">+</span><span><b>Add your own voice</b><small>upload a recording or record one</small></span></button>
+    <button type="button" class="vact hot" id="gen-card"><span class="vact-i">✦</span><span><b>Generate a voice sample</b><small>an online service reads a short text (a few cents, once); you then use it for free, offline</small></span></button>
+  </div>
   <div class="vbar"><input id="vq" type="search" placeholder="Search voices — name, id, language, license" autocomplete="off">
     <div class="chips" id="vgender"></div></div>
   <div class="chips" id="vlangs"></div>
@@ -383,7 +393,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
 </section>
 
 <section id="s-keys"><h2>Paid online services <small class="mute" style="text-transform:none;letter-spacing:0">· optional</small></h2>
-  <p class="sec-sub">Keys for online voice services. You only need them for <b>“Generate with a provider”</b> in the voice section (making a voice sample when you have no recording) or if you pick a cloud engine above. Without keys the app works fully on this computer. Keys are kept in your computer's keychain, never in a file, and are never shown again.</p>
+  <p class="sec-sub">Keys for online voice services. You only need them for <b>“Generate a voice sample”</b> in the voice section (making a voice sample when you have no recording) or if you pick a cloud engine above. Without keys the app works fully on this computer. Keys are kept in your computer's keychain, never in a file, and are never shown again.</p>
   <div id="keys" class="key-list"></div>
 </section>
 </main>
@@ -531,9 +541,7 @@ function renderVoices() {
     <canvas class="vwave" data-wave="${esc(v.id)}"></canvas>
     <span class="vcheck">✓</span>
     <span style="display:flex;align-items:center">${auto ? "" : `<button class="vstar ${FAV.has(v.id) ? "on" : ""}" data-fav="${esc(v.id)}" title="${FAV.has(v.id) ? "Remove from favorites" : "Add to favorites"}" aria-pressed="${FAV.has(v.id)}">${FAV.has(v.id) ? "★" : "☆"}</button>`}${!auto && !v.bundled ? `<button class="vdel" data-del="${esc(v.id)}" title="Remove this voice">✕</button>` : ""}</span></div>`;
-  $("#voices").innerHTML = (showAuto && autoV ? card(autoV, true) : "") + shown.map(v => card(v, false)).join("") +
-    `<div class="vcard add" role="button" tabindex="0" id="add-card"><span class="vplay" style="display:grid;place-items:center">+</span><div><div class="vname">Add your own voice</div><div class="vmeta">upload a sample or record one</div></div></div>` +
-    `<div class="vcard add" role="button" tabindex="0" id="gen-card"><span class="vplay" style="display:grid;place-items:center">✦</span><div><div class="vname">Generate with a provider</div><div class="vmeta">Gemini · OpenAI · ElevenLabs · Cartesia (your key)</div></div></div>`;
+  $("#voices").innerHTML = (showAuto && autoV ? card(autoV, true) : "") + shown.map(v => card(v, false)).join("");
   if (!shown.length) {
     const q = vf.q.trim().toLowerCase(), elsewhere = VOICES.filter(v => (!vf.gender || v.gender === vf.gender) && (!q || [v.name, v.id, v.transcript].some(x => (x || "").toLowerCase().includes(q)))).length;
     $("#voices").innerHTML += `<div class="vempty">${vf.fav && !FAV.size ? "No favorites yet — press ☆ on a voice. " : "No voices match"}${vf.fav && !FAV.size ? "" : ""}${vf.lang !== "all" ? ` in ${esc(LANGS[vf.lang] || vf.lang)}` : ""}. ${vf.lang !== "all" && elsewhere ? `<a href="#" id="vall">Show ${elsewhere} in other languages</a> or ` : ""}add your own below.</div>`;
@@ -604,6 +612,7 @@ const TR = { а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ё:"e",ж:"zh",з:"z",и:
 let av = null, avDirty = false, avRec = null, idTouched = false;
 const slug = (n) => n.toLowerCase().split("").map(c => TR[c] ?? c).join("").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
 function freeId(base) { base = base || "voice"; let id = base, i = 2; const taken = new Set(VOICES.map(v => v.id)); while (taken.has(id)) id = `${base}-${i++}`; return id; }
+$("#add-card").onclick = () => openAdd(); $("#gen-card").onclick = () => openGen();
 function openAdd() { closeGen(); $("#addvoice").hidden = false; $("#addvoice").scrollIntoView({ behavior: "smooth", block: "nearest" }); $("#av-name").focus({ preventScroll: true }); }
 function closeAdd() { stopRec(true); resetAdd(); $("#addvoice").hidden = true; }
 function resetAdd() { av = null; avDirty = false; idTouched = false; abp.reset();

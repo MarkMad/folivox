@@ -153,7 +153,7 @@ folivox voices design narrator -g elevenlabs --lang en \
   --describe "calm, warm woman in her forties, low timbre, unhurried pace" --yes
 ```
 
-In `folivox ui`: voice gallery → **Generate with a provider**. Pick a provider (the key is requested
+In `folivox ui`: voice gallery → **Generate a voice sample**. Pick a provider (the key is requested
 there if missing and stored in the OS keychain, never sent back to the browser), describe a voice
 (**Suggest** asks your text LLM to write the prompt from the book) or pick a preset voice (with an optional narration style), choose the model, choose
 the text (a built-in calm English sample, passages from the book, or your own), see the number of
