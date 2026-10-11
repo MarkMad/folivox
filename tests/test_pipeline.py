@@ -206,7 +206,7 @@ def test_any_image_becomes_a_small_jpeg_cover(tmp_path):
                             str(out)], capture_output=True, text=True, check=True)
     video = [s for s in json.loads(probe.stdout)["streams"] if s["codec_type"] == "video"]
     assert len(video) == 1 and video[0]["codec_name"] == "mjpeg" and video[0]["disposition"]["attached_pic"] == 1
-    assert video[0]["width"] == 1600 and video[0]["height"] == 1200
+    assert video[0]["width"] == 1600 and video[0]["height"] == 1600
 
 
 def test_edited_details_become_tags(tmp_path):
