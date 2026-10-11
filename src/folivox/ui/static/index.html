@@ -394,6 +394,7 @@ const fmt = (s) => { s = Math.round(s); const h = Math.floor(s/3600), m = Math.f
 const num = (n) => n.toLocaleString("en").replace(/,/g, " ");
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const linkify = (text) => esc(text).replace(/https?:\/\/[^\s<]+[^\s<.,;)]/g, (u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`);
+const media = (u) => u && u.startsWith("/") ? tok(u) : u;  // samples proxied by this server need the session
 const tok = (url) => TOKEN ? url + (url.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(TOKEN) : url;  // else the session cookie authenticates
 async function api(url, opts = {}) {
   opts.headers = { "X-Folivox-Token": TOKEN, ...(opts.headers || {}) };
@@ -1085,7 +1086,7 @@ $("#vc-list").addEventListener("click", (ev) => {
     if (!play.dataset.url) return;
     const was = card.classList.contains("playing"); engStop(); if (was) return;
     card.classList.add("playing"); play.textContent = "❚❚";
-    const a = ENG.audio = new Audio(play.dataset.url); a.onended = a.onerror = engStop; a.play().catch(engStop); return;
+    const a = ENG.audio = new Audio(media(play.dataset.url)); a.onended = a.onerror = engStop; a.play().catch(engStop); return;
   }
   $("#o-tts_voice").value = card.dataset.id; engRenderVoices();
 });
@@ -1199,7 +1200,7 @@ $("#gp-vsex").addEventListener("click", (e) => { const b = e.target.closest("[da
 $("#gp-speaker").addEventListener("change", gpVoiceInfo);
 $("#gp-vplay").onclick = () => {
   if (GP.vaudio && !GP.vaudio.paused) { GP.vaudio.pause(); $("#gp-vplay").textContent = "▶ Hear a free sample"; return; }
-  GP.vaudio = new Audio($("#gp-vplay").dataset.url); $("#gp-vplay").textContent = "❚❚ Stop";
+  GP.vaudio = new Audio(media($("#gp-vplay").dataset.url)); $("#gp-vplay").textContent = "❚❚ Stop";
   GP.vaudio.onended = GP.vaudio.onpause = () => { $("#gp-vplay").textContent = "▶ Hear a free sample"; }; GP.vaudio.play().catch(() => { $("#gp-vplay").textContent = "▶ Hear a free sample"; });
 };
 $("#gp-lang").onchange = () => { if (GP.prov && GP.mode !== "design") gpVoices(); GP.tx.builtin = null; if (GP.textSrc === "builtin") gpTexts("builtin"); };

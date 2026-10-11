@@ -9,6 +9,7 @@ import os
 import re
 import secrets
 import shutil
+import urllib.parse
 import uuid
 from pathlib import Path
 
@@ -787,7 +788,35 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         names, details = getattr(gen, "names", {}), getattr(gen, "details", {})
         rows = [{"id": k, "lang": v[0], "gender": v[1], "name": names.get(k, k), **details.get(k, {})}
                 for k, v in speakers.items() if not lang or v[0] in (lang, "")]
+        for r in rows:  # some providers serve samples only to the key holder: the browser plays them through us
+            if r.get("preview_url"):
+                sample_urls[(name, r["id"])] = r["preview_url"]
+                if name in AUTH_SAMPLES:
+                    r["preview_url"] = f"/api/tts/{name}/sample/{urllib.parse.quote(r['id'], safe='')}"
         return JSONResponse({"voices": rows, "note": getattr(gen, "voices_note", "")})
+
+    sample_urls: dict[tuple[str, str], str] = {}
+    AUTH_SAMPLES = {"cartesia"}  # sample files that answer 403 without the account's key
+
+    async def tts_sample(request: Request):
+        """A provider's free voice sample, fetched with the key (never exposed). Only URLs the provider
+        itself listed for that voice are fetched."""
+        name, voice = request.path_params["provider"], request.path_params["voice"]
+        url = sample_urls.get((name, voice))
+        host = urllib.parse.urlparse(url or "").hostname or ""
+        if name not in AUTH_SAMPLES or not url or not url.startswith("https://") or not host.endswith(".cartesia.ai"):
+            raise ApiError("No sample for this voice", 404)
+        gen = make_generator(name)
+
+        def fetch():
+            resp = gen.transport("GET", url, {**gen.headers(), "User-Agent": "Mozilla/5.0"}, None, 60)
+            if resp.status >= 300:
+                raise gen.map_error(resp)
+            return resp
+
+        resp = await gen_call(fetch)
+        return Response(resp.body, media_type=resp.headers.get("content-type", "audio/wav"),
+                        headers={"Cache-Control": "private, max-age=3600"})
 
     async def gen_suggest(request: Request):
         from folivox.voices.suggest import suggest_design_prompt
@@ -995,6 +1024,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/settings", put_settings, methods=["PUT"]),
         Route("/api/gen/providers", gen_providers),
         Route("/api/tts/engines", tts_engines),
+        Route("/api/tts/{provider}/sample/{voice}", tts_sample),
         Route("/api/tts/estimate", tts_estimate, methods=["POST"]),
         Route("/api/gen/suggest", gen_suggest, methods=["POST"]),
         Route("/api/gen/texts", gen_texts, methods=["POST"]),

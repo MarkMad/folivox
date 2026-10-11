@@ -77,3 +77,41 @@ def test_bad_cap_and_mode_are_rejected(env):
     for extra in ({"max_cost": "abc"}, {"max_cost": 0}, {"tts_mode": "clone"}, {"tts_mode": "design"}):
         r = c.post("/api/jobs", json={**base, "options": {"tts": "openai", **extra}})
         assert r.status_code == 400, extra
+
+
+def test_cartesia_samples_are_proxied_with_the_key(tmp_path, monkeypatch):
+    """Cartesia sample files answer 403 without the key, so the browser plays them through the server."""
+    from folivox.voicegen.cloud import Response
+
+    monkeypatch.setenv("FOLIVOX_CONFIG", str(tmp_path / "config.toml"))
+    monkeypatch.setenv("CARTESIA_API_KEY", "sk-test-SECRET-1234")
+    monkeypatch.setattr("folivox.config.keychain_get", lambda name: None)
+    seen = []
+
+    class FakeCartesia:
+        modes, label, name = ("preset",), "Cartesia", "cartesia"
+        names = {"v1": "Skylar", "v2": "Daniel"}
+        details = {"v1": {"traits": "Guide", "preview_url": "https://files.cartesia.ai/files/f1/download?format=playback"},
+                   "v2": {"traits": "Assistant", "preview_url": "https://evil.example/x.wav"}}
+
+        def speakers(self, lang=None):
+            return {"v1": ("ru", "f"), "v2": ("ru", "m")}
+
+        def headers(self):
+            return {"Authorization": "Bearer sk-test-SECRET-1234"}
+
+        def transport(self, method, url, headers, body, timeout):
+            seen.append((url, headers))
+            return Response(200, b"RIFFfake", {"content-type": "audio/wav"})
+
+    app = create_app(token=TOKEN, port=8765, data_dir=tmp_path / "ui", render=lambda *a: None,
+                     services={"generator": lambda n, model="": FakeCartesia()})
+    c = TestClient(app, base_url="http://127.0.0.1:8765", headers={"X-Folivox-Token": TOKEN})
+    assert c.get("/api/tts/cartesia/sample/v1").status_code == 404  # unknown until the voices were listed
+    voices = c.get("/api/gen/voices/cartesia?lang=ru").json()["voices"]
+    assert voices[0]["preview_url"] == "/api/tts/cartesia/sample/v1"
+    assert "SECRET" not in c.get("/api/gen/voices/cartesia?lang=ru").text
+    r = c.get("/api/tts/cartesia/sample/v1")
+    assert r.status_code == 200 and r.content == b"RIFFfake" and r.headers["content-type"] == "audio/wav"
+    assert seen[0][1]["Authorization"].startswith("Bearer ") and "files.cartesia.ai" in seen[0][0]
+    assert c.get("/api/tts/cartesia/sample/v2").status_code == 404  # a foreign host is never fetched
