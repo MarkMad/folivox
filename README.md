@@ -157,9 +157,9 @@ the header).
 </td>
 <td valign="top">
 
-**Safe spending**<br>
-Online runs show a cost estimate first, need your confirmation and stop cleanly at `--max-cost`. Already
-rendered fragments are never paid for twice.
+**Free, with no limits**<br>
+The local engine reads any number of books of any length at no cost. Only if you choose a paid online
+engine: a cost estimate first, your confirmation, a clean stop at `--max-cost`, no fragment paid for twice.
 
 </td>
 <td valign="top">
