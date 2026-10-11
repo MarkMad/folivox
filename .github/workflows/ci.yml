@@ -19,6 +19,9 @@ jobs:
         with:
           python-version: "3.10"
       - uses: FedericoCarboni/setup-ffmpeg@v3
+        if: runner.os != 'macOS'
+      - run: brew install ffmpeg
+        if: runner.os == 'macOS'
       # Core + test deps only: readers, text processing, journal, assembly. No model inference.
       - run: uv sync --no-default-groups --group dev --group test
       - run: uv run ruff check src tests
