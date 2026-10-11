@@ -215,8 +215,10 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
   <div id="v-cloud" class="eng-cloud" hidden>
     <small class="mute" id="vc-title"></small>
     <div class="grid" style="margin-top:8px">
+      <div id="vc-saved" hidden style="grid-column:1/-1"><div style="font-weight:600;font-size:14px">My created voices <small class="mute" style="font-weight:400">· kept in your account, free to reuse for any book</small></div><div class="vgrid" id="vc-saved-list" style="max-height:230px;margin-top:6px"></div><small class="mute" id="vc-saved-hint" style="display:block;margin-top:4px"></small></div>
       <div style="grid-column:1/-1"><div class="chips" id="vc-modes" role="radiogroup" aria-label="Kind of voice"></div><select id="o-tts_mode" hidden></select><small class="mute" id="vc-modehint" style="display:block;margin-top:4px"></small></div>
       <label class="f eng-desc" hidden style="grid-column:1/-1">Describe the voice<input id="o-tts_description" type="text" placeholder="a calm, warm middle-aged woman, unhurried audiobook narrator"></label>
+      <div class="eng-keep" hidden style="grid-column:1/-1"><label class="consent"><input type="checkbox" id="vc-keep" checked><span>Keep this voice in my account, so I can use it for other books without creating it again. Untick to delete it when this book is finished.</span></label><label class="f" style="margin-top:6px">Name for the voice<input id="vc-name" type="text" maxlength="60" placeholder="e.g. Calm narrator"></label></div>
       <label class="f eng-style" style="grid-column:1/-1">Narration note (optional)<input id="o-tts_style" type="text" placeholder="default: neutral, steady audiobook narration"></label>
       <div class="eng-pick" style="grid-column:1/-1"><small class="mute" style="display:block;margin-bottom:6px" id="vc-note"></small><div class="chips" id="vc-lang" style="margin-bottom:6px"></div><div class="chips" id="vc-sex" style="margin-bottom:6px"></div><div class="vgrid" id="vc-list" role="radiogroup" aria-label="Voice"></div><input type="hidden" id="o-tts_voice"></div>
     </div>
@@ -990,7 +992,7 @@ function handle(ev) {
       setFrag(ev.key, ev.attempts > 1 ? SEG.RETAKE : SEG.DONE); feedLine(ev); S.activeKey = null; break;
     case "chapter": log(`✓ ${ev.title} — ${fmt(ev.duration)}`); setPhase(`Chapter ready: ${ev.title}`, fmt(ev.duration) + " of audio", "check");
       { const lane = S.lanes.find(l => l.ci + 1 === ev.index); if (lane) { lane.built = true; lane.el.querySelector(".lplay").hidden = false; } } break;
-    case "done": log("Done: " + ev.result); end("done"); setPhase("Finished", ev.result, "done"); $("#wave").className = "wave done";
+    case "done": if (ENG.cloud()) engSaved(); log("Done: " + ev.result); end("done"); setPhase("Finished", ev.result, "done"); $("#wave").className = "wave done";
       $("#hero-status").textContent = job.kind === "preview" ? "Preview ready — press ▶ on the chapter" : "Saved";
       $("#run-msg").textContent = job.kind === "preview" ? "Preview ready — press ▶ on the chapter line." : ""; $("#now-actions").hidden = job.kind === "preview"; break;
     case "cancelled": log(ev.message || "Stopped. Progress is saved — press Render again to continue."); end("cancelled"); setPhase(ev.reason === "cost_cap" ? "Spending cap reached" : "Stopped", ev.message || "Progress is saved — press Render to continue.", "");
@@ -1006,8 +1008,11 @@ const ENG = { list: [], voices: {}, tm: null, cur() { return this.list.find(e =>
 function engOptions() {
   if (!ENG.cloud()) return {};
   const cap = $("#o-max_cost").value;
-  return { tts: ENG.cur().name, tts_model: $("#o-tts_model").value, tts_mode: $("#o-tts_mode").value, tts_voice: $("#o-tts_voice").value,
-           tts_description: $("#o-tts_description").value, tts_style: $("#o-tts_style").value, max_cost: cap ? +cap : null, own_voice: $("#eng-own").checked };
+  const base = { tts: ENG.cur().name, tts_model: $("#o-tts_model").value, tts_style: $("#o-tts_style").value, max_cost: cap ? +cap : null };
+  if (ENG.sel) return { ...base, tts_mode: ENG.sel.mode, tts_voice: ENG.sel.id };  // a voice kept from an earlier book
+  const mode = $("#o-tts_mode").value;
+  return { ...base, tts_mode: mode, tts_voice: $("#o-tts_voice").value, tts_description: $("#o-tts_description").value, own_voice: $("#eng-own").checked,
+           keep_voice: mode !== "preset" && $("#vc-keep").checked, tts_voice_name: $("#vc-name").value };
 }
 async function engLoad() {
   try {
@@ -1024,7 +1029,7 @@ function engChange() {
   try { localStorage.setItem("folivox.tts", e.name); } catch (x) {}
   document.querySelectorAll(".eng-cloud").forEach(el => el.hidden = !e.cloud);
   $("#v-local").hidden = false;
-  $("#eng-ack").checked = false; ENG.vlang = undefined;
+  $("#eng-ack").checked = false; ENG.vlang = undefined; ENG.sel = null; $("#vc-saved").hidden = true;
   $("#o-takes").value = e.cloud ? 2 : 3;
   $("#o-takes").parentElement.title = e.cloud ? "Each retake is billed" : "";
   $("#eng-blurb").innerHTML = esc(e.blurb || "") + (e.cloud ? ` <span class="warn">Paid: ≈ ${e.per_hour != null ? "$" + e.per_hour.toFixed(2) : "?"} per hour of audio.</span>` : "");
@@ -1035,10 +1040,10 @@ function engChange() {
   $("#o-tts_style").parentElement.hidden = !e.style;
   // voices of non-English books sound right only after adaptation to the language: prefer it where offered
   if (e.voice_modes.includes("localize") && book && book.lang && book.lang !== "en") $("#o-tts_mode").value = "localize";
-  engMode(); engVoices(); engEstimate();
+  engMode(); engVoices(); engSaved(); engEstimate();
 }
 const MODE_UI = { preset: ["Pick a voice", "Choose one of the service's ready-made voices."],
-  design: ["✨ Create a voice from a description", "Describe the narrator in words: the voice is made for this book and deleted from your account afterwards."],
+  design: ["✨ Create a voice from a description", "Describe the narrator in words: the voice is created in your account for this book; you can keep it for other books."],
   localize: ["Adapt a voice to your language", "Recommended for books that are not in English: take any professional voice (an English one is fine) and Cartesia adapts it to speak your book's language like a native, keeping the timbre. Ready-made voices used as they are often keep a foreign accent."],
   clone: ["Clone my own voice", "Only your own voice, or one you have permission for."] };
 function engModes() {
@@ -1049,12 +1054,36 @@ function engModes() {
 $("#vc-modes").addEventListener("click", (ev) => { const b = ev.target.closest("[data-mode]"); if (!b) return; $("#o-tts_mode").value = b.dataset.mode; engMode(); engVoices(); engEstimate(); });
 function engMode() {
   engModes();
-  const e = ENG.cur(); if (!e || !e.cloud) return; const m = $("#o-tts_mode").value;
-  document.querySelector(".eng-pick").hidden = !(m === "preset" || m === "localize"); document.querySelector(".eng-desc").hidden = m !== "design";
-  document.querySelector(".eng-own").hidden = m !== "clone";
-  $("#v-local").hidden = m !== "clone";  // the catalog gallery is only needed to pick your own voice to clone
-  $("#vc-title").textContent = m === "clone" ? "Pick one of your own voices below; it will be cloned in your " + e.label + " account." : "Voices of " + e.label + ". Your own voice catalog is used only by the local engine (and for cloning).";
+  const e = ENG.cur(); if (!e || !e.cloud) return; const m = $("#o-tts_mode").value, sel = !!ENG.sel;
+  $("#vc-modes").parentElement.hidden = sel || e.voice_modes.length < 2;
+  document.querySelector(".eng-pick").hidden = sel || !(m === "preset" || m === "localize"); document.querySelector(".eng-desc").hidden = sel || m !== "design";
+  document.querySelector(".eng-own").hidden = sel || m !== "clone"; document.querySelector(".eng-keep").hidden = sel || m === "preset";
+  $("#v-local").hidden = sel || m !== "clone";  // the catalog gallery is only needed to pick your own voice to clone
+  $("#vc-title").textContent = m === "clone" && !sel ? "Pick one of your own voices below; it will be cloned in your " + e.label + " account." : "Voices of " + e.label + ". Your own voice catalog is used only by the local engine (and for cloning).";
+  $("#vc-saved-hint").textContent = sel ? `Using “${ENG.sel.name}”. Click it again to choose another voice instead.` : "";
 }
+async function engSaved() {
+  const e = ENG.cur(); if (!e || !e.cloud) return;
+  try { ENG.savedList = (await api(`/api/tts/${e.name}/saved`)).voices; } catch (x) { ENG.savedList = []; }
+  if (ENG.sel && !ENG.savedList.some(v => v.id === ENG.sel.id)) ENG.sel = null;
+  $("#vc-saved").hidden = !ENG.savedList.length;
+  const KIND = { design: "from a description", localize: "adapted to a language", clone: "your clone" };
+  $("#vc-saved-list").innerHTML = ENG.savedList.map(v => `<div class="vcard pv ${ENG.sel && ENG.sel.id === v.id ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${!!ENG.sel && ENG.sel.id === v.id}" data-sid="${esc(v.id)}">
+    <span class="vplay" style="display:grid;place-items:center">✨</span>
+    <div style="min-width:0"><div class="vname"><span class="n">${esc(v.name)}</span><span class="vbadge mine">created by you</span></div><div class="vmeta">${esc([KIND[v.mode] || v.mode, v.description].filter(Boolean).join(" · "))}</div></div>
+    <button type="button" class="chip" data-del="${esc(v.id)}" title="Delete this voice from your account" aria-label="Delete voice ${esc(v.name)}">✕</button></div>`).join("");
+  engMode(); engEstimate();
+}
+$("#vc-saved-list").addEventListener("click", async (ev) => {
+  const del = ev.target.closest("[data-del]"), card = ev.target.closest("[data-sid]");
+  if (del) {
+    const v = ENG.savedList.find(x => x.id === del.dataset.del); if (!v || !confirm(`Delete the voice “${v.name}” from your ${ENG.cur().label} account? Books already made keep their audio.`)) return;
+    try { await api(`/api/tts/${ENG.cur().name}/saved/${encodeURIComponent(v.id)}`, { method: "DELETE" }); if (ENG.sel && ENG.sel.id === v.id) ENG.sel = null; } catch (x) { $("#vc-saved-hint").innerHTML = `<span class="err">${esc(x.message)}</span>`; return; }
+    engSaved(); return;
+  }
+  if (card) { const v = ENG.savedList.find(x => x.id === card.dataset.sid); ENG.sel = ENG.sel && ENG.sel.id === v.id ? null : v; engSaved(); }
+});
+$("#vc-saved-list").addEventListener("keydown", (ev) => { if ((ev.key === "Enter" || ev.key === " ") && ev.target.dataset && ev.target.dataset.sid) { ev.preventDefault(); ev.target.click(); } });
 async function engVoices() {
   const e = ENG.cur(), box = $("#vc-list"); if (!e || !e.cloud) return;
   if (!e.key_in_env && !e.key_saved) { box.innerHTML = `<div class="mute">No API key for ${esc(e.label)} — add it in “Paid online services” at the bottom of the page.</div>`; $("#vc-sex").innerHTML = ""; return; }

@@ -429,19 +429,22 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         model = str(o.get("tts_model") or "auto").strip()
         if not re.fullmatch(r"[\w.\-]{1,80}", model):
             raise ApiError("Bad model name")
-        mode = str(o.get("tts_mode") or "preset")
+        from folivox.tts import saved
+
+        speaker = str(o.get("tts_voice") or "").strip()
+        mine = saved.find(tts, speaker)  # a voice kept from an earlier book: reused as it is
+        mode = mine["mode"] if mine else str(o.get("tts_mode") or "preset")
         if mode not in voice_modes_of(cls):
             raise ApiError(f"{cls.label} cannot use the voice mode {mode!r} for a book")
         description = " ".join(str(o.get("tts_description") or "").split())[:1000]
-        speaker = str(o.get("tts_voice") or "").strip()
         ref = None
-        if mode == "clone":
+        if mode == "clone" and not mine:
             if o.get("own_voice") is not True:
                 raise ApiError("Confirm that this is your own voice or you have the speaker's permission")
             if voice is None or not any(x.id == voice.id for x in catalog.user()):
                 raise ApiError("Choose one of your own voices to clone")
             ref = voice.path
-        if mode == "design" and len(description) < 10:
+        if mode == "design" and not mine and len(description) < 10:
             raise ApiError("Describe the voice (at least a few words)")
         if mode in ("preset", "localize") and not speaker and tts in ("elevenlabs", "cartesia"):
             raise ApiError("Pick one of the provider's voices")
@@ -455,7 +458,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         style = o.get("tts_style")
         return dict(accept_cloud=True, tts_model=model, tts_voice=speaker, tts_mode=mode, tts_description=description,
                     tts_style=str(style) if style not in (None, "") else None, voice_ref=ref, max_cost=cap,
-                    keep_voice=bool(o.get("keep_voice", False)))
+                    keep_voice=bool(o.get("keep_voice", False)) and not mine,
+                    tts_voice_name=" ".join(str(o.get("tts_voice_name") or "").split())[:60])
 
     def build_options(body: dict, book_entry: dict, kind: str) -> RenderOptions:
         from folivox.text.stress import MODES
@@ -778,6 +782,28 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         return JSONResponse({**est, "summary": cost.describe(est), "notice": COMMERCIAL_NOTICE,
                              "label": cls.label, "price_note": cls.price_note})
 
+    async def tts_saved_list(request: Request):
+        from folivox.tts import saved
+
+        return JSONResponse({"voices": saved.listing(request.path_params["provider"])})
+
+    async def tts_saved_delete(request: Request):
+        """Forget a kept voice and delete it from the provider's account."""
+        from folivox.providers import ProviderError
+        from folivox.tts import saved
+
+        name, vid = request.path_params["provider"], request.path_params["voice"]
+        if saved.find(name, vid) is None:
+            raise ApiError("Unknown saved voice", 404)
+        gen = make_generator(name)
+        try:
+            await asyncio.to_thread(gen.teardown_voices, [vid])
+        except ProviderError as e:
+            if getattr(e, "kind", "") != "bad_request":  # "not found": it is already gone, forget it
+                raise ApiError(str(e), 502) from None
+        saved.remove(name, vid)
+        return JSONResponse({"ok": True})
+
     async def gen_voices(request: Request):
         name = request.path_params["provider"]
         gen = make_generator(name)
@@ -1025,6 +1051,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/gen/providers", gen_providers),
         Route("/api/tts/engines", tts_engines),
         Route("/api/tts/{provider}/sample/{voice}", tts_sample),
+        Route("/api/tts/{provider}/saved", tts_saved_list),
+        Route("/api/tts/{provider}/saved/{voice}", tts_saved_delete, methods=["DELETE"]),
         Route("/api/tts/estimate", tts_estimate, methods=["POST"]),
         Route("/api/gen/suggest", gen_suggest, methods=["POST"]),
         Route("/api/gen/texts", gen_texts, methods=["POST"]),

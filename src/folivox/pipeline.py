@@ -59,7 +59,8 @@ class RenderOptions:
     voice_ref: Path | None = None  # your own recording to clone (clone mode)
     max_cost: float | None = None  # stop cleanly before spending more than this many USD
     accept_cloud: bool = False  # the caller showed the estimate and the user agreed
-    keep_voice: bool = False  # keep a voice made in the provider account after the run
+    keep_voice: bool = False  # keep a voice made in the provider account (and list it for other books)
+    tts_voice_name: str = ""  # the name a kept voice is listed under
 
     def resolved_work_dir(self) -> Path:
         return self.work_dir or self.output.with_name(self.output.stem + ".folivox")
@@ -347,19 +348,35 @@ def is_cloud(name: str) -> bool:
 
 
 def _cloud_voice(engine, opts: RenderOptions, journal: Journal, events: Events):
-    """The provider voice for the whole run. A voice made in the account (design / localize / clone) is
-    remembered in the journal so an interrupted run continues with the same voice, then deleted at the end."""
+    """The provider voice for the whole run → ``(voice, owned)``.
+
+    A voice kept from an earlier book (``tts_voice`` = its id or name) is reused as it is and never deleted here.
+    A voice made for this book (design / localize / clone) is remembered in the journal so an interrupted run
+    continues with the same voice; it is deleted after a finished run unless ``keep_voice`` lists it for later."""
+    from folivox.tts import saved
+
+    mine = saved.find(opts.tts, opts.tts_voice)
+    if mine is not None:
+        voice = engine.make_voice("", opts.tts_style, opts.lang, mine["mode"], mine.get("description", ""), None,
+                                  mine["id"])
+        events.stage("voice", f"Using your saved voice “{mine['name']}”")
+        return voice, False
     kind = f"{opts.tts}|{opts.tts_mode}|{opts.tts_voice}|{opts.tts_description}|{opts.voice_ref}"
     remembered = journal.meta("cloud_voice") if journal.meta("cloud_voice_for") == kind else ""
     voice = engine.make_voice(opts.tts_voice, opts.tts_style, opts.lang, opts.tts_mode, opts.tts_description,
                               opts.voice_ref, remembered or "")
-    if opts.tts_mode != "preset":
-        journal.set_meta(cloud_voice=voice.speaker, cloud_voice_for=kind)
-        if not remembered:
-            events.stage("voice", f"Created a voice in your {type(engine.gen).label} account for this book")
-    elif not voice.speaker and opts.tts != "openai" and opts.tts != "gemini":
-        raise RuntimeError(f"Pick a voice for {opts.tts} (--tts-voice NAME or id; `folivox tts-voices {opts.tts}`)")
-    return voice
+    if opts.tts_mode == "preset":
+        if not voice.speaker and opts.tts in ("elevenlabs", "cartesia"):
+            raise RuntimeError(f"Pick a voice for {opts.tts} (--tts-voice NAME or id; `folivox tts-voices {opts.tts}`)")
+        return voice, False
+    journal.set_meta(cloud_voice=voice.speaker, cloud_voice_for=kind)
+    if not remembered:
+        events.stage("voice", f"Created a voice in your {type(engine.gen).label} account for this book")
+    if opts.keep_voice:
+        name = opts.tts_voice_name or opts.tts_description[:40] or opts.tts_voice or "My voice"
+        saved.add(opts.tts, voice.speaker, name, opts.tts_mode, opts.tts_description, opts.lang)
+        events.stage("voice", f"Voice “{name}” is kept in your account and listed for other books")
+    return voice, True
 
 
 def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Path:
@@ -372,7 +389,7 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
 
     opts.lang = languages.get(opts.lang or book.lang or "ru").code
     journal = Journal(opts.resolved_work_dir())
-    voice = None
+    voice, owned = None, False
     try:
         cloud = is_cloud(opts.tts)
         if cloud and not opts.accept_cloud:
@@ -390,7 +407,7 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
             if opts.speed != 1.0:
                 events.warning("Reading speed is not applied by cloud engines; the provider's own pace is used")
             engine = ENGINES.create(opts.tts, model=opts.tts_model, max_cost=opts.max_cost)
-            voice = _cloud_voice(engine, opts, journal, events)
+            voice, owned = _cloud_voice(engine, opts, journal, events)
             events.stage("model", f"{type(engine.gen).label}, model {engine.model}")
         else:
             voice = load_voice(opts.voice_wav, opts.voice_text,
@@ -419,7 +436,7 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
             sample_rate = journal.meta("sample_rate", 24000)
         journal.set_meta(sample_rate=sample_rate)
         result = assemble(journal, book, opts, sample_rate, events)
-        if cloud and opts.tts_mode != "preset" and not opts.keep_voice:
+        if cloud and owned and not opts.keep_voice:
             engine.release(voice)  # only after a finished run: an interrupted one resumes with the same voice
             journal.set_meta(cloud_voice="", cloud_voice_for="")
         return result

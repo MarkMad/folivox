@@ -179,3 +179,49 @@ def test_elevenlabs_design_needs_a_real_description():
     eng, _ = engine("elevenlabs")
     with pytest.raises(CloudError):
         eng.make_voice("", None, "en", "design", "calm")
+
+
+@pytest.fixture
+def saved_dir(tmp_path, monkeypatch):
+    monkeypatch.setattr("folivox.tts.saved._path", lambda: tmp_path / "cloud_voices.json")
+    return tmp_path
+
+
+def gemini_engine(fake):
+    from folivox.voicegen.cloud_apis import Gemini
+
+    return CloudTTS("gemini", generator=Gemini(api_key="k", transport=fake, sleep=lambda s: None,
+                                                model="gemini-3.8-flash-tts"))
+
+
+def test_kept_voice_is_listed_and_reused_without_creating_or_deleting(saved_dir):
+    from folivox.pipeline import _cloud_voice
+    from folivox.tts import saved
+
+    fake = Fake(ok({"id": "v-77"}))
+    eng = gemini_engine(fake)
+    opts = RenderOptions(output=saved_dir / "o.m4b", tts="gemini", tts_mode="design", lang="en", keep_voice=True,
+                         tts_description="a calm, warm woman in her forties", tts_voice_name="Calm narrator")
+    j = Journal(saved_dir / "w")
+    voice, owned = _cloud_voice(eng, opts, j, Events())
+    assert owned and voice.speaker == "v-77"
+    entry = saved.find("gemini", "calm narrator")  # found by name, case-insensitive
+    assert entry and entry["id"] == "v-77" and entry["mode"] == "design"
+
+    # a later book: the same voice by name, nothing is created and it is never deleted by the run
+    fake2 = Fake(ok({}))
+    eng2 = gemini_engine(fake2)
+    opts2 = RenderOptions(output=saved_dir / "o2.m4b", tts="gemini", tts_voice="Calm narrator", lang="en")
+    voice2, owned2 = _cloud_voice(eng2, opts2, Journal(saved_dir / "w2"), Events())
+    assert voice2.speaker == "v-77" and voice2.id == voice.id and not owned2 and not fake2.calls
+
+
+def test_unkept_voice_is_not_listed(saved_dir):
+    from folivox.pipeline import _cloud_voice
+    from folivox.tts import saved
+
+    eng = gemini_engine(Fake(ok({"id": "v-5"})))
+    opts = RenderOptions(output=saved_dir / "o.m4b", tts="gemini", tts_mode="design", lang="en",
+                         tts_description="a calm, warm woman in her forties")
+    _cloud_voice(eng, opts, Journal(saved_dir / "w"), Events())
+    assert saved.listing("gemini") == []

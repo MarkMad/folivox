@@ -282,7 +282,9 @@ def render(
     max_cost: float | None = typer.Option(None, "--max-cost", rich_help_panel=P_CLOUD, show_default="no cap",
                                           help="Stop cleanly (resumable) before spending more than N USD."),
     keep_voice: bool = typer.Option(False, "--keep-voice", rich_help_panel=P_CLOUD,
-                                    help="Keep a voice made in the provider account after the run."),
+                                    help="Keep the voice made for the book to reuse it later (--tts-voice NAME)."),
+    voice_name: str = typer.Option("", "--tts-voice-name", rich_help_panel=P_CLOUD,
+                                   help="Name for a kept voice (default: from the description)."),
     yes: bool = typer.Option(False, "--yes", "-y", rich_help_panel=P_CLOUD,
                              help="Agree to send the text to a paid cloud engine without asking."),
     asr: str | None = typer.Option(None, "--asr", rich_help_panel=P_PROVIDERS, show_default="auto",
@@ -351,7 +353,7 @@ def render(
                          max_takes=takes or (2 if cloud else 3), mp3=mp3,
                          bitrate=bitrate, llm=llm.value, tts=tts_name, tts_model=tts_model, tts_voice=tts_voice,
                          tts_style=tts_style, tts_mode=tts_mode, tts_description=tts_describe, voice_ref=voice_ref,
-                         max_cost=max_cost, keep_voice=keep_voice,
+                         max_cost=max_cost, keep_voice=keep_voice, tts_voice_name=voice_name,
                          asr=config.provider("asr", asr) or "auto", cover=cover_path,
                          no_cover=bool(cover) and cover.lower() == "none",
                          meta={k: v for k, v in {"title": title, "author": author, "narrator": narrator,
@@ -761,20 +763,39 @@ def voices_sample_text(
 @app.command("tts-voices", help="List the voices of a cloud reading engine (needs its API key).",
              rich_help_panel="Setup")
 def tts_voices(engine: str = typer.Argument(..., help="elevenlabs, openai, gemini or cartesia."),
-               lang: str | None = typer.Option(None, "--lang", help="Only voices for this language (Cartesia).")):
-    """List the voices of a cloud reading engine."""
+               lang: str | None = typer.Option(None, "--lang", help="Only voices for this language (Cartesia)."),
+               delete: str | None = typer.Option(None, "--delete", metavar="NAME_OR_ID",
+                                                 help="Delete a kept voice from your account and forget it.")):
+    """List the voices of a cloud reading engine, and the voices you kept from earlier books."""
     from folivox.providers import ProviderError
-    from folivox.tts import ENGINES
+    from folivox.tts import ENGINES, saved
 
     try:
         eng = ENGINES.create(engine)
         if eng.local:
             console.print(f"[red]{engine} is a local engine and has no voice list.[/]")
             raise typer.Exit(2)
+        if delete:
+            mine = saved.find(engine, delete)
+            if mine is None:
+                console.print(f"[red]No kept voice {delete!r} for {engine}.[/]")
+                raise typer.Exit(2)
+            eng.gen.teardown_voices([mine["id"]])
+            saved.remove(engine, mine["id"])
+            console.print(f"Deleted “{mine['name']}” from your account.")
+            return
         rows = eng.gen.speakers(lang)
     except (ProviderError, ValueError) as e:
         console.print(f"[red]{e}[/]")
         raise typer.Exit(1) from None
+    mine = saved.listing(engine)
+    if mine:
+        k = Table(title=f"Your kept {engine} voices (use --tts-voice NAME; delete with --delete NAME)")
+        for col in ("Name", "Kind", "Description", "Id"):
+            k.add_column(col)
+        for v in mine:
+            k.add_row(v["name"], v["mode"], v.get("description", "")[:60], v["id"])
+        console.print(k)
     t = Table(title=f"{engine} voices (use --tts-voice)")
     for col in ("Id", "Name", "Sex", "Traits"):
         t.add_column(col)

@@ -115,3 +115,35 @@ def test_cartesia_samples_are_proxied_with_the_key(tmp_path, monkeypatch):
     assert r.status_code == 200 and r.content == b"RIFFfake" and r.headers["content-type"] == "audio/wav"
     assert seen[0][1]["Authorization"].startswith("Bearer ") and "files.cartesia.ai" in seen[0][0]
     assert c.get("/api/tts/cartesia/sample/v2").status_code == 404  # a foreign host is never fetched
+
+
+def test_saved_voices_list_delete_and_reuse(env, tmp_path, monkeypatch):
+    from folivox.tts import saved
+
+    monkeypatch.setattr("folivox.tts.saved._path", lambda: tmp_path / "cloud_voices.json")
+    monkeypatch.setenv("GEMINI_API_KEY", "k-test")
+    calls = []
+
+    class FakeGen:
+        label, name, modes = "Gemini API", "gemini", ("preset", "design")
+
+        def teardown_voices(self, ids):
+            calls.append(ids)
+
+    saved.add("gemini", "v-1", "Calm narrator", "design", "a calm woman", "en")
+    _, seen = env
+    app = create_app(token=TOKEN, port=8765, data_dir=tmp_path / "ui2", render=lambda b, o, e: seen.update(opts=o),
+                     services={"generator": lambda n, model="": FakeGen()})
+    c = TestClient(app, base_url="http://127.0.0.1:8765", headers={"X-Folivox-Token": TOKEN})
+    assert [v["name"] for v in c.get("/api/tts/gemini/saved").json()["voices"]] == ["Calm narrator"]
+    b = upload(c)
+    job = {"kind": "preview", "book_id": b["book_id"], "acknowledged": True,
+           "options": {"tts": "gemini", "tts_voice": "v-1", "tts_mode": "preset", "keep_voice": True}}
+    r = c.post("/api/jobs", json=job)
+    assert r.status_code == 202, r.text
+    wait_done(c, r.json()["id"])
+    o = seen["opts"]
+    assert o.tts_voice == "v-1" and o.keep_voice is False  # a kept voice is reused, never re-created
+    assert c.delete("/api/tts/gemini/saved/nope").status_code == 404
+    assert c.delete("/api/tts/gemini/saved/v-1").status_code == 200
+    assert calls == [["v-1"]] and saved.listing("gemini") == []

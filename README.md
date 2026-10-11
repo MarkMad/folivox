@@ -191,8 +191,10 @@ rendered are never paid for twice).
 The cloud voices are not clones of a reference recording: pick one of the provider's voices (with sex and
 traits, as in the voice gallery), or have a voice made for the book: Gemini and ElevenLabs *design* (from a description) and
 Cartesia *localize* (take any voice, e.g. an English one, and adapt it to the book's language with a native accent — the default for non-English books) / *clone* (your own voice only, with a confirmation). Such a voice lives in your account
-for the whole run, so every fragment sounds the same, and is deleted after a finished run (`--keep-voice`
-keeps it).
+for the whole run, so every fragment sounds the same. Tick *Keep this voice* in the studio (CLI: `--keep-voice
+--tts-voice-name "Calm narrator"`) and it stays in your account and is listed under *My created voices* for
+every later book (`--tts-voice "Calm narrator"`, `folivox tts-voices gemini`, delete with `--delete`); otherwise it
+is deleted when the book is finished. A kept voice uses a slot of your provider plan.
 
 ```bash
 export OPENAI_API_KEY=…                       # or save the key in `folivox ui`; keys: GEMINI/OPENAI/ELEVENLABS/CARTESIA_API_KEY
