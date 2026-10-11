@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -26,8 +27,14 @@ COVER_ARGS = ["-c:v", "mjpeg", "-vf",
               "-disposition:v:0", "attached_pic"]
 
 
+# GUI-launched apps (macOS Finder/Dock, Windows shortcuts) often lack the shell's PATH
+EXTRA_DIRS = ("/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "C:\\ffmpeg\\bin",
+              "C:\\Program Files\\ffmpeg\\bin")
+
+
 def ffmpeg() -> str:
-    exe = shutil.which("ffmpeg")
+    exe = os.environ.get("FOLIVOX_FFMPEG") or shutil.which("ffmpeg") or shutil.which(
+        "ffmpeg", path=os.pathsep.join(EXTRA_DIRS))
     if not exe:
         raise FFmpegMissing("ffmpeg not found. Install it: macOS — brew install ffmpeg; "
                               "Windows — winget install ffmpeg; Linux — apt install ffmpeg")
@@ -35,10 +42,13 @@ def ffmpeg() -> str:
 
 
 def run(args: list[str]) -> None:
+    # explicit UTF-8: the Windows console code page cannot decode ffmpeg's messages about non-ASCII paths
     proc = subprocess.run([ffmpeg(), "-hide_banner", "-loglevel", "error", "-y", *args],
-                          capture_output=True, text=True)
+                          capture_output=True, text=True, encoding="utf-8", errors="replace")
     if proc.returncode != 0:
-        raise RuntimeError("ffmpeg failed:" + "\n" + proc.stderr.strip())
+        err = proc.stderr.strip()[-2000:]
+        hint = " (the disk may be full)" if "no space left" in err.lower() else ""
+        raise RuntimeError(f"ffmpeg failed{hint}:\n{err}")
 
 
 @dataclass
@@ -127,10 +137,22 @@ def write_m4b(chapters: list[ChapterAudio], out: Path, meta: BookMeta, cover: by
             cov.write_bytes(cover)
             args += ["-i", str(cov)]
             maps += ["-map", "2:v", *COVER_ARGS]
-        tmp_out = tmpd / "book.m4b"
-        run([*args, *maps, "-c:a", "aac", "-b:a", bitrate, "-ac", "1", "-movflags", "+faststart",
-             "-f", "mp4", str(tmp_out)])
-        shutil.move(str(tmp_out), out)
+        # encode next to the target (same volume) and rename: a failed encode never touches an earlier good book
+        part = out.with_name(out.name + ".part")
+        try:
+            run([*args, *maps, "-c:a", "aac", "-b:a", bitrate, "-ac", "1", "-movflags", "+faststart",
+                 "-f", "mp4", str(part)])
+            if not part.exists() or part.stat().st_size == 0:
+                raise RuntimeError("ffmpeg produced an empty file")
+            os.replace(part, out)
+        finally:
+            part.unlink(missing_ok=True)
+
+
+def safe_name(title: str, limit: int = 80) -> str:
+    """A file name part that is valid on Windows, macOS and Linux (no reserved characters, no trailing dot/space)."""
+    s = "".join(ch for ch in title if ch not in '<>:"/\\|?*' and ord(ch) >= 32).strip()[:limit].rstrip(" .")
+    return s
 
 
 def write_mp3s(chapters: list[ChapterAudio], out_dir: Path, meta: BookMeta, cover: bytes | None = None,
@@ -144,18 +166,21 @@ def write_mp3s(chapters: list[ChapterAudio], out_dir: Path, meta: BookMeta, cove
             cov = Path(tmp) / "cover.img"
             cov.write_bytes(cover)
         for i, c in enumerate(chapters, 1):
-            safe = "".join(ch for ch in c.title if ch not in '<>:"/\\|?*').strip()[:80] or f"{i:03d}"
+            safe = safe_name(c.title) or f"{i:03d}"
             p = out_dir / f"{i:0{width}d} - {safe}.mp3"
             args = ["-i", str(c.path)]
             maps = ["-map", "0:a"]
             if cov:
                 args += ["-i", str(cov)]
                 maps += ["-map", "1:v", *COVER_ARGS]
+            part = p.with_name(p.name + ".part")
             run([*args, *maps, "-c:a", "libmp3lame", "-b:a", bitrate, "-ac", "1", "-id3v2_version", "3",
                  "-metadata", f"title={c.title}", "-metadata", f"album={meta.title}",
                  "-metadata", f"artist={meta.author}", "-metadata", f"album_artist={meta.author}",
                  "-metadata", f"track={i}/{len(chapters)}", "-metadata", f"genre={meta.genre or 'Audiobook'}",
                  "-metadata", f"composer={meta.narrator}", "-metadata", f"date={meta.year}",
-                 "-metadata", f"comment={meta.comment[:1000]}", "-metadata", f"grouping={grouping(meta)}", str(p)])
+                 "-metadata", f"comment={meta.comment[:1000]}", "-metadata", f"grouping={grouping(meta)}",
+                 "-f", "mp3", str(part)])
+            os.replace(part, p)
             paths.append(p)
     return paths

@@ -63,7 +63,9 @@ class RenderOptions:
     tts_voice_name: str = ""  # the name a kept voice is listed under
 
     def resolved_work_dir(self) -> Path:
-        return self.work_dir or self.output.with_name(self.output.stem + ".folivox")
+        if self.work_dir:
+            return Path(self.work_dir).expanduser()
+        return self.output.with_name(self.output.stem + ".folivox")
 
 
 class Cancelled(Exception):
@@ -207,8 +209,12 @@ def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: 
         sc = hyp = None
         if asr is not None:
             events.step("qa", attempt + 1, takes)
-            hyp = asr.transcribe(audio, syn.sample_rate) if dur > 0.05 else ""
-            sc = score(source, hyp, dur, lang)
+            try:
+                hyp = asr.transcribe(audio, syn.sample_rate) if dur > 0.05 else ""
+                sc = score(source, hyp, dur, lang)
+            except Exception as e:  # noqa: BLE001 — a failed check must not lose an hour of synthesis
+                events.warning(f"Speech recognition failed for one fragment ({e}); keeping it unchecked")
+                hyp = sc = None
         attempts.append(sc)
         if best is None or (sc is not None and sc < best[0]):
             best = (sc if sc is not None else 0.0, audio, hyp)
@@ -271,6 +277,7 @@ def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions
             keys.add(c.key)
             todo.append(c)
 
+    from folivox.providers import ProviderError
     from folivox.tts.cloud import CostCapReached as CapHit
 
     prefetch = Prefetcher(engine, voice)
@@ -297,8 +304,62 @@ def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions
             _report_spend(engine, events, opts)
     except CapHit as e:
         raise CostCapReached(str(e)) from None
+    except ProviderError:
+        if events.cancelled():  # a pause during an outage was interrupted by the user
+            raise Cancelled from None
+        raise
     finally:
         prefetch.close()
+
+
+def _chapter_ok(path: Path, duration: float | None) -> bool:
+    """A cached chapter file is reused only if it decodes and has the recorded length."""
+    from folivox.audio import audio_seconds
+
+    got = audio_seconds(path) if path.exists() else None
+    return got is not None and duration is not None and abs(got - duration) <= max(0.5, duration * 0.02)
+
+
+def preflight(opts: RenderOptions, events: Events) -> None:
+    """Fail early, before hours of synthesis, on problems that would only show at the final step."""
+    import shutil
+
+    from folivox.audio.assemble import ffmpeg
+
+    ffmpeg()  # raises FFmpegMissing with install instructions
+    for folder in (opts.output.parent, opts.resolved_work_dir()):
+        folder = Path(folder).expanduser()
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+            probe = folder / ".folivox-write-test"
+            probe.write_bytes(b"ok")
+            probe.unlink()
+        except OSError as e:
+            raise RuntimeError(f"Cannot write to {folder}: {e.strerror or e}. Pick another output folder") from None
+    free = shutil.disk_usage(opts.resolved_work_dir()).free
+    if free < 500 * 1024 * 1024:
+        events.warning(f"Only {free / 1e6:.0f} MB free on the disk with the work folder; a long book needs several GB")
+
+
+def load_engine(opts: RenderOptions, events: Events):
+    """Create the local engine; a failed GPU load falls back to the CPU, other failures get a clear message."""
+    from folivox.tts import ENGINES
+
+    last = None
+    devices = [opts.device]
+    if opts.device not in ("cpu",):
+        devices.append("cpu")  # "auto" may pick a broken mps/cuda: the CPU is slow but always works
+    for i, device in enumerate(devices):
+        try:
+            return ENGINES.create(opts.tts, **{**_engine_options(opts), "device": device})
+        except (FileNotFoundError, KeyboardInterrupt):
+            raise
+        except Exception as e:  # noqa: BLE001
+            last = e
+            if i + 1 < len(devices):
+                events.warning(f"Could not load the model on {device} ({e}); retrying on the CPU (slower)")
+    raise RuntimeError(f"Could not load the {opts.tts} model: {last}. If the weights are damaged, delete the "
+                       "models folder (see `folivox doctor`) and run again; they are downloaded once more") from last
 
 
 def assemble(journal: Journal, book: Book, opts: RenderOptions, sample_rate: int, events: Events) -> Path:
@@ -311,7 +372,7 @@ def assemble(journal: Journal, book: Book, opts: RenderOptions, sample_rate: int
             continue
         sig = hashlib.sha1("|".join(f"{c.key}:{c.pause}" for c in chunks).encode()).hexdigest()
         path = work / "chapters" / f"{ci + 1:03d}.flac"
-        if journal.meta(f"chapter_sig_{ci}") == sig and path.exists():
+        if journal.meta(f"chapter_sig_{ci}") == sig and _chapter_ok(path, journal.meta(f"chapter_dur_{ci}")):
             dur = journal.meta(f"chapter_dur_{ci}")
         else:
             events.stage("chapter", f"Building chapter {ci + 1}: {title}")
@@ -403,9 +464,13 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
     from folivox import lang as languages
 
     opts.lang = languages.get(opts.lang or book.lang or "ru").code
+    preflight(opts, events)
     journal = Journal(opts.resolved_work_dir())
     voice, owned = None, False
     try:
+        bad = journal.audit()
+        if bad:
+            events.warning(f"{len(bad)} saved fragment(s) were damaged and will be synthesised again")
         cloud = is_cloud(opts.tts)
         if cloud and not opts.accept_cloud:
             from folivox.providers import ProviderError
@@ -416,12 +481,18 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
         asr = None
         if opts.qa:
             events.stage("asr", f"Loading speech recognition for QA ({opts.asr})")
-            asr = ASR_PROVIDERS.create(opts.asr, language=opts.lang)
+            try:
+                asr = ASR_PROVIDERS.create(opts.asr, language=opts.lang)
+            except Exception as e:  # noqa: BLE001 — QA is optional; do not block the whole render
+                events.warning(f"Speech recognition could not be loaded ({e}); rendering without the quality check")
+                asr = None
         engine = None
         if cloud:
             if opts.speed != 1.0:
                 events.warning("Reading speed is not applied by cloud engines; the provider's own pace is used")
             engine = ENGINES.create(opts.tts, model=opts.tts_model, max_cost=opts.max_cost)
+            engine.should_stop = events.cancelled
+            engine.on_wait = events.warning
             voice, owned = _cloud_voice(engine, opts, journal, events)
             for w in voice.warnings:
                 events.warning(w)
@@ -445,7 +516,7 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
                 t0 = time.time()
 
                 with weights.reporting(events.download):
-                    engine = ENGINES.create(opts.tts, **_engine_options(opts))
+                    engine = load_engine(opts, events)
                 events.stage("model", f"Model loaded in {time.time() - t0:.0f} s ({engine.device})")
                 sample_rate = engine.sample_rate
             synthesize_pending(journal, engine, voice, asr, opts, events)

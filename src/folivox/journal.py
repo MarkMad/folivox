@@ -108,13 +108,34 @@ class Journal:
     def audio_path(self, key: str) -> Path:
         return self.audio_dir / f"{key}.flac"
 
+    def _has_audio(self, key: str) -> bool:
+        try:
+            return self.audio_path(key).stat().st_size > 0
+        except OSError:
+            return False
+
     def is_done(self, key: str) -> bool:
         row = self.db.execute("SELECT 1 FROM takes WHERE key = ?", (key,)).fetchone()
-        return bool(row) and self.audio_path(key).exists()
+        return bool(row) and self._has_audio(key)
+
+    def audit(self, tolerance: float = 0.5) -> list[str]:
+        """Forget takes whose audio file is missing, empty, unreadable or of a different length than recorded
+        (power loss, disk errors, manual edits), so they are synthesised again. Returns the forgotten keys."""
+        from folivox.audio import audio_seconds
+
+        bad = []
+        for key, duration in list(self.db.execute("SELECT key, duration FROM takes")):
+            got = audio_seconds(self.audio_path(key)) if self._has_audio(key) else None
+            if got is None or abs(got - duration) > max(tolerance, duration * 0.02):
+                bad.append(key)
+        for key in bad:
+            self.db.execute("DELETE FROM takes WHERE key = ?", (key,))
+            self.audio_path(key).unlink(missing_ok=True)
+        return bad
 
     def pending(self) -> list[PlannedChunk]:
         done = {k for (k,) in self.db.execute("SELECT key FROM takes")}
-        return [c for c in self.chunks() if c.key not in done or not self.audio_path(c.key).exists()]
+        return [c for c in self.chunks() if c.key not in done or not self._has_audio(c.key)]
 
     def record(self, take: Take) -> None:
         self.db.execute("INSERT OR REPLACE INTO takes VALUES (?, ?, ?, ?, ?, ?, ?)",

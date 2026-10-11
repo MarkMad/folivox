@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import base64
 import json
+import random
 import time
 import urllib.error
 import urllib.request
@@ -28,6 +29,12 @@ from folivox.voicegen import Job, VoiceGenerator
 COMMERCIAL_NOTICE = ("The text is sent to the provider and billed to your account. Some providers' terms restrict "
                      "using their output to build competing models; the audio is kept on this computer and is "
                      "never bundled with Folivox.")
+
+
+def backoff(attempt: int, base: float = 1.0, cap: float = 30.0) -> float:
+    """Exponential backoff with full jitter on the upper half: 1-2 s, 2-4 s, 4-8 s… up to ``cap``."""
+    delay = min(cap, base * 2 ** attempt)
+    return delay / 2 + random.uniform(0, delay / 2)
 
 
 class CloudError(ProviderError):
@@ -104,7 +111,7 @@ class CloudGenerator(VoiceGenerator):
     terms_url = ""
     docs_url = ""
     max_chars = 2000  # per request
-    retries = 2
+    retries = 4
 
     models: tuple[dict, ...] = ()  # {"id", "label", "note"}, best first; ids the provider accepts
     style = False  # preset voices accept a free-text style / narration note
@@ -184,14 +191,14 @@ class CloudGenerator(VoiceGenerator):
                 resp = self.transport(method, url, headers, body, timeout)
             except CloudError as e:
                 if e.kind == "network" and attempt < self.retries:
-                    self._sleep(2 ** attempt)
+                    self._sleep(backoff(attempt))
                     continue
                 raise
             if resp.status < 300:
                 return resp
             err = self.map_error(resp)
             if err.kind in ("rate_limit", "server") and attempt < self.retries:
-                self._sleep(min(err.retry_after or 2 ** (attempt + 1), 30))
+                self._sleep(min(err.retry_after or backoff(attempt + 1), 60))
                 continue
             raise err
         raise CloudError("Unreachable")  # pragma: no cover

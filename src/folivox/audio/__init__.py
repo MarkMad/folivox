@@ -48,11 +48,34 @@ def postprocess(audio: np.ndarray, sr: int) -> np.ndarray:
     return fade(audio, sr)
 
 
+def _fsync(path: Path) -> None:
+    """Flush file contents to disk so a power loss cannot leave an empty file behind a finished rename."""
+    import os
+
+    try:
+        with open(path, "rb") as f:
+            os.fsync(f.fileno())
+    except OSError:
+        pass
+
+
+def audio_seconds(path: Path) -> float | None:
+    """Duration read from the file header; None when the file is missing, empty or not valid audio."""
+    import soundfile as sf
+
+    try:
+        info = sf.info(str(path))
+    except Exception:  # noqa: BLE001 — any decoder failure means "not usable"
+        return None
+    return info.frames / info.samplerate if info.samplerate and info.frames else None
+
+
 def save(path: Path, audio: np.ndarray, sr: int) -> None:
     import soundfile as sf
 
     tmp = path.with_suffix(".tmp.flac")
     sf.write(str(tmp), audio, sr, subtype="PCM_16", format="FLAC")
+    _fsync(tmp)
     tmp.replace(path)  # atomic: an interrupted write never leaves a half file
 
 

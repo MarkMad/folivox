@@ -93,7 +93,38 @@ def default_model_dir() -> Path:
 
 
 def is_complete(path: Path) -> bool:
-    return all((path / f).exists() for f in REQUIRED)
+    """Every required file exists and is not empty (hf downloads land under their final name only when whole)."""
+    try:
+        return all((path / f).is_file() and (path / f).stat().st_size > 0 for f in REQUIRED)
+    except OSError:
+        return False
+
+
+DOWNLOAD_ATTEMPTS = 4
+
+
+def with_retries(fn, what: str, attempts: int = DOWNLOAD_ATTEMPTS, sleep=None):
+    """Run a (resumable) download, retrying network failures with growing pauses; huggingface_hub continues
+    from its ``.incomplete`` part files, so each attempt picks up where the previous one stopped."""
+    import time
+
+    sleep = sleep or time.sleep
+    for attempt in range(1, attempts + 1):
+        try:
+            return fn()
+        except (KeyboardInterrupt, FileNotFoundError, PermissionError):
+            raise
+        except OSError as e:
+            if getattr(e, "errno", None) == 28:  # ENOSPC
+                raise RuntimeError(f"No space left on the disk while downloading {what}. Free some space and "
+                                   "run again: the download continues where it stopped") from e
+            err = e
+        except Exception as e:  # noqa: BLE001 — hub errors: connection, timeout, 5xx
+            err = e
+        if attempt == attempts:
+            raise RuntimeError(f"Downloading {what} failed after {attempts} attempts: {err}. Check the network and "
+                               "run again: the download continues where it stopped") from err
+        sleep(min(5 * 2 ** (attempt - 1), 60))
 
 
 def resolve_model_dir(explicit: str | os.PathLike | None = None, download: bool = True) -> Path:
@@ -120,18 +151,20 @@ def needs_download(explicit: str | os.PathLike | None = None, llm: str = "rl") -
     if explicit or os.environ.get(ENV):
         return False  # a user-provided folder is never downloaded into (an incomplete one is an error)
     p = default_model_dir()
-    return not is_complete(p) or not (p / LLM_FILES.get(llm, "llm.pt")).exists()
+    llm_file = p / LLM_FILES.get(llm, "llm.pt")
+    return not is_complete(p) or not llm_file.exists() or llm_file.stat().st_size == 0
 
 
 def ensure_llm(model_dir: Path, variant: str) -> str:
     """Return the LLM weights file name for ``variant``, downloading the RL file on demand."""
     name = LLM_FILES[variant]
-    if not (model_dir / name).exists():
+    f = model_dir / name
+    if not f.exists() or f.stat().st_size == 0:
         from huggingface_hub import hf_hub_download
 
         print(f"Downloading {name} (~2 GB)…", flush=True)
         with _watch(name, model_dir, [name]):
-            hf_hub_download(REPO_ID, name, local_dir=str(model_dir))
+            with_retries(lambda: hf_hub_download(REPO_ID, name, local_dir=str(model_dir)), name)
     return name
 
 
@@ -141,7 +174,8 @@ def download_weights(target: Path) -> Path:
     target.mkdir(parents=True, exist_ok=True)
     print(f"Downloading CosyVoice 3 weights (~4.5 GB) from huggingface.co/{REPO_ID} to {target}…", flush=True)
     with _watch("CosyVoice 3 weights", target, ALLOW):
-        snapshot_download(REPO_ID, local_dir=str(target), allow_patterns=ALLOW)
+        with_retries(lambda: snapshot_download(REPO_ID, local_dir=str(target), allow_patterns=ALLOW),
+                     "the CosyVoice 3 weights")
     if not is_complete(target):
         raise RuntimeError(f"Weights download incomplete: {target}")
     return target

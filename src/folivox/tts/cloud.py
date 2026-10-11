@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import io
 import threading
+import time
 from dataclasses import dataclass
 
 import numpy as np
@@ -81,6 +82,11 @@ class CloudTTS(TTSEngine):
         self._lock = threading.Lock()
         self.chars_sent = 0
         self.requests = 0
+        self.outage_seconds = 1800.0  # how long a dropped network / provider outage is waited out before failing
+        self.wait_for = 30.0  # pause between probes during an outage
+        self.sleep = time.sleep
+        self.should_stop = lambda: False  # set by the pipeline: cancel during a pause
+        self.on_wait = lambda message: None  # set by the pipeline: tell the user we are waiting
 
     # ---- facts the pipeline and UI need -----------------------------------------------------------
     @property
@@ -118,7 +124,7 @@ class CloudTTS(TTSEngine):
 
     def prepare(self, text, voice, seed=0):
         """The whole request happens here (in a worker thread); :meth:`finish` only decodes."""
-        import time
+        from folivox.voicegen.cloud import CloudError
 
         self.gen.check_text(text)
         self.check_budget(len(text))
@@ -126,8 +132,29 @@ class CloudTTS(TTSEngine):
             self.chars_sent += len(text)
             self.requests += 1
         t0 = time.time()
-        wav = self.gen.synth(self.job(text, voice, seed))
-        return wav, time.time() - t0
+        # A fragment is paid for once: retries below re-send the same request, so the characters are counted
+        # once, and refunded when the provider definitely refused the text (nothing was billed).
+        waited = 0.0
+        while True:
+            try:
+                wav = self.gen.synth(self.job(text, voice, seed))
+                return wav, time.time() - t0
+            except CloudError as e:
+                if e.kind in ("auth", "quota", "bad_request"):
+                    with self._lock:
+                        self.chars_sent -= len(text)
+                    raise
+                if waited >= self.outage_seconds:
+                    raise CloudError(f"{e} The provider or the network was unreachable for "
+                                     f"{int(waited // 60)} min; progress is saved, run the same command again to "
+                                     "continue.", e.kind, e.retry_after) from None
+                pause = max(self.wait_for, e.retry_after or 0)
+                self.on_wait(f"{e} Waiting {int(pause)} s and trying again (progress is saved).")
+                for _ in range(int(pause)):  # interruptible by cancel
+                    if self.should_stop():
+                        raise
+                    self.sleep(1)
+                waited += pause
 
     def finish(self, prepared, voice, speed=1.0):
         return decode(prepared, self.sample_rate), 0.0

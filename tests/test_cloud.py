@@ -211,7 +211,7 @@ def test_error_mapping(tmp_path, status, body, kind, words):
         make(OpenAIVoice, fake).generate([job(tmp_path, speaker="coral")])
     assert e.value.kind == kind and words in str(e.value)
     assert KEY not in str(e.value) and "SECRET" not in str(e.value)
-    assert len(fake.calls) == (3 if kind in ("rate_limit", "server") else 1)  # transient errors are retried
+    assert len(fake.calls) == (5 if kind in ("rate_limit", "server") else 1)  # transient errors are retried
 
 
 def test_retry_then_success_and_network_error(tmp_path):
@@ -221,7 +221,7 @@ def test_retry_then_success_and_network_error(tmp_path):
     net = Fake(CloudError("Cannot reach the provider: down", "network"))
     with pytest.raises(CloudError, match="Cannot reach"):
         make(OpenAIVoice, net).generate([job(tmp_path, speaker="coral")])
-    assert len(net.calls) == 3
+    assert len(net.calls) == 5
 
 
 def test_pcm_helper():
@@ -365,3 +365,13 @@ def test_voice_details_for_the_picker():
     assert ca.details["u"] == {"traits": "Calm", "description": "Friendly.", "preview_url": ""}
     oa = make(OpenAIVoice, Fake(ok({})))
     assert oa.speakers()["onyx"] == ("", "m") and "openai.fm" in oa.voices_note and oa.details["onyx"]["traits"]
+
+
+def test_backoff_grows_and_is_jittered():
+    from folivox.voicegen.cloud import backoff
+
+    for attempt in range(8):
+        d = [backoff(attempt) for _ in range(30)]
+        top = min(30.0, 2.0 ** attempt)
+        assert all(top / 2 <= x <= top for x in d)
+    assert len({backoff(3) for _ in range(30)}) > 1  # jitter
