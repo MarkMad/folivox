@@ -861,6 +861,7 @@ async function start(kind) {
   $("#run-msg").textContent = "";
   if (ENG.cloud() && !$("#eng-ack").checked) { $("#run-msg").innerHTML = `<span class="err">Tick the confirmation in the cost box to confirm that the text is sent and billed.</span>`; return; }
   if (ENG.cloud() && ENG.cur().voice_modes.includes("clone") && $("#o-tts_mode").value === "clone" && !$("#eng-own").checked) { $("#run-msg").innerHTML = `<span class="err">Confirm that the voice you clone is your own.</span>`; return; }
+  RUNSECS = book.chapters.filter(c => chapters.includes(c.n)).reduce((a, c) => a + c.seconds, 0); PACE_ENGINE = ENG.cur() ? ENG.cur().name : "cosyvoice3";
   try { attach(await api("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ kind, book_id: book.book_id, voice, chapters, options: options(), acknowledged: ENG.cloud() ? $("#eng-ack").checked : undefined }) })); }
   catch (e) { $("#run-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
@@ -913,12 +914,16 @@ function end(state) {
 }
 function fmtClock(sec) { sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
   return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`; }
+let RUNSECS = 0, PACE_ENGINE = "cosyvoice3";  // audio seconds of the running selection; engine of the running job
+const paceOf = (eng) => { try { return +localStorage.getItem("folivox.pace." + eng) || 0; } catch (x) { return 0; } };  // work seconds per audio second seen on this machine
+const fmtDur = (sec) => sec < 90 ? "about a minute" : sec < 5400 ? "≈ " + Math.round(sec / 60) + " min" : "≈ " + (sec / 3600).toFixed(1) + " h";
 function updateTiles() {
   if (!S || !S.t0) return;
   const t = S.finished ? S.tLast : nowSec();
   $("#t-elapsed").textContent = fmtClock(t - S.t0);
   const remainChars = S.totalChars - S.doneChars, span = S.tProg && S.tFrag ? S.tProg - S.tFrag : 0;
-  $("#t-eta").textContent = S.finished ? "–" : (S.sessChars > 0 && span > 3 && remainChars > 0) ? "≈ " + fmtClock(remainChars / (S.sessChars / span)) : "–";
+  const pace = paceOf(PACE_ENGINE), guess = pace && RUNSECS && S.totalChars ? RUNSECS * pace * Math.max(0, 1 - S.doneChars / S.totalChars) : 0;
+  $("#t-eta").textContent = S.finished ? "–" : (S.sessChars > 0 && span > 3 && remainChars > 0) ? "≈ " + fmtClock(remainChars / (S.sessChars / span)) : guess ? "≈ " + fmtClock(guess) + " (from last run)" : "estimating…";
   $("#t-audio").textContent = S.audio ? fmtClock(S.audio) : "–";
   $("#t-pace").textContent = S.audio ? (S.synthSecs / S.audio).toFixed(2) + " ×" : "–";
   $("#t-frags").textContent = S.totalFrags ? `${S.doneFrags} / ${S.totalFrags}` : "–";
@@ -1053,6 +1058,7 @@ function handle(ev) {
       else if (ev.step === "qa") { f && setFrag(f.key, SEG.CHECK); setPhase("Listening back — speech recognition" + take, f ? f.text : "", "check"); }
       else setPhase("QA failed on every take — splitting the fragment", f ? f.text : "", "check"); break; }
     case "progress": S.tProg = ev.t; S.audio = ev.audio; S.synthSecs = ev.rtf * ev.audio; S.retakes = ev.retakes; S.sessChars += ev.chars || 0;
+      if (ev.audio > 20 && ev.rtf > 0) try { localStorage.setItem("folivox.pace." + PACE_ENGINE, String(ev.rtf)); } catch (x) {}
       setFrag(ev.key, ev.attempts > 1 ? SEG.RETAKE : SEG.DONE); feedLine(ev); S.activeKey = null; break;
     case "chapter": log(`✓ ${ev.title} — ${fmt(ev.duration)}`); setPhase(`Chapter ready: ${ev.title}`, fmt(ev.duration) + " of audio", "check");
       { const lane = S.lanes.find(l => l.ci + 1 === ev.index); if (lane) { lane.built = true; lane.dur = ev.duration; lane.el.querySelector(".lplay").hidden = false; } } break;
@@ -1245,12 +1251,12 @@ function engEstimate() {
 }
 // The local engine costs nothing: show it in the same card so an empty box never looks like a failure.
 function renderFree() {
-  const box = $("#eng-free"), local = ENG.list.length && !ENG.cloud();
+  const pace = paceOf(ENG.cur() ? ENG.cur().name : "cosyvoice3"), box = $("#eng-free"), local = ENG.list.length && !ENG.cloud();
   box.hidden = !local || !book; if (box.hidden) return;
   const ch = selected(), secs = book.chapters.filter(c => ch.includes(c.n)).reduce((a, c) => a + c.seconds, 0);
   box.innerHTML = `<div class="cc-main"><div class="cc-big">$0.00<small>cost of the selected chapters</small></div>
     <div class="cc-facts"><div>audio<b>${ch.length ? "≈ " + fmt(secs) : "–"}</b></div><div>sent anywhere<b>nothing</b></div><div>preview<b>$0.00</b></div></div></div>
-    <div class="cc-sub">${esc(ENG.cur().label)} · free and private, runs on this computer; the time it takes depends on your hardware</div>`;
+    <div class="cc-sub">${esc(ENG.cur().label)} · free and private, runs on this computer. ${pace && ch.length ? "Time to render: " + fmtDur(secs * pace) + " (from your last run on this machine)." : "The time depends on your hardware; after the first render it is estimated here."}</div>`;
 }
 function renderEst() {
   const E = ENG.est; if (!E) return; const { all, pre } = E, e = ENG.cur(), qaOn = $("#o-qa").value === "1";
