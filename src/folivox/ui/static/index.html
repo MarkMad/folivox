@@ -220,7 +220,9 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
           <label class="f">Model<select id="gp-model"></select><input id="gp-model-custom" type="text" placeholder="model id exactly as the provider names it" hidden><small class="mute">Auto asks the provider for its newest model each time. Short samples are cheap, so the best model is the sensible default.</small></label>
           <div class="f"><span>Price list</span><small class="mute" id="gp-pinfo"></small></div></div></details>
 
-      <div class="gp-step"><span>2</span> What should the voice be?</div>
+      <div class="gp-step"><span>2</span> Language and voice</div>
+      <label class="f" style="max-width:360px">Language of the sample<select id="gp-lang"></select></label>
+      <small class="mute" id="gp-lang-hint"></small>
       <div class="gp-modes" id="gp-modes" role="radiogroup" aria-label="Voice source"></div>
       <div id="gp-design" hidden>
         <label class="f">Describe the voice <small>(English works best; describe a type of voice, never a real person)</small>
@@ -236,7 +238,6 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
         <label class="f">Your voice to clone<select id="gp-ref"></select></label>
         <label class="consent"><input type="checkbox" id="gp-own"><span>This is my own voice, or I have the speaker's permission to clone it. The clone exists in the provider's account only while the takes are made, then it is deleted.</span></label>
       </div>
-      <label class="f" style="max-width:260px">Language of the sample<select id="gp-lang"></select></label>
 
       <div class="gp-step"><span>3</span> What should it say?</div>
       <div class="row"><div class="seg" id="gp-textseg"><button type="button" data-t="builtin" class="on">Built-in sample</button><button type="button" data-t="book">From my book</button><button type="button" data-t="custom">My own text</button></div><span class="mute" id="gp-text-msg"></span></div>
@@ -933,6 +934,8 @@ $("#gp-modes").addEventListener("click", (e) => { const c = e.target.closest("[d
 $("#gp-modes").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { const c = e.target.closest("[data-m]"); if (c) { e.preventDefault(); c.click(); } } });
 function gpMode() {
   const voiceMode = GP.mode === "preset" || GP.mode === "localize", hasKey = GP.prov.key_in_env || GP.prov.key_saved;
+  $("#gp-lang-hint").textContent = GP.prov.name === "cartesia" ? "Cartesia voices belong to a language: the list below shows the voices for this one."
+    : "Every voice can read any language, but a ready-made voice keeps its own accent. For the most natural result in the book's language, describe a native speaker of it.";
   $("#gp-design").hidden = GP.mode !== "design"; $("#gp-preset").hidden = !voiceMode; $("#gp-clone").hidden = GP.mode !== "clone";
   $("#gp-style-row").hidden = GP.mode !== "preset" || !GP.prov.style;
   $("#gp-speaker-label").textContent = GP.mode === "localize" ? "Voice to give a native accent" : "Voice";
