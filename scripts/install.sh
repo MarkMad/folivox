@@ -67,7 +67,7 @@ case "$SRC" in
   http*|git+*) SPEC="folivox[all] @ $SRC" ;;
   *) if [ -e "$SRC/pyproject.toml" ]; then SPEC="$(cd "$SRC" && pwd)[all]"; else SPEC="$SRC[all]"; fi ;;
 esac
-uv tool install --force --python ">=3.10,<3.13" ${EXTRA[@]+"${EXTRA[@]}"} "$SPEC" || die "Installation failed. Check the network and run this script again; it is safe to repeat."
+uv tool install --force --refresh-package folivox --python ">=3.10,<3.13" ${EXTRA[@]+"${EXTRA[@]}"} "$SPEC" || die "Installation failed. Check the network and run this script again; it is safe to repeat."
 uv tool update-shell >/dev/null 2>&1 || true
 export PATH="$(uv tool dir --bin 2>/dev/null || echo "$HOME/.local/bin"):$PATH"
 command -v folivox >/dev/null 2>&1 || die "Installed, but the 'folivox' command is not on PATH. Open a new terminal and run: folivox setup"

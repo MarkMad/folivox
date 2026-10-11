@@ -923,7 +923,7 @@ GUIDE = """[bold green]Folivox is ready.[/]
   [cyan]folivox doctor --bundle ~/Desktop[/]   saves a file to send to support
   [cyan]folivox help[/]              short guides: voices, providers, resuming, quality
 
-Update: [cyan]uv tool upgrade folivox[/]    Remove: [cyan]uv tool uninstall folivox[/]
+Update: run the install command again (models and voices are kept)    Remove: [cyan]uv tool uninstall folivox[/]
 """
 
 

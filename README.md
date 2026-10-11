@@ -101,7 +101,10 @@ Apple Silicon or CPU) and Folivox. Then it checks your computer and downloads th
 voice and 1.6 GB for the quality check) with a progress bar; an interrupted download continues where it
 stopped. Prefer the terminal to the studio? `folivox render book.fb2` puts the audiobook next to the book.
 
-Details, manual install and troubleshooting: [docs/install.md](docs/install.md).
+### 3. Update
+
+Run the same install command again. It fetches the latest version and keeps your models, voices, settings and
+unfinished renders. Details, options, manual install and troubleshooting: [docs/install.md](docs/install.md).
 
 ## Choose how your book is read
 
@@ -128,6 +131,26 @@ use and takes the newest one, so new releases are picked up without updating Fol
   name and language; star your favourites.
 
 Full guide: [docs/voices.md](docs/voices.md).
+
+### Recommended: the almost-free workflow
+
+The best results we get come from combining one cheap online sample with the free local engine:
+
+1. **Generate a voice sample with Gemini 3.8.** In the studio: voice gallery → **Generate a voice sample** →
+   Gemini, describe the narrator (or press **Suggest from my book**), generate a few short takes. With a paid
+   Gemini key this costs well under one cent (about $0.0023 per 10 s of audio on the paid tier); Google also has
+   a free tier.
+2. **Keep the best take** (Whisper ranks them) as a voice in your library.
+3. **Render the whole book locally** with CosyVoice 3 cloning that voice: free, unlimited, offline.
+
+You pay once for about ten seconds of a top-quality voice, and the open model reads the remaining hours
+with it. CLI equivalent:
+
+```bash
+export GEMINI_API_KEY=…
+folivox voices design narrator -g gemini --mode design --lang en --describe "calm, warm audiobook narrator" --keep takes/
+folivox render book.epub --voice narrator
+```
 
 ## Features
 

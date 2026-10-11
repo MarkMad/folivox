@@ -51,12 +51,31 @@ crash, a closed lid or a power cut, run the same command again: it continues fro
 Open a new terminal window. If it still says `folivox: command not found`, run `uv tool update-shell`, then open a new
 terminal again.
 
-## Check, update, remove
+## Update
+
+Run the same install command again (for example the `curl … | bash` or `irm … | iex` line, or
+`bash scripts/install.sh` in an updated checkout). It always fetches the latest Folivox from GitHub and
+reinstalls it; downloaded models, your voices, settings and unfinished renders are kept. Check the version with
+`folivox --version`.
+
+Options for the installer (environment variables, also for updates):
+
+| Variable | Effect |
+|---|---|
+| `FOLIVOX_SOURCE` | Install from a folder, a git URL (`git+https://…@<tag or commit>`), an archive URL or a package name instead of the latest `main` |
+| `FOLIVOX_SKIP_MODELS=1` | Do not download models now (they are downloaded on first use) |
+
+For example, to install a specific commit or tag:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vatavale/folivox/main/scripts/install.sh | FOLIVOX_SOURCE="git+https://github.com/vatavale/folivox@<tag>" bash
+```
+
+## Check and remove
 
 ```bash
 folivox doctor                  # ffmpeg, hardware, models, free disk
 folivox setup                   # download what is missing; safe to repeat
-uv tool upgrade folivox         # update
 uv tool uninstall folivox       # remove (downloaded models stay in the data folder; see `folivox doctor`)
 ```
 

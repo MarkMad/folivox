@@ -57,7 +57,7 @@ if (-not $src) {
 if ($src -match '^(http|git\+)') { $spec = "folivox[all] @ $src" }
 elseif (Test-Path (Join-Path $src "pyproject.toml")) { $spec = (Resolve-Path $src).Path + "[all]" }
 else { $spec = "$src[all]" }
-& uv tool install --force --python ">=3.10,<3.13" @extra $spec
+& uv tool install --force --refresh-package folivox --python ">=3.10,<3.13" @extra $spec
 if ($LASTEXITCODE -ne 0) { Die "Installation failed. Check the network and run this script again; it is safe to repeat." }
 & uv tool update-shell 2>$null | Out-Null
 RefreshPath; $env:Path += ";$HOME\.local\bin"
