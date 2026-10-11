@@ -1,6 +1,7 @@
 <#
  Folivox installer for Windows (PowerShell 5.1 or 7).
    From a checkout:   powershell -ExecutionPolicy Bypass -File scripts\install.ps1
+   Without one:       irm https://raw.githubusercontent.com/alex-vatavu/folivox/main/scripts/install.ps1 | iex
    Options (environment): FOLIVOX_SOURCE=<path|git url|package>  FOLIVOX_SKIP_MODELS=1
  Safe to run again. Installs for the current user only; no administrator rights, nothing runs in the background.
 #>
@@ -10,7 +11,7 @@ $Total = 5
 function Step($n, $t) { Write-Host "`n[$n/$Total] $t" -ForegroundColor White }
 function Ok($t)   { Write-Host "  v $t" -ForegroundColor Green }
 function Warn($t) { Write-Host "  ! $t" -ForegroundColor Yellow }
-function Die($t)  { Write-Host "`nx $t" -ForegroundColor Red; exit 1 }
+function Die($t)  { Write-Host "`nx $t" -ForegroundColor Red; throw "Folivox installation stopped" }  # throw, not exit: exit would close the window under irm | iex
 function Has($c)  { [bool](Get-Command $c -ErrorAction SilentlyContinue) }
 function RefreshPath { $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User") }
 
@@ -46,11 +47,12 @@ if ((Has nvidia-smi) -and ((nvidia-smi 2>$null) -ne $null)) {
 }
 
 Step 4 "Installing Folivox (a few minutes: PyTorch is large)"
-$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+$here = if ($MyInvocation.MyCommand.Path) { Split-Path -Parent $MyInvocation.MyCommand.Path } else { $null }  # $null under irm | iex
 $src = $env:FOLIVOX_SOURCE
 if (-not $src) {
-  $py = Join-Path $here "..\pyproject.toml"
-  if ((Test-Path $py) -and (Select-String -Path $py -Pattern '^name = "folivox"' -Quiet)) { $src = (Resolve-Path (Join-Path $here "..")).Path } else { $src = "folivox" }
+  $py = if ($here) { Join-Path $here "..\pyproject.toml" } else { $null }
+  if ($py -and (Test-Path $py) -and (Select-String -Path $py -Pattern '^name = "folivox"' -Quiet)) { $src = (Resolve-Path (Join-Path $here "..")).Path }
+  else { $src = "https://github.com/alex-vatavu/folivox/archive/refs/heads/main.zip" }  # no checkout: install from the GitHub archive (no git needed)
 }
 if ($src -match '^(http|git\+)') { $spec = "folivox[all] @ $src" }
 elseif (Test-Path (Join-Path $src "pyproject.toml")) { $spec = (Resolve-Path $src).Path + "[all]" }

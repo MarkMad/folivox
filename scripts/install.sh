@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Folivox installer for macOS and Linux.
 #   From a checkout:   ./scripts/install.sh
+#   Without one:       curl -fsSL https://raw.githubusercontent.com/alex-vatavu/folivox/main/scripts/install.sh | bash
 #   Options (environment): FOLIVOX_SOURCE=<path|git url|package>  FOLIVOX_SKIP_MODELS=1
 # Safe to run again. Installs for the current user only; no sudo, nothing runs in the background.
 set -euo pipefail
@@ -61,7 +62,7 @@ step 4 "Installing Folivox (a few minutes: PyTorch is large)"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 if [ -n "${FOLIVOX_SOURCE:-}" ]; then SRC="${FOLIVOX_SOURCE}"
 elif [ -f "$HERE/../pyproject.toml" ] && grep -q '^name = "folivox"' "$HERE/../pyproject.toml"; then SRC="$HERE/.."
-else SRC="folivox"; fi
+else SRC="https://github.com/alex-vatavu/folivox/archive/refs/heads/main.zip"; fi  # run through curl | bash: install from the GitHub archive (no git needed)
 case "$SRC" in
   http*|git+*) SPEC="folivox[all] @ $SRC" ;;
   *) if [ -e "$SRC/pyproject.toml" ]; then SPEC="$(cd "$SRC" && pwd)[all]"; else SPEC="$SRC[all]"; fi ;;
