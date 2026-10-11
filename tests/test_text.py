@@ -107,3 +107,18 @@ def test_stress_conversion():
     assert acc == "мёд и за́мок"
     assert stress.strip_marks(acc) == "мёд и замок"
     assert stress.apply("Ёлка", "none") == "Ёлка"
+
+
+def test_russian_clause_numbers_are_not_read_as_decimals():
+    from folivox.text.normalize import normalize
+
+    assert normalize("2.3. Арендатор обязан вовремя платить.").startswith("Два точка три. Арендатор")
+    assert normalize("2.4 Стороны несут ответственность.").startswith("Два точка четыре. Стороны")
+    assert "пунктами два точка три и два точка четыре" in normalize("В соответствии с пунктами 2.3 и 2.4 договора.")
+    assert "пункт один точка два точка три" in normalize("См. пункт 1.2.3 договора.").lower()
+    assert "пункту два точка три" in normalize("Согласно пункту 2.3 договора.")
+    assert "пункт два точка три договора" in normalize("В силу п. 2.3 договора.")
+    assert normalize("1.2.3 Прочие условия.").startswith("Один точка два точка три")
+    # real decimals and dates are untouched
+    assert "целых" in normalize("Цена составила 2.5 рубля.")
+    assert "точка" not in normalize("Договор от 12.05.2020 действует.")

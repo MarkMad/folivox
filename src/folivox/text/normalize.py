@@ -442,6 +442,32 @@ def capitalize_sentences(text: str) -> str:
     return re.sub(r"(^|[.!?…]\s+)([а-яё])", lambda m: m.group(1) + m.group(2).upper(), text)
 
 
+_CLAUSE_WORD = r"(?:пункт\w*|подпункт\w*|раздел\w*|стать\w+|глав\w+|приложени\w+|параграф\w*|част[ьи]|абзац\w*)"
+_NUM = r"\d+(?:\.\d+)+"
+
+
+def _dotted(num: str) -> str:
+    """«2.3» as a clause number: «два точка три», not «две целых три десятых»."""
+    return " точка ".join(cardinal(int(part)) for part in num.split("."))
+
+
+def _clause_numbers(text: str) -> str:
+    """Numbers of contract clauses (2.3, 1.2.3) are read digit group by digit group.
+
+    Three levels or more are never decimals. Two levels are clause numbers at the start of a paragraph
+    followed by a capitalised sentence («2.3. Арендатор обязан…») or right after a word like «пункт»
+    («пунктами 2.3 и 2.4»); elsewhere «2.5» stays a decimal."""
+    text = re.sub(r"(?<![\w.])пп\.\s*(?=\d)", "подпункты ", text)  # «пп. 2.1» / «п. 2.3» before a number only
+    text = re.sub(r"(?<![\w.])п\.\s*(?=\d)", "пункт ", text)
+    text = re.sub(r"\b\d+(?:\.\d+){2,}\b", lambda m: _dotted(m.group(0)), text)
+    text = re.sub(rf"^(\s*)({_NUM})\.?(?=\s+[«\"(А-ЯЁA-Z])", lambda m: m.group(1) + _dotted(m.group(2)) + ".", text)
+
+    def after_word(m: re.Match) -> str:
+        return m.group(1) + re.sub(_NUM, lambda n: _dotted(n.group(0)), m.group(2))
+
+    return re.sub(rf"(?i)(\b{_CLAUSE_WORD}\s*)({_NUM}(?:\s*(?:,|и|или|до|по|—|-)\s*{_NUM})*)", after_word, text)
+
+
 def normalize(text: str) -> str:
     """Full pipeline for one paragraph (or heading)."""
     text = punctuation(text)
@@ -450,6 +476,7 @@ def normalize(text: str) -> str:
                                                            else ""), text)
     text = _number_sign(text)
     text = _dates(text)
+    text = _clause_numbers(text)
     text = _time(text)
     text = _centuries(text)
     text = _years(text)
