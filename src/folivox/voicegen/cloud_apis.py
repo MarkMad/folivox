@@ -297,6 +297,39 @@ class ElevenLabs(CloudGenerator):
         url = f"{self.BASE}/v1/text-to-speech/{urllib.parse.quote(job.speaker, safe='')}?output_format=pcm_24000"
         return pcm_to_wav(self.call("POST", url, payload).body, 24000)
 
+    def setup_voices(self, jobs):
+        """Design mode for a whole book: design a voice (3 previews, the first is kept) and save it in the
+        account so every request uses the same one. Docs: POST /v1/text-to-voice/design, then
+        POST /v1/text-to-voice with the preview's generated_voice_id."""
+        if self.mode != "design":
+            return []
+        made: dict[tuple[str, str], str] = {}
+        for j in jobs:
+            self.check_lang(j.lang)
+            if len(j.description) < 20:
+                raise CloudError("ElevenLabs Voice Design needs a description of at least 20 characters",
+                                 "bad_request")
+            key = (j.description, j.lang)
+            if key not in made:
+                design = self.call("POST", f"{self.BASE}/v1/text-to-voice/design", {
+                    "voice_description": j.description, "auto_generate_text": True,
+                    "model_id": self.design_model}).json()
+                previews = design.get("previews") or []
+                if not previews or not previews[0].get("generated_voice_id"):
+                    raise CloudError("ElevenLabs returned no voice preview for the description", "server")
+                saved = self.call("POST", f"{self.BASE}/v1/text-to-voice", {
+                    "voice_name": f"folivox-{uuid.uuid4().hex[:8]}", "voice_description": j.description,
+                    "generated_voice_id": previews[0]["generated_voice_id"]}).json()
+                if not saved.get("voice_id"):
+                    raise CloudError("ElevenLabs did not return a voice id", "server")
+                made[key] = saved["voice_id"]
+            j.speaker = made[key]
+        return list(made.values())
+
+    def teardown_voices(self, ids):
+        for i in ids:
+            self.call("DELETE", f"{self.BASE}/v1/voices/{urllib.parse.quote(i, safe='')}")
+
     def generate(self, jobs, progress=None):
         import time
 

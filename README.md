@@ -189,10 +189,10 @@ rendered are never paid for twice).
 
 ¹ List prices seen in October 2026 at 14 characters per second of speech; approximate, check your dashboard.
 The cloud voices are not clones of a reference recording: pick one of the provider's voices (with sex and
-traits, as in the voice gallery), or have a voice made for the book: Gemini *design* (from a description) and
+traits, as in the voice gallery), or have a voice made for the book: Gemini and ElevenLabs *design* (from a description) and
 Cartesia *localize* / *clone* (your own voice only, with a confirmation). Such a voice lives in your account
 for the whole run, so every fragment sounds the same, and is deleted after a finished run (`--keep-voice`
-keeps it). ElevenLabs Voice Design is not wired in for whole books yet.
+keeps it).
 
 ```bash
 export OPENAI_API_KEY=…                       # or save the key in `folivox ui`; keys: GEMINI/OPENAI/ELEVENLABS/CARTESIA_API_KEY

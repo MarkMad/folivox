@@ -160,3 +160,22 @@ def test_json_body_has_no_key():
     eng, fake = engine("openai")
     eng.synthesize_audio("Hi.", eng.make_voice("coral", None, "en"), 0, 1.0)
     assert "sk-test" not in json.dumps(fake.calls[0]["json"])
+
+
+def test_elevenlabs_design_saves_one_voice_for_the_whole_book_and_deletes_it():
+    fake = Fake(ok({"previews": [{"generated_voice_id": "gen-1"}, {"generated_voice_id": "gen-2"}]}),
+                ok({"voice_id": "v-9"}), ok({"status": "ok"}))
+    eng, _ = engine("elevenlabs", fake)
+    v = eng.make_voice("", None, "en", "design", "a calm, warm woman in her forties, unhurried narrator")
+    assert v.speaker == "v-9" and v.mode == "design"
+    design, save = fake.calls[0], fake.calls[1]
+    assert design["url"].endswith("/v1/text-to-voice/design") and design["json"]["auto_generate_text"] is True
+    assert save["url"].endswith("/v1/text-to-voice") and save["json"]["generated_voice_id"] == "gen-1"
+    eng.release(v)
+    assert fake.calls[-1]["method"] == "DELETE" and fake.calls[-1]["url"].endswith("/v1/voices/v-9")
+
+
+def test_elevenlabs_design_needs_a_real_description():
+    eng, _ = engine("elevenlabs")
+    with pytest.raises(CloudError):
+        eng.make_voice("", None, "en", "design", "calm")

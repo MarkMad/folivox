@@ -39,7 +39,7 @@ def test_engine_list_has_prices_limits_and_badges(env):
     assert set(by) >= {"elevenlabs", "openai", "gemini", "cartesia"}
     assert by["openai"]["per_hour"] > 0 and by["openai"]["max_chars"] == 4096 and by["openai"]["key_in_env"]
     assert "SECRET" not in c.get("/api/tts/engines").text
-    assert by["gemini"]["voice_modes"] == ["preset", "design"] and by["elevenlabs"]["voice_modes"] == ["preset"]
+    assert by["gemini"]["voice_modes"] == by["elevenlabs"]["voice_modes"] == ["preset", "design"]
 
 
 def test_estimate_counts_the_book(env):
