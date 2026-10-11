@@ -15,6 +15,9 @@ main { max-width: 860px; margin: 0 auto; padding: 24px 16px 80px; }
 h1 { font-size: 22px; margin: 0 0 4px; } h1 small { color:var(--mute); font-weight:400; font-size:14px; }
 section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin:16px 0; }
 section > h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--mute); margin:0 0 10px; }
+details.advanced { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 18px; margin:16px 0; }
+details.advanced > summary { color:var(--ink); font-size:14px; } details.advanced[open] > summary { margin-bottom:6px; }
+.adv-block { border-top:1px solid var(--line); margin-top:14px; padding-top:14px; } .adv-block h3 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--mute); margin:0 0 8px; }
 section.disabled { opacity:.45; pointer-events:none; }
 button, select, input[type=text], input[type=number], input[type=search], input[type=password] { font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:5px 10px; }
 button { cursor:pointer; } button.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
@@ -386,17 +389,18 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
   </div>
 </section>
 
-<section id="s-engines"><h2>Engines</h2>
-  <p class="sec-sub">The programs that turn your book into audio. By default all of them run <b>free on this computer</b>; a choice marked <span class="vbadge warn">cloud</span> sends data to an online service and costs money.</p>
-  <div id="settings" class="eng-list"></div>
-  <div class="row" style="margin-top:12px"><button id="save-settings" class="primary">Save choices</button><span id="settings-msg" class="mute"></span></div>
-  <p class="mute" style="margin:8px 0 0"><small id="settings-note"></small></p>
-</section>
-
-<section id="s-keys"><h2>Paid online services <small class="mute" style="text-transform:none;letter-spacing:0">· optional</small></h2>
-  <p class="sec-sub">Keys for online voice services. You only need them for <b>“Generate a voice sample”</b> in the voice section (making a voice sample when you have no recording) or if you pick a cloud engine above. Without keys the app works fully on this computer. Keys are kept in your computer's keychain, never in a file, and are never shown again.</p>
-  <div id="keys" class="key-list"></div>
-</section>
+<details id="adv" class="advanced"><summary><b>Advanced settings</b> <small class="mute">helpers that run on this computer · keys for online services</small></summary>
+  <div id="s-engines" class="adv-block"><h3>Helper programs</h3>
+    <p class="sec-sub">Work behind the scenes and run <b>free on this computer</b>; a choice marked <span class="vbadge warn">cloud</span> sends data to an online service and costs money. Who reads the book is chosen in step 3.</p>
+    <div id="settings" class="eng-list"></div>
+    <div class="row" style="margin-top:12px"><button id="save-settings" class="primary">Save choices</button><span id="settings-msg" class="mute"></span></div>
+    <p class="mute" style="margin:8px 0 0"><small id="settings-note"></small></p>
+  </div>
+  <div id="s-keys" class="adv-block"><h3>Paid online services <small class="mute" style="text-transform:none;letter-spacing:0">· optional</small></h3>
+    <p class="sec-sub">Keys for online services. You only need them to read a book with an online engine (step 3) or for <b>“Generate a voice sample”</b> in the voice step. Without keys the app works fully on this computer. Keys are kept in your computer's keychain, never in a file, and are never shown again.</p>
+    <div id="keys" class="key-list"></div>
+  </div>
+</details>
 </main>
 
 <script>
@@ -1103,7 +1107,7 @@ $("#vc-saved-list").addEventListener("click", async (ev) => {
 $("#vc-saved-list").addEventListener("keydown", (ev) => { if ((ev.key === "Enter" || ev.key === " ") && ev.target.dataset && ev.target.dataset.sid) { ev.preventDefault(); ev.target.click(); } });
 async function engVoices() {
   const e = ENG.cur(), box = $("#vc-list"); if (!e || !e.cloud) return;
-  if (!e.key_in_env && !e.key_saved) { box.innerHTML = `<div class="mute">No API key for ${esc(e.label)} — add it in “Paid online services” at the bottom of the page.</div>`; $("#vc-sex").innerHTML = ""; return; }
+  if (!e.key_in_env && !e.key_saved) { box.innerHTML = `<div class="mute">No API key for ${esc(e.label)} — add it in <a href="#s-keys" data-open-adv>Advanced settings → Paid online services</a>.</div>`; $("#vc-sex").innerHTML = ""; return; }
   box.innerHTML = `<div class="mute">Loading the voices…</div>`; const ticket = ENG.ticket = (ENG.ticket || 0) + 1;
   try {
     const localize = $("#o-tts_mode").value === "localize"; if (ENG.vlang === undefined) ENG.vlang = "en";
@@ -1423,6 +1427,7 @@ $("#gp-add").onclick = async () => {
   } catch (e) { $("#gp-addmsg").innerHTML = `<span class="err">${esc(e.message)}</span>`; gpAddCheck(); }
 };
 
+document.addEventListener("click", (ev) => { if (ev.target.closest("[data-open-adv]")) { ev.preventDefault(); $("#adv").open = true; $("#s-keys").scrollIntoView({ behavior: "smooth", block: "start" }); } });
 // ---- settings ---------------------------------------------------------------------------------
 const ENGINES = {
   tts: ["Reading engine", "Reads the whole book aloud in the voice you chose. This is the heavy work and it runs on your computer."],
@@ -1432,7 +1437,7 @@ const ENGINES = {
 };
 async function loadSettings() {
   const s = await api("/api/settings");
-  const order = ["tts", "asr", "llm", "voicegen"].filter(k => s.kinds[k]);
+  const order = ["asr", "llm", "voicegen"].filter(k => s.kinds[k]);
   $("#settings").innerHTML = order.map(k => { const v = s.kinds[k], [title, why] = ENGINES[k];
     return `<div class="eng"><div><b>${esc(title)}</b><div class="why">${esc(why)}</div></div>
       <div class="pick"><select data-kind="${k}" aria-label="${esc(title)}">${v.providers.map(p => `<option value="${esc(p.name)}" ${p.name === v.selected ? "selected" : ""}>${esc(p.name)}${p.local ? "" : " — cloud, paid"}</option>`).join("")}</select>
@@ -1443,7 +1448,7 @@ async function loadSettings() {
   $("#o-output_dir").placeholder = s.output_dir;
 }
 const SERVICE = { GEMINI_API_KEY: "Google Gemini", OPENAI_API_KEY: "OpenAI", ELEVENLABS_API_KEY: "ElevenLabs", CARTESIA_API_KEY: "Cartesia" };
-const USED_FOR = { voicegen: "voice samples", asr: "speech recognition", llm: "text assistant" };
+const USED_FOR = { tts: "reading the book", voicegen: "voice samples", asr: "speech recognition", llm: "text assistant" };
 async function loadKeys() {
   const { keys } = await api("/api/keys");
   $("#keys").innerHTML = keys.map(k => { const uses = [...new Set(k.used_by.map(u => USED_FOR[u.split("/")[0]] || u))];
