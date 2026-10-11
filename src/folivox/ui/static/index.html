@@ -94,6 +94,7 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 .vcard { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,170px) 18px 28px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; transition:border-color .2s, box-shadow .2s, background .2s; }
 #vc-modes .chip { padding:8px 16px; font-size:14px; } #vc-modes .chip.hot:not(.on) { border-color:var(--accent); color:var(--accent); }
 .vactions { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; }
+#pv-play { font-size:16px; padding:11px 24px; border-radius:999px; }
 .vact { display:flex; gap:12px; align-items:center; text-align:left; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; }
 .vact:hover { border-color:var(--mute); }
 .vact.on { border-color:var(--accent); box-shadow:0 0 0 3px var(--glow); background:linear-gradient(90deg,var(--glow),transparent 85%); }
@@ -384,7 +385,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
     <div class="overall" role="progressbar" aria-label="Overall progress"><div id="overall"></div></div>
     <div class="stages" id="stages"></div>
     <div class="now"><div class="wave" id="wave"></div>
-      <div class="nt"><div id="now-label"></div><div id="now-quote"></div><div id="now-dl" hidden><div></div></div><div id="now-actions" hidden style="margin-top:8px"><button id="reveal">Show in folder</button></div></div>
+      <div class="nt"><div id="now-label"></div><div id="now-quote"></div><div id="now-dl" hidden><div></div></div><div id="now-actions" hidden style="margin-top:8px"><button id="pv-play" class="primary" hidden>▶ Listen to the preview</button><button id="reveal">Show in folder</button></div></div>
       <div id="now-time"></div></div>
     <div class="lanes" id="lanes"></div>
     <div class="feed" id="feed"></div>
@@ -972,8 +973,10 @@ function playChapter(lane, btn) {
   if (player && player.lane === lane) { player.paused ? player.play() : player.pause(); return; }
   if (player) { player.pause(); player.btn.textContent = "▶"; }
   player = new Audio(tok(`/api/jobs/${job.id}/chapters/${lane.ci + 1}`)); player.lane = lane; player.btn = btn;
-  player.onplay = () => btn.textContent = "❚❚"; player.onpause = player.onended = () => btn.textContent = "▶"; player.play();
+  player.onplay = () => { btn.textContent = "❚❚"; syncPv(); }; player.onpause = player.onended = () => { btn.textContent = "▶"; syncPv(); }; player.play();
 }
+function syncPv() { const on = player && !player.paused; $("#pv-play").textContent = on ? "❚❚ Pause" : player && player.currentTime > 0 ? "▶ Play again" : "▶ Listen to the preview"; }
+$("#pv-play").onclick = () => { const lane = S.lanes.find(l => l.built); if (lane) playChapter(lane, lane.el.querySelector(".lplay")); };
 function feedLine(ev) {
   const f = $("#feed"), d = document.createElement("div"), mark = ev.attempts > 1 ? `↻ ${ev.attempts}` : "✓";
   d.innerHTML = `<span style="color:var(--seg-done)">${mark}</span><span class="t">${esc(ev.text)}</span><span class="m">${ev.duration.toFixed(1)} s${ev.score == null ? "" : " · " + ev.score.toFixed(2)}</span>`;
@@ -1015,10 +1018,17 @@ function handle(ev) {
     case "progress": S.tProg = ev.t; S.audio = ev.audio; S.synthSecs = ev.rtf * ev.audio; S.retakes = ev.retakes; S.sessChars += ev.chars || 0;
       setFrag(ev.key, ev.attempts > 1 ? SEG.RETAKE : SEG.DONE); feedLine(ev); S.activeKey = null; break;
     case "chapter": log(`✓ ${ev.title} — ${fmt(ev.duration)}`); setPhase(`Chapter ready: ${ev.title}`, fmt(ev.duration) + " of audio", "check");
-      { const lane = S.lanes.find(l => l.ci + 1 === ev.index); if (lane) { lane.built = true; lane.el.querySelector(".lplay").hidden = false; } } break;
-    case "done": if (ENG.cloud()) engSaved(); log("Done: " + ev.result); end("done"); setPhase("Finished", ev.result, "done"); $("#wave").className = "wave done";
-      $("#hero-status").textContent = job.kind === "preview" ? "Preview ready — press ▶ on the chapter" : "Saved";
-      $("#run-msg").textContent = job.kind === "preview" ? "Preview ready — press ▶ on the chapter line." : ""; $("#now-actions").hidden = job.kind === "preview"; break;
+      { const lane = S.lanes.find(l => l.ci + 1 === ev.index); if (lane) { lane.built = true; lane.dur = ev.duration; lane.el.querySelector(".lplay").hidden = false; } } break;
+    case "done": if (ENG.cloud()) engSaved(); log("Done: " + ev.result); end("done");
+      if (job.kind === "preview") {  // one clear message and one big button, no hunting for the small ▶
+        const lane = S.lanes.find(l => l.built), dur = lane && lane.dur ? ` · ${fmt(lane.dur)}` : "";
+        setPhase("Preview ready" + dur, "Press the green button to listen. The audio is not saved as a book.", "done"); $("#wave").className = "wave done";
+        $("#hero-status").textContent = "Preview ready"; $("#run-msg").textContent = "";
+        $("#pv-play").hidden = !lane; $("#reveal").hidden = true; $("#now-actions").hidden = false; syncPv();
+      } else {
+        setPhase("Finished", ev.result, "done"); $("#wave").className = "wave done"; $("#hero-status").textContent = "Saved"; $("#run-msg").textContent = "";
+        $("#pv-play").hidden = true; $("#reveal").hidden = false;
+      } break;
     case "cancelled": log(ev.message || "Stopped. Progress is saved — press Render again to continue."); end("cancelled"); setPhase(ev.reason === "cost_cap" ? "Spending cap reached" : "Stopped", ev.message || "Progress is saved — press Render to continue.", "");
       $("#hero-status").textContent = ev.reason === "cost_cap" ? "Cap reached" : "Stopped"; $("#run-msg").textContent = ev.reason === "cost_cap" ? ev.message : "Stopped; progress saved."; break;
     case "error": log("Error: " + ev.message, "err"); end("error"); setPhase("Error", ev.message, ""); $("#hero-status").textContent = "Failed";
