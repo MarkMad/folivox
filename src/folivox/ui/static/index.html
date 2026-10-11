@@ -92,10 +92,12 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 #vc-modes .chip { padding:8px 16px; font-size:14px; } #vc-modes .chip.hot:not(.on) { border-color:var(--accent); color:var(--accent); }
 .vactions { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; }
 .vact { display:flex; gap:12px; align-items:center; text-align:left; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; }
-.vact:hover { border-color:var(--accent); } .vact.hot { border-color:var(--accent); background:linear-gradient(90deg,var(--glow),transparent 85%); }
+.vact:hover { border-color:var(--mute); }
+.vact.on { border-color:var(--accent); box-shadow:0 0 0 3px var(--glow); background:linear-gradient(90deg,var(--glow),transparent 85%); }
+.vact.on .vact-i { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+.vbadge.best { background:var(--glow); color:var(--seg-done); vertical-align:1px; margin-left:4px; }
 .vact b { display:block; font-size:14px; } .vact small { display:block; color:var(--mute); font-size:12px; font-weight:400; margin-top:2px; line-height:1.35; }
 .vact-i { flex:none; width:34px; height:34px; border-radius:50%; display:grid; place-items:center; font-size:20px; background:var(--bg); border:1px solid var(--line); }
-.vact.hot .vact-i { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
 .vcard.pv { grid-template-columns:34px minmax(0,1fr) 18px; } .vcard.pv .vmeta { white-space:normal; }
 .vcard:hover { border-color:var(--mute); } .vcard:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .vcard.sel { border-color:var(--accent); box-shadow:0 0 0 3px var(--glow); } .vcard.off { opacity:.62; }
@@ -235,8 +237,8 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
     <div class="chips" id="vgender"></div></div>
   <div class="chips" id="vlangs"></div>
   <div class="vgrid" id="voices" role="radiogroup" aria-label="Voice"></div>
-  <div class="vactions" style="margin-top:12px">    <button type="button" class="vact" id="add-card"><span class="vact-i">+</span><span><b>Add your own voice</b><small>upload a recording or record one</small></span></button>
-    <button type="button" class="vact hot" id="gen-card"><span class="vact-i">✦</span><span><b>Generate a voice sample</b><small>an online service reads a short text (a few cents, once); you then use it for free, offline</small></span></button>
+  <div class="vactions" style="margin-top:12px">    <button type="button" class="vact" id="add-card" aria-pressed="false"><span class="vact-i">+</span><span><b>Add your own voice</b><small>upload a recording or record one</small></span></button>
+    <button type="button" class="vact" id="gen-card" aria-pressed="false"><span class="vact-i">✦</span><span><b>Generate a voice sample <span class="vbadge best">best option</span></b><small>an online service reads a short text (a few cents, once); you then use it for free, offline</small></span></button>
   </div>
   <div class="mute" id="vcount" style="margin-top:6px"><small></small></div>
   <div id="addvoice" class="av" hidden>
@@ -269,7 +271,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
     </div>
   </div>
   <div id="genvoice" class="av" hidden>
-    <div class="av-head"><b>Generate a voice with a provider</b>
+    <div class="av-head"><b>Generate a voice sample</b>
       <button id="gp-close" class="chip" style="margin-left:auto">Close</button></div>
     <div class="gp">
       <div class="gp-intro"><b>What is this for?</b> Folivox reads your book on this computer with a voice cloned from a short sample. No good recording? An online voice service can make that sample for you — <b>one clip of about 10 seconds, not the whole book</b>. You listen to a few attempts and keep the best.
@@ -611,7 +613,13 @@ const TR = { а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ё:"e",ж:"zh",з:"z",и:
 let av = null, avDirty = false, avRec = null, idTouched = false;
 const slug = (n) => n.toLowerCase().split("").map(c => TR[c] ?? c).join("").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
 function freeId(base) { base = base || "voice"; let id = base, i = 2; const taken = new Set(VOICES.map(v => v.id)); while (taken.has(id)) id = `${base}-${i++}`; return id; }
-$("#add-card").onclick = () => openAdd(); $("#gen-card").onclick = () => openGen();
+// the two buttons are switches: pressed while their panel is open, a second click closes it
+$("#add-card").onclick = () => $("#addvoice").hidden ? openAdd() : closeAdd();
+$("#gen-card").onclick = () => $("#genvoice").hidden ? openGen() : closeGen();
+for (const [panel, btn] of [["#addvoice", "#add-card"], ["#genvoice", "#gen-card"]]) {
+  const sync = () => { const on = !$(panel).hidden; $(btn).classList.toggle("on", on); $(btn).setAttribute("aria-pressed", on); };
+  new MutationObserver(sync).observe($(panel), { attributes: true, attributeFilter: ["hidden"] }); sync();
+}
 function openAdd() { closeGen(); $("#addvoice").hidden = false; $("#addvoice").scrollIntoView({ behavior: "smooth", block: "nearest" }); $("#av-name").focus({ preventScroll: true }); }
 function closeAdd() { stopRec(true); resetAdd(); $("#addvoice").hidden = true; }
 function resetAdd() { av = null; avDirty = false; idTouched = false; abp.reset();
