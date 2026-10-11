@@ -48,6 +48,7 @@ class RenderOptions:
     narrator: str = ""
     cover: Path | None = None  # an image to use instead of the book's own cover
     no_cover: bool = False  # write no cover at all
+    meta: dict[str, str] = field(default_factory=dict)  # edited book details; an empty value keeps the book's own
     chunk: ChunkOptions = field(default_factory=ChunkOptions)
 
     def resolved_work_dir(self) -> Path:
@@ -274,7 +275,10 @@ def assemble(journal: Journal, book: Book, opts: RenderOptions, sample_rate: int
         events.chapter_built(ci, title, dur)
     if not built:
         raise RuntimeError("Nothing to assemble: no chapter is fully rendered")
-    meta = BookMeta(book.title, book.author, book.year, book.annotation, opts.narrator)
+    m = opts.meta
+    meta = BookMeta(m.get("title") or book.title, m.get("author") or book.author, m.get("year") or book.year,
+                    m.get("description") or book.annotation, m.get("narrator") or opts.narrator,
+                    m.get("series", ""), m.get("series_part", ""), m.get("genre", ""))
     cover = None if opts.no_cover else (opts.cover.read_bytes() if opts.cover else book.cover)
     events.stage("encode", "Encoding {fmt}".format(fmt="MP3" if opts.mp3 else "M4B"))
     if opts.mp3:

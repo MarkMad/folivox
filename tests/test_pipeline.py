@@ -207,3 +207,25 @@ def test_any_image_becomes_a_small_jpeg_cover(tmp_path):
     video = [s for s in json.loads(probe.stdout)["streams"] if s["codec_type"] == "video"]
     assert len(video) == 1 and video[0]["codec_name"] == "mjpeg" and video[0]["disposition"]["attached_pic"] == 1
     assert video[0]["width"] == 1600 and video[0]["height"] == 1200
+
+
+def test_edited_details_become_tags(tmp_path):
+    import json
+    import subprocess
+
+    import numpy as np
+    import soundfile as sf
+
+    from folivox.audio.assemble import BookMeta, ChapterAudio, ffmpeg, write_m4b
+
+    wav = tmp_path / "c.flac"
+    sf.write(str(wav), (0.1 * np.sin(np.arange(24000) / 20)).astype("float32"), 24000)
+    out = tmp_path / "b.m4b"
+    meta = BookMeta("Title", "Author", "2024", "About it.", "Anna", series="Saga", series_part="2", genre="Fantasy")
+    write_m4b([ChapterAudio("One", wav, 1.0)], out, meta)
+    probe = subprocess.run([ffmpeg().replace("ffmpeg", "ffprobe"), "-v", "error", "-show_format", "-of", "json",
+                            str(out)], capture_output=True, text=True, check=True)
+    tags = {k.lower(): v for k, v in json.loads(probe.stdout)["format"]["tags"].items()}
+    assert tags["title"] == "Title" and tags["artist"] == "Author" and tags["composer"] == "Anna"
+    assert tags["genre"] == "Fantasy" and tags["comment"] == "About it." and tags["date"] == "2024"
+    assert tags["grouping"] == "Saga #2"

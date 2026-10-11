@@ -350,3 +350,26 @@ def test_last_uploaded_book_survives_restarts_and_a_lost_session(tmp_path):
     c2.put("/api/session", json={"book_id": first, "chapters": [2], "voice": "russlib"})
     assert open_app().get("/api/session").json()["chapters"] == [2]
     assert not list((tmp_path / "ui").glob("session.tmp"))
+
+
+def test_book_details_are_editable_saved_and_sent_to_the_render(client):
+    b = upload(client)
+    bid = b["book_id"]
+    r = client.get(f"/api/books/{bid}/meta").json()
+    assert r["meta"]["title"] == b["title"] and r["meta"]["genre"] == "Audiobook" and r["meta"]["narrator"] == ""
+    saved = client.put(f"/api/books/{bid}/meta", json={"title": "  My   Title ", "narrator": "Anna", "series": "Saga",
+                                                         "series_part": "2", "description": "Line one.\nLine two."})
+    assert saved.json()["meta"]["title"] == "My Title" and saved.json()["meta"]["description"] == "Line one.\nLine two."
+    assert client.get(f"/api/books/{bid}/meta").json()["meta"]["series"] == "Saga"  # kept on the server
+    assert client.put(f"/api/books/{bid}/meta", json={"title": "x" * 400}).status_code == 400
+    seen = {}
+
+    def spy(book, opts, events):
+        seen.update(opts.meta)
+        return fake_render(book, opts, events)
+
+    client.app.state.ui.manager._render = spy
+    wait_done(client, client.post("/api/jobs", json={"kind": "preview", "book_id": bid, "chapters": [1]}).json()["id"])
+    assert seen["title"] == "My Title" and seen["narrator"] == "Anna" and seen["series_part"] == "2"
+    back = client.put(f"/api/books/{bid}/meta", json={"reset": True}).json()
+    assert back["meta"] == back["defaults"] and back["meta"]["narrator"] == ""

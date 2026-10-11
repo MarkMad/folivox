@@ -160,6 +160,49 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         write_session({"book_id": book_id})  # the last uploaded book survives a reload even before any other change
         return JSONResponse(_book_summary(book_id, book, cover=cover_kind(book_id, book)))
 
+    # ---- book details shown in the player (title, author, narrator, series…) -------------------------
+    META_FIELDS = {"title": 300, "author": 300, "narrator": 300, "series": 300, "series_part": 20, "year": 20,
+                   "description": 2000, "genre": 100}
+
+    def meta_file(book_id: str) -> Path:
+        return state.data_dir / "meta" / f"{Path(book_id).name}.json"
+
+    def meta_defaults(book) -> dict:
+        return {"title": book.title or "", "author": book.author or "", "narrator": "", "series": "",
+                "series_part": "", "year": str(book.year or ""), "description": book.annotation or "",
+                "genre": "Audiobook"}
+
+    def book_meta(book_id: str, book) -> dict:
+        try:
+            saved = json.loads(meta_file(book_id).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            saved = {}
+        return {**meta_defaults(book), **{k: v for k, v in saved.items() if k in META_FIELDS and isinstance(v, str)}}
+
+    async def get_meta(request: Request):
+        bid = request.path_params["book_id"]
+        book = state.book(bid)["book"]
+        return JSONResponse({"meta": book_meta(bid, book), "defaults": meta_defaults(book)})
+
+    async def put_meta(request: Request):
+        bid = request.path_params["book_id"]
+        book = state.book(bid)["book"]
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise ApiError("Book details must be an object")
+        if body.get("reset"):
+            meta_file(bid).unlink(missing_ok=True)
+        else:
+            current = book_meta(bid, book)
+            for k, limit in META_FIELDS.items():
+                if k in body:
+                    current[k] = " ".join(str(body[k]).split()) if k != "description" else str(body[k]).strip()
+                    if len(current[k]) > limit:
+                        raise ApiError(f"{k} is longer than {limit} characters")
+            meta_file(bid).parent.mkdir(parents=True, exist_ok=True)
+            meta_file(bid).write_text(json.dumps(current, ensure_ascii=False), encoding="utf-8")
+        return JSONResponse({"meta": book_meta(bid, book), "defaults": meta_defaults(book)})
+
     # ---- cover: the book's own, an image you upload, or none ----------------------------------------
     IMAGE_TYPES = ((b"\xff\xd8\xff", "jpg", "image/jpeg"), (b"\x89PNG\r\n\x1a\n", "png", "image/png"),
                    (b"GIF8", "gif", "image/gif"))
@@ -390,7 +433,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                       speed=float(o.get("speed", 1.0)), qa=bool(o.get("qa", True)), max_takes=int(o.get("takes", 3)),
                       tts=tts, asr=asr, device=str(o.get("device", "auto")),
                       cover=custom_cover(str(body.get("book_id", ""))),
-                      no_cover=cover_kind(str(body.get("book_id", "")), book) == "none")
+                      no_cover=cover_kind(str(body.get("book_id", "")), book) == "none",
+                      meta=book_meta(str(body.get("book_id", "")), book))
         if kind == "preview":
             first = [int(chapters[0])] if chapters else [1]
             work = state.data_dir / "previews" / uuid.uuid4().hex[:8]
@@ -827,6 +871,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/", index),
         Route("/api/books", upload_book, methods=["POST"]),
         Route("/api/books/{book_id}/chapters", book_chapters),
+        Route("/api/books/{book_id}/meta", get_meta),
+        Route("/api/books/{book_id}/meta", put_meta, methods=["PUT"]),
         Route("/api/books/{book_id}/cover", get_cover),
         Route("/api/books/{book_id}/cover", put_cover, methods=["PUT", "POST"]),
         Route("/api/session", get_session),

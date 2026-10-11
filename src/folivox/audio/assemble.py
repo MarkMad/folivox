@@ -84,6 +84,14 @@ class BookMeta:
     year: str = ""
     comment: str = ""
     narrator: str = ""
+    series: str = ""
+    series_part: str = ""
+    genre: str = ""
+
+
+def grouping(meta: BookMeta) -> str:
+    """The Grouping tag most audiobook apps read as the series: "Name #3"."""
+    return f"{meta.series} #{meta.series_part}".strip() if meta.series and meta.series_part else meta.series
 
 
 def write_m4b(chapters: list[ChapterAudio], out: Path, meta: BookMeta, cover: bytes | None = None,
@@ -95,7 +103,9 @@ def write_m4b(chapters: list[ChapterAudio], out: Path, meta: BookMeta, cover: by
         lst.write_text("".join(f"file '{_concat_path(c.path)}'\n" for c in chapters), encoding="utf-8")
         md = [";FFMETADATA1", f"title={_escape_meta(meta.title)}", f"album={_escape_meta(meta.title)}",
               f"artist={_escape_meta(meta.author)}", f"album_artist={_escape_meta(meta.author)}",
-              "genre=Audiobook", "encoder=Folivox"]
+              f"genre={_escape_meta(meta.genre or 'Audiobook')}", "encoder=Folivox"]
+        if meta.series:
+            md.append(f"grouping={_escape_meta(grouping(meta))}")
         if meta.year:
             md.append(f"date={meta.year}")
         if meta.comment:
@@ -141,7 +151,9 @@ def write_mp3s(chapters: list[ChapterAudio], out_dir: Path, meta: BookMeta, cove
                 maps += ["-map", "1:v", *COVER_ARGS]
             run([*args, *maps, "-c:a", "libmp3lame", "-b:a", bitrate, "-ac", "1", "-id3v2_version", "3",
                  "-metadata", f"title={c.title}", "-metadata", f"album={meta.title}",
-                 "-metadata", f"artist={meta.author}", "-metadata", f"track={i}/{len(chapters)}",
-                 "-metadata", "genre=Audiobook", str(p)])
+                 "-metadata", f"artist={meta.author}", "-metadata", f"album_artist={meta.author}",
+                 "-metadata", f"track={i}/{len(chapters)}", "-metadata", f"genre={meta.genre or 'Audiobook'}",
+                 "-metadata", f"composer={meta.narrator}", "-metadata", f"date={meta.year}",
+                 "-metadata", f"comment={meta.comment[:1000]}", "-metadata", f"grouping={grouping(meta)}", str(p)])
             paths.append(p)
     return paths

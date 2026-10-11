@@ -30,7 +30,7 @@ COMMANDS = {"render", "inspect", "voices", "providers", "help", "ui", "--help", 
 
 # Option panels of `folivox render --help`
 P_INPUT, P_VOICE, P_TEXT, P_QA = "Input", "Voice", "Text", "Quality control"
-P_PROVIDERS, P_PERF, P_OUT = "Providers", "Performance", "Output"
+P_PROVIDERS, P_PERF, P_OUT, P_META = "Providers", "Performance", "Output", "Book details"
 
 
 class Stress(str, Enum):
@@ -275,6 +275,18 @@ def render(
     bitrate: str = typer.Option("64k", "--bitrate", rich_help_panel=P_OUT, help="AAC/MP3 bitrate."),
     cover: str | None = typer.Option(None, "--cover", rich_help_panel=P_OUT, show_default="the book's own cover",
                                      help="Cover image (JPEG, PNG, WebP) or `none` for no cover."),
+    title: str | None = typer.Option(None, "--title", rich_help_panel=P_META, show_default="from the book",
+                                     help="Title written to the audiobook."),
+    author: str | None = typer.Option(None, "--author", rich_help_panel=P_META, show_default="from the book",
+                                      help="Author."),
+    narrator: str | None = typer.Option(None, "--narrator", rich_help_panel=P_META, help="Narrator (composer tag)."),
+    series: str | None = typer.Option(None, "--series", rich_help_panel=P_META, help="Series name."),
+    series_number: str | None = typer.Option(None, "--series-number", rich_help_panel=P_META,
+                                             help="Number in the series (e.g. 2)."),
+    year: str | None = typer.Option(None, "--year", rich_help_panel=P_META, show_default="from the book",
+                                    help="Year."),
+    description: str | None = typer.Option(None, "--description", rich_help_panel=P_META,
+                                           show_default="from the book", help="Description / annotation."),
     work_dir: Path | None = typer.Option(None, "--work-dir", rich_help_panel=P_OUT, show_default="<output>.folivox",
                                          help="Cache and journal folder (makes runs resumable)."),
     verbose: bool = typer.Option(False, "--verbose", rich_help_panel=P_OUT, help="Print every fragment."),
@@ -303,7 +315,10 @@ def render(
                          model_dir=str(model_dir) if model_dir else None, qa=qa, max_takes=takes, mp3=mp3,
                          bitrate=bitrate, llm=llm.value, tts=config.provider("tts", tts) or "cosyvoice3",
                          asr=config.provider("asr", asr) or "auto", cover=cover_path,
-                         no_cover=bool(cover) and cover.lower() == "none")
+                         no_cover=bool(cover) and cover.lower() == "none",
+                         meta={k: v for k, v in {"title": title, "author": author, "narrator": narrator,
+                                                 "series": series, "series_part": series_number, "year": year,
+                                                 "description": description}.items() if v})
     console.print(f"[bold]{book.title}[/] — {book.author or 'unknown author'}; {_lang_name(book.lang)}; "
                   f"estimated audio ≈ {fmt_duration(book.estimated_seconds)}")
     events = RichEvents(verbose)

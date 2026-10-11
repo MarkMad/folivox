@@ -138,6 +138,15 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 .gp-readonly { background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px 14px; line-height:1.55; } .gp-readonly p { margin:0 0 8px; } .gp-readonly p:last-child { margin:0; }
 .cover-box { display:flex; gap:16px; align-items:center; margin-top:12px; padding:10px 12px; border:1px dashed var(--line); border-radius:12px; } .cover-box.over { border-color:var(--accent); background:var(--glow); }
 .cover-thumb { width:84px; height:84px; flex:none; border-radius:8px; background:var(--bg); display:grid; place-items:center; overflow:hidden; } .cover-thumb img { width:100%; height:100%; object-fit:cover; }
+.sec-sub { margin:2px 0 14px; color:var(--mute); font-size:14px; line-height:1.5; max-width:78ch; }
+.eng-list, .key-list { display:flex; flex-direction:column; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+.eng, .keyrow { display:grid; grid-template-columns:minmax(200px,5fr) minmax(220px,6fr); gap:6px 24px; align-items:center; padding:12px 16px; background:var(--card); } .eng + .eng, .keyrow + .keyrow { border-top:1px solid var(--line); }
+.eng b, .keyrow b { font-size:15px; } .eng .why, .keyrow .why { color:var(--mute); font-size:13px; line-height:1.4; margin-top:2px; }
+.eng .pick { display:flex; flex-direction:column; gap:4px; } .eng .cap { font-size:13px; color:var(--mute); }
+.keyrow .kctl { display:flex; gap:8px; align-items:center; flex-wrap:wrap; } .keyrow .kctl input { flex:1; min-width:160px; } .kstate { font-size:13px; }
+.kstate.ok { color:var(--seg-done); } .kstate.none { color:var(--mute); }
+@media (max-width:700px) { .eng, .keyrow { grid-template-columns:1fr; } }
+.meta-box { margin-top:12px; padding:10px 14px; border:1px solid var(--line); border-radius:12px; } .meta-box summary { cursor:pointer; font-weight:600; } .meta-box summary small { font-weight:400; margin-left:6px; }
 .gp-adv summary { cursor:pointer; color:var(--mute); font-size:13px; } .gp-est { font-size:14px; }
 .gp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px 20px; }
 .gp-take { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,200px) 18px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; }
@@ -168,6 +177,20 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
       <small class="mute">JPEG, PNG or WebP (or drop it here). It is saved in the audiobook file and shrunk to at most 1600 px wide.</small></div>
     <input id="cover-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
   </div>
+  <details id="meta-box" class="meta-box" hidden><summary>Book details <small class="mute">title, author, narrator, series… as shown in the player</small></summary>
+    <div class="gp-grid" style="margin-top:10px">
+      <label class="f">Title<input id="m-title" data-m="title" type="text" autocomplete="off"></label>
+      <label class="f">Author<input id="m-author" data-m="author" type="text" autocomplete="off"></label>
+      <label class="f">Narrator <small>(reader)</small><input id="m-narrator" data-m="narrator" type="text" autocomplete="off" placeholder="e.g. Folivox, or your name"></label>
+      <label class="f">Series<input id="m-series" data-m="series" type="text" autocomplete="off" placeholder="optional"></label>
+      <label class="f">Number in the series<input id="m-series_part" data-m="series_part" type="text" autocomplete="off" placeholder="e.g. 2"></label>
+      <label class="f">Year<input id="m-year" data-m="year" type="text" autocomplete="off"></label>
+      <label class="f">Genre<input id="m-genre" data-m="genre" type="text" autocomplete="off"></label>
+    </div>
+    <label class="f" style="margin-top:10px">Description<textarea id="m-description" data-m="description" rows="3"></textarea></label>
+    <div class="row" style="margin-top:8px"><button type="button" id="m-reset" class="chip">Reset to the book's own data</button><span id="m-msg" class="mute"></span></div>
+    <small class="mute">Saved automatically for this book. The series is written as the “Grouping” tag (“Name #2”), which most audiobook apps show as the series. Empty fields fall back to the book's data.</small>
+  </details>
 </section>
 
 <section id="s-chapters" class="disabled"><h2>2 · Chapters</h2>
@@ -322,12 +345,16 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
   </div>
 </section>
 
-<section><h2>Providers</h2>
-  <div id="settings" class="grid"></div>
-  <div class="row" style="margin-top:10px"><button id="save-settings">Save</button><span id="settings-msg" class="mute"></span></div>
-  <p class="mute"><small id="settings-note"></small></p>
-  <h2 style="margin-top:18px">API keys <small class="mute" style="text-transform:none;letter-spacing:0">for cloud providers · stored in your OS keychain, never in a file</small></h2>
-  <div id="keys"></div>
+<section id="s-engines"><h2>Engines</h2>
+  <p class="sec-sub">The programs that turn your book into audio. By default all of them run <b>free on this computer</b>; a choice marked <span class="vbadge warn">cloud</span> sends data to an online service and costs money.</p>
+  <div id="settings" class="eng-list"></div>
+  <div class="row" style="margin-top:12px"><button id="save-settings" class="primary">Save choices</button><span id="settings-msg" class="mute"></span></div>
+  <p class="mute" style="margin:8px 0 0"><small id="settings-note"></small></p>
+</section>
+
+<section id="s-keys"><h2>Paid online services <small class="mute" style="text-transform:none;letter-spacing:0">· optional</small></h2>
+  <p class="sec-sub">Keys for online voice services. You only need them for <b>“Generate with a provider”</b> in the voice section (making a voice sample when you have no recording) or if you pick a cloud engine above. Without keys the app works fully on this computer. Keys are kept in your computer's keychain, never in a file, and are never shown again.</p>
+  <div id="keys" class="key-list"></div>
 </section>
 </main>
 
@@ -385,9 +412,30 @@ $("#cover-book").onclick = () => setCoverMode("book"); $("#cover-none").onclick 
 ["dragover", "dragenter"].forEach(t => $("#cover-box").addEventListener(t, (e) => { e.preventDefault(); $("#cover-box").classList.add("over"); }));
 ["dragleave", "drop"].forEach(t => $("#cover-box").addEventListener(t, (e) => { e.preventDefault(); $("#cover-box").classList.remove("over"); }));
 $("#cover-box").addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) sendCover(f); });
+// ---- book details ----------------------------------------------------------------------------------
+let metaTimer = null, metaFor = "";
+async function loadMeta() {
+  if (!book) return; const id = book.book_id; metaFor = id;
+  try { const r = await api(`/api/books/${id}/meta`); if (metaFor !== id) return; $("#meta-box").hidden = false;
+    document.querySelectorAll("[data-m]").forEach(e => e.value = r.meta[e.dataset.m] || ""); showBookInfo(r.meta); }
+  catch (e) { $("#meta-box").hidden = true; }
+}
+function showBookInfo(m) { if (book && m.title) { book.title = m.title; book.author = m.author; renderBookInfo(); } }
+function saveMeta(reset) {
+  clearTimeout(metaTimer); $("#m-msg").textContent = "";
+  metaTimer = setTimeout(async () => {
+    const body = reset ? { reset: true } : Object.fromEntries([...document.querySelectorAll("[data-m]")].map(e => [e.dataset.m, e.value]));
+    try { const r = await api(`/api/books/${book.book_id}/meta`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (reset) document.querySelectorAll("[data-m]").forEach(e => e.value = r.meta[e.dataset.m] || ""); showBookInfo(r.meta); $("#m-msg").textContent = "Saved."; }
+    catch (e) { $("#m-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  }, 500);
+}
+document.querySelectorAll("[data-m]").forEach(e => e.addEventListener("input", () => saveMeta(false)));
+$("#m-reset").onclick = () => saveMeta(true);
+function renderBookInfo() { const b = book;$("#book-info").innerHTML = `<b style="color:var(--ink)">${esc(b.title)}</b> — ${esc(b.author || "unknown author")} · ${esc(b.lang_name)} · ${esc(b.format.toUpperCase())}${b.year ? " · " + esc(b.year) : ""} · ${num(b.chars)} characters · ≈ ${fmt(b.estimated_seconds)}`; }
 function setBook(b, keep, lang) {
   book = b; showCover(b.cover || "");
-  $("#book-info").innerHTML = `<b style="color:var(--ink)">${esc(b.title)}</b> — ${esc(b.author || "unknown author")} · ${esc(b.lang_name)} · ${esc(b.format.toUpperCase())}${b.year ? " · " + esc(b.year) : ""} · ${num(b.chars)} characters · ≈ ${fmt(b.estimated_seconds)}`;
+  renderBookInfo(); loadMeta();
   $("#lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}" ${c === b.lang ? "selected" : ""}>${n}</option>`).join("");
   if (lang) $("#lang").value = lang;
   renderChapters(keep);
@@ -1183,20 +1231,32 @@ $("#gp-add").onclick = async () => {
 };
 
 // ---- settings ---------------------------------------------------------------------------------
+const ENGINES = {
+  tts: ["Reading engine", "Reads the whole book aloud in the voice you chose. This is the heavy work and it runs on your computer."],
+  asr: ["Proofreader (speech recognition)", "Listens to every fragment after it is read and asks for a retake when words were misread. Also writes down your voice samples."],
+  llm: ["Text assistant", "A language model that writes voice descriptions and picks easy passages from your book for voice samples. Optional."],
+  voicegen: ["Voice-sample maker (command line)", "Used by “folivox voices design” in the terminal. On this page, voice samples are made by the online services in the voice section."],
+};
 async function loadSettings() {
   const s = await api("/api/settings");
-  $("#settings").innerHTML = Object.entries(s.kinds).map(([k, v]) => `<label class="f">${k}<select data-kind="${k}">${v.providers.map(p =>
-    `<option value="${esc(p.name)}" ${p.name === v.selected ? "selected" : ""}>${esc(p.name)}${p.local ? "" : " (cloud)"}</option>`).join("")}</select></label>`).join("");
-  $("#settings-note").textContent = "Cloud providers run at your own cost and send text or audio off this computer. Config: " + s.config_path;
+  const order = ["tts", "asr", "llm", "voicegen"].filter(k => s.kinds[k]);
+  $("#settings").innerHTML = order.map(k => { const v = s.kinds[k], [title, why] = ENGINES[k];
+    return `<div class="eng"><div><b>${esc(title)}</b><div class="why">${esc(why)}</div></div>
+      <div class="pick"><select data-kind="${k}" aria-label="${esc(title)}">${v.providers.map(p => `<option value="${esc(p.name)}" ${p.name === v.selected ? "selected" : ""}>${esc(p.name)}${p.local ? "" : " — cloud, paid"}</option>`).join("")}</select>
+      <div class="cap" data-cap="${k}"></div></div></div>`; }).join("");
+  const caption = (sel) => { const p = s.kinds[sel.dataset.kind].providers.find(x => x.name === sel.value); sel.parentElement.querySelector(".cap").innerHTML = p ? `${p.local ? "On this computer" : `<span class="warn">Online service (your key, your cost)</span>`} · ${esc(p.description)}` : ""; };
+  document.querySelectorAll("#settings select").forEach(sel => { caption(sel); sel.onchange = () => caption(sel); });
+  $("#settings-note").textContent = "Settings file: " + s.config_path;
   $("#o-output_dir").placeholder = s.output_dir;
 }
+const SERVICE = { GEMINI_API_KEY: "Google Gemini", OPENAI_API_KEY: "OpenAI", ELEVENLABS_API_KEY: "ElevenLabs", CARTESIA_API_KEY: "Cartesia" };
+const USED_FOR = { voicegen: "voice samples", asr: "speech recognition", llm: "text assistant" };
 async function loadKeys() {
   const { keys } = await api("/api/keys");
-  $("#keys").innerHTML = keys.map(k => `<div class="voice" data-key="${esc(k.name)}">
-    <div style="min-width:190px"><b>${esc(k.name)}</b><br><small class="mute">${esc(k.used_by.join(", "))}</small></div>
-    <div class="grow">${k.env ? `<small>set in the environment</small> ` : ""}${k.saved ? `<small class="mute">saved: <code>${esc(k.masked)}</code></small>` : (k.env ? "" : `<small class="warn">not set</small>`)}</div>
-    <input type="password" autocomplete="off" placeholder="${k.saved ? "replace key" : "paste key"}" style="width:220px">
-    <button data-save>Save</button>${k.saved ? `<button data-remove>Remove</button>` : ""}</div>`).join("") || `<p class="mute"><small>No cloud providers installed.</small></p>`;
+  $("#keys").innerHTML = keys.map(k => { const uses = [...new Set(k.used_by.map(u => USED_FOR[u.split("/")[0]] || u))];
+    return `<div class="keyrow" data-key="${esc(k.name)}"><div><b>${esc(SERVICE[k.name] || k.name)}</b><div class="why">Used for: ${esc(uses.join(", "))} · <code>${esc(k.name)}</code></div></div>
+    <div><div class="kstate ${k.saved || k.env ? "ok" : "none"}">${k.saved ? `✓ Saved <code>${esc(k.masked)}</code>` : k.env ? "✓ Set in the environment" : "No key yet"}${k.saved && k.env ? " (the environment variable wins)" : ""}</div>
+    <div class="kctl"><input type="password" autocomplete="off" placeholder="${k.saved ? "paste a new key to replace it" : "paste your key"}" aria-label="${esc(k.name)}"><button data-save>Save</button>${k.saved ? `<button data-remove class="chip">Remove</button>` : ""}</div></div></div>`; }).join("") || `<p class="mute" style="padding:12px 16px"><small>No online services installed.</small></p>`;
   document.querySelectorAll("#keys [data-key]").forEach(row => {
     const name = row.dataset.key, input = row.querySelector("input");
     row.querySelector("[data-save]").onclick = async () => {
@@ -1204,7 +1264,7 @@ async function loadKeys() {
       try { await api("/api/keys/" + name, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: input.value }) }); input.value = ""; loadKeys(); }
       catch (e) { alert(e.message); } };
     const rm = row.querySelector("[data-remove]");
-    if (rm) rm.onclick = async () => { if (confirm("Remove the saved " + name + "?")) { await api("/api/keys/" + name, { method: "DELETE" }); loadKeys(); } };
+    if (rm) rm.onclick = async () => { if (confirm("Remove the saved key for " + (SERVICE[name] || name) + "?")) { await api("/api/keys/" + name, { method: "DELETE" }); loadKeys(); } };
   });
 }
 $("#save-settings").onclick = async () => {
