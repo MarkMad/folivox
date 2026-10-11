@@ -231,10 +231,10 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
   <div id="v-cloud" class="eng-cloud" hidden>
     <small class="mute" id="vc-title"></small>
     <div class="grid" style="margin-top:8px">
-      <div id="vc-saved" hidden style="grid-column:1/-1"><div style="font-weight:600;font-size:14px">My created voices <small class="mute" style="font-weight:400">· kept in your account, free to reuse for any book</small></div><div class="vgrid" id="vc-saved-list" style="max-height:230px;margin-top:6px"></div><small class="mute" id="vc-saved-hint" style="display:block;margin-top:4px"></small></div>
+      <div id="vc-saved" hidden style="grid-column:1/-1"><div style="font-weight:600;font-size:14px">My created voices <small class="mute" style="font-weight:400">· kept in your account, free to reuse · click a name to rename</small></div><div class="vgrid" id="vc-saved-list" style="max-height:230px;margin-top:6px"></div><small class="mute" id="vc-saved-hint" style="display:block;margin-top:4px"></small></div>
       <div style="grid-column:1/-1"><div class="chips" id="vc-modes" role="radiogroup" aria-label="Kind of voice"></div><select id="o-tts_mode" hidden></select><small class="mute" id="vc-modehint" style="display:block;margin-top:4px"></small></div>
       <label class="f eng-desc" hidden style="grid-column:1/-1">Describe the voice<input id="o-tts_description" type="text" placeholder="a calm, warm middle-aged woman, unhurried audiobook narrator"></label>
-      <div class="eng-keep" hidden style="grid-column:1/-1"><label class="consent"><input type="checkbox" id="vc-keep" checked><span>Keep this voice for other books (otherwise it is deleted after this book)</span></label><label class="f" style="margin-top:6px">Name of the voice in “My created voices”<input id="vc-name" type="text" maxlength="60" placeholder="e.g. Calm narrator"></label></div>
+      <div class="eng-keep" hidden style="grid-column:1/-1"><label class="consent"><input type="checkbox" id="vc-keep" checked><span>Keep this voice for other books (otherwise it is deleted after this book)</span></label></div>
       <label class="f eng-style" style="grid-column:1/-1">Narration note (optional)<input id="o-tts_style" type="text" placeholder="default: neutral, steady audiobook narration"></label>
       <div class="eng-pick" style="grid-column:1/-1"><small class="mute" style="display:block;margin-bottom:6px" id="vc-note"></small><div class="chips" id="vc-lang" style="margin-bottom:6px"></div><div class="chips" id="vc-sex" style="margin-bottom:6px"></div><div class="vgrid" id="vc-list" role="radiogroup" aria-label="Voice"></div><input type="hidden" id="o-tts_voice"></div>
     </div>
@@ -1066,7 +1066,7 @@ function engOptions() {
   if (ENG.sel) return { ...base, tts_mode: ENG.sel.mode, tts_voice: ENG.sel.id };  // a voice kept from an earlier book
   const mode = $("#o-tts_mode").value;
   return { ...base, tts_mode: mode, tts_voice: $("#o-tts_voice").value, tts_description: $("#o-tts_description").value, own_voice: $("#eng-own").checked,
-           keep_voice: mode !== "preset" && $("#vc-keep").checked, tts_voice_name: $("#vc-name").value };
+           keep_voice: mode !== "preset" && $("#vc-keep").checked };
 }
 async function engLoad() {
   try {
@@ -1106,16 +1106,8 @@ function engModes() {
   $("#vc-modehint").textContent = MODE_UI[cur] ? MODE_UI[cur][1] : "";
 }
 $("#vc-modes").addEventListener("click", (ev) => { const b = ev.target.closest("[data-mode]"); if (!b) return; $("#o-tts_mode").value = b.dataset.mode; engMode(); engVoices(); engEstimate(); });
-function suggestVoiceName() {
-  const f = $("#vc-name"); if (!f || f.dataset.own === "1") return;
-  const m = $("#o-tts_mode").value, lang = book && LANGS[book.lang] ? LANGS[book.lang] : "";
-  const base = (ENG.vlist || []).find(v => v.id === $("#o-tts_voice").value);
-  f.value = m === "design" ? $("#o-tts_description").value.trim().slice(0, 40).replace(/[ ,.]+$/, "") : m === "localize" ? [base && base.name ? base.name.split(" - ")[0] : "", lang].filter(Boolean).join(" · ") : m === "clone" ? "My clone" : "";
-}
-$("#vc-name").addEventListener("input", (ev) => { ev.target.dataset.own = ev.target.value.trim() ? "1" : ""; });
-["#o-tts_description", "#vc-list", "#vc-modes"].forEach(sel => $(sel).addEventListener(sel === "#o-tts_description" ? "input" : "click", () => setTimeout(suggestVoiceName, 0)));
 function engMode() {
-  engModes(); suggestVoiceName();
+  engModes();
   const e = ENG.cur(); if (!e || !e.cloud) return; const m = $("#o-tts_mode").value, sel = !!ENG.sel;
   $("#vc-modes").parentElement.hidden = sel || e.voice_modes.length < 2;
   document.querySelector(".eng-pick").hidden = sel || !(m === "preset" || m === "localize"); document.querySelector(".eng-desc").hidden = sel || m !== "design";
