@@ -11,16 +11,16 @@ from folivox.text.chunk import ChunkOptions, plan_chapter, sentences
 CASES = {
     # code: (text, expected sentences after normalisation, a heading line)
     "en": ("In 1984 Mr. Smith paid $5. He left on the 2nd day.",
-           ["In nineteen eighty-four Mr. Smith paid five dollars.", "He left on the second day."], "Chapter 12"),
+           ["In nineteen eighty-four Mister Smith paid five dollars.", "He left on the second day."], "Chapter 12"),
     "de": ("Im Jahr 1984 kamen 10.000 Leute, z.B. Hans. Er ging.",
-           ["Im Jahr neunzehnhundertvierundachtzig kamen zehntausend Leute, z.B. Hans.", "Er ging."],
+           ["Im Jahr neunzehnhundertvierundachtzig kamen zehntausend Leute, zum Beispiel Hans.", "Er ging."],
            "Kapitel 3"),
-    "fr": ("M. Dupont avait 3 chats. Il partit.", ["M. Dupont avait trois chats.", "Il partit."], "Chapitre IV"),
-    "es": ("El Sr. Pérez tenía 3 gatos. Se fue.", ["El Sr. Pérez tenía tres gatos.", "Se fue."], "Capítulo 2"),
-    "it": ("Il sig. Rossi aveva 3 gatti. Partì.", ["Il sig. Rossi aveva tre gatti.", "Partì."], "Capitolo 7"),
+    "fr": ("M. Dupont avait 3 chats. Il partit.", ["Monsieur Dupont avait trois chats.", "Il partit."], "Chapitre IV"),
+    "es": ("El Sr. Pérez tenía 3 gatos. Se fue.", ["El señor Pérez tenía tres gatos.", "Se fue."], "Capítulo 2"),
+    "it": ("Il sig. Rossi aveva 3 gatti. Partì.", ["Il signor Rossi aveva tre gatti.", "Partì."], "Capitolo 7"),
     "zh": ("他有305本书。他走了！", ["他有三百零五本书。", "他走了！"], "第三章 风"),
     "ja": ("本が3冊ある。彼は去った。", ["本が三冊ある。", "彼は去った。"], "第1章"),
-    "ko": ("책이 3권 있다. 그는 떠났다.", ["책이 삼권 있다.", "그는 떠났다."], "제 3 장"),
+    "ko": ("책이 3권 있다. 그는 떠났다.", ["책이 세 권 있다.", "그는 떠났다."], "제 3 장"),
     "ru": ("В 1984 году было 3 кг. Он ушёл.",
            ["В тысяча девятьсот восемьдесят четвёртом году было три килограмма.", "Он ушёл."], "Глава 5"),
 }

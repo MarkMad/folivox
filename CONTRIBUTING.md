@@ -39,8 +39,9 @@ class Portuguese(LatinLanguage):
     abbreviations = ("sr", "sra", "dr")      # "Sr." does not end a sentence
     hallucinations = (r"legendas pela comunidade[^.!?]*[.!?]?",)  # Whisper junk at the end of audio
 
-    def numbers(self, text):                 # optional: units, currencies, thousands separators…
-        return super().numbers(text)
+    thousands_re = r"(?<=\d)\.(?=\d{3}(?!\d))"   # "10.000" → "10000"
+    months = ("janeiro", "fevereiro")        # + dates, times, money, units, roman numerals: see es.py
+    abbreviation_map = ((r"Sr\.(?=\s+[A-Z])", "senhor"),)   # expanded before reading
 
 
 register(Portuguese())

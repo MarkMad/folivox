@@ -13,3 +13,24 @@
    to retake.
 5. **Assemble** — fragments are joined with structural pauses (sentence < paragraph < heading <
    chapter), loudness-normalised (EBU R128, −18 LUFS) and encoded to AAC in an `.m4b` with chapters.
+
+## What the normaliser reads out, per language
+
+Every language gets the same pipeline (abbreviations → roman numerals → dates → times → money → phone
+numbers → units → ordinals → gender agreement → symbols → plain numbers); the data and the agreement
+rules differ.
+
+| | Roman numerals | Dates / times | Money, units | Agreement and other |
+|---|---|---|---|---|
+| ru | yes | yes | yes | cases, `ё`, stress marks |
+| en | `Henry the eighth`, `Chapter four` | `July fourth`, `seven oh five` | `$5.50` → five dollars fifty cents | `Mr.` → Mister |
+| de | `Ludwig der Vierzehnte`, `XVII. Jahrhundert` | `am dritten Mai`, `3.5.2020`, `7:30 Uhr` | `5,50 €`, units | `ein Mann` / `eine Frau` |
+| fr | `Louis quatorze`, `XXe siècle` | `1er mai`, `7h30` | `5,50 €`, units | `une fille`, `vingt et une filles` |
+| es | `Felipe segundo`, `siglo diecinueve` | `1.º de mayo`, `7:30` | `5,50 €`, units | `veintiuna mujeres`, `doscientas casas` |
+| it | `Luigi quattordicesimo`, `XIX secolo` | `1º maggio`, `7:30` | `5,50 €`, units | `un'amica`, `uno zaino`, `3ª` |
+| zh | | `7:30`, `2024年` digit by digit | `¥5.5`, units | `两个` instead of `二个` |
+| ja | | `7:30` → `七時三十分` | `$5`, `¥500`, units | |
+| ko | | `7:30`, months `유월`/`시월` | `₩5,000`, units | native counters: `세 명`, `두 시간`, `스무 살` |
+
+Not covered yet: Japanese kanji readings (needs a morphological analyser such as `pyopenjtalk`),
+heteronyms in English, and noun gender in French/German beyond common words and endings.
