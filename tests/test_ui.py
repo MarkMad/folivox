@@ -278,3 +278,75 @@ def test_ui_token_is_stable_and_private(tmp_path, monkeypatch):
     first = ui_token()
     assert len(first) >= 24 and ui_token() == first
     assert stat.S_IMODE((tmp_path / "ui_token").stat().st_mode) == 0o600
+
+
+def png_bytes():
+    """A valid 6x8 grey PNG without any imaging library."""
+    import struct
+    import zlib
+
+    def chunk(kind, data):
+        body = kind + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body))
+
+    rows = b"".join(b"\x00" + b"\xc8" * 6 for _ in range(8))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 6, 8, 8, 0, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b""))
+
+
+def test_custom_cover_upload_use_and_reset(client):
+    b = upload(client)
+    bid = b["book_id"]
+    assert b["cover"] == "" and client.get(f"/api/books/{bid}/cover").status_code == 404
+    bad = client.put(f"/api/books/{bid}/cover", files={"file": ("x.txt", b"not an image", "text/plain")})
+    assert bad.status_code == 415
+    r = client.put(f"/api/books/{bid}/cover", files={"file": ("c.png", png_bytes(), "image/png")})
+    assert r.status_code == 200 and r.json() == {"cover": "custom"}
+    got = client.get(f"/api/books/{bid}/cover")
+    assert got.status_code == 200 and got.content[:4] == b"\x89PNG"
+    assert client.get(f"/api/books/{bid}/chapters").json()["cover"] == "custom"
+    seen = {}
+
+    def spy(book, opts, events):
+        seen["cover"], seen["no_cover"] = opts.cover, opts.no_cover
+        return fake_render(book, opts, events)
+
+    client.app.state.ui.manager._render = spy
+    job = client.post("/api/jobs", json={"kind": "preview", "book_id": bid, "chapters": [1]}).json()["id"]
+    wait_done(client, job)
+    assert seen["cover"].read_bytes()[:4] == b"\x89PNG" and seen["no_cover"] is False
+    assert client.put(f"/api/books/{bid}/cover", json={"mode": "none"}).json() == {"cover": "none"}
+    assert client.get(f"/api/books/{bid}/cover").status_code == 404
+    job = client.post("/api/jobs", json={"kind": "preview", "book_id": bid, "chapters": [1]}).json()["id"]
+    wait_done(client, job)
+    assert seen["cover"] is None and seen["no_cover"] is True
+    assert client.put(f"/api/books/{bid}/cover", json={"mode": "bad"}).status_code == 400
+
+
+def test_last_uploaded_book_survives_restarts_and_a_lost_session(tmp_path):
+    def open_app():
+        app = create_app(token=TOKEN, port=8765, data_dir=tmp_path / "ui", render=fake_render)
+        return TestClient(app, base_url="http://127.0.0.1:8765", headers={"X-Folivox-Token": TOKEN})
+
+    c = open_app()
+    assert c.get("/api/session").json() is None  # nothing uploaded yet
+    first = upload(c)["book_id"]
+    time.sleep(0.02)
+    second = upload(c)["book_id"]
+    # a restarted server, no PUT /api/session was ever sent: the last upload is selected
+    assert open_app().get("/api/session").json() == {"book_id": second}
+    # the session file is lost or corrupted: fall back to the newest upload
+    (tmp_path / "ui" / "session.json").write_text("{broken", encoding="utf-8")
+    assert open_app().get("/api/session").json() == {"book_id": second}
+    (tmp_path / "ui" / "session.json").unlink()
+    assert open_app().get("/api/session").json() == {"book_id": second}
+    # the saved session points at a deleted book: the next newest one is used
+    import shutil
+
+    shutil.rmtree(tmp_path / "ui" / "uploads" / second)
+    assert open_app().get("/api/session").json() == {"book_id": first}
+    # a real session is kept as it is
+    c2 = open_app()
+    c2.put("/api/session", json={"book_id": first, "chapters": [2], "voice": "russlib"})
+    assert open_app().get("/api/session").json()["chapters"] == [2]
+    assert not list((tmp_path / "ui").glob("session.tmp"))

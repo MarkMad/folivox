@@ -19,6 +19,11 @@ class FFmpegMissing(RuntimeError):
     pass
 
 
+# Any image (PNG, WebP, a 6000 px scan…) becomes a JPEG of at most 1600 px wide: what players expect, and small.
+COVER_ARGS = ["-c:v", "mjpeg", "-vf", "scale='min(1600,iw)':-2:flags=lanczos,format=yuvj420p", "-q:v", "3",
+              "-disposition:v:0", "attached_pic"]
+
+
 def ffmpeg() -> str:
     exe = shutil.which("ffmpeg")
     if not exe:
@@ -106,10 +111,10 @@ def write_m4b(chapters: list[ChapterAudio], out: Path, meta: BookMeta, cover: by
         args = ["-f", "concat", "-safe", "0", "-i", str(lst), "-i", str(tmpd / "meta.txt")]
         maps = ["-map", "0:a", "-map_metadata", "1", "-map_chapters", "1"]
         if cover:
-            cov = tmpd / "cover.jpg"
+            cov = tmpd / "cover.img"
             cov.write_bytes(cover)
             args += ["-i", str(cov)]
-            maps += ["-map", "2:v", "-c:v", "mjpeg", "-disposition:v:0", "attached_pic"]
+            maps += ["-map", "2:v", *COVER_ARGS]
         tmp_out = tmpd / "book.m4b"
         run([*args, *maps, "-c:a", "aac", "-b:a", bitrate, "-ac", "1", "-movflags", "+faststart",
              "-f", "mp4", str(tmp_out)])
@@ -124,7 +129,7 @@ def write_mp3s(chapters: list[ChapterAudio], out_dir: Path, meta: BookMeta, cove
     with tempfile.TemporaryDirectory() as tmp:
         cov = None
         if cover:
-            cov = Path(tmp) / "cover.jpg"
+            cov = Path(tmp) / "cover.img"
             cov.write_bytes(cover)
         for i, c in enumerate(chapters, 1):
             safe = "".join(ch for ch in c.title if ch not in '<>:"/\\|?*').strip()[:80] or f"{i:03d}"
@@ -133,7 +138,7 @@ def write_mp3s(chapters: list[ChapterAudio], out_dir: Path, meta: BookMeta, cove
             maps = ["-map", "0:a"]
             if cov:
                 args += ["-i", str(cov)]
-                maps += ["-map", "1:v", "-c:v", "mjpeg", "-disposition:v:0", "attached_pic"]
+                maps += ["-map", "1:v", *COVER_ARGS]
             run([*args, *maps, "-c:a", "libmp3lame", "-b:a", bitrate, "-ac", "1", "-id3v2_version", "3",
                  "-metadata", f"title={c.title}", "-metadata", f"album={meta.title}",
                  "-metadata", f"artist={meta.author}", "-metadata", f"track={i}/{len(chapters)}",

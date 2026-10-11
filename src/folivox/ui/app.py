@@ -63,7 +63,7 @@ def _chapters(book, depth: int) -> list[dict]:
             for i, ch in enumerate(book.chapters(depth), 1)]
 
 
-def _book_summary(book_id: str, book, depth: int = 2) -> dict:
+def _book_summary(book_id: str, book, depth: int = 2, cover: str = "") -> dict:
     from folivox import lang as languages
 
     try:
@@ -72,6 +72,7 @@ def _book_summary(book_id: str, book, depth: int = 2) -> dict:
         lang_name = book.lang
     return {"book_id": book_id, "title": book.title, "author": book.author, "lang": book.lang,
             "lang_name": lang_name, "format": book.source_format, "year": book.year, "has_cover": bool(book.cover),
+            "cover": cover,
             "chars": book.chars, "estimated_seconds": book.estimated_seconds, "chapters": _chapters(book, depth)}
 
 
@@ -156,7 +157,70 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             shutil.rmtree(folder, ignore_errors=True)
             raise ApiError(f"Cannot read the book: {e}") from None
         state.books[book_id] = {"book": book, "path": path}
-        return JSONResponse(_book_summary(book_id, book))
+        write_session({"book_id": book_id})  # the last uploaded book survives a reload even before any other change
+        return JSONResponse(_book_summary(book_id, book, cover=cover_kind(book_id, book)))
+
+    # ---- cover: the book's own, an image you upload, or none ----------------------------------------
+    IMAGE_TYPES = ((b"\xff\xd8\xff", "jpg", "image/jpeg"), (b"\x89PNG\r\n\x1a\n", "png", "image/png"),
+                   (b"GIF8", "gif", "image/gif"))
+
+    def sniff_image(data: bytes) -> tuple[str, str] | None:
+        for magic, ext, mime in IMAGE_TYPES:
+            if data.startswith(magic):
+                return ext, mime
+        return ("webp", "image/webp") if data[:4] == b"RIFF" and data[8:12] == b"WEBP" else None
+
+    def custom_cover(book_id: str) -> Path | None:
+        d = state.data_dir / "covers"
+        found = [p for p in d.glob(f"{Path(book_id).name}.*") if p.suffix != ".none"] if d.is_dir() else []
+        return found[0] if found else None
+
+    def cover_kind(book_id: str, book) -> str:
+        """custom | none | book | '' (no cover at all)"""
+        if custom_cover(book_id):
+            return "custom"
+        if (state.data_dir / "covers" / f"{Path(book_id).name}.none").exists():
+            return "none"
+        return "book" if book.cover else ""
+
+    async def get_cover(request: Request):
+        bid = request.path_params["book_id"]
+        book = state.book(bid)["book"]
+        mine = custom_cover(bid)
+        if mine:
+            return FileResponse(mine, headers={"Cache-Control": "no-cache"})
+        if cover_kind(bid, book) == "book":
+            return Response(book.cover, media_type=book.cover_mime or "image/jpeg")
+        raise ApiError("No cover", 404)
+
+    async def put_cover(request: Request):
+        bid = request.path_params["book_id"]
+        book = state.book(bid)["book"]
+        folder = state.data_dir / "covers"
+        folder.mkdir(parents=True, exist_ok=True)
+        key = Path(bid).name
+        if "multipart" in request.headers.get("content-type", ""):
+            f = (await request.form()).get("file")
+            if f is None or not hasattr(f, "read"):
+                raise ApiError("No image in the request")
+            data = await f.read()
+            if len(data) > 15 * 1024 * 1024:
+                raise ApiError("The image is larger than 15 MB", 413)
+            kind = sniff_image(data)
+            if kind is None:
+                raise ApiError("Use a JPEG, PNG, WebP or GIF image", 415)
+            for old in folder.glob(f"{key}.*"):
+                old.unlink()
+            (folder / f"{key}.{kind[0]}").write_bytes(data)
+        else:  # {"mode": "book"} back to the book's own cover, {"mode": "none"} no cover
+            mode = (await request.json()).get("mode")
+            if mode not in ("book", "none"):
+                raise ApiError("mode must be book or none")
+            for old in folder.glob(f"{key}.*"):
+                old.unlink()
+            if mode == "none":
+                (folder / f"{key}.none").write_bytes(b"")
+        return JSONResponse({"cover": cover_kind(bid, book)})
 
     async def book_chapters(request: Request):
         entry = state.book(request.path_params["book_id"])
@@ -169,23 +233,44 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             except ValueError as e:
                 raise ApiError(str(e)) from None
         depth = int(request.query_params.get("depth", 2))
-        return JSONResponse(_book_summary(request.path_params["book_id"], book, depth))
+        bid = request.path_params["book_id"]
+        return JSONResponse(_book_summary(bid, book, depth, cover_kind(bid, book)))
+
+    def write_session(body: dict) -> None:
+        """Atomic, so a crash or two writers never leave a half-written file that would reset the page."""
+        state.data_dir.mkdir(parents=True, exist_ok=True)
+        tmp = state.session_file.with_suffix(".tmp")
+        tmp.write_text(json.dumps(body), encoding="utf-8")
+        os.replace(tmp, state.session_file)
+
+    def uploads_newest_first() -> list[str]:
+        root = state.data_dir / "uploads"
+        dirs = [d for d in root.iterdir() if d.is_dir() and any(d.iterdir())] if root.is_dir() else []
+        return [d.name for d in sorted(dirs, key=lambda d: d.stat().st_mtime, reverse=True)]
 
     async def get_session(request: Request):
-        """What the page had selected, so a reload (or a restart) shows the same screen."""
+        """What the page had selected, so a reload (or a restart) shows the same screen. If the saved session is
+        missing or its book is gone, the most recently uploaded book is selected."""
         try:
             data = json.loads(state.session_file.read_text(encoding="utf-8"))
             state.book(data.get("book_id", ""))  # drop a session whose book is gone
-        except (OSError, ValueError, ApiError):
+        except (OSError, ValueError, ApiError, AttributeError):
             data = None
+        if data is None:
+            for bid in uploads_newest_first()[:5]:
+                try:
+                    state.book(bid)
+                except Exception:  # noqa: BLE001 — an unreadable upload must not block the others
+                    continue
+                data = {"book_id": bid}
+                break
         return JSONResponse(data)
 
     async def put_session(request: Request):
         body = await request.json()
         if not isinstance(body, dict):
             raise ApiError("Session must be an object")
-        state.data_dir.mkdir(parents=True, exist_ok=True)
-        state.session_file.write_text(json.dumps(body), encoding="utf-8")
+        write_session(body)
         return JSONResponse({"ok": True})
 
     def read_favorites() -> list[str]:
@@ -303,7 +388,9 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         common = dict(voice_wav=v.path, voice_text=body.get("voice_text") or v.transcript, lang=book.lang,
                       depth=int(o.get("depth", 2)), max_chars=int(o.get("max_chars", 400)), stress=stress,
                       speed=float(o.get("speed", 1.0)), qa=bool(o.get("qa", True)), max_takes=int(o.get("takes", 3)),
-                      tts=tts, asr=asr, device=str(o.get("device", "auto")))
+                      tts=tts, asr=asr, device=str(o.get("device", "auto")),
+                      cover=custom_cover(str(body.get("book_id", ""))),
+                      no_cover=cover_kind(str(body.get("book_id", "")), book) == "none")
         if kind == "preview":
             first = [int(chapters[0])] if chapters else [1]
             work = state.data_dir / "previews" / uuid.uuid4().hex[:8]
@@ -740,6 +827,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/", index),
         Route("/api/books", upload_book, methods=["POST"]),
         Route("/api/books/{book_id}/chapters", book_chapters),
+        Route("/api/books/{book_id}/cover", get_cover),
+        Route("/api/books/{book_id}/cover", put_cover, methods=["PUT", "POST"]),
         Route("/api/session", get_session),
         Route("/api/session", put_session, methods=["PUT"]),
         Route("/api/favorites", put_favorites, methods=["PUT"]),

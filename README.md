@@ -79,6 +79,7 @@ longer explanations (`voices`, `providers`, `config`, `languages`, `resuming`, `
 | Output | `--output`, `-o` | `<book>.m4b` | output file (a folder with `--mp3`) |
 | | `--mp3` | | one mp3 per chapter instead of an m4b |
 | | `--bitrate` | `64k` | AAC/MP3 bitrate |
+| | `--cover` | the book's own | an image (JPEG, PNG, WebP) to embed instead, or `none`; shrunk to 1600 px |
 | | `--work-dir` | `<output>.folivox/` | cache and journal; delete it when done |
 | | `--verbose` | | print every fragment |
 

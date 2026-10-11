@@ -273,6 +273,8 @@ def render(
     mp3: bool = typer.Option(False, "--mp3", rich_help_panel=P_OUT,
                              help="Write one MP3 per chapter instead of an m4b."),
     bitrate: str = typer.Option("64k", "--bitrate", rich_help_panel=P_OUT, help="AAC/MP3 bitrate."),
+    cover: str | None = typer.Option(None, "--cover", rich_help_panel=P_OUT, show_default="the book's own cover",
+                                     help="Cover image (JPEG, PNG, WebP) or `none` for no cover."),
     work_dir: Path | None = typer.Option(None, "--work-dir", rich_help_panel=P_OUT, show_default="<output>.folivox",
                                          help="Cache and journal folder (makes runs resumable)."),
     verbose: bool = typer.Option(False, "--verbose", rich_help_panel=P_OUT, help="Print every fragment."),
@@ -287,6 +289,12 @@ def render(
     if voice_lang and voice_lang != book.lang:
         console.print(f"[yellow]⚠ The voice sample is in {_lang_name(voice_lang)}, the book in "
                       f"{_lang_name(book.lang)}: the accent may carry over.[/]")
+    cover_path = None
+    if cover and cover.lower() != "none":
+        cover_path = Path(cover).expanduser()
+        if not cover_path.is_file():
+            console.print(f"[red]Cover image not found: {cover_path}[/]")
+            raise typer.Exit(2)
     if output is None:
         output = book_path.with_suffix("" if mp3 else ".m4b")
     opts = RenderOptions(output=output, voice_wav=voice_path, voice_text=voice_text, work_dir=work_dir,
@@ -294,7 +302,8 @@ def render(
                          lang=book.lang, speed=speed, device=device.value, threads=threads,
                          model_dir=str(model_dir) if model_dir else None, qa=qa, max_takes=takes, mp3=mp3,
                          bitrate=bitrate, llm=llm.value, tts=config.provider("tts", tts) or "cosyvoice3",
-                         asr=config.provider("asr", asr) or "auto")
+                         asr=config.provider("asr", asr) or "auto", cover=cover_path,
+                         no_cover=bool(cover) and cover.lower() == "none")
     console.print(f"[bold]{book.title}[/] — {book.author or 'unknown author'}; {_lang_name(book.lang)}; "
                   f"estimated audio ≈ {fmt_duration(book.estimated_seconds)}")
     events = RichEvents(verbose)

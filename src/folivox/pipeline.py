@@ -46,6 +46,8 @@ class RenderOptions:
     mp3: bool = False
     bitrate: str = "64k"
     narrator: str = ""
+    cover: Path | None = None  # an image to use instead of the book's own cover
+    no_cover: bool = False  # write no cover at all
     chunk: ChunkOptions = field(default_factory=ChunkOptions)
 
     def resolved_work_dir(self) -> Path:
@@ -273,12 +275,13 @@ def assemble(journal: Journal, book: Book, opts: RenderOptions, sample_rate: int
     if not built:
         raise RuntimeError("Nothing to assemble: no chapter is fully rendered")
     meta = BookMeta(book.title, book.author, book.year, book.annotation, opts.narrator)
+    cover = None if opts.no_cover else (opts.cover.read_bytes() if opts.cover else book.cover)
     events.stage("encode", "Encoding {fmt}".format(fmt="MP3" if opts.mp3 else "M4B"))
     if opts.mp3:
         out_dir = opts.output if opts.output.suffix == "" else opts.output.with_suffix("")
-        write_mp3s(built, out_dir, meta, book.cover)
+        write_mp3s(built, out_dir, meta, cover)
         return out_dir
-    write_m4b(built, opts.output, meta, book.cover, opts.bitrate)
+    write_m4b(built, opts.output, meta, cover, opts.bitrate)
     return opts.output
 
 

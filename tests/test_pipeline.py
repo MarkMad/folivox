@@ -182,3 +182,28 @@ def test_failed_fragment_is_split_at_sentence_boundary():
     assert sc <= 0.08
     assert len(attempts) > 2  # two failed full takes, then the halves
     assert any(len(c) < len(text) for c in synth.calls)
+
+
+def test_any_image_becomes_a_small_jpeg_cover(tmp_path):
+    """A user-supplied PNG is embedded as a JPEG attached picture, scaled down to at most 1600 px."""
+    import json
+    import subprocess
+
+    import numpy as np
+    import soundfile as sf
+
+    from folivox.audio.assemble import BookMeta, ChapterAudio, ffmpeg, write_m4b
+
+    png = tmp_path / "cover.png"
+    sf_wav = tmp_path / "c.flac"
+    sf.write(str(sf_wav), (0.1 * np.sin(np.arange(24000) / 20)).astype("float32"), 24000)
+    # a 2400x1800 PNG made by ffmpeg itself (no imaging library needed)
+    subprocess.run([ffmpeg(), "-y", "-f", "lavfi", "-i", "color=c=red:s=2400x1800", "-frames:v", "1", str(png)],
+                   check=True, capture_output=True)
+    out = tmp_path / "book.m4b"
+    write_m4b([ChapterAudio("One", sf_wav, 1.0)], out, BookMeta("T", "A"), cover=png.read_bytes())
+    probe = subprocess.run([ffmpeg().replace("ffmpeg", "ffprobe"), "-v", "error", "-show_streams", "-of", "json",
+                            str(out)], capture_output=True, text=True, check=True)
+    video = [s for s in json.loads(probe.stdout)["streams"] if s["codec_type"] == "video"]
+    assert len(video) == 1 and video[0]["codec_name"] == "mjpeg" and video[0]["disposition"]["attached_pic"] == 1
+    assert video[0]["width"] == 1600 and video[0]["height"] == 1200

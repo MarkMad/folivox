@@ -136,6 +136,8 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 .wk-cancel { margin-left:8px; } @media (prefers-reduced-motion: reduce) { .spin { animation-duration:3s; } }
 .gp-vinfo { background:var(--bg); border-radius:10px; padding:8px 12px; font-size:14px; line-height:1.45; }
 .gp-readonly { background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px 14px; line-height:1.55; } .gp-readonly p { margin:0 0 8px; } .gp-readonly p:last-child { margin:0; }
+.cover-box { display:flex; gap:16px; align-items:center; margin-top:12px; padding:10px 12px; border:1px dashed var(--line); border-radius:12px; } .cover-box.over { border-color:var(--accent); background:var(--glow); }
+.cover-thumb { width:84px; height:84px; flex:none; border-radius:8px; background:var(--bg); display:grid; place-items:center; overflow:hidden; } .cover-thumb img { width:100%; height:100%; object-fit:cover; }
 .gp-adv summary { cursor:pointer; color:var(--mute); font-size:13px; } .gp-est { font-size:14px; }
 .gp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px 20px; }
 .gp-take { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,200px) 18px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; }
@@ -159,6 +161,13 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
 <section id="s-book"><h2>1 · Book</h2>
   <div id="drop">Drop an FB2, EPUB, DOCX, PDF or TXT file here, or click to choose<input id="file" type="file" hidden accept=".fb2,.zip,.epub,.docx,.pdf,.txt"></div>
   <div id="book-info" class="mute" style="margin-top:10px"></div>
+  <div id="cover-box" class="cover-box" hidden>
+    <div class="cover-thumb"><img id="cover-img" alt="Audiobook cover" hidden><span id="cover-empty" class="mute">no cover</span></div>
+    <div class="cover-side"><b>Cover of the audiobook</b><div class="mute" id="cover-state"></div>
+      <div class="row" style="margin-top:6px"><button type="button" id="cover-change">Choose an image…</button><button type="button" id="cover-book" class="chip" hidden>Use the book's own</button><button type="button" id="cover-none" class="chip">No cover</button><span id="cover-msg" class="mute"></span></div>
+      <small class="mute">JPEG, PNG or WebP (or drop it here). It is saved in the audiobook file and shrunk to at most 1600 px wide.</small></div>
+    <input id="cover-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+  </div>
 </section>
 
 <section id="s-chapters" class="disabled"><h2>2 · Chapters</h2>
@@ -352,8 +361,32 @@ async function upload(file) {
   try { setBook(await api("/api/books", { method: "POST", body: fd })); }
   catch (e) { $("#book-info").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 }
+// ---- cover ---------------------------------------------------------------------------------------
+const COVER_TEXT = { custom: "Your image", book: "From the book file", none: "No cover will be written", "": "The book has no cover; add an image if you like" };
+function showCover(kind) {
+  if (!book) return; book.cover = kind; $("#cover-box").hidden = false;
+  const has = kind === "custom" || kind === "book";
+  $("#cover-img").hidden = !has; $("#cover-empty").hidden = has; $("#cover-empty").textContent = kind === "none" ? "none" : "no cover";
+  if (has) $("#cover-img").src = tok(`/api/books/${book.book_id}/cover?v=${Date.now()}`);
+  $("#cover-state").textContent = COVER_TEXT[kind] || ""; $("#cover-book").hidden = !(kind !== "book" && book.has_cover); $("#cover-none").hidden = kind === "none";
+}
+async function sendCover(file) {
+  $("#cover-msg").textContent = "Uploading…";
+  try { const fd = new FormData(); fd.append("file", file); const r = await api(`/api/books/${book.book_id}/cover`, { method: "PUT", body: fd }); $("#cover-msg").textContent = ""; showCover(r.cover); }
+  catch (e) { $("#cover-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
+async function setCoverMode(mode) {
+  try { const r = await api(`/api/books/${book.book_id}/cover`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode }) }); showCover(r.cover); }
+  catch (e) { $("#cover-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
+$("#cover-change").onclick = () => $("#cover-file").click();
+$("#cover-file").onchange = (e) => { if (e.target.files[0]) sendCover(e.target.files[0]); e.target.value = ""; };
+$("#cover-book").onclick = () => setCoverMode("book"); $("#cover-none").onclick = () => setCoverMode("none");
+["dragover", "dragenter"].forEach(t => $("#cover-box").addEventListener(t, (e) => { e.preventDefault(); $("#cover-box").classList.add("over"); }));
+["dragleave", "drop"].forEach(t => $("#cover-box").addEventListener(t, (e) => { e.preventDefault(); $("#cover-box").classList.remove("over"); }));
+$("#cover-box").addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) sendCover(f); });
 function setBook(b, keep, lang) {
-  book = b;
+  book = b; showCover(b.cover || "");
   $("#book-info").innerHTML = `<b style="color:var(--ink)">${esc(b.title)}</b> — ${esc(b.author || "unknown author")} · ${esc(b.lang_name)} · ${esc(b.format.toUpperCase())}${b.year ? " · " + esc(b.year) : ""} · ${num(b.chars)} characters · ≈ ${fmt(b.estimated_seconds)}`;
   $("#lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}" ${c === b.lang ? "selected" : ""}>${n}</option>`).join("");
   if (lang) $("#lang").value = lang;
@@ -687,7 +720,8 @@ async function restoreSession() {
     book = await api(`/api/books/${s.book_id}/chapters?depth=${s.depth || 2}&lang=${s.lang || ""}`);
     voice = s.voice || ""; setBook(book, new Set(s.chapters || []), s.lang);
     for (const [id, v] of Object.entries(s.options || {})) { const e = document.getElementById(id); if (e) e.value = v; }
-  } finally { restoring = false; }
+  } catch (e) { book = null; log("Could not restore the last book: " + e.message, "warn"); }  // never block the page over it
+  finally { restoring = false; }
 }
 
 // ---- jobs: the studio view -----------------------------------------------------------------------
