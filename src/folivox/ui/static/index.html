@@ -135,6 +135,7 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 .spin { display:inline-block; width:12px; height:12px; border:2px solid var(--seg-pending); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; vertical-align:-2px; margin-right:6px; } @keyframes spin { to { transform:rotate(360deg); } }
 .wk-cancel { margin-left:8px; } @media (prefers-reduced-motion: reduce) { .spin { animation-duration:3s; } }
 .gp-vinfo { background:var(--bg); border-radius:10px; padding:8px 12px; font-size:14px; line-height:1.45; }
+.gp-readonly { background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px 14px; line-height:1.55; } .gp-readonly p { margin:0 0 8px; } .gp-readonly p:last-child { margin:0; }
 .gp-adv summary { cursor:pointer; color:var(--mute); font-size:13px; } .gp-est { font-size:14px; }
 .gp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px 20px; }
 .gp-take { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,200px) 18px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; }
@@ -243,8 +244,10 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
 
       <div class="gp-step"><span>3</span> What should it say?</div>
       <div class="row"><div class="seg" id="gp-textseg"><button type="button" data-t="builtin" class="on">Built-in sample</button><button type="button" data-t="book">From my book</button><button type="button" data-t="custom">My own text</button></div><span class="mute" id="gp-text-msg"></span></div>
-      <textarea id="gp-text" rows="4"></textarea>
-      <small class="mute">Calm, easy words work best: no names or numbers. Several texts: separate with an empty line (at most 5). Short is good: about 10 seconds.</small>
+      <div id="gp-text-view" class="gp-readonly" hidden></div>
+      <textarea id="gp-text" rows="4" hidden placeholder="Type or paste the text to be spoken"></textarea>
+      <div class="row" id="gp-text-actions"><button type="button" class="chip" id="gp-text-next" hidden></button><button type="button" class="chip" id="gp-text-copy" hidden>Edit a copy in “My own text”</button></div>
+      <small class="mute" id="gp-text-hint"></small>
 
       <div class="gp-step"><span>4</span> Generate attempts</div>
       <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:6px">Attempts <input id="gp-takes" type="number" min="1" max="6" value="3" style="width:60px"></label>
@@ -928,7 +931,7 @@ function gpProvider() {
   const hints = { preset: "Use one of the service's ready-made voices", design: "Describe a new voice in words", localize: "Take a voice and give it the native accent of the language", clone: "Copy one of your own recorded voices" };
   $("#gp-modes").innerHTML = p.modes.map(m => `<div class="gp-mode ${m === GP.mode ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${m === GP.mode}" data-m="${m}"><b>${esc(({ preset: "Ready-made voice", design: "Describe a voice", localize: "Native accent", clone: "Clone my voice" })[m] || m)}</b><small>${esc(hints[m] || "")}${(p.sample_usd || {})[m] != null ? " · " + money(p.sample_usd[m]) : ""}</small></div>`).join("");
   gpMode();
-  if (!$("#gp-text").value) gpTexts("builtin");
+  if (!GP.textInit) { GP.textInit = true; gpTexts("builtin"); }
 }
 $("#gp-provs").addEventListener("click", (e) => { const c = e.target.closest("[data-p]"); if (c) { GP.prov = GP.providers.find(p => p.name === c.dataset.p); gpProviders(); } });
 $("#gp-provs").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { const c = e.target.closest("[data-p]"); if (c) { e.preventDefault(); c.click(); } } });
@@ -979,7 +982,7 @@ $("#gp-vplay").onclick = () => {
   GP.vaudio = new Audio($("#gp-vplay").dataset.url); $("#gp-vplay").textContent = "❚❚ Stop";
   GP.vaudio.onended = GP.vaudio.onpause = () => { $("#gp-vplay").textContent = "▶ Hear a free sample"; }; GP.vaudio.play().catch(() => { $("#gp-vplay").textContent = "▶ Hear a free sample"; });
 };
-$("#gp-lang").onchange = () => { if (GP.prov && GP.mode !== "design") gpVoices(); if (GP.textSrc === "builtin") gpTexts("builtin"); };
+$("#gp-lang").onchange = () => { if (GP.prov && GP.mode !== "design") gpVoices(); GP.tx.builtin = null; if (GP.textSrc === "builtin") gpTexts("builtin"); };
 $("#gp-model").addEventListener("change", () => { $("#gp-model-custom").hidden = $("#gp-model").value !== "__custom"; gpCheck(); });
 $("#gp-keysave").onclick = async () => {
   const v = $("#gp-key").value.trim(); if (!v) return;
@@ -1001,22 +1004,47 @@ $("#gp-suggest").onclick = async () => {
   catch (e) { done(); $("#gp-suggest-msg").innerHTML = e.name === "AbortError" ? "Cancelled." : `<span class="err">${esc(e.message)}</span>`; }
   $("#gp-suggest").disabled = false;
 };
-async function gpTexts(src) {
+const LS = { get(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+GP.tx = { builtin: null, bi: 0, book: null, custom: LS.get("folivox.gp.custom") };  // what you typed is kept per source, and across reloads
+function gpTextList() {  // the texts that will be spoken
+  if (GP.textSrc === "custom") return $("#gp-text").value.split(/\n\s*\n/).map(t => t.trim()).filter(Boolean);
+  if (GP.textSrc === "builtin") return GP.tx.builtin && GP.tx.builtin.length ? [GP.tx.builtin[GP.tx.bi % GP.tx.builtin.length]] : [];
+  return GP.tx.book || [];
+}
+function gpSaveCustom() { GP.tx.custom = $("#gp-text").value; LS.set("folivox.gp.custom", GP.tx.custom); }
+async function gpTexts(src, reload) {
+  if (GP.textSrc === "custom" && !$("#gp-text").hidden) gpSaveCustom();
   GP.textSrc = src; document.querySelectorAll("#gp-textseg button").forEach(b => b.classList.toggle("on", b.dataset.t === src));
-  $("#gp-text-msg").textContent = "";
-  if (src === "custom") { $("#gp-text").focus(); gpCheck(); return; }
-  const ab = new AbortController(), done = src === "book" ? working($("#gp-text-msg"), "Asking the text LLM to pick passages…", LLM_HINT, ab) : () => {};
-  try {
-    const r = await api("/api/gen/texts", { method: "POST", signal: ab.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ source: src, lang: $("#gp-lang").value, book_id: book.book_id }) });
-    done(); $("#gp-text").value = (src === "builtin" ? r.texts.slice(0, 1) : r.texts).join("\n\n"); $("#gp-text-msg").textContent = "";
-    if (src === "book" && r.lang && $("#gp-lang").value !== r.lang && LANGS[r.lang]) { $("#gp-lang").value = r.lang; if (GP.mode !== "design") gpVoices(); }
-  } catch (e) { done(); $("#gp-text-msg").innerHTML = e.name === "AbortError" ? "Cancelled." : `<span class="err">${esc(e.message)}</span>`; }
+  $("#gp-text-msg").textContent = ""; const custom = src === "custom";
+  $("#gp-text").hidden = !custom; $("#gp-text-view").hidden = custom; $("#gp-text-copy").hidden = custom;
+  $("#gp-text-hint").textContent = custom ? "Calm, easy words work best: no names or numbers. Several texts: separate with an empty line (at most 5). Short is good: about 10 seconds."
+    : "Ready to use as it is. To change the wording, edit a copy in “My own text”.";
+  if (custom) { $("#gp-text").value = GP.tx.custom; $("#gp-text-next").hidden = true; $("#gp-text").focus(); gpCheck(); return; }
+  if (reload || (src === "builtin" ? !GP.tx.builtin : !GP.tx.book)) {
+    const ab = new AbortController(), done = src === "book" ? working($("#gp-text-msg"), "Asking the text LLM to pick passages…", LLM_HINT, ab) : () => {};
+    $("#gp-text-view").textContent = "";
+    try {
+      const r = await api("/api/gen/texts", { method: "POST", signal: ab.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ source: src, lang: $("#gp-lang").value, book_id: book.book_id }) });
+      done(); if (src === "builtin") { GP.tx.builtin = r.texts; GP.tx.bi = 0; if (!GP.tx.custom.trim()) { GP.tx.custom = r.texts[0]; LS.set("folivox.gp.custom", GP.tx.custom); } } else GP.tx.book = r.texts;
+      if (src === "book" && r.lang && $("#gp-lang").value !== r.lang && LANGS[r.lang]) { $("#gp-lang").value = r.lang; if (GP.mode !== "design") gpVoices(); }
+    } catch (e) { done(); $("#gp-text-msg").innerHTML = e.name === "AbortError" ? "Cancelled." : `<span class="err">${esc(e.message)}</span>`; }
+    if (GP.textSrc !== src) return;
+  }
+  const list = gpTextList();
+  $("#gp-text-view").innerHTML = list.map(t => `<p>${esc(t)}</p>`).join("") || `<span class="mute">No text yet.</span>`;
+  $("#gp-text-next").hidden = !(src === "book" || (GP.tx.builtin || []).length > 1); $("#gp-text-next").textContent = src === "book" ? "Pick other passages" : "Another sample";
   gpCheck();
 }
+$("#gp-text-next").onclick = () => { if (GP.textSrc === "book") gpTexts("book", true); else { GP.tx.bi++; gpTexts("builtin"); } };
+$("#gp-text-copy").onclick = () => {
+  const copy = gpTextList().join("\n\n");
+  if (GP.tx.custom.trim() && GP.tx.custom.trim() !== copy.trim() && !confirm("Replace the text in “My own text” with a copy of this one?")) return;
+  GP.tx.custom = copy; LS.set("folivox.gp.custom", GP.tx.custom); gpTexts("custom"); };
+$("#gp-text").addEventListener("input", gpSaveCustom);
 $("#gp-textseg").addEventListener("click", (e) => { const b = e.target.closest("[data-t]"); if (b) gpTexts(b.dataset.t); });
 function gpBody() {
   let model = $("#gp-model").value; if (model === "__custom") model = $("#gp-model-custom").value.trim() || "auto";
-  const texts = $("#gp-text").value.split(/\n\s*\n/).map(t => t.trim()).filter(Boolean), style = $("#gp-style").value.trim();
+  const texts = gpTextList(), style = $("#gp-style").value.trim();
   return { provider: GP.prov.name, mode: GP.mode, model, reference: GP.mode === "clone" ? $("#gp-ref").value : "", own_voice: $("#gp-own").checked, lang: $("#gp-lang").value, texts, takes: +$("#gp-takes").value || 3,
            description: GP.mode === "design" ? $("#gp-desc").value.trim() : (style && !$("#gp-style-row").hidden ? style : ""),
            speaker: GP.mode === "preset" || GP.mode === "localize" ? $("#gp-speaker").value : "", book_id: book ? book.book_id : "" };
