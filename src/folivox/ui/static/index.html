@@ -975,6 +975,24 @@ function playChapter(lane, btn) {
   player = new Audio(tok(`/api/jobs/${job.id}/chapters/${lane.ci + 1}`)); player.lane = lane; player.btn = btn;
   player.onplay = () => { btn.textContent = "❚❚"; syncPv(); }; player.onpause = player.onended = () => { btn.textContent = "▶"; syncPv(); }; player.play();
 }
+// A finished preview describes the settings it was made with: when the engine, model, voice, text or chapters change,
+// the old result must go, otherwise "Play again" would play audio of another engine.
+function invalidatePreview() {
+  if (!job || !job.final || job.kind !== "preview" || $("#studio").hidden) return;
+  if (player) { player.pause(); player = null; }
+  $("#studio").hidden = true; $("#pv-play").hidden = true;
+  $("#run-msg").textContent = "Settings changed: the earlier preview no longer matches. Make a new one.";
+}
+const PREVIEW_INERT = "#eng-ack, #eng-own, #o-max_cost, #o-output_dir, #o-mp3, #o-device, #vq, #vgender, #vlangs, #vc-lang, #vc-sex";
+function previewTouched(ev) {
+  const t = ev.target; if (!t || !t.closest || t.closest(PREVIEW_INERT) || t.closest("#genvoice, #addvoice, #meta-box, #s-book, #adv")) return;
+  if (t.closest("#s-chapters, #s-engine, #s-voice, #s-run details")) invalidatePreview();
+}
+document.addEventListener("change", previewTouched); document.addEventListener("input", previewTouched);
+document.addEventListener("click", (ev) => {
+  const t = ev.target; if (!t.closest || t.closest(".vplay, .vstar, [data-fav], [data-del]")) return;  // auditioning a voice changes nothing
+  if (t.closest("#v-cloud .vcard, #v-cloud [data-mode], #voices .vcard, #vc-saved-list [data-sid]")) invalidatePreview();
+});
 function syncPv() { const on = player && !player.paused; $("#pv-play").textContent = on ? "❚❚ Pause" : player && player.currentTime > 0 ? "▶ Play again" : "▶ Listen to the preview"; }
 $("#pv-play").onclick = () => { const lane = S.lanes.find(l => l.built); if (lane) playChapter(lane, lane.el.querySelector(".lplay")); };
 function feedLine(ev) {
