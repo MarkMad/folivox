@@ -177,6 +177,20 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 .seg { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; } .seg button { border:0; border-radius:0; padding:5px 12px; background:transparent; color:var(--mute); font-size:14px; }
 .seg button.on { background:var(--accent); color:var(--accent-ink); }
 textarea { font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:6px 10px; resize:vertical; }
+.costcard { margin:10px 0; padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:var(--card); }
+.cc-main { display:flex; flex-wrap:wrap; gap:14px 28px; align-items:flex-end; }
+.cc-big { font-size:34px; font-weight:700; line-height:1; color:var(--accent); } .cc-big small { display:block; margin-top:6px; font-size:13px; font-weight:400; color:var(--mute); }
+.cc-facts { display:flex; flex-wrap:wrap; gap:6px 22px; } .cc-facts div { font-size:13px; color:var(--mute); } .cc-facts b { display:block; font-size:16px; color:var(--ink); }
+.cc-sub { margin-top:8px; font-size:13px; color:var(--mute); }
+.costcard details { margin-top:8px; font-size:13px; color:var(--mute); } .costcard details summary { cursor:pointer; }
+.costcard .consent { margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); }
+.runbar { margin-top:16px; padding:14px 16px; border-radius:12px; background:var(--glow); border:1px solid var(--line); }
+.run-sum { font-size:14px; line-height:1.5; margin-bottom:12px; } .run-sum .err, .run-sum .warn { display:block; }
+.run-final { display:flex; flex-wrap:wrap; gap:12px 18px; align-items:center; }
+.big-go { font-size:18px; font-weight:700; padding:14px 34px; border-radius:12px; box-shadow:0 4px 14px var(--glow); }
+.big-go:disabled { opacity:.5; box-shadow:none; }
+.run-side { display:flex; gap:8px; flex-wrap:wrap; } #run-msg { margin-top:8px; }
+@media (max-width:560px) { .big-go { width:100%; } .cc-big { font-size:28px; } }
 .consent { display:flex; gap:8px; align-items:flex-start; font-size:13px; color:var(--mute); }
 @media (prefers-reduced-motion: reduce) { .dotrec { animation:none; } }
 </style>
@@ -351,8 +365,8 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
 </section>
 
 <section id="s-run" class="disabled"><h2>5 · Render</h2>
-  <div id="eng-cloud" class="eng-cloud" hidden style="margin:8px 0">
-    <div id="eng-est" style="margin-bottom:6px"></div>
+  <div id="eng-cloud" class="eng-cloud costcard" hidden>
+    <div id="eng-est"></div>
     <label class="consent"><input type="checkbox" id="eng-ack"><span>I understand that the book text is sent to this online service and billed to my account at the price above. I will check the provider's terms (<a id="eng-terms" href="#" target="_blank" rel="noopener">terms</a>) before sharing or selling the audio. A 600-character preview costs a few cents: try it first.</span></label>
   </div>
   <details><summary>Options</summary>
@@ -366,11 +380,11 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
       <label class="f">Output folder<input id="o-output_dir" type="text" placeholder="~/Audiobooks"></label>
       <label class="f">Device<select id="o-device"><option>auto</option><option>cpu</option><option>cuda</option><option>mps</option></select></label>
     </div></details>
-  <div class="row" style="margin-top:12px">
-    <button id="preview">▶ Preview (first 600 chars)</button>
-    <button id="render" class="primary">Render audiobook</button>
-    <button id="cancel" disabled>Stop (resume later)</button>
-    <span id="run-msg" class="mute grow"></span>
+  <div class="runbar">
+    <div class="run-sum" id="run-sum"></div>
+    <div class="run-final"><button id="render" class="primary big-go">Render audiobook</button>
+      <div class="run-side"><button id="preview">▶ Preview (first 600 chars)</button><button id="cancel" disabled>Stop (resume later)</button></div></div>
+    <div id="run-msg" class="mute"></div>
   </div>
   <div id="studio" hidden>
     <div class="hero">
@@ -507,6 +521,7 @@ function renderChapters(keep) {
 const selected = () => [...document.querySelectorAll("#chapters input:checked")].map(i => +i.dataset.n);
 function selInfo() {
   const s = new Set(selected()); const secs = book.chapters.filter(c => s.has(c.n)).reduce((a, c) => a + c.seconds, 0);
+  if (typeof runSummary === "function") { runSummary(); engEstimate(); }
   $("#sel-info").textContent = `${s.size} of ${book.chapters.length} chapters · ≈ ${fmt(secs)}`;
 }
 $("#all").onclick = () => { document.querySelectorAll("#chapters input").forEach(i => i.checked = true); selInfo(); };
@@ -569,7 +584,7 @@ function drawWave(cv, progress) {
   g.clearRect(0, 0, W, H);
   v.peaks.forEach((p, i) => { const h = Math.max(2 * dpr, H * p / 100); g.fillStyle = i / n < progress ? on : off; g.fillRect(i * step, (H - h) / 2, bw, h); });
 }
-function pickVoice(id) { voice = id; renderVoices(); saveSession(); }
+function pickVoice(id) { voice = id; renderVoices(); saveSession(); if (typeof runSummary === "function") runSummary(); }
 function playVoice(id) {
   if (vplayer && vplayer.vid === id && !vplayer.paused) { vplayer.pause(); return; }
   if (vplayer) vplayer.pause();
@@ -843,7 +858,7 @@ async function start(kind) {
   const chapters = selected();
   if (!chapters.length) { $("#run-msg").textContent = "Select at least one chapter."; return; }
   $("#run-msg").textContent = "";
-  if (ENG.cloud() && !$("#eng-ack").checked) { $("#run-msg").innerHTML = `<span class="err">Tick the box under the reading engine to confirm that the text is sent and billed.</span>`; return; }
+  if (ENG.cloud() && !$("#eng-ack").checked) { $("#run-msg").innerHTML = `<span class="err">Tick the confirmation in the cost box to confirm that the text is sent and billed.</span>`; return; }
   if (ENG.cloud() && ENG.cur().voice_modes.includes("clone") && $("#o-tts_mode").value === "clone" && !$("#eng-own").checked) { $("#run-msg").innerHTML = `<span class="err">Confirm that the voice you clone is your own.</span>`; return; }
   try { attach(await api("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ kind, book_id: book.book_id, voice, chapters, options: options(), acknowledged: ENG.cloud() ? $("#eng-ack").checked : undefined }) })); }
@@ -1095,7 +1110,7 @@ function engChange() {
   $("#eng-ack").checked = false; ENG.vlang = undefined; ENG.sel = null; $("#vc-saved").hidden = true;
   $("#o-takes").value = e.cloud ? 2 : 3;
   $("#o-qa").value = e.cloud ? "0" : "1";  // an online voice rarely misreads; the check costs a retake each time and loads a local model
-  optionsVisibility();
+  optionsVisibility(); ENG.est = null; $("#eng-est").textContent = ""; runSummary();
   $("#o-takes").parentElement.title = e.cloud ? "Each retake is billed" : "";
   $("#eng-blurb").innerHTML = esc(e.blurb || "") + (e.cloud ? ` <span class="warn">Paid: ≈ ${e.per_hour != null ? "$" + e.per_hour.toFixed(2) : "?"} per hour of audio.</span>` : "");
   if (!e.cloud) return;
@@ -1215,6 +1230,7 @@ $("#vc-list").addEventListener("click", (ev) => {
   }
   $("#o-tts_voice").value = card.dataset.id; engRenderVoices();
 });
+$("#vc-list").addEventListener("click", () => setTimeout(runSummary, 0));
 $("#vc-list").addEventListener("keydown", (ev) => { if ((ev.key === "Enter" || ev.key === " ") && ev.target.classList.contains("vcard")) { ev.preventDefault(); ev.target.click(); } });
 function engEstimate() {
   clearTimeout(ENG.tm); if (!ENG.cloud() || !book) { return; }
@@ -1222,10 +1238,39 @@ function engEstimate() {
     const post = (kind) => api("/api/tts/estimate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, book_id: book.book_id, chapters: selected(), options: options() }) });
     try {
       const [all, pre] = await Promise.all([post("render"), post("preview")]), cost = (x) => x.usd == null ? "price unknown" : "≈ $" + x.usd.toFixed(2);
-      $("#eng-est").innerHTML = `<b>Estimated cost of the selected chapters: ${cost(all)}</b>${all.usd_max != null ? ` (up to $${all.usd_max.toFixed(2)} if every fragment needs all ${all.takes} takes)` : ""} · ${all.hours} h of audio, ${all.likely_chars.toLocaleString()} characters sent.<br><span class="mute">Preview: ${cost(pre)}. Approximate list prices; retakes after a failed quality check are billed too. ${esc(all.price_note)}</span>`;
-    } catch (x) { $("#eng-est").textContent = ""; }
+      ENG.est = { all, pre }; renderEst(); runSummary();
+    } catch (x) { ENG.est = null; $("#eng-est").textContent = ""; runSummary(); }
   }, 300);
 }
+function renderEst() {
+  const E = ENG.est; if (!E) return; const { all, pre } = E, e = ENG.cur(), qaOn = $("#o-qa").value === "1";
+  const cost = (x) => x.usd == null ? "price unknown" : "≈ $" + x.usd.toFixed(2);
+  const worst = qaOn && all.usd_max != null && all.usd != null && all.usd_max.toFixed(2) !== all.usd.toFixed(2) ? `<div>worst case<b>up to $${all.usd_max.toFixed(2)}</b></div>` : "";
+  const hrs = all.hours >= 1 ? all.hours.toFixed(1) + " h" : Math.max(1, Math.round(all.hours * 60)) + " min";
+  $("#eng-est").innerHTML = `<div class="cc-main"><div class="cc-big">${cost(all)}<small>likely cost of the selected chapters</small></div>
+    <div class="cc-facts"><div>audio<b>${hrs}</b></div><div>characters sent<b>${all.likely_chars.toLocaleString()}</b></div>${worst}<div>preview<b>${cost(pre)}</b></div></div></div>
+    <div class="cc-sub">${esc(all.label || e.label)}${all.per_hour != null ? ` · ≈ $${all.per_hour.toFixed(2)} per hour of audio` : ""}${qaOn ? ` · retakes after a failed quality check are billed too (up to ${all.takes} takes)` : ""}</div>
+    <details><summary>Price details and terms</summary><p>Approximate list prices. ${esc(all.price_note || "")}</p></details>`;
+}
+// One or two plain lines under the cost card: what exactly will be rendered, and what blocks it.
+function runSummary() {
+  if (!book || !ENG.list.length) { $("#run-sum").textContent = ""; return; }
+  const e = ENG.cur(), cloud = e.cloud, ch = selected(), secs = book.chapters.filter(c => ch.includes(c.n)).reduce((a, c) => a + c.seconds, 0);
+  const model = cloud ? $("#o-tts_model").value : "", mt = model && model !== "auto" ? model : "";
+  let v = cloud ? ($("#o-tts_voice").value || (ENG.sel && ENG.sel.id) || "") : voice;
+  const vo = !cloud && VOICES.find(x => x.id === voice); if (vo) v = vo.name || v;
+  if (!cloud && (!v || v === "auto")) v = "automatic";
+  const range = (() => { if (!ch.length) return "no chapters"; const r = []; let i = 0; while (i < ch.length) { let j = i; while (j + 1 < ch.length && ch[j + 1] === ch[j] + 1) j++; r.push(j > i ? ch[i] + "–" + ch[j] : "" + ch[i]); i = j + 1; } return "chapter" + (ch.length > 1 || r[0].includes("–") ? "s " : " ") + r.join(", ") + (ch.length ? ` (${fmt(secs)})` : ""); })();
+  const dir = ($("#o-output_dir").value || "~/Audiobooks").replace(/\/$/, ""), out = $("#o-mp3").value === "1" ? dir + "/ (mp3 per chapter)" : dir + "/" + (book.title || "book") + ".m4b";
+  const parts = [esc(e.label), mt ? esc(mt) : "", v ? "voice " + esc(v) : "", range, "quality check " + ($("#o-qa").value === "1" ? "on" : "off"), "saved to " + esc(out)].filter(Boolean);
+  const warn = [];
+  if (!ch.length) warn.push("Select at least one chapter.");
+  if (cloud && !(e.key_in_env || e.key_saved)) warn.push("No API key for this service yet: add it in the reading engine step.");
+  if (cloud && !$("#eng-ack").checked) warn.push("Tick the confirmation above to enable rendering.");
+  $("#run-sum").innerHTML = parts.join(" · ") + warn.map(w => `<span class="warn">⚠ ${esc(w)}</span>`).join("");
+}
+["#o-qa", "#o-mp3", "#o-output_dir", "#eng-ack", "#o-tts_voice", "#o-tts_mode"].forEach(i => { $(i).addEventListener("change", () => { renderEst(); runSummary(); }); });
+$("#o-output_dir").addEventListener("input", runSummary);
 $("#o-tts").onchange = engChange; 
 ["#o-tts_model", "#o-takes", "#o-qa"].forEach(i => $(i).addEventListener("change", engEstimate));
 document.addEventListener("change", (ev) => { if (ev.target.closest && ev.target.closest("#chapters, .chap, #chlist")) engEstimate(); });
