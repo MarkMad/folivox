@@ -225,3 +225,26 @@ def test_unkept_voice_is_not_listed(saved_dir):
                          tts_description="a calm, warm woman in her forties")
     _cloud_voice(eng, opts, Journal(saved_dir / "w"), Events())
     assert saved.listing("gemini") == []
+
+
+def test_non_english_books_ask_for_a_native_accent():
+    """OpenAI and Gemini have no language parameter and English-native voices: the note must ask for the accent."""
+    eng, fake = engine("openai")
+    v = eng.make_voice("coral", None, "ru")
+    assert "Russian like a native speaker" in v.style and v.style.endswith("exactly as written.")
+    eng.synthesize_audio("Доброе утро.", v, 0, 1.0)
+    assert "never an English accent" in fake.calls[0]["json"]["instructions"]
+    en = eng.make_voice("coral", None, "en")
+    assert "accent" not in en.style and en.id != v.id  # English: unchanged note; the cache key differs per language
+    own = eng.make_voice("coral", "warm and slow", "de")
+    assert "German like a native speaker" in own.style and own.style.endswith("warm and slow")
+
+
+def test_openai_tts1_cannot_fix_the_accent_and_says_so():
+    from folivox.voicegen.cloud_apis import OpenAIVoice
+
+    gen = OpenAIVoice(api_key="k", transport=Fake(ok(wav_bytes())), sleep=lambda s: None, model="tts-1")
+    eng = CloudTTS("openai", generator=gen)
+    v = eng.make_voice("coral", None, "ru")
+    assert v.warnings and "gpt-4o-mini-tts" in v.warnings[0] and "accent" not in v.style
+    assert not eng.make_voice("coral", None, "en").warnings

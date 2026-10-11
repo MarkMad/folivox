@@ -408,6 +408,8 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
                 events.warning("Reading speed is not applied by cloud engines; the provider's own pace is used")
             engine = ENGINES.create(opts.tts, model=opts.tts_model, max_cost=opts.max_cost)
             voice, owned = _cloud_voice(engine, opts, journal, events)
+            for w in voice.warnings:
+                events.warning(w)
             events.stage("model", f"{type(engine.gen).label}, model {engine.model}")
         else:
             voice = load_voice(opts.voice_wav, opts.voice_text,

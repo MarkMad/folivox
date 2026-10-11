@@ -25,6 +25,11 @@ from folivox.voicegen import Job
 NEUTRAL_STYLE = "Neutral, steady audiobook narration. Read the text exactly as written."
 # provider → default narration note (ElevenLabs reads bracketed tags as direction, so none by default)
 DEFAULT_STYLE = {"openai": NEUTRAL_STYLE, "gemini": NEUTRAL_STYLE}
+# Neither OpenAI nor Gemini has a language parameter: the language comes from the text, and their voices
+# are English-native, so a non-English book gets an English accent unless the note asks for a native one.
+ACCENT_NOTE = ("Speak {language} like a native speaker, with natural {language} pronunciation and intonation, "
+               "never an English accent.")
+NO_INSTRUCTIONS = ("tts-1", "tts-1-hd")  # OpenAI models that ignore the note
 PARALLEL = {"elevenlabs": 3, "openai": 3, "gemini": 2, "cartesia": 3}  # simultaneous requests per provider
 CHARS_PER_SECOND = 14  # narration pace used for audio-duration estimates
 SPEED_NOTE = "Reading speed is not applied by cloud engines; the provider's own pace is used."
@@ -167,16 +172,25 @@ class CloudTTS(TTSEngine):
         note = DEFAULT_STYLE.get(self.name, "") if style is None else style.strip()
         if not type(self.gen).style:
             note = ""
+        warnings: list[str] = []
+        if self.name in DEFAULT_STYLE and lang != "en":
+            from folivox import lang as languages
+
+            if self.model in NO_INSTRUCTIONS:
+                warnings.append(f"{self.model} cannot be told to avoid an English accent; for "
+                                f"{languages.get(lang).name} use gpt-4o-mini-tts")
+            else:
+                note = f"{ACCENT_NOTE.format(language=languages.get(lang).name)} {note}".strip()
         speaker = self.speaker_for(wanted, lang) if mode in ("preset", "localize") else ""
         if mode == "preset":
-            return CloudVoice(self.name, self.model, speaker, note, "preset")
+            return CloudVoice(self.name, self.model, speaker, note, "preset", warnings=tuple(warnings))
         if remembered:
-            return CloudVoice(self.name, self.model, remembered, note, mode, description)
+            return CloudVoice(self.name, self.model, remembered, note, mode, description, warnings=tuple(warnings))
         job = Job(text="", lang=lang, speaker=speaker, description=description, reference=reference)
         made = self.gen.setup_voices([job])
         if not made:
             raise ProviderError(f"{type(self.gen).label} did not create a voice")
-        return CloudVoice(self.name, self.model, job.speaker, note, mode, description)
+        return CloudVoice(self.name, self.model, job.speaker, note, mode, description, warnings=tuple(warnings))
 
     def release(self, voice: CloudVoice) -> None:
         """Delete a voice made for this run (a failure to delete is not an error: it only costs a slot)."""
