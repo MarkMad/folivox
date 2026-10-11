@@ -90,7 +90,7 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 .vgrid { display:flex; flex-direction:column; gap:6px; max-height:440px; overflow:auto; padding:3px; margin:-3px; }
 .vcard { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,170px) 18px 28px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; transition:border-color .2s, box-shadow .2s, background .2s; }
 #vc-modes .chip { padding:8px 16px; font-size:14px; } #vc-modes .chip.hot:not(.on) { border-color:var(--accent); color:var(--accent); }
-.vactions { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; margin-bottom:12px; }
+.vactions { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; }
 .vact { display:flex; gap:12px; align-items:center; text-align:left; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; }
 .vact:hover { border-color:var(--accent); } .vact.hot { border-color:var(--accent); background:linear-gradient(90deg,var(--glow),transparent 85%); }
 .vact b { display:block; font-size:14px; } .vact small { display:block; color:var(--mute); font-size:12px; font-weight:400; margin-top:2px; line-height:1.35; }
@@ -231,14 +231,13 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
     <label class="consent eng-own" hidden style="margin-top:8px"><input type="checkbox" id="eng-own"><span>The voice I select in the list below is my own, or I have the speaker's permission to clone it. The clone exists in the provider's account while the book is made, then it is deleted.</span></label>
   </div>
   <div id="v-local">
-  <div class="vactions">
-    <button type="button" class="vact" id="add-card"><span class="vact-i">+</span><span><b>Add your own voice</b><small>upload a recording or record one</small></span></button>
-    <button type="button" class="vact hot" id="gen-card"><span class="vact-i">✦</span><span><b>Generate a voice sample</b><small>an online service reads a short text (a few cents, once); you then use it for free, offline</small></span></button>
-  </div>
   <div class="vbar"><input id="vq" type="search" placeholder="Search voices — name, id, language, license" autocomplete="off">
     <div class="chips" id="vgender"></div></div>
   <div class="chips" id="vlangs"></div>
   <div class="vgrid" id="voices" role="radiogroup" aria-label="Voice"></div>
+  <div class="vactions" style="margin-top:12px">    <button type="button" class="vact" id="add-card"><span class="vact-i">+</span><span><b>Add your own voice</b><small>upload a recording or record one</small></span></button>
+    <button type="button" class="vact hot" id="gen-card"><span class="vact-i">✦</span><span><b>Generate a voice sample</b><small>an online service reads a short text (a few cents, once); you then use it for free, offline</small></span></button>
+  </div>
   <div class="mute" id="vcount" style="margin-top:6px"><small></small></div>
   <div id="addvoice" class="av" hidden>
     <div class="av-head"><b>Add your own voice</b><span class="mute" id="av-sub">6–15 s of clean speech: no music, no noise, an even calm pace</span>
