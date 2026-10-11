@@ -869,7 +869,9 @@ async function gpLoad() {
     if (cur) $("#gp-provider").value = cur;
     $("#gp-notice").innerHTML = `<b>Your text leaves this computer.</b> ${esc(r.notice)}`;
     gpProvider();
-  } catch (e) { $("#gp-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  } catch (e) {
+    $("#gp-notice").innerHTML = `<b class="err">Cannot load the providers.</b> ${esc(e.message)}. If the server was started before an update, stop it and run <code>folivox ui</code> again.`;
+  }
 }
 function gpProv() { return GP.providers.find(p => p.name === $("#gp-provider").value); }
 function gpProvider() {
