@@ -261,3 +261,45 @@ def test_timeout_scales_with_text_and_can_be_disabled(monkeypatch):
     assert synth_timeout(400) > synth_timeout(10) >= 180
     monkeypatch.setenv("FOLIVOX_SYNTH_TIMEOUT", "0")
     assert synth_timeout(400) == 0
+
+
+# --- hardware profile, whisper download, download meter ---------------------------------------------
+def test_hardware_profile_and_advice():
+    from folivox import diag
+
+    hw = diag.hardware()
+    assert hw["cores"] and "advice" in hw
+    tips = diag.advice({"ram_gb": 4, "device": "cpu", "cores": 2, "vram_gb": None})
+    assert any("RAM" in t for t in tips) and any("slower than real time" in t for t in tips)
+    assert diag.advice({"ram_gb": 32, "device": "mps", "cores": 12}) == []
+    assert any("PyTorch" in t for t in diag.advice({"ram_gb": 32, "device": None}))
+
+
+def test_whisper_model_download_is_retried(monkeypatch):
+    import sys
+    import types
+
+    from folivox.qa.asr import FasterWhisper
+
+    calls = []
+
+    class FakeModel:
+        def __init__(self, name, device, compute_type):
+            calls.append(name)
+            if len(calls) < 3:
+                raise ConnectionError("reset by peer")
+
+    monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(WhisperModel=FakeModel))
+    monkeypatch.setattr("time.sleep", lambda s: None)
+    FasterWhisper("en", device="cpu")
+    assert len(calls) == 3
+
+
+def test_download_meter_speed_and_eta():
+    m = weights.DownloadMeter()
+    assert m.update(0, 1000, 0.0) == (0.0, None)
+    speed, eta = m.update(100, 1000, 1.0)
+    assert speed == 100 and eta == 9
+    for t in range(2, 30):  # old samples drop out of the window: a stall shows as speed 0
+        last = m.update(100, 1000, float(t))
+    assert last[0] == 0.0 and last[1] is None

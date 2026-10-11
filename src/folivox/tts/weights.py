@@ -35,6 +35,25 @@ def reporting(hook: Callable[[str, int, int], None] | None) -> Iterator[None]:
         _hook = previous
 
 
+class DownloadMeter:
+    """Speed (smoothed over the last ~10 s of samples) and time left from a stream of (bytes done, now)."""
+
+    WINDOW = 10.0
+
+    def __init__(self):
+        self.samples: list[tuple[float, int]] = []
+
+    def update(self, done: int, total: int, now: float) -> tuple[float, float | None]:
+        """Returns (bytes per second, seconds left or None while unknown)."""
+        self.samples.append((now, done))
+        while len(self.samples) > 2 and now - self.samples[0][0] > self.WINDOW:
+            self.samples.pop(0)
+        t0, d0 = self.samples[0]
+        speed = (done - d0) / (now - t0) if now > t0 and done >= d0 else 0.0
+        eta = (total - done) / speed if speed > 0 and total > done else None
+        return speed, eta
+
+
 def _downloaded(target: Path, patterns: list[str]) -> int:
     """Bytes on disk: finished files matching ``patterns`` plus huggingface_hub's ``.incomplete`` parts."""
     done = 0

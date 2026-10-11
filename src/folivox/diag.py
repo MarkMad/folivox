@@ -155,6 +155,68 @@ def devices() -> dict:
                                                                    and torch.backends.mps.is_available())}
 
 
+def ram_gb() -> float | None:
+    """Physical memory in GB on macOS, Linux and Windows without extra packages."""
+    try:
+        if hasattr(os, "sysconf") and "SC_PHYS_PAGES" in os.sysconf_names:
+            return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / 1e9
+        import ctypes
+
+        class Mem(ctypes.Structure):
+            _fields_ = [("length", ctypes.c_ulong), ("load", ctypes.c_ulong), ("total", ctypes.c_ulonglong),
+                        ("avail", ctypes.c_ulonglong), ("pt", ctypes.c_ulonglong), ("pa", ctypes.c_ulonglong),
+                        ("vt", ctypes.c_ulonglong), ("va", ctypes.c_ulonglong), ("ve", ctypes.c_ulonglong)]
+
+        m = Mem()
+        m.length = ctypes.sizeof(Mem)
+        ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m))  # type: ignore[attr-defined]
+        return m.total / 1e9
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def hardware() -> dict:
+    """What the machine offers: CPU cores, RAM, GPU (name, memory) and the device Folivox would use."""
+    info: dict = {"cpu": platform.processor() or platform.machine(), "cores": os.cpu_count(),
+                  "ram_gb": round(ram_gb(), 1) if ram_gb() else None, "gpu": None, "vram_gb": None}
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            props = torch.cuda.get_device_properties(0)
+            info.update(gpu=props.name, vram_gb=round(props.total_memory / 1e9, 1), device="cuda")
+        elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+            info.update(gpu="Apple GPU (shared memory)", device="mps")
+        else:
+            info["device"] = "cpu"
+    except ImportError:
+        info["device"] = None
+    info["advice"] = advice(info)
+    return info
+
+
+def advice(hw: dict) -> list[str]:
+    """Plain-language recommendations derived from :func:`hardware`."""
+    tips = []
+    ram, device = hw.get("ram_gb"), hw.get("device")
+    if device is None:
+        tips.append("PyTorch is not installed: local voices need `pip install \"folivox[tts]\"` "
+                    "(or use an online engine).")
+    if ram is not None and ram < 8:
+        tips.append(f"Only {ram:.0f} GB of RAM: the local model (about 6 GB) may not fit; use an online engine or "
+                    "close other programs. Use `--no-qa` to spare memory.")
+    elif ram is not None and ram < 16:
+        tips.append("8-16 GB of RAM is enough for the local model, but close heavy programs during a render.")
+    if device == "cpu":
+        tips.append("No GPU is used: synthesis will be several times slower than real time. A long book takes "
+                    "days on a CPU; consider an online engine for it.")
+    if device == "cuda" and (hw.get("vram_gb") or 99) < 6:
+        tips.append(f"The GPU has {hw['vram_gb']} GB of memory: if loading fails Folivox falls back to the CPU.")
+    if hw.get("cores") and hw["cores"] <= 4 and device == "cpu":
+        tips.append("Few CPU cores: the speech-recognition check slows a render noticeably; `--no-qa` skips it.")
+    return tips
+
+
 def journal_summary(work_dir: Path) -> dict | None:
     """Counts only: how far a render got. Chapter titles are cut to a snippet, fragment text is never included."""
     db = Path(work_dir) / "journal.sqlite"
@@ -199,6 +261,7 @@ def report(work_dir: Path | None = None) -> dict:
         "packages": {n: v for n in PACKAGES if (v := _version(n))},
         "ffmpeg": ffmpeg_info(),
         "devices": devices(),
+        "hardware": hardware(),
         "selected_providers": selected,
         "config_file": str(config.config_path()),
         "disk_free_mb": _free_mb(work_dir or Path.home()),
@@ -272,7 +335,10 @@ def render_report_text(data: dict) -> str:
     lines.append("Packages: " + ", ".join(f"{k} {v}" for k, v in data["packages"].items()))
     ff = data["ffmpeg"]
     lines.append("ffmpeg:   " + (ff.get("version") or ff.get("path") or "NOT FOUND — " + ff.get("error", "")))
-    lines.append(f"Devices:  {data['devices']}")
+    hw = data["hardware"]
+    lines.append(f"Hardware: {hw['cores']} cores, {hw['ram_gb']} GB RAM, GPU: {hw['gpu'] or 'none'}"
+                 f"{' ' + str(hw['vram_gb']) + ' GB' if hw['vram_gb'] else ''} → device {hw['device']}")
+    lines += [f"  ! {t}" for t in hw["advice"]]
     lines.append(f"Engines:  {data['selected_providers']}")
     m = data["model_dir"]
     lines.append(f"Model:    {m['path']} ({'complete' if m['complete'] else 'not downloaded or incomplete'})")

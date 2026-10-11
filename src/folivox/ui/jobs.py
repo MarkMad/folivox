@@ -18,6 +18,7 @@ class UIEvents(Events):
         self.job = job
         self.audio = self.synth = 0.0
         self.retakes = 0
+        self.meters: dict = {}
 
     def cancelled(self) -> bool:
         return self.job.cancel_requested.is_set()
@@ -37,7 +38,11 @@ class UIEvents(Events):
         self.job.emit("step", step=step, attempt=attempt, attempts=attempts)
 
     def download(self, name, done_bytes, total_bytes):
-        self.job.emit("download", name=name, done=done_bytes, total=total_bytes)
+        from folivox.tts.weights import DownloadMeter
+
+        meter = self.meters.setdefault(name, DownloadMeter())
+        speed, eta = meter.update(done_bytes, total_bytes, time.time())
+        self.job.emit("download", name=name, done=done_bytes, total=total_bytes, speed=speed, eta=eta)
 
     def spend(self, chars, usd, cap):
         self.job.emit("spend", chars=chars, usd=usd, cap=cap)

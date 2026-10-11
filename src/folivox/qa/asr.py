@@ -68,6 +68,17 @@ class MLXWhisper(ASR):
         except ImportError as e:
             raise ASRUnavailable("mlx-whisper is not installed: pip install 'folivox[qa]'") from e
         self.model = model or MLX_MODEL
+        from folivox.tts.weights import with_retries
+
+        def fetch():
+            from huggingface_hub import snapshot_download
+
+            return snapshot_download(self.model)  # cached after the first time; later calls go offline-fast
+
+        try:
+            self.model = with_retries(fetch, f"the speech-recognition model {self.model}")
+        except ImportError:
+            pass
 
     def transcribe(self, audio, sample_rate, prompt=None):
         import mlx_whisper
@@ -95,7 +106,12 @@ class FasterWhisper(ASR):
             except ImportError:
                 device = "cpu"
         self.model = model or FW_MODEL
-        self._fw = WhisperModel(self.model, device=device, compute_type="float16" if device == "cuda" else "int8")
+        from folivox.tts.weights import with_retries
+
+        # the first call downloads the model (~1.6 GB) from huggingface: retry network failures, resume parts
+        self._fw = with_retries(lambda: WhisperModel(self.model, device=device,
+                                                     compute_type="float16" if device == "cuda" else "int8"),
+                                f"the speech-recognition model {self.model}")
 
     def transcribe(self, audio, sample_rate, prompt=None):
         segments, _ = self._fw.transcribe(_resample(audio, sample_rate), language=self.language, beam_size=1,

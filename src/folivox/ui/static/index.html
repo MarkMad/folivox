@@ -1063,7 +1063,9 @@ function handle(ev) {
     case "download": {
       const gb = (b) => (b / 1e9).toFixed(2), pct = ev.total ? Math.min(100, 100 * ev.done / ev.total) : 0;
       S.phase = "Downloading " + ev.name; $("#now-label").textContent = S.phase; $("#wave").className = "wave load";
-      $("#now-quote").textContent = ev.total ? `${pct.toFixed(0)}% — ${gb(ev.done)} of ${gb(ev.total)} GB` : `${gb(ev.done)} GB`;
+      const mbs = ev.speed > 0 ? ` · ${(ev.speed / 1e6).toFixed(1)} MB/s` : "";
+      const left = ev.eta ? ` · ${ev.eta >= 90 ? Math.round(ev.eta / 60) + " min" : Math.round(ev.eta) + " s"} left` : "";
+      $("#now-quote").textContent = ev.total ? `${pct.toFixed(0)}% — ${gb(ev.done)} of ${gb(ev.total)} GB${mbs}${left}` : `${gb(ev.done)} GB${mbs}`;
       $("#now-dl").hidden = !ev.total; $("#now-dl > div").style.width = pct + "%";
       if (ev.total && ev.done >= ev.total) { log("Downloaded " + ev.name); setPhase("Loading TTS model into memory"); } break; }
     case "fragment": setStage(2); if (!S.tFrag) S.tFrag = ev.t; activate(ev.key); S.activeKey = ev.key; S.frag = ev;

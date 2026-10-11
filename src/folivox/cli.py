@@ -178,7 +178,8 @@ class RichEvents(Events):
         self.task = None
         self.audio = self.synth = 0.0
         self.retakes = self.flagged = 0
-        self._dl_pct = -10
+        self._dl = None
+        self._dl_task: dict = {}
 
     def stage(self, name, detail=""):
         console.log(f"[cyan]{detail or name}[/]")
@@ -220,13 +221,31 @@ class RichEvents(Events):
     def spend(self, chars, usd, cap):
         self.spent, self.cap = usd, cap
 
+    downloaded = False
+
     def download(self, name, done_bytes, total_bytes):
-        if not total_bytes:
-            return
-        pct = int(100 * done_bytes / total_bytes)
-        if pct >= self._dl_pct + 10 or pct == 100 and self._dl_pct < 100:
-            self._dl_pct = pct
-            console.log(f"[cyan]Downloading {name}: {pct}% ({done_bytes / 1e9:.1f} of {total_bytes / 1e9:.1f} GB)[/]")
+        from rich.progress import (
+            BarColumn,
+            DownloadColumn,
+            Progress,
+            TextColumn,
+            TimeRemainingColumn,
+            TransferSpeedColumn,
+        )
+
+        self.downloaded = True
+        if self._dl is None:
+            self._dl = Progress(TextColumn("[cyan]{task.description}"), BarColumn(), DownloadColumn(),
+                                TransferSpeedColumn(), TimeRemainingColumn(), console=console, transient=True)
+            self._dl.start()
+            self._dl_task = {}
+        if name not in self._dl_task:
+            self._dl_task[name] = self._dl.add_task(f"Downloading {name}", total=total_bytes or None)
+        self._dl.update(self._dl_task[name], completed=done_bytes, total=total_bytes or None)
+        if total_bytes and done_bytes >= total_bytes:
+            self._dl.stop()
+            self._dl = None
+            console.log(f"[green]✓[/] Downloaded {name} ({total_bytes / 1e9:.1f} GB)")
 
     def chapter_built(self, index, title, duration):
         if self.task is not None and self.progress.live.is_started:
@@ -236,6 +255,9 @@ class RichEvents(Events):
     def close(self):
         if self.progress.live.is_started:
             self.progress.stop()
+        if self._dl is not None:
+            self._dl.stop()
+            self._dl = None
 
 
 @app.command(help="Render a book into an audiobook (m4b with chapters and cover).", epilog=RENDER_EPILOG,
@@ -399,6 +421,11 @@ def render(
         raise
     events.close()
     console.print(f"[bold green]Done:[/] {result}  ({fmt_duration(time.time() - t0)})")
+    if events.downloaded:
+        console.print("\n[bold]Setup finished.[/] The models are stored once and reused. Next time:\n"
+                      "  [cyan]folivox ui[/]                  the web studio (voices, preview, progress)\n"
+                      "  [cyan]folivox render book.fb2[/]     straight from the terminal\n"
+                      "  [cyan]folivox doctor[/]              check ffmpeg, hardware and models")
     if events.audio:
         console.print(f"Synthesis: {fmt_duration(events.synth)} for {fmt_duration(events.audio)} of audio, "
                       f"RTF {events.synth / events.audio:.2f}")
