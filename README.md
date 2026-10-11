@@ -34,46 +34,60 @@ results.
 
 ## Quick start
 
-**1. Download Folivox.** On this page click **Code → Download ZIP** and unpack it (double-click the file).
+### 1. Install
 
-**2. Run the installer** for your system. It needs no administrator rights and is safe to run again.
+Pick one way. Each needs no administrator rights and is safe to run again.
 
-<details open>
-<summary><b>macOS</b></summary>
+**One command** (recommended). Open a terminal (macOS: **Terminal** in Applications → Utilities; Windows:
+**PowerShell** from the Start menu; Linux: any terminal), paste the line for your system and press Enter.
 
-Open **Terminal** (Applications → Utilities), type `cd ` (with a space), drag the unpacked folder into the
-window, press Enter, then run:
+macOS and Linux:
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/alex-vatavu/folivox/main/scripts/install.sh | bash
+```
+
+Windows (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/alex-vatavu/folivox/main/scripts/install.ps1 | iex
+```
+
+<details>
+<summary><b>With git</b> (if you want the source code, e.g. to contribute)</summary>
+
+macOS and Linux:
+
+```bash
+git clone https://github.com/alex-vatavu/folivox.git
+cd folivox
 bash scripts/install.sh
 ```
 
-</details>
-
-<details open>
-<summary><b>Windows</b></summary>
-
-Open the unpacked folder in Explorer, click the address bar, type `powershell` and press Enter. In the window
-that opens, run:
+Windows (PowerShell):
 
 ```powershell
+git clone https://github.com/alex-vatavu/folivox.git
+cd folivox
 powershell -ExecutionPolicy Bypass -File scripts\install.ps1
 ```
 
 </details>
 
-<details open>
-<summary><b>Linux</b></summary>
+<details>
+<summary><b>From a ZIP</b> (no terminal commands to download)</summary>
 
-Open a terminal in the unpacked folder and run:
-
-```bash
-bash scripts/install.sh
-```
+1. On this page click **Code → Download ZIP** and unpack it.
+2. macOS: open **Terminal**, type `cd ` (with a space), drag the unpacked folder into the window, press Enter,
+   then run `bash scripts/install.sh`. Linux: open a terminal in the folder and run the same.
+3. Windows: open the unpacked folder in Explorer, type `powershell` in the address bar and press Enter, then run
+   `powershell -ExecutionPolicy Bypass -File scripts\install.ps1`.
 
 </details>
 
-**3. Start the studio.** Open a new terminal window and run:
+### 2. Start
+
+Open a new terminal window and run:
 
 ```bash
 folivox ui

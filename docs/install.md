@@ -2,6 +2,16 @@
 
 ## Install (one command)
 
+Without downloading anything first (the script fetches Folivox from GitHub, no git needed):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/alex-vatavu/folivox/main/scripts/install.sh | bash
+```
+
+```powershell
+irm https://raw.githubusercontent.com/alex-vatavu/folivox/main/scripts/install.ps1 | iex
+```
+
 macOS and Linux, from a checkout of this repository:
 
 ```bash
