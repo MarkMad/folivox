@@ -1177,7 +1177,7 @@ function closeGen() { gpStop(); gpReset(); $("#genvoice").hidden = true; }
 $("#gp-close").onclick = closeGen;
 async function gpLoad() {
   if (!$("#gp-lang").options.length) $("#gp-lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}">${n}</option>`).join("");
-  if (!GP.job) $("#gp-lang").value = "en";
+  if (!GP.job) $("#gp-lang").value = book && LANGS[book.lang] ? book.lang : "en";  // the sample is read in the book's language
   try {
     const r = await api("/api/gen/providers"); GP.providers = r.providers; GP.notice = r.notice;
     $("#gp-notice").textContent = r.notice;
@@ -1303,12 +1303,12 @@ async function gpTexts(src, reload) {
   $("#gp-text-hint").textContent = custom ? "Calm, easy words work best: no names or numbers. Several texts: separate with an empty line (at most 5). Short is good: about 10 seconds."
     : "Ready to use as it is. To change the wording, edit a copy in “My own text”.";
   if (custom) { $("#gp-text").value = GP.tx.custom; $("#gp-text-next").hidden = true; $("#gp-text").focus(); gpCheck(); return; }
-  if (reload || (src === "builtin" ? !GP.tx.builtin : !GP.tx.book)) {
+  if (reload || (src === "builtin" ? !GP.tx.builtin || GP.tx.blang !== $("#gp-lang").value : !GP.tx.book)) {
     const ab = new AbortController(), done = src === "book" ? working($("#gp-text-msg"), "Asking the text LLM to pick passages…", LLM_HINT, ab) : () => {};
     $("#gp-text-view").textContent = "";
     try {
       const r = await api("/api/gen/texts", { method: "POST", signal: ab.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ source: src, lang: $("#gp-lang").value, book_id: book.book_id }) });
-      done(); if (src === "builtin") { GP.tx.builtin = r.texts; GP.tx.bi = 0; if (!GP.tx.custom.trim()) { GP.tx.custom = r.texts[0]; LS.set("folivox.gp.custom", GP.tx.custom); } } else GP.tx.book = r.texts;
+      done(); if (src === "builtin") { GP.tx.builtin = r.texts; GP.tx.blang = $("#gp-lang").value; GP.tx.bi = 0; if (!GP.tx.custom.trim()) { GP.tx.custom = r.texts[0]; LS.set("folivox.gp.custom", GP.tx.custom); } } else GP.tx.book = r.texts;
       if (src === "book" && r.lang && $("#gp-lang").value !== r.lang && LANGS[r.lang]) { $("#gp-lang").value = r.lang; if (GP.mode !== "design") gpVoices(); }
     } catch (e) { done(); $("#gp-text-msg").innerHTML = e.name === "AbortError" ? "Cancelled." : `<span class="err">${esc(e.message)}</span>`; }
     if (GP.textSrc !== src) return;
