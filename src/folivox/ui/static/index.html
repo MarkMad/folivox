@@ -89,6 +89,7 @@ details > summary { cursor:pointer; color:var(--mute); } .grid { display:grid; g
 .chip:hover { color:var(--ink); } .chip.on { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); } .chip small { opacity:.7; margin-left:3px; }
 .vgrid { display:flex; flex-direction:column; gap:6px; max-height:440px; overflow:auto; padding:3px; margin:-3px; }
 .vcard { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,170px) 18px 28px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; transition:border-color .2s, box-shadow .2s, background .2s; }
+#vc-modes .chip { padding:8px 16px; font-size:14px; } #vc-modes .chip.hot:not(.on) { border-color:var(--accent); color:var(--accent); }
 .vcard.pv { grid-template-columns:34px minmax(0,1fr) 18px; } .vcard.pv .vmeta { white-space:normal; }
 .vcard:hover { border-color:var(--mute); } .vcard:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .vcard.sel { border-color:var(--accent); box-shadow:0 0 0 3px var(--glow); } .vcard.off { opacity:.62; }
@@ -214,7 +215,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
   <div id="v-cloud" class="eng-cloud" hidden>
     <small class="mute" id="vc-title"></small>
     <div class="grid" style="margin-top:8px">
-      <label class="f">Kind of voice<select id="o-tts_mode"></select></label>
+      <div style="grid-column:1/-1"><div class="chips" id="vc-modes" role="radiogroup" aria-label="Kind of voice"></div><select id="o-tts_mode" hidden></select><small class="mute" id="vc-modehint" style="display:block;margin-top:4px"></small></div>
       <div class="eng-pick" style="grid-column:1/-1"><div class="chips" id="vc-sex" style="margin-bottom:6px"></div><div class="vgrid" id="vc-list" role="radiogroup" aria-label="Voice"></div><small class="mute" id="vc-note"></small><input type="hidden" id="o-tts_voice"></div>
       <label class="f eng-desc" hidden style="grid-column:1/-1">Describe the voice<input id="o-tts_description" type="text" placeholder="a calm, warm middle-aged woman, unhurried audiobook narrator"></label>
       <label class="f eng-style" style="grid-column:1/-1">Narration note (optional)<input id="o-tts_style" type="text" placeholder="default: neutral, steady audiobook narration"></label>
@@ -1033,7 +1034,18 @@ function engChange() {
   $("#o-tts_style").parentElement.hidden = !e.style;
   engMode(); engVoices(); engEstimate();
 }
+const MODE_UI = { preset: ["Pick a voice", "Choose one of the service's ready-made voices."],
+  design: ["✨ Create a voice from a description", "Describe the narrator in words: the voice is made for this book and deleted from your account afterwards."],
+  localize: ["Native accent of the language", "Take a voice and give it the native accent of your book's language."],
+  clone: ["Clone my own voice", "Only your own voice, or one you have permission for."] };
+function engModes() {
+  const e = ENG.cur(), cur = $("#o-tts_mode").value;
+  $("#vc-modes").innerHTML = e.voice_modes.map(m => `<button type="button" class="chip ${m === cur ? "on" : ""} ${m === "design" ? "hot" : ""}" role="radio" aria-checked="${m === cur}" data-mode="${m}">${esc(MODE_UI[m] ? MODE_UI[m][0] : m)}</button>`).join("");
+  $("#vc-modehint").textContent = MODE_UI[cur] ? MODE_UI[cur][1] : "";
+}
+$("#vc-modes").addEventListener("click", (ev) => { const b = ev.target.closest("[data-mode]"); if (!b) return; $("#o-tts_mode").value = b.dataset.mode; engMode(); engEstimate(); });
 function engMode() {
+  engModes();
   const e = ENG.cur(); if (!e || !e.cloud) return; const m = $("#o-tts_mode").value;
   document.querySelector(".eng-pick").hidden = !(m === "preset" || m === "localize"); document.querySelector(".eng-desc").hidden = m !== "design";
   document.querySelector(".eng-own").hidden = m !== "clone";
@@ -1088,7 +1100,7 @@ function engEstimate() {
     } catch (x) { $("#eng-est").textContent = ""; }
   }, 300);
 }
-$("#o-tts").onchange = engChange; $("#o-tts_mode").onchange = () => { engMode(); engEstimate(); };
+$("#o-tts").onchange = engChange; 
 ["#o-tts_model", "#o-takes", "#o-qa"].forEach(i => $(i).addEventListener("change", engEstimate));
 document.addEventListener("change", (ev) => { if (ev.target.closest && ev.target.closest("#chapters, .chap, #chlist")) engEstimate(); });
 engLoad();
