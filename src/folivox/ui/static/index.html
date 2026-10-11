@@ -563,7 +563,7 @@ function renderVoices() {
   const showAuto = !vf.q.trim() && (vf.lang === "all" || vf.lang === book.lang) && !vf.gender && !vf.fav;
   const card = (v, auto) => `<div class="vcard ${auto ? "auto" : ""} ${(auto ? voice === "" : voice === v.id) ? "sel" : ""} ${v.lang !== book.lang && !auto ? "off" : ""}" role="radio" tabindex="0" aria-checked="${auto ? voice === "" : voice === v.id}" data-id="${auto ? "" : esc(v.id)}">
     <button class="vplay" data-play="${esc(v.id)}" aria-label="Play a sample of ${esc(v.name)}">▶</button>
-    <div style="min-width:0"><div class="vname"><span class="n">${auto ? "Automatic" : esc(v.name)}</span>${auto ? "" : v.bundled ? "" : `<span class="vbadge mine">mine</span>`}${!auto && v.commercial ? `<span class="vbadge warn" title="Generated with a commercial API: personal use, never bundled">commercial API</span>` : ""}${!auto && v.lang !== book.lang ? `<span class="vbadge warn" title="The accent of the sample may carry over">${esc(v.lang)}</span>` : ""}</div>
+    <div style="min-width:0"><div class="vname"><span class="n">${auto ? "Automatic" : esc(v.name)}</span>${auto ? "" : v.bundled ? "" : `<span class="vbadge mine">mine</span>`}${!auto && v.lang !== book.lang ? `<span class="vbadge warn" title="The accent of the sample may carry over">${esc(v.lang)}</span>` : ""}</div>
       <div class="vmeta">${auto ? `best match for the book → ${esc(v.name)}` : [esc(v.id), esc(LANGS[v.lang] || v.lang), GENDER[v.gender] || "", v.seconds ? v.seconds + " s" : "", esc(v.license)].filter(Boolean).join(" · ")}</div></div>
     <canvas class="vwave" data-wave="${esc(v.id)}"></canvas>
     <span class="vcheck">✓</span>
