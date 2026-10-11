@@ -389,15 +389,15 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
   </div>
 </section>
 
-<details id="adv" class="advanced"><summary><b>Advanced settings</b> <small class="mute">helpers that run on this computer · keys for online services</small></summary>
+<details id="adv" class="advanced"><summary><b>Advanced settings</b> <small class="mute">helpers that run on this computer · API keys for online providers</small></summary>
   <div id="s-engines" class="adv-block"><h3>Helper programs</h3>
     <p class="sec-sub">Work behind the scenes and run <b>free on this computer</b>; a choice marked <span class="vbadge warn">cloud</span> sends data to an online service and costs money. Who reads the book is chosen in step 3.</p>
     <div id="settings" class="eng-list"></div>
     <div class="row" style="margin-top:12px"><button id="save-settings" class="primary">Save choices</button><span id="settings-msg" class="mute"></span></div>
     <p class="mute" style="margin:8px 0 0"><small id="settings-note"></small></p>
   </div>
-  <div id="s-keys" class="adv-block"><h3>Paid online services <small class="mute" style="text-transform:none;letter-spacing:0">· optional</small></h3>
-    <p class="sec-sub">Keys for online services. You only need them to read a book with an online engine (step 3) or for <b>“Generate a voice sample”</b> in the voice step. Without keys the app works fully on this computer. Keys are kept in your computer's keychain, never in a file, and are never shown again.</p>
+  <div id="s-keys" class="adv-block"><h3>API keys for online providers <small class="mute" style="text-transform:none;letter-spacing:0">· optional</small></h3>
+    <p class="sec-sub">One place for the keys of the online providers you use. Which provider reads the book or makes a voice is chosen in steps 3 and 4; the keys are only needed there. Without keys the app works fully on this computer. Keys are kept in your computer's keychain, never in a file, and are never shown again.</p>
     <div id="keys" class="key-list"></div>
   </div>
 </details>
@@ -1107,7 +1107,7 @@ $("#vc-saved-list").addEventListener("click", async (ev) => {
 $("#vc-saved-list").addEventListener("keydown", (ev) => { if ((ev.key === "Enter" || ev.key === " ") && ev.target.dataset && ev.target.dataset.sid) { ev.preventDefault(); ev.target.click(); } });
 async function engVoices() {
   const e = ENG.cur(), box = $("#vc-list"); if (!e || !e.cloud) return;
-  if (!e.key_in_env && !e.key_saved) { box.innerHTML = `<div class="mute">No API key for ${esc(e.label)} — add it in <a href="#s-keys" data-open-adv>Advanced settings → Paid online services</a>.</div>`; $("#vc-sex").innerHTML = ""; return; }
+  if (!e.key_in_env && !e.key_saved) { box.innerHTML = `<div class="mute">No API key for ${esc(e.label)} — add it in <a href="#s-keys" data-open-adv>Advanced settings → API keys</a>.</div>`; $("#vc-sex").innerHTML = ""; return; }
   box.innerHTML = `<div class="mute">Loading the voices…</div>`; const ticket = ENG.ticket = (ENG.ticket || 0) + 1;
   try {
     const localize = $("#o-tts_mode").value === "localize"; if (ENG.vlang === undefined) ENG.vlang = "en";

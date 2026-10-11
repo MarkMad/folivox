@@ -424,7 +424,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             raise ApiError("Confirm that the book text is sent to the provider and billed to your account", 400)
         ks = key_state(cls)
         if not (ks["key_in_env"] or ks["key_saved"]):
-            raise ApiError(f"No API key for {cls.label}: paste it under Advanced settings → Paid online services, "
+            raise ApiError(f"No API key for {cls.label}: paste it under Advanced settings → API keys, "
                            f"or set {ks['key_env']}", 412, missing_key=ks["key_env"], provider=tts)
         model = str(o.get("tts_model") or "auto").strip()
         if not re.fullmatch(r"[\w.\-]{1,80}", model):
