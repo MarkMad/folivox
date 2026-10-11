@@ -99,6 +99,7 @@ class CloudGenerator(VoiceGenerator):
     languages: tuple[str, ...] = ("en",)  # ISO 639-1 codes the provider can speak
     key_env = ""
     price_note = ""
+    blurb = ""  # plain-language summary for the UI: what it is good for, in a sentence or two
     mode_labels: dict[str, str] = {"preset": "Pick a voice", "design": "Describe a voice"}
     terms_url = ""
     docs_url = ""
@@ -154,7 +155,7 @@ class CloudGenerator(VoiceGenerator):
         return {"name": cls.name, "label": cls.label or cls.name, "modes": list(cls.modes),
                 "languages": list(cls.languages), "key_env": cls.key_env, "price_note": cls.price_note,
                 "terms_url": cls.terms_url, "docs_url": cls.docs_url, "commercial": cls.commercial,
-                "max_chars": cls.max_chars, "models": list(cls.models), "style": cls.style,
+                "max_chars": cls.max_chars, "blurb": cls.blurb, "models": list(cls.models), "style": cls.style,
                 "mode_labels": dict(cls.mode_labels)}
 
     @classmethod

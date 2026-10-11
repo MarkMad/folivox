@@ -537,7 +537,12 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     async def gen_providers(request: Request):
         from folivox.voicegen.cloud import COMMERCIAL_NOTICE, cloud_providers
 
-        out = [{**cls.capabilities(), **key_state(cls)} for cls in cloud_providers().values()]
+        def sample_usd(cls):  # a typical voice sample: ~160 characters, 3 takes
+            best = cls.models[0]["id"] if cls.models else ""
+            return {m: cls.estimate_for(160, 3, m, best).get("usd") for m in cls.modes}
+
+        out = [{**cls.capabilities(), **key_state(cls), "sample_usd": sample_usd(cls)}
+               for cls in cloud_providers().values()]
         return JSONResponse({"providers": out, "notice": COMMERCIAL_NOTICE})
 
     async def gen_voices(request: Request):

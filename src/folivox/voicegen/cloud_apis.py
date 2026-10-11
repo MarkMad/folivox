@@ -28,6 +28,9 @@ class Gemini(CloudGenerator):
     name, label, modes, languages = "gemini", "Gemini API", ("preset", "design"), LANGS
     mode_labels = {"preset": "Pick a voice", "design": "Describe a voice (made for this run, then deleted)"}
     style = True
+    blurb = (
+        "Google's voices: 30 ready-made ones, or describe a new voice in words (it exists only while the takes are made). Understands a note like 'calm audiobook narrator'. A free tier exists (Google may then use your text); the paid tier costs a fraction of a cent per sample."
+    )
     key_env = "GEMINI_API_KEY"
     price_note = ("Paid tier about $0.0023 per 10 s of audio on gemini-3.8-flash-tts (doubles in 2027); a free tier "
                   "exists, but Google may then use your text for product improvement.")
@@ -127,6 +130,9 @@ class OpenAIVoice(CloudGenerator):
 
     name, label, modes, languages = "openai", "OpenAI", ("preset",), LANGS
     style = True
+    blurb = (
+        "13 ready-made voices; a style note steers tone and pace ('calm, slow, warm'). No voice-from-description. Simple, reliable and cheap."
+    )
     key_env = "OPENAI_API_KEY"
     price_note = ("gpt-4o-mini-tts: roughly $0.015 per minute of audio (billed in tokens); tts-1: $15 per million "
                   "characters; tts-1-hd: $30.")
@@ -182,6 +188,9 @@ class ElevenLabs(CloudGenerator):
 
     name, label, modes, languages = "elevenlabs", "ElevenLabs", ("preset", "design"), LANGS
     style = True  # eleven_v3 / eleven_v4 read audio tags such as "[calm]" as direction, not as words
+    blurb = (
+        'Very natural voices. Describe a new voice in words and get 3 different candidates at once, or pick a ready-made one. The free plan is for personal, non-commercial use; audiobooks you sell need a paid plan.'
+    )
     key_env = "ELEVENLABS_API_KEY"
     price_note = ("Pay-as-you-go list price $0.04–0.08 per 1,000 characters depending on the model (plans include "
                   "monthly credits). Free plan: personal non-commercial use, library voices are not available through "
@@ -296,6 +305,9 @@ class Cartesia(CloudGenerator):
     modes = ("preset", "localize", "clone")
     mode_labels = {"preset": "Pick a voice", "localize": "Same voice, native accent of the language",
                    "clone": "Clone one of my voices"}
+    blurb = (
+        "Clean, fast voices in 40+ languages. Pick a voice, give it the native accent of your book's language, or clone one of your own voices from your recording. No voice-from-description. Cloning needs a paid plan."
+    )
     key_env = "CARTESIA_API_KEY"
     price_note = ("1 credit per character: free plan 20,000 credits a month, Pro $5 for 100,000. Localizing a voice "
                   "costs about 225 credits, cloning needs a paid plan. Commercial use of the output needs a paid "
