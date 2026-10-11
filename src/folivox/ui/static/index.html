@@ -200,7 +200,27 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
   <div class="chapters" style="margin-top:10px"><table id="chapters"></table></div>
 </section>
 
-<section id="s-voice" class="disabled"><h2>3 · Voice</h2>
+<section id="s-engine" class="disabled"><h2>3 · Reading engine</h2>
+  <div class="grid">
+    <label class="f">Who reads the book<select id="o-tts"></select></label>
+    <label class="f eng-cloud" hidden>Model<select id="o-tts_model"></select></label>
+    <label class="f eng-cloud" hidden>Spending cap, $ (optional)<input id="o-max_cost" type="number" min="0.5" step="0.5" placeholder="no cap"></label>
+  </div>
+  <small class="mute" id="eng-blurb"></small>
+</section>
+
+<section id="s-voice" class="disabled"><h2>4 · Voice</h2>
+  <div id="v-cloud" class="eng-cloud" hidden>
+    <small class="mute" id="vc-title"></small>
+    <div class="grid" style="margin-top:8px">
+      <label class="f">Kind of voice<select id="o-tts_mode"></select></label>
+      <label class="f eng-pick">Voice<select id="o-tts_voice"></select></label>
+      <label class="f eng-desc" hidden style="grid-column:1/-1">Describe the voice<input id="o-tts_description" type="text" placeholder="a calm, warm middle-aged woman, unhurried audiobook narrator"></label>
+      <label class="f eng-style" style="grid-column:1/-1">Narration note (optional)<input id="o-tts_style" type="text" placeholder="default: neutral, steady audiobook narration"></label>
+    </div>
+    <label class="consent eng-own" hidden style="margin-top:8px"><input type="checkbox" id="eng-own"><span>The voice I select in the list below is my own, or I have the speaker's permission to clone it. The clone exists in the provider's account while the book is made, then it is deleted.</span></label>
+  </div>
+  <div id="v-local">
   <div class="vbar"><input id="vq" type="search" placeholder="Search voices — name, id, language, license" autocomplete="off">
     <div class="chips" id="vgender"></div></div>
   <div class="chips" id="vlangs"></div>
@@ -302,22 +322,12 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
       </div>
     </div>
   </div>
+  </div>
 </section>
 
-<section id="s-run" class="disabled"><h2>4 · Render</h2>
-  <div id="eng" class="grid" style="margin-bottom:10px">
-    <label class="f">Reading engine<select id="o-tts"></select></label>
-    <label class="f eng-cloud" hidden>Model<select id="o-tts_model"></select></label>
-    <label class="f eng-cloud" hidden>Voice kind<select id="o-tts_mode"></select></label>
-    <label class="f eng-cloud eng-pick" hidden>Voice<select id="o-tts_voice"></select></label>
-    <label class="f eng-cloud eng-desc" hidden style="grid-column:1/-1">Describe the voice<input id="o-tts_description" type="text" placeholder="a calm, warm middle-aged woman, unhurried audiobook narrator"></label>
-    <label class="f eng-cloud eng-style" hidden style="grid-column:1/-1">Narration note (optional)<input id="o-tts_style" type="text" placeholder="default: neutral, steady audiobook narration"></label>
-    <label class="f eng-cloud" hidden>Spending cap, $ (optional)<input id="o-max_cost" type="number" min="0.5" step="0.5" placeholder="no cap"></label>
-  </div>
-  <small class="mute" id="eng-blurb"></small>
+<section id="s-run" class="disabled"><h2>5 · Render</h2>
   <div id="eng-cloud" class="eng-cloud" hidden style="margin:8px 0">
     <div id="eng-est" style="margin-bottom:6px"></div>
-    <label class="consent eng-own" hidden><input type="checkbox" id="eng-own"><span>The selected voice in step 2 is my own, or I have the speaker's permission to clone it. The clone exists in the provider's account while the book is made, then it is deleted.</span></label>
     <label class="consent"><input type="checkbox" id="eng-ack"><span>I understand that the book text is sent to this online service and billed to my account at the price above. I will check the provider's terms (<a id="eng-terms" href="#" target="_blank" rel="noopener">terms</a>) before sharing or selling the audio. A 600-character preview costs a few cents: try it first.</span></label>
   </div>
   <details><summary>Options</summary>
@@ -456,7 +466,7 @@ function setBook(b, keep, lang) {
   if (lang) $("#lang").value = lang;
   renderChapters(keep);
   if (typeof ENG !== "undefined" && ENG.list.length) { engVoices(); engEstimate(); }
-  ["#s-chapters", "#s-voice", "#s-run"].forEach(s => $(s).classList.remove("disabled"));
+  ["#s-chapters", "#s-engine", "#s-voice", "#s-run"].forEach(s => $(s).classList.remove("disabled"));
   loadVoices();
 }
 function renderChapters(keep) {
@@ -1009,6 +1019,7 @@ function engChange() {
   const e = ENG.cur(); if (!e) return;
   try { localStorage.setItem("folivox.tts", e.name); } catch (x) {}
   document.querySelectorAll(".eng-cloud").forEach(el => el.hidden = !e.cloud);
+  $("#v-local").hidden = false;
   $("#eng-ack").checked = false;
   $("#o-takes").value = e.cloud ? 2 : 3;
   $("#o-takes").parentElement.title = e.cloud ? "Each retake is billed" : "";
@@ -1024,6 +1035,8 @@ function engMode() {
   const e = ENG.cur(); if (!e || !e.cloud) return; const m = $("#o-tts_mode").value;
   document.querySelector(".eng-pick").hidden = !(m === "preset" || m === "localize"); document.querySelector(".eng-desc").hidden = m !== "design";
   document.querySelector(".eng-own").hidden = m !== "clone";
+  $("#v-local").hidden = m !== "clone";  // the catalog gallery is only needed to pick your own voice to clone
+  $("#vc-title").textContent = m === "clone" ? "Pick one of your own voices below; it will be cloned in your " + e.label + " account." : "Voices of " + e.label + ". Your own voice catalog is used only by the local engine (and for cloning).";
 }
 async function engVoices() {
   const e = ENG.cur(), sel = $("#o-tts_voice"); if (!e || !e.cloud) return;
