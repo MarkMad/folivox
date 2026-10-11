@@ -240,7 +240,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
   <div class="vactions" style="margin-top:12px">    <button type="button" class="vact" id="add-card" aria-pressed="false"><span class="vact-i">+</span><span><b>Add your own voice</b><small>upload a recording or record one</small></span></button>
     <button type="button" class="vact" id="gen-card" aria-pressed="false"><span class="vact-i">✦</span><span><b>Generate a voice sample <span class="vbadge best">best option</span></b><small>an online service reads a short text (a few cents, once); you then use it for free, offline</small></span></button>
   </div>
-  <div class="mute" id="vcount" style="margin-top:6px"><small></small></div>
+  <div class="mute" id="vcount" hidden style="margin-top:6px"><small></small></div>
   <div id="addvoice" class="av" hidden>
     <div class="av-head"><b>Add your own voice</b><span class="mute" id="av-sub">6–15 s of clean speech: no music, no noise, an even calm pace</span>
       <button id="av-close" class="chip" style="margin-left:auto">Close</button></div>
@@ -547,7 +547,7 @@ function renderVoices() {
     const q = vf.q.trim().toLowerCase(), elsewhere = VOICES.filter(v => (!vf.gender || v.gender === vf.gender) && (!q || [v.name, v.id, v.transcript].some(x => (x || "").toLowerCase().includes(q)))).length;
     $("#voices").innerHTML += `<div class="vempty">${vf.fav && !FAV.size ? "No favorites yet — press ☆ on a voice. " : "No voices match"}${vf.fav && !FAV.size ? "" : ""}${vf.lang !== "all" ? ` in ${esc(LANGS[vf.lang] || vf.lang)}` : ""}. ${vf.lang !== "all" && elsewhere ? `<a href="#" id="vall">Show ${elsewhere} in other languages</a> or ` : ""}add your own below.</div>`;
   }
-  $("#vcount").firstChild.textContent = `${shown.length} of ${VOICES.length} voices` + (voice && !shown.some(v => v.id === voice) ? ` · selected: ${(VOICES.find(v => v.id === voice) || {}).name || voice} (hidden by the filter)` : "");
+  setVNote(voice && !shown.some(v => v.id === voice) ? `Selected: ${(VOICES.find(v => v.id === voice) || {}).name || voice} (hidden by the filter)` : "");
   document.querySelectorAll("#voices .vwave").forEach(c => drawWave(c, 0));
 }
 function drawWave(cv, progress) {
@@ -620,6 +620,7 @@ for (const [panel, btn] of [["#addvoice", "#add-card"], ["#genvoice", "#gen-card
   const sync = () => { const on = !$(panel).hidden; $(btn).classList.toggle("on", on); $(btn).setAttribute("aria-pressed", on); };
   new MutationObserver(sync).observe($(panel), { attributes: true, attributeFilter: ["hidden"] }); sync();
 }
+function setVNote(text) { $("#vcount").firstChild.textContent = text; $("#vcount").hidden = !text; }  // only a note that matters; no voice counter
 function openAdd() { closeGen(); $("#addvoice").hidden = false; $("#addvoice").scrollIntoView({ behavior: "smooth", block: "nearest" }); $("#av-name").focus({ preventScroll: true }); }
 function closeAdd() { stopRec(true); resetAdd(); $("#addvoice").hidden = true; }
 function resetAdd() { av = null; avDirty = false; idTouched = false; abp.reset();
@@ -796,7 +797,7 @@ $("#av-submit").onclick = async () => {
     const v = await api("/api/voices", { method: "POST", body: fd }); voice = v.id; vf.manual = true; vf.lang = v.lang; vf.q = ""; $("#vq").value = "";
     resetAdd(); $("#addvoice").hidden = true; await loadVoices(); saveSession();
     const card = document.querySelector(`.vcard[data-id="${CSS.escape(v.id)}"]`); if (card) { card.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
-    $("#vcount").firstChild.textContent += v.warnings.length ? " · " + v.warnings.join(" ") : "";
+    if (v.warnings.length) setVNote(v.warnings.join(" "));
   } catch (err) { msg.className = "err"; msg.textContent = err.message; btn.disabled = false; }
 };
 
