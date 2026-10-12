@@ -10,7 +10,7 @@ folivox book.pdf -v me.wav --mp3 -o out/      # one mp3 per chapter
 
 Run `folivox` with no arguments for a quick start, `folivox --help` / `folivox render --help` for
 all options (grouped by purpose, with defaults and examples), and `folivox help <topic>` for
-longer explanations (`voices`, `providers`, `config`, `languages`, `resuming`, `quality`).
+longer explanations (`voices`, `providers`, `config`, `languages`, `resuming`, `quality`, `speed`).
 
 `folivox render` options (the same groups as in `--help`):
 
@@ -40,6 +40,20 @@ longer explanations (`voices`, `providers`, `config`, `languages`, `resuming`, `
 | | `--cover` | the book's own | an image (JPEG, PNG, WebP) to embed instead, or `none`; shrunk to 1600 px |
 | | `--work-dir` | `<output>.folivox/` | cache and journal; delete it when done |
 | | `--verbose` | | print every fragment |
+
+## Speed test
+
+```bash
+folivox bench                         # every device found: cpu, cuda, mps
+folivox bench --devices cpu,cuda      # only these (cuda is tried even if `auto` would skip a small GPU)
+folivox bench --lang en --voice me.wav --timeout 600
+```
+
+Synthesises one short fragment per device, each in its own process (a crash or an out-of-memory error ends only
+that line) and prints characters per second, RTF (synthesis time / audio length; below 1 is faster than real
+time), model load and warm-up time, and the peak GPU memory. Run it with the same voice and language on
+different machines to compare them. Speech recognition (the QA step) is not measured. The studio and the
+console also show the device and the current `chars/s` during a render.
 
 ## Interface language
 

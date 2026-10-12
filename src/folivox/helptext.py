@@ -124,4 +124,19 @@ mismatch the fragment is synthesised again (up to [cyan]--takes[/] times) and th
   [cyan]--takes N[/]      more takes = fewer artefacts, slower
   [cyan]--verbose[/]      print every fragment with its scores
   [cyan]--max-chars N[/]  shorter fragments are safer for the model, longer ones sound smoother"""),
+    "speed": ("Hardware and speed test", """\
+[cyan]folivox doctor[/] shows what the machine offers (CPU, GPU, memory) and which device [cyan]auto[/] will use.
+[cyan]folivox bench[/] measures the real speed: one short fragment on every device found (cpu, cuda, mps), \
+each in its own process, so a crash or out-of-memory on one device ends only that line.
+
+  [cyan]folivox bench[/]                      all devices found
+  [cyan]folivox bench --devices cpu,cuda[/]   only these; cuda is tried even if [cyan]auto[/] would skip a small GPU
+
+The table shows characters per second (more is faster), RTF (synthesis time / audio length; below 1 is faster \
+than real time), model load and warm-up time, and the peak GPU memory. Run it with the same voice and language \
+on different machines to compare them. The speech-recognition check is not included.
+
+[cyan]auto[/] uses CUDA only after a self-test and with at least 4 GB of GPU memory; Whisper goes to the GPU \
+only with 8 GB or more. Force a device with [cyan]--device cpu|cuda|mps[/]. During a render the studio and \
+the console show the device in use and the current chars/s."""),
 }

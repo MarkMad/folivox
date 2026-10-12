@@ -325,7 +325,7 @@ characters per second, RTF and peak GPU memory, so you can see what actually hel
 machines (`--devices cpu,cuda` picks devices; CUDA is tried even if `auto` would skip a small GPU).
 
 `folivox --help`, `folivox render --help` and `folivox help <topic>` (`voices`, `providers`, `config`,
-`languages`, `resuming`, `quality`) explain every option. Full list: [docs/cli.md](docs/cli.md).
+`languages`, `resuming`, `quality`, `speed`) explain every option. Full list: [docs/cli.md](docs/cli.md).
 
 ## FAQ
 

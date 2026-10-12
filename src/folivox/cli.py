@@ -432,7 +432,8 @@ def render(
         console.print("\n[bold]Setup finished.[/] The models are stored once and reused. Next time:\n"
                       "  [cyan]folivox ui[/]                  the web studio (voices, preview, progress)\n"
                       "  [cyan]folivox render book.fb2[/]     straight from the terminal\n"
-                      "  [cyan]folivox doctor[/]              check ffmpeg, hardware and models")
+                      "  [cyan]folivox doctor[/]              check ffmpeg, hardware and models\n"
+                      "  [cyan]folivox bench[/]               measure the speed on each device (CPU, CUDA, MPS)")
     if events.audio:
         console.print(f"Synthesis: {fmt_duration(events.synth)} for {fmt_duration(events.audio)} of audio, "
                       f"RTF {events.synth / events.audio:.2f}")
@@ -928,7 +929,8 @@ GUIDE = """[bold green]Folivox is ready.[/]
 [bold]If something goes wrong[/]
   [cyan]folivox doctor[/]            checks ffmpeg, hardware and models
   [cyan]folivox doctor --bundle ~/Desktop[/]   saves a file to send to support
-  [cyan]folivox help[/]              short guides: voices, providers, resuming, quality
+  [cyan]folivox bench[/]             speed test: characters per second on CPU / GPU, to compare machines
+  [cyan]folivox help[/]              short guides: voices, providers, resuming, quality, speed
 
 Update: [cyan]folivox update[/] (models and voices are kept)    Remove: [cyan]folivox uninstall[/]
 """
@@ -1120,7 +1122,7 @@ def bench(devices: str = typer.Option("", "--devices", help="Comma-separated: cp
         console.print(f"Fastest: [bold]{best['device']}[/]. Use it with `--device {best['device']}`.")
 
 
-@app.command("help", help="Explain a topic: voices, providers, config, languages, resuming, quality.",
+@app.command("help", help="Explain a topic: voices, providers, config, languages, resuming, quality, speed.",
              rich_help_panel="Help")
 def help_topic(topic: str | None = typer.Argument(None, help="Topic name; omit to list topics.", show_default=False)):
     """Explain a topic in more detail than --help can."""
@@ -1154,7 +1156,9 @@ def _root(ctx: typer.Context,
             ("folivox ui", "local web interface in your browser"),
             ("folivox voices", "list, add, design voices"),
             ("folivox providers", "TTS / ASR / LLM backends and config"),
-            ("folivox help [topic]", "voices · providers · config · languages · resuming · quality")]
+            ("folivox doctor", "check ffmpeg, hardware and models"),
+            ("folivox bench", "speed test on each device (CPU, CUDA, MPS)"),
+            ("folivox help [topic]", "voices · providers · config · languages · resuming · quality · speed")]
     for cmd, desc in rows:
         t.add_row(f"[cyan]{cmd}[/]", desc)
     console.print(t)
