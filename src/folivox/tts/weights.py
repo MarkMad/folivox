@@ -55,6 +55,16 @@ class DownloadMeter:
         return speed, eta
 
 
+def _live_size(p: Path) -> int:
+    """Size of a file that may still be written. On Windows ``stat()`` on a growing file returns a stale size (NTFS
+    updates it lazily, in bursts), so ask through an open handle, which is exact."""
+    try:
+        with open(p, "rb") as f:
+            return f.seek(0, 2)
+    except OSError:
+        return p.stat().st_size
+
+
 def _downloaded(target: Path, patterns: list[str]) -> int:
     """Bytes on disk: finished files matching ``patterns`` plus huggingface_hub's ``.incomplete`` parts."""
     done = 0
@@ -63,7 +73,7 @@ def _downloaded(target: Path, patterns: list[str]) -> int:
             continue
         rel = p.relative_to(target).as_posix()
         if rel.startswith(".cache/"):
-            done += p.stat().st_size if rel.endswith(".incomplete") else 0
+            done += _live_size(p) if rel.endswith(".incomplete") else 0
         elif any(fnmatch.fnmatch(rel, pat) for pat in patterns):
             done += p.stat().st_size
     return done
