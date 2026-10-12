@@ -375,7 +375,8 @@ def render(
     opts = RenderOptions(output=output, voice_wav=voice_path, voice_text=voice_text, work_dir=work_dir,
                          chapters=chapters, preview=preview, depth=depth, max_chars=max_chars, stress=stress.value,
                          lang=book.lang, speed=speed, device=device.value, threads=threads,
-                         model_dir=str(model_dir) if model_dir else None, qa=qa, qa_threshold=QA_LEVELS.get(qa_level, QA_LEVELS["standard"]),
+                         model_dir=str(model_dir) if model_dir else None, qa=qa,
+        qa_threshold=QA_LEVELS.get(qa_level, QA_LEVELS["standard"]),
                          max_takes=takes or (2 if cloud else 3), mp3=mp3,
                          bitrate=bitrate, llm=llm.value, tts=tts_name, tts_model=tts_model, tts_voice=tts_voice,
                          tts_style=tts_style, tts_mode=tts_mode, tts_description=tts_describe, voice_ref=voice_ref,
@@ -978,8 +979,9 @@ def setup(skip_models: bool = typer.Option(False, "--skip-models", help="Only ch
 
 @app.command(help="Remove what Folivox downloaded (models; with --everything also voices and settings). "
                   "Never touches books, audiobooks, ffmpeg or uv.", rich_help_panel="Other")
-def uninstall(everything: bool = typer.Option(False, "--everything", help="Also remove your voices and settings (without "
-                                              "it only the downloaded models go)."),
+def uninstall(everything: bool = typer.Option(False, "--everything",
+                                              help="Also remove your voices and settings (without it only the "
+                                                   "downloaded models go)."),
               yes: bool = typer.Option(False, "--yes", "-y", help="Do not ask for confirmation."),
               dry_run: bool = typer.Option(False, "--dry-run", help="Only show what would be removed.")):
     """Step 1 of removal; step 2 is the last line it prints."""
