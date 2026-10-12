@@ -49,6 +49,7 @@ tts = [
     "regex",
     "soundfile>=0.12",
     "huggingface-hub>=0.24",
+    "hf-xet>=1.0",
     "ruaccent>=1.5",
 ]
 # Whisper-based quality check of each take.

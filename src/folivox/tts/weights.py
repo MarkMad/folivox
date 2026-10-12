@@ -92,19 +92,18 @@ def _hub_bars_off() -> Callable[[], None]:
 
 
 @contextmanager
-def _watch(name: str, target: Path, patterns: list[str]) -> Iterator[None]:
+def _watch_measured(name: str, measure: Callable[[], int], total: int) -> Iterator[None]:
     hook = _hook
     if hook is None:
         yield
         return
     stop = threading.Event()
-    total = _total_size(patterns)
     hub_bars = _hub_bars_off()
 
     def poll() -> None:
         last = -1
         while True:
-            done = _downloaded(target, patterns)
+            done = measure()
             if done != last:
                 hook(name, done, max(total, done) if total else 0)
                 last = done
@@ -119,7 +118,46 @@ def _watch(name: str, target: Path, patterns: list[str]) -> Iterator[None]:
         stop.set()
         t.join()
         hub_bars()
-        hook(name, total or _downloaded(target, patterns), total)
+        hook(name, total or measure(), total)
+
+
+@contextmanager
+def _watch(name: str, target: Path, patterns: list[str]) -> Iterator[None]:
+    if _hook is None:
+        yield
+        return
+    with _watch_measured(name, lambda: _downloaded(target, patterns), _total_size(patterns)):
+        yield
+
+
+def _repo_total(repo_id: str) -> int:
+    try:
+        from huggingface_hub import HfApi
+
+        return sum(f.size or 0 for f in HfApi().model_info(repo_id, files_metadata=True).siblings)
+    except Exception:  # noqa: BLE001 — see _total_size
+        return 0
+
+
+def _cache_bytes(repo_id: str) -> int:
+    """Bytes in the huggingface cache folder of ``repo_id`` (finished blobs and ``.incomplete`` parts)."""
+    from huggingface_hub import constants
+
+    root = Path(constants.HF_HUB_CACHE) / ("models--" + repo_id.replace("/", "--")) / "blobs"
+    try:
+        return sum(p.stat().st_size for p in root.iterdir() if p.is_file())
+    except OSError:
+        return 0
+
+
+@contextmanager
+def watch_repo(name: str, repo_id: str | None) -> Iterator[None]:
+    """Progress for a download into the shared huggingface cache that we do not drive ourselves (Whisper)."""
+    if _hook is None or not repo_id:
+        yield
+        return
+    with _watch_measured(name, lambda: _cache_bytes(repo_id), _repo_total(repo_id)):
+        yield
 
 
 def default_model_dir() -> Path:

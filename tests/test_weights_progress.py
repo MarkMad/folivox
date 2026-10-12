@@ -43,3 +43,26 @@ def test_needs_download(tmp_path, monkeypatch):
     (tmp_path / "m" / "llm.rl.pt").write_bytes(b"x")
     assert not weights.needs_download(None, "rl")
     assert not weights.needs_download(str(tmp_path / "custom"), "rl")  # user folders are never downloaded into
+
+
+def test_watch_repo_reports_cache_growth(tmp_path, monkeypatch):
+    from huggingface_hub import constants
+
+    monkeypatch.setattr(constants, "HF_HUB_CACHE", str(tmp_path))
+    monkeypatch.setattr(weights, "_repo_total", lambda repo: 300)
+    monkeypatch.setattr(weights, "POLL_SECONDS", 0.05)
+    blobs = tmp_path / "models--a--b" / "blobs"
+    blobs.mkdir(parents=True)
+    seen = []
+    with weights.reporting(lambda name, done, total: seen.append((done, total))):
+        with weights.watch_repo("asr", "a/b"):
+            (blobs / "x.incomplete").write_bytes(b"x" * 100)
+            time.sleep(0.2)
+    assert any(d == 100 for d, _ in seen) and seen[-1] == (300, 300)
+
+
+def test_watch_repo_without_hook_or_repo_is_silent():
+    with weights.watch_repo("asr", "a/b"):
+        pass
+    with weights.reporting(lambda *a: None), weights.watch_repo("asr", None):
+        pass

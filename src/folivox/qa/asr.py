@@ -75,8 +75,11 @@ class MLXWhisper(ASR):
 
             return snapshot_download(self.model)  # cached after the first time; later calls go offline-fast
 
+        from folivox.tts.weights import watch_repo
+
         try:
-            self.model = with_retries(fetch, f"the speech-recognition model {self.model}")
+            with watch_repo("Speech recognition model", self.model):
+                self.model = with_retries(fetch, f"the speech-recognition model {self.model}")
         except ImportError:
             pass
 
@@ -87,6 +90,18 @@ class MLXWhisper(ASR):
                                    language=self.language, condition_on_previous_text=False,
                                    initial_prompt=prompt, verbose=None)
         return r["text"].strip()
+
+
+def _fw_repo(model: str) -> str | None:
+    """The huggingface repo faster-whisper downloads for ``model`` (None for a local path or unknown name)."""
+    if "/" in model:
+        return None if os.path.isdir(model) else model
+    try:
+        from faster_whisper.utils import _MODELS
+
+        return _MODELS.get(model)
+    except ImportError:
+        return None
 
 
 class FasterWhisper(ASR):
@@ -109,9 +124,12 @@ class FasterWhisper(ASR):
         from folivox.tts.weights import with_retries
 
         # the first call downloads the model (~1.6 GB) from huggingface: retry network failures, resume parts
-        self._fw = with_retries(lambda: WhisperModel(self.model, device=device,
-                                                     compute_type="float16" if device == "cuda" else "int8"),
-                                f"the speech-recognition model {self.model}")
+        from folivox.tts.weights import watch_repo
+
+        with watch_repo("Speech recognition model", _fw_repo(self.model)):
+            self._fw = with_retries(lambda: WhisperModel(self.model, device=device,
+                                                         compute_type="float16" if device == "cuda" else "int8"),
+                                    f"the speech-recognition model {self.model}")
 
     def transcribe(self, audio, sample_rate, prompt=None):
         segments, _ = self._fw.transcribe(_resample(audio, sample_rate), language=self.language, beam_size=1,
