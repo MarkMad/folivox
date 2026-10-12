@@ -149,6 +149,10 @@ class JobManager:
             job.error = str(e) or type(e).__name__
             diag.event("job failed", level=40, exc_info=True, job=job.id, error=job.error)
             job.finish("error", "error", message=job.error)
+        finally:
+            from folivox import memory
+
+            memory.release()  # a paused studio should not keep the models (~20 GB) in memory
 
     def start_task(self, job: Job, fn: Callable[[Job], str | None]) -> Job:
         """Run ``fn(job)`` in a worker thread as the current voice-generation job (events and cancel as a render)."""
