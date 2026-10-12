@@ -430,6 +430,12 @@ def load_engine(opts: RenderOptions, events: Events):
     from folivox.tts import ENGINES
 
     last = None
+    if opts.device == "auto":
+        from folivox import gpu
+
+        why = gpu.cuda_skip_reason()
+        if why:
+            events.warning(f"CUDA is not used: {why}. Running on the CPU (slower); `--device cuda` forces the GPU")
     devices = [opts.device]
     if opts.device not in ("cpu",):
         devices.append("cpu")  # "auto" may pick a broken mps/cuda: the CPU is slow but always works
@@ -566,7 +572,8 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
         if opts.qa:
             events.stage("asr", f"Loading speech recognition for QA ({opts.asr})")
             try:
-                asr = ASR_PROVIDERS.create(opts.asr, language=opts.lang)
+                asr = ASR_PROVIDERS.create(opts.asr, language=opts.lang,
+                                           **({"device": "cpu"} if opts.device == "cpu" and opts.asr == "auto" else {}))
             except Exception as e:  # noqa: BLE001 — QA is optional; do not block the whole render
                 events.warning(f"Speech recognition could not be loaded ({e}); rendering without the quality check")
                 asr = None

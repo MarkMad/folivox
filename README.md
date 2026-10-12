@@ -235,7 +235,7 @@ a quick preview before the long run. Local only, token-protected.
 
 **Runs on what you have**<br>
 Apple Silicon (GPU via Metal, Whisper via MLX), NVIDIA CUDA, or a plain CPU. If the GPU fails, the CPU takes
-over. `folivox doctor` reviews your hardware and gives advice.
+over. `folivox doctor` reviews your hardware and gives advice; `folivox bench` measures the real speed.
 
 </td>
 </tr>
@@ -301,7 +301,12 @@ folivox book.pdf --mp3 -o out/                # one mp3 per chapter
 folivox render book.epub --tts openai --tts-voice coral --max-cost 5   # an online engine with a cap
 folivox voices                                # your voice library
 folivox doctor --bundle                       # check the setup / write a redacted support bundle
+folivox bench                                 # speed test: characters per second on each device (CPU, CUDA, MPS)
 ```
+
+`folivox bench` synthesises one short fragment on every device it finds, each in its own process, and prints
+characters per second, RTF and peak GPU memory, so you can see what actually helps on your machine and compare
+machines (`--devices cpu,cuda` picks devices; CUDA is tried even if `auto` would skip a small GPU).
 
 `folivox --help`, `folivox render --help` and `folivox help <topic>` (`voices`, `providers`, `config`,
 `languages`, `resuming`, `quality`) explain every option. Full list: [docs/cli.md](docs/cli.md).

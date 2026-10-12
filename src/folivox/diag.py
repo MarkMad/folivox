@@ -183,8 +183,13 @@ def hardware() -> dict:
         import torch
 
         if torch.cuda.is_available():
+            from folivox import gpu
+
             props = torch.cuda.get_device_properties(0)
             info.update(gpu=props.name, vram_gb=round(props.total_memory / 1e9, 1), device="cuda")
+            info["cuda_skip"] = gpu.cuda_skip_reason()
+            if info["cuda_skip"]:
+                info["device"] = "cpu"
         elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
             info.update(gpu="Apple GPU (shared memory)", device="mps")
         else:
@@ -207,6 +212,8 @@ def advice(hw: dict) -> list[str]:
                     "close other programs. Use `--no-qa` to spare memory.")
     elif ram is not None and ram < 16:
         tips.append("8-16 GB of RAM is enough for the local model, but close heavy programs during a render.")
+    if hw.get("cuda_skip"):
+        tips.append(f"The {hw['gpu']} is not used in auto mode: {hw['cuda_skip']}.")
     if device == "cpu":
         tips.append("No GPU is used: synthesis will be several times slower than real time. A long book takes "
                     "days on a CPU; consider an online engine for it.")

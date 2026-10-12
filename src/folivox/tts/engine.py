@@ -24,7 +24,9 @@ def pick_device(requested: str = "auto") -> str:
 
     if requested != "auto":
         return requested
-    if torch.cuda.is_available():
+    from folivox import gpu
+
+    if torch.cuda.is_available() and gpu.cuda_skip_reason() is None:
         return "cuda"
     if torch.backends.mps.is_available():
         return "mps"  # hybrid: LLM + vocoder on CPU, flow on the GPU (see _move)

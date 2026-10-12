@@ -36,3 +36,6 @@ build/
 
 # personal notes, kept locally
 /recording/
+
+# clean environment of scripts/check.sh (mirrors CI)
+.venv-ci/

@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -33,7 +34,8 @@ def test_setup_download_failure_says_to_run_again(monkeypatch):
     assert r.exit_code == 1 and "again" in r.output
 
 
-@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+@pytest.mark.skipif(not shutil.which("bash") or sys.platform == "win32",
+                    reason="no real bash (on Windows `bash` is the WSL stub)")
 def test_install_script_is_valid_shell_and_documented():
     assert subprocess.run(["bash", "-n", str(ROOT / "scripts" / "install.sh")]).returncode == 0
     ps = (ROOT / "scripts" / "install.ps1").read_text(encoding="utf-8")

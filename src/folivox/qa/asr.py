@@ -115,9 +115,9 @@ class FasterWhisper(ASR):
             raise ASRUnavailable("faster-whisper is not installed: pip install 'folivox[qa]'") from e
         if device is None:
             try:
-                import torch
+                from folivox import gpu
 
-                device = "cuda" if torch.cuda.is_available() else "cpu"
+                device = gpu.whisper_device()
             except ImportError:
                 device = "cpu"
         self.model = model or FW_MODEL
@@ -175,11 +175,11 @@ def _multipart(fields: dict, file: tuple[str, str, bytes]) -> tuple[bytes, str]:
     return out.getvalue(), f"multipart/form-data; boundary={boundary}"
 
 
-def auto(language: str = "ru", **kwargs) -> ASR:
-    """mlx-whisper on Apple Silicon, faster-whisper elsewhere."""
+def auto(language: str = "ru", device: str | None = None, **kwargs) -> ASR:
+    """mlx-whisper on Apple Silicon, faster-whisper elsewhere (``device="cpu"`` keeps it off the GPU)."""
     if sys.platform == "darwin" and platform.machine() == "arm64" and not os.environ.get("FOLIVOX_NO_MLX"):
         return MLXWhisper(language, **kwargs)
-    return FasterWhisper(language, **kwargs)
+    return FasterWhisper(language, device=device, **kwargs)
 
 
 def Transcriber(backend: str = "auto", model: str | None = None, language: str = "ru") -> ASR:  # noqa: N802

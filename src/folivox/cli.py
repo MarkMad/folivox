@@ -27,8 +27,8 @@ app = typer.Typer(add_completion=False, no_args_is_help=False, invoke_without_co
                   rich_markup_mode="rich", epilog=MAIN_EPILOG, context_settings={"help_option_names": ["-h", "--help"]},
                   help="Turn e-books (FB2, EPUB, DOCX, PDF, TXT, or ZIP of one) into m4b audiobooks, locally.")
 console = Console()
-COMMANDS = {"render", "inspect", "voices", "providers", "help", "ui", "doctor", "setup", "uninstall", "--help", "-h",
-            "--version"}
+COMMANDS = {"render", "inspect", "voices", "providers", "help", "ui", "doctor", "setup", "uninstall", "bench",
+            "--help", "-h", "--version"}
 
 # Option panels of `folivox render --help`
 P_INPUT, P_VOICE, P_TEXT, P_QA = "Input", "Voice", "Text", "Quality control"
@@ -1039,6 +1039,47 @@ def doctor(bundle: Path | None = typer.Option(None, "--bundle", "-b", help="Writ
         path = diag.support_bundle(bundle, work)
         console.print(f"\nSupport bundle: {path}\nIt holds no API keys and no book text; look inside before sharing.",
                       markup=False)
+
+
+@app.command(help="Measure synthesis speed (characters per second) on each device, to compare machines.",
+             rich_help_panel="Other",
+             epilog="[bold]Example[/]\n\n  [cyan]folivox bench[/]   or   [cyan]folivox bench --devices cpu,cuda[/]")
+def bench(devices: str = typer.Option("", "--devices", help="Comma-separated: cpu, cuda, mps (default: all found). "
+                                      "cuda is tried even if `auto` would skip it."),
+          voice: str = typer.Option("", "--voice", "-v", show_default="by language", help="Voice for the test."),
+          lang: str = typer.Option("ru", "--lang", help="Language of the test text (ru or en)."),
+          timeout: int = typer.Option(1800, "--timeout", help="Seconds one device may take before it is given up.")):
+    """One short fragment per device, each in its own process, so a crash on one device does not stop the rest."""
+    from folivox import bench as b
+    from folivox.tts import weights
+
+    if weights.needs_download(None, "rl"):
+        console.print("[red]The model is not downloaded yet.[/] Run `folivox setup` first.")
+        raise typer.Exit(1)
+    wav, vtext, _ = _resolve_voice(voice, None, lang)
+    devs = [d.strip() for d in devices.split(",") if d.strip()] or b.available_devices()
+    text = b.sample_text(lang)
+    console.print(f"Test fragment: {len(text)} characters. Devices: {', '.join(devs)}. "
+                  "The first run of a slow device can take minutes.")
+    rows = []
+    for d in devs:
+        with console.status(f"{d}: loading the model and synthesising…"):
+            rows.append(b.run_device(d, str(wav), vtext, text, timeout))
+    table = Table("device", "chars/s", "RTF", "load, s", "warm-up, s", "peak VRAM, GB", "result")
+    for r in rows:
+        if "error" in r:
+            table.add_row(r["device"], "–", "–", "–", "–", "–", f"[red]{r['error']}[/]")
+        else:
+            vram = f"{r['peak_vram_gb']:.1f}" if r["peak_vram_gb"] is not None else "–"
+            table.add_row(r["device"], f"{r['chars_per_s']:.1f}", f"{r['rtf']:.2f}", f"{r['load_s']:.0f}",
+                          f"{r['warmup_s']:.0f}", vram, "[green]ok[/]")
+    console.print(table)
+    console.print("[dim]chars/s: characters of text per second of synthesis (more is faster). RTF: synthesis time / "
+                  "audio length (below 1 is faster than real time). Whisper's quality check is not included.[/]")
+    ok = [r for r in rows if "error" not in r]
+    if len(ok) > 1:
+        best = max(ok, key=lambda r: r["chars_per_s"])
+        console.print(f"Fastest: [bold]{best['device']}[/]. Use it with `--device {best['device']}`.")
 
 
 @app.command("help", help="Explain a topic: voices, providers, config, languages, resuming, quality.",
