@@ -460,6 +460,8 @@
  "diag.prompt": "Copiez le diagnostic :",
  "log.restarted": "Le serveur a redémarré ; cette tâche est perdue.",
  "run.restarted": "Le serveur a redémarré. La progression est enregistrée : appuyez sur « Générer » pour reprendre.",
+ "log.crashed": "Le serveur ne répond plus pendant la tâche — il a probablement planté (souvent le GPU : CUDA/cuDNN ou mémoire insuffisante).",
+ "run.crashed": "Le serveur Folivox a planté. L’erreur est dans le terminal où tourne folivox ui ; la progression est enregistrée — relancez-le et appuyez sur Générer, ou choisissez le périphérique cpu.",
  "run.showing": "Affichage de la tâche en cours sur le serveur.",
  "boot.fail": "{msg} — ouvrez une fois le lien affiché par <code>folivox ui</code> (il contient le jeton d’accès et dépose un cookie).",
  "gp.stopped": "Arrêté.",

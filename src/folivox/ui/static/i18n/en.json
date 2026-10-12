@@ -460,6 +460,8 @@
  "diag.prompt": "Copy the diagnostics:",
  "log.restarted": "The server restarted; this job is gone.",
  "run.restarted": "Server restarted. Progress is saved — press Render to resume.",
+ "log.crashed": "The server stopped responding mid-job — it most likely crashed (often the GPU: CUDA/cuDNN or out of memory).",
+ "run.crashed": "The Folivox server crashed. See the terminal where folivox ui ran for the error; progress is saved — restart it and press Render to resume, or pick Device: cpu.",
  "run.showing": "Showing the job that is running on the server.",
  "boot.fail": "{msg} — open the link printed by <code>folivox ui</code> once (it contains the access token and sets a cookie).",
  "gp.stopped": "Stopped.",

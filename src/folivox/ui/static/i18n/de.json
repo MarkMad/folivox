@@ -460,6 +460,8 @@
  "diag.prompt": "Diagnose kopieren:",
  "log.restarted": "Der Server wurde neu gestartet; dieser Auftrag ist verloren.",
  "run.restarted": "Server neu gestartet. Der Fortschritt ist gespeichert – zum Fortsetzen „Erzeugen“ drücken.",
+ "log.crashed": "Der Server antwortet während des Auftrags nicht mehr — vermutlich abgestürzt (oft die GPU: CUDA/cuDNN oder Speichermangel).",
+ "run.crashed": "Der Folivox-Server ist abgestürzt. Den Fehler zeigt das Terminal, in dem folivox ui lief; der Fortschritt ist gespeichert — neu starten und „Erstellen“ drücken oder Gerät cpu wählen.",
  "run.showing": "Es wird der Auftrag angezeigt, der auf dem Server läuft.",
  "boot.fail": "{msg} – öffnen Sie einmal den Link, den <code>folivox ui</code> ausgibt (er enthält das Zugriffstoken und setzt ein Cookie).",
  "gp.stopped": "Angehalten.",

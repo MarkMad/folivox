@@ -460,6 +460,8 @@
  "diag.prompt": "Copia la diagnostica:",
  "log.restarted": "Il server si è riavviato; questa attività è andata persa.",
  "run.restarted": "Il server si è riavviato. L’avanzamento è salvato: premi «Genera» per riprendere.",
+ "log.crashed": "Il server ha smesso di rispondere durante il lavoro: probabilmente si è chiuso (spesso per la GPU: CUDA/cuDNN o memoria insufficiente).",
+ "run.crashed": "Il server Folivox si è chiuso. L’errore è nel terminale in cui girava folivox ui; i progressi sono salvati: riavvialo e premi Genera per riprendere, oppure scegli il dispositivo cpu.",
  "run.showing": "Viene mostrata l’attività in esecuzione sul server.",
  "boot.fail": "{msg} — apri una volta il link stampato da <code>folivox ui</code> (contiene il token di accesso e imposta un cookie).",
  "gp.stopped": "Fermato.",

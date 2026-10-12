@@ -1683,11 +1683,11 @@ $("#copy-diag").onclick = async () => {
 };
 
 // ---- the backend is the source of truth: reattach after reload, reconcile periodically -----------
-let online = true;
+let online = true, misses = 0;
 async function reconcile() {
   try {
     const cur = await api("/api/jobs/current");
-    if (!online) { online = true; $("#offline").hidden = true; }
+    misses = 0; if (!online) { online = true; $("#offline").hidden = true; }
     if (!cur) {  // the server has no job: it was restarted while the page showed one
       if (job && !job.final) { end("error"); log(t("log.restarted"), "warn"); $("#run-msg").textContent = t("run.restarted"); }
       return;
@@ -1695,7 +1695,15 @@ async function reconcile() {
     if (typeof cur.id !== "string") return;
     const stale = !job || job.id !== cur.id || (cur.state !== "running" && !job.final) || (job.streamLost && !job.final);
     if (stale) { attach(cur); if (cur.state === "running") $("#run-msg").textContent = t("run.showing"); }
-  } catch (e) { online = false; $("#offline").hidden = false; }
+  } catch (e) {
+    online = false; $("#offline").hidden = false;
+    // The job runs inside the server: a native crash (CUDA, out of memory) takes the whole process down with no
+    // error event. Stop the animation instead of waiting forever; a restarted server lets reconcile() resume.
+    if (job && !job.final && ++misses >= 2) {
+      end("error"); setPhase(t("ph.error"), t("run.crashed"), ""); $("#hero-status").textContent = t("hero.failed");
+      log(t("log.crashed"), "err"); $("#run-msg").innerHTML = `<span class="err">${esc(t("run.crashed"))}</span>`;
+    }
+  }
 }
 // After a language switch: rebuild what JS drew (static markup is handled by applyI18n).
 let uiReady = false;

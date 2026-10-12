@@ -460,6 +460,8 @@
  "diag.prompt": "Copie el diagnóstico:",
  "log.restarted": "El servidor se reinició; esta tarea se perdió.",
  "run.restarted": "El servidor se reinició. El progreso está guardado: pulse «Generar» para continuar.",
+ "log.crashed": "El servidor dejó de responder durante la tarea; probablemente se cerró (a menudo por la GPU: CUDA/cuDNN o falta de memoria).",
+ "run.crashed": "El servidor de Folivox se cerró. El error está en la terminal donde se ejecutó folivox ui; el progreso se guardó: reinícialo y pulsa Generar para continuar, o elige el dispositivo cpu.",
  "run.showing": "Mostrando la tarea que se está ejecutando en el servidor.",
  "boot.fail": "{msg} — abra una vez el enlace que imprime <code>folivox ui</code> (contiene el token de acceso y crea una cookie).",
  "gp.stopped": "Detenido.",
