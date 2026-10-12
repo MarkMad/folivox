@@ -25,7 +25,7 @@ from folivox.pipeline import Events
 
 app = typer.Typer(add_completion=False, no_args_is_help=False, invoke_without_command=True,
                   rich_markup_mode="rich", epilog=MAIN_EPILOG, context_settings={"help_option_names": ["-h", "--help"]},
-                  help="Turn e-books (FB2, EPUB, DOCX, PDF, TXT) into m4b audiobooks, locally.")
+                  help="Turn e-books (FB2, EPUB, DOCX, PDF, TXT, or ZIP of one) into m4b audiobooks, locally.")
 console = Console()
 COMMANDS = {"render", "inspect", "voices", "providers", "help", "ui", "doctor", "setup", "uninstall", "--help", "-h",
             "--version"}
@@ -104,7 +104,7 @@ def _lang_name(code: str) -> str:
 @app.command(help="Show the book structure, chapters and estimated audio length.", rich_help_panel="Main commands",
              epilog="[bold]Example[/]\n\n  [cyan]folivox inspect book.epub --depth 1 --text[/]")
 def inspect(
-    book_path: Path = typer.Argument(..., help="Book file (FB2, EPUB, DOCX, PDF, TXT)."),
+    book_path: Path = typer.Argument(..., help="Book file (FB2, EPUB, DOCX, PDF, TXT, or ZIP of one)."),
     depth: int = typer.Option(2, "--depth", help="How deep to split the book into chapters (1 = top level only)."),
     lang: str | None = typer.Option(None, "--lang", show_default="from book / detected",
                                     help="Book language: ru en de fr es it zh ja ko."),
@@ -201,10 +201,13 @@ class RichEvents(Events):
     def chunk_done(self, chunk, take, attempts):
         self.audio += take.duration
         self.synth += take.synth_seconds
+        self.chars = getattr(self, "chars", 0) + len(chunk.source)
         if len(attempts) > 1:
             self.retakes += len(attempts) - 1
         rtf = self.synth / self.audio if self.audio else 0
         info = f"RTF {rtf:.2f} · audio {fmt_duration(self.audio)}"
+        if self.synth > 0:
+            info += f" · {self.chars / self.synth:.0f} chars/s"
         if self.spent is not None:
             info = f"audio {fmt_duration(self.audio)} · ≈ ${self.spent:.2f}" + (
                 f" of ${self.cap:.2f}" if self.cap else "")
@@ -264,7 +267,7 @@ class RichEvents(Events):
 @app.command(help="Render a book into an audiobook (m4b with chapters and cover).", epilog=RENDER_EPILOG,
              rich_help_panel="Main commands")
 def render(
-    book_path: Path = typer.Argument(..., help="Book file (FB2, EPUB, DOCX, PDF, TXT)."),
+    book_path: Path = typer.Argument(..., help="Book file (FB2, EPUB, DOCX, PDF, TXT, or ZIP of one)."),
     lang: str | None = typer.Option(None, "--lang", rich_help_panel=P_INPUT, show_default="from book / detected",
                                     help="Book language: ru en de fr es it zh ja ko."),
     chapters: str | None = typer.Option(None, "--chapters", "-c", rich_help_panel=P_INPUT, show_default="all",

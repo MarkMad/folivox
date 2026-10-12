@@ -59,6 +59,7 @@ h1 { padding-right:140px; }
 .overall > div { height:100%; width:0; background:var(--seg-done); transition:width .5s ease; }
 .stages { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
 .stage { font-size:12px; padding:3px 11px; border-radius:99px; border:1px solid var(--line); color:var(--mute); transition:all .4s; }
+.hw { margin-left:auto; font-size:11px; color:var(--mute); align-self:center; opacity:.8; }
 .stage.done { color:var(--seg-done); border-color:var(--seg-done); } .stage.done::before { content:"✓ "; }
 .stage.active { color:var(--accent-ink); background:var(--accent); border-color:var(--accent); box-shadow:0 0 0 4px var(--glow); }
 .now { display:flex; gap:16px; align-items:center; background:var(--bg); border-radius:10px; padding:14px 16px; margin-bottom:12px; min-height:84px; }
@@ -212,7 +213,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
 <div class="langsw"><select id="ui-lang" aria-label="Language" data-i18n-attr="aria-label:ui.lang"></select></div>
 
 <section id="s-book"><h2 data-i18n="s1.h">1 · Book</h2>
-  <div id="drop"><span data-i18n="s1.drop">Drop an FB2, EPUB, DOCX, PDF or TXT file here, or click to choose</span><input id="file" type="file" hidden accept=".fb2,.zip,.epub,.docx,.pdf,.txt"></div>
+  <div id="drop"><span data-i18n="s1.drop">Drop an FB2, EPUB, DOCX, PDF, TXT or ZIP file here, or click to choose</span><input id="file" type="file" hidden accept=".fb2,.zip,.epub,.docx,.pdf,.txt"></div>
   <div id="book-info" class="mute" style="margin-top:10px"></div>
   <div id="cover-box" class="cover-box" hidden>
     <div class="cover-thumb"><img id="cover-img" alt="Audiobook cover" data-i18n-attr="alt:s1.cover.alt" hidden><span id="cover-empty" class="mute">no cover</span></div>
@@ -1100,7 +1101,8 @@ function handle(ev) {
   if (!S.t0) S.t0 = ev.t; S.tLast = ev.t;
   if (STAGE_OF[ev.type === "stage" ? ev.name : ev.type] !== undefined) setStage(STAGES.findIndex(([id]) => id === STAGE_OF[ev.type === "stage" ? ev.name : ev.type]));
   switch (ev.type) {
-    case "stage": if (ev.name === "voice" && /is kept in your account/.test(ev.detail)) engNewVoice(); log(ev.detail); { const warm = ev.detail.startsWith("Model loaded"), [label, hint] = phaseOf(ev.detail);
+    case "stage": if (ev.name === "device") { let hw = $("#hw"); if (!hw) { hw = document.createElement("span"); hw.id = "hw"; hw.className = "hw"; $("#stages").appendChild(hw); } S.hwBase = ev.detail.replace(/^Device: /, ""); hw.textContent = S.hwBase; hw.title = ev.detail; break; }
+      if (ev.name === "voice" && /is kept in your account/.test(ev.detail)) engNewVoice(); log(ev.detail); { const warm = ev.detail.startsWith("Model loaded"), [label, hint] = phaseOf(ev.detail);
         setPhase(warm ? t("ph.warm") : label, warm ? t("hint.warm") : "", ev.name === "chapter" || ev.name === "encode" ? "check" : "load", hint); } break;
     case "warning": log("⚠ " + ev.message, "warn"); break;
     case "spend": $("#tile-spend").hidden = false; $("#t-spend").textContent = "$" + (ev.usd ?? 0).toFixed(2) + (ev.cap ? " / $" + ev.cap.toFixed(0) : ""); S.chars = ev.chars; break;
@@ -1121,6 +1123,7 @@ function handle(ev) {
       else if (ev.step === "qa") { f && setFrag(f.key, SEG.CHECK); setPhase(t("ph.listen") + take, f ? f.text : "", "check"); }
       else setPhase(t("ph.qafail"), f ? f.text : "", "check"); break; }
     case "progress": S.tProg = ev.t; S.audio = ev.audio; S.synthSecs = ev.rtf * ev.audio; S.retakes = ev.retakes; S.sessChars += ev.chars || 0;
+      { const hw = $("#hw"); if (hw && S.synthSecs > 0) { const cps = S.sessChars / S.synthSecs; hw.textContent = `${S.hwBase} · ${Math.round(cps)} chars/s`; hw.title = `${S.hwBase}: ${dec(cps, 1)} characters of text per second of synthesis (RTF ${dec(ev.rtf, 2)})`; } }
       if (ev.audio > 20 && ev.rtf > 0) try { localStorage.setItem("folivox.pace." + PACE_ENGINE, String(ev.rtf)); } catch (x) {}
       setFrag(ev.key, ev.attempts > 1 ? SEG.RETAKE : SEG.DONE); feedLine(ev); S.activeKey = null; break;
     case "chapter": log(`✓ ${ev.title} — ${fmt(ev.duration)}`); setPhase(t("ph.chapter", { title: ev.title }), t("ph.ofaudio", { t: fmt(ev.duration) }), "check");

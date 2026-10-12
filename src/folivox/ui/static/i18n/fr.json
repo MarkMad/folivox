@@ -7,7 +7,7 @@
  "s3.h": "3 · Moteur de lecture",
  "s4.h": "4 · Voix",
  "s5.h": "5 · Génération",
- "s1.drop": "Déposez ici un fichier FB2, EPUB, DOCX, PDF ou TXT, ou cliquez pour le choisir",
+ "s1.drop": "Déposez ici un fichier FB2, EPUB, DOCX, PDF, TXT ou ZIP, ou cliquez pour le choisir",
  "s1.cover.alt": "Couverture du livre audio",
  "s1.cover.h": "Couverture du livre audio",
  "s1.cover.choose": "Choisir une image…",

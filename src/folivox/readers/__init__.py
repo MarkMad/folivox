@@ -25,12 +25,40 @@ def detect_format(path: Path) -> str:
         with zipfile.ZipFile(path) as z:
             if any(n.lower().endswith(".fb2") for n in z.namelist()):
                 return "fb2"
+            if _zip_book_entry(z) is not None:
+                return "zip"
     raise UnsupportedFormat(f"Unsupported format: {path.name} (supported: {', '.join(SUPPORTED)})")
+
+
+_INNER = (".fb2", ".epub", ".docx", ".pdf", ".txt")
+_MAX_INNER = 500 * 1024 * 1024
+
+
+def _zip_book_entry(z: zipfile.ZipFile) -> zipfile.ZipInfo | None:
+    """The book inside a zip archive: the largest supported file (skips folders, macOS junk)."""
+    cands = [
+        i for i in z.infolist()
+        if not i.is_dir() and i.filename.lower().endswith(_INNER)
+        and "__macosx" not in i.filename.lower() and not Path(i.filename).name.startswith(".")
+        and i.file_size <= _MAX_INNER
+    ]
+    return max(cands, key=lambda i: i.file_size, default=None)
 
 
 def read_book(path: str | Path) -> Book:
     path = Path(path)
     fmt = detect_format(path)
+    if fmt == "zip":
+        import tempfile
+
+        with zipfile.ZipFile(path) as z, tempfile.TemporaryDirectory() as tmp:
+            info = _zip_book_entry(z)
+            inner = Path(tmp) / Path(info.filename).name  # basename only: no path traversal
+            inner.write_bytes(z.read(info))
+            book = read_book(inner)
+        if not book.title or book.title == inner.name.split(".")[0]:
+            book.title = path.name.split(".")[0]
+        return book
     if fmt == "fb2":
         from folivox.readers.fb2 import read_fb2 as reader
     elif fmt == "epub":

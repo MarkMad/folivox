@@ -7,7 +7,7 @@
  "s3.h": "3 · Reading engine",
  "s4.h": "4 · Voice",
  "s5.h": "5 · Render",
- "s1.drop": "Drop an FB2, EPUB, DOCX, PDF or TXT file here, or click to choose",
+ "s1.drop": "Drop an FB2, EPUB, DOCX, PDF, TXT or ZIP file here, or click to choose",
  "s1.cover.alt": "Audiobook cover",
  "s1.cover.h": "Cover of the audiobook",
  "s1.cover.choose": "Choose an image…",

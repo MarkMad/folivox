@@ -7,7 +7,7 @@
  "s3.h": "3 · Motor de lectura",
  "s4.h": "4 · Voz",
  "s5.h": "5 · Generar",
- "s1.drop": "Suelte aquí un archivo FB2, EPUB, DOCX, PDF o TXT, o haga clic para elegirlo",
+ "s1.drop": "Suelte aquí un archivo FB2, EPUB, DOCX, PDF, TXT o ZIP, o haga clic para elegirlo",
  "s1.cover.alt": "Portada del audiolibro",
  "s1.cover.h": "Portada del audiolibro",
  "s1.cover.choose": "Elegir una imagen…",
