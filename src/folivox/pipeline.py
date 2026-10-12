@@ -6,14 +6,14 @@ import hashlib
 import re
 import time
 import zlib
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import numpy as np
 
 from folivox.audio import postprocess, save
 from folivox.audio.assemble import BookMeta, ChapterAudio, build_chapter, write_m4b, write_mp3s
-from folivox.book import Book
+from folivox.book import Book, Chapter
 from folivox.journal import Journal, PlannedChunk, Take
 from folivox.text.chunk import ChunkOptions, plan_chapter
 
@@ -148,8 +148,7 @@ def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, event
     copts = ChunkOptions(max_chars=max_chars, min_chars=min(opts.chunk.min_chars, max_chars), stress=stress,
                          lang=opts.lang or book.lang or "ru", pauses=opts.chunk.pauses,
                          speak_headings=opts.chunk.speak_headings)
-    planned = [(chapters[i].title, _limit(plan_chapter(chapters[i], copts), opts.preview, copts))
-               for i in selected]
+    planned = [(chapters[i].title, _plan_preview(chapters[i], copts, opts.preview)) for i in selected]
     settings = f"{SYNTH_VERSION}|llm={opts.llm}|speed={opts.speed}"
     if opts.tts != "cosyvoice3":  # keep cache keys of existing CosyVoice renders valid
         settings = f"{opts.tts}|speed={opts.speed}"
@@ -178,6 +177,39 @@ def _prose_start(chunks) -> int:
         if odd / len(src) < 0.08:
             return i
     return 0
+
+
+PREVIEW_HEAD = 6000  # characters of a chapter planned first for a preview (room to skip the title pages)
+
+
+def _head(chapter: Chapter, budget: int) -> tuple[Chapter, bool]:
+    """The start of ``chapter`` of about ``budget`` characters, and whether anything was cut off."""
+    blocks, n = [], 0
+    for b in chapter.blocks:
+        if n >= budget:
+            return Chapter(chapter.title, blocks, chapter.headings), True
+        if n + len(b.text) > budget:  # one huge block: cut at a word boundary
+            cut = b.text[:budget - n]
+            cut = cut[:cut.rfind(" ")] if " " in cut else cut
+            blocks.append(replace(b, text=cut))
+            return Chapter(chapter.title, blocks, chapter.headings), True
+        blocks.append(b)
+        n += len(b.text)
+    return chapter, False
+
+
+def _plan_preview(chapter: Chapter, copts: ChunkOptions, preview: int | None):
+    """Plan a chapter; for a preview only its beginning, so a huge book is not split into thousands of
+    fragments to keep the first few hundred characters. The window grows if the title pages eat it."""
+    if not preview:
+        return plan_chapter(chapter, copts)
+    budget = max(PREVIEW_HEAD, preview * 4)
+    while True:
+        part, cut = _head(chapter, budget)
+        out = _limit(plan_chapter(part, copts), preview, copts)
+        if not cut or sum(len(c.source) for c in out) >= preview:
+            return out
+        budget *= 4
 
 
 def _limit(chunks, preview: int | None, copts: ChunkOptions):
@@ -376,6 +408,23 @@ def preflight(opts: RenderOptions, events: Events) -> None:
         events.warning(f"Only {free / 1e6:.0f} MB free on the disk with the work folder; a long book needs several GB")
 
 
+def device_label(engine) -> str:
+    """What the engine really runs on, e.g. «CUDA · NVIDIA RTX 4070», «MPS · Apple GPU», «CPU», «Cloud»."""
+    dev = getattr(engine, "device", "") or ""
+    if dev == "cloud":
+        return "Cloud"
+    if dev.startswith("cuda"):
+        try:
+            import torch
+
+            return f"CUDA · {torch.cuda.get_device_name(0)}"
+        except Exception:  # noqa: BLE001
+            return "CUDA"
+    if dev == "mps":
+        return "MPS · Apple GPU"
+    return dev.upper() or "CPU"
+
+
 def load_engine(opts: RenderOptions, events: Events):
     """Create the local engine; a failed GPU load falls back to the CPU, other failures get a clear message."""
     from folivox.tts import ENGINES
@@ -554,6 +603,7 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
                     engine = load_engine(opts, events)
                 events.stage("model", f"Model loaded in {time.time() - t0:.0f} s ({engine.device})")
                 sample_rate = engine.sample_rate
+            events.stage("device", f"Device: {device_label(engine)}")
             synthesize_pending(journal, engine, voice, asr, opts, events)
         else:
             sample_rate = journal.meta("sample_rate", 24000)
