@@ -1,7 +1,15 @@
-"""One render job at a time, run in a worker thread; pipeline events are recorded for the browser."""
+"""One render job at a time; pipeline events are recorded for the browser.
+
+A real render runs in a child process: a native crash there (CUDA/cuDNN, out of memory) kills only the child,
+and the server reports it to the browser instead of dying with it. Its models are freed when it exits.
+"""
 
 from __future__ import annotations
 
+import multiprocessing as mp
+import os
+import queue
+import sys
 import threading
 import time
 import uuid
@@ -106,8 +114,9 @@ class Job:
 
 
 class JobManager:
-    def __init__(self, render: Callable | None = None):
+    def __init__(self, render: Callable | None = None, process_target: str = "folivox.pipeline:render"):
         self._render = render
+        self._target = process_target  # "module:function" the render process runs (tests swap it)
         self.current: Job | None = None
         self.gen_current: Job | None = None  # a voice-generation job; never shown as the render job
         self.jobs: dict[str, Job] = {}
@@ -117,14 +126,75 @@ class JobManager:
         return any(j is not None and j.state == "running" for j in (self.current, self.gen_current))
 
     def start(self, kind: str, book_id: str, book, opts: RenderOptions) -> Job:
+        """Start a render; in a child process unless a test injected its own ``render``."""
         with self._lock:
             if self.busy():
                 raise RuntimeError("Another job is running")
             job = Job(kind, book_id, opts)
             self.jobs[job.id] = job
             self.current = job
-        threading.Thread(target=self._run, args=(job, book), daemon=True, name=f"folivox-job-{job.id}").start()
+        target = self._run if self._render is not None else self._run_process
+        threading.Thread(target=target, args=(job, book), daemon=True, name=f"folivox-job-{job.id}").start()
         return job
+
+    def _run_process(self, job: Job, book) -> None:
+        from folivox import diag
+
+        ctx = mp.get_context("spawn")  # never fork a process that may hold CUDA or Metal state
+        events, cancel = ctx.Queue(), ctx.Event()
+        log = job.opts.resolved_work_dir() / "render-process.log"
+        log.parent.mkdir(parents=True, exist_ok=True)
+        proc = ctx.Process(target=_child, args=(self._target, book, job.opts, events, cancel, str(log)), daemon=True,
+                           name=f"folivox-render-{job.id}")
+        diag.event("job started", job=job.id, kind=job.kind, options=diag.options_summary(job.opts), process=True)
+        t0 = time.time()
+        proc.start()
+        final = None
+        while final is None:
+            if job.cancel_requested.is_set():
+                cancel.set()
+            try:
+                msg = events.get(timeout=0.5)
+            except queue.Empty:
+                if not proc.is_alive():
+                    try:  # the last messages may still be in the pipe
+                        msg = events.get(timeout=1)
+                    except queue.Empty:
+                        break
+                else:
+                    continue
+            kind, type_, data = msg
+            if kind == "event":
+                if type_ == "plan":
+                    job.total_chars, job.done_chars = data["total_chars"], data["done_chars"]
+                elif type_ == "progress":
+                    job.done_chars = data["done_chars"]
+                job.emit(type_, **data)
+            else:
+                final = (type_, data)
+        proc.join(timeout=30)
+        secs = round(time.time() - t0, 1)
+        if final is None:
+            code = proc.exitcode
+            tail = _tail(log)
+            job.error = (f"The render process crashed (exit code {code}). Last output: {tail}" if tail else
+                         f"The render process crashed (exit code {code}).")
+            diag.event("job crashed", level=40, job=job.id, exitcode=code, tail=tail, seconds=secs)
+            print(f"folivox: {job.error}", file=sys.stderr)
+            job.finish("error", "error", message=job.error)
+            return
+        state, data = final
+        if state == "done":
+            job.result = data["result"]
+            diag.event("job finished", job=job.id, seconds=secs)
+            job.finish("done", "done", result=job.result)
+        elif state == "cancelled":
+            diag.event("job cancelled", job=job.id, seconds=secs)
+            job.finish("cancelled", "cancelled", **data)
+        else:
+            job.error = data["message"]
+            diag.event("job failed", level=40, job=job.id, error=job.error, traceback=data.get("traceback"))
+            job.finish("error", "error", message=job.error)
 
     def _run(self, job: Job, book) -> None:
         render = self._render
@@ -174,6 +244,55 @@ class JobManager:
 
         threading.Thread(target=run, daemon=True, name=f"folivox-gen-{job.id}").start()
         return job
+
+
+class _ChildJob:
+    """What ``UIEvents`` needs from a job, inside the render process: events go to the parent's queue."""
+
+    def __init__(self, events, cancel):
+        self._events, self.cancel_requested = events, cancel
+        self.total_chars = self.done_chars = 0
+
+    def emit(self, type_: str, **data) -> None:
+        self._events.put(("event", type_, data))
+
+
+def _tail(path: Path, lines: int = 6, limit: int = 600) -> str:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    keep = [ln.strip() for ln in text.replace("\r", "\n").splitlines() if ln.strip()][-lines:]
+    return " | ".join(keep)[-limit:]
+
+
+def _child(target: str, book, opts: RenderOptions, events, cancel, log: str) -> None:
+    """Render process entry point. Native libraries write straight to fds 1 and 2: keep them in a log the
+    parent quotes if the process dies without a word."""
+    fd = os.open(log, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+    for std in (1, 2):
+        os.dup2(fd, std)
+    sys.stdout = open(1, "w", encoding="utf-8", errors="replace", buffering=1, closefd=False)  # noqa: SIM115
+    sys.stderr = open(2, "w", encoding="utf-8", errors="replace", buffering=1, closefd=False)  # noqa: SIM115
+    import importlib
+
+    mod, _, fn = target.partition(":")
+    try:
+        render = getattr(importlib.import_module(mod), fn)
+        result = render(book, opts, UIEvents(_ChildJob(events, cancel)))
+        events.put(("final", "done", {"result": str(result)}))
+    except CostCapReached as e:
+        events.put(("final", "cancelled", {"reason": "cost_cap", "message": str(e)}))
+    except Cancelled:
+        events.put(("final", "cancelled", {}))
+    except BaseException as e:  # noqa: BLE001 — report any failure to the parent
+        import traceback
+
+        traceback.print_exc()
+        events.put(("final", "error", {"message": str(e) or type(e).__name__, "traceback": traceback.format_exc()}))
+    finally:
+        events.close()
+        events.join_thread()
 
 
 def chapter_files(work_dir: Path) -> dict[int, Path]:

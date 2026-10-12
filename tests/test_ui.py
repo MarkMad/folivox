@@ -389,3 +389,38 @@ def test_cookie_survives_a_server_restart(tmp_path):
     again.cookies.set("folivox_session_8765", cookie)
     assert again.get("/api/session").status_code == 200
     assert boot().get("/api/session").status_code == 401  # a browser without the cookie is still refused
+
+
+@pytest.mark.parametrize("target,state,needle", [("ok", "done", None), ("fail", "error", "no voice"),
+                                                 ("crash", "error", "cudnnGetLibConfig")])
+def test_render_process_reports_result_failure_and_native_crash(tmp_path, target, state, needle):
+    from folivox.book import Book
+    from folivox.pipeline import RenderOptions
+    from folivox.ui.jobs import JobManager
+
+    m = JobManager(process_target=f"render_fakes:{target}")
+    job = m.start("render", "b", Book(title="t"), RenderOptions(output=tmp_path / "x.m4b"))
+    deadline = time.time() + 60
+    while job.state == "running" and time.time() < deadline:
+        time.sleep(0.1)
+    assert job.state == state
+    if needle:
+        assert needle in job.error
+    if target != "fail":
+        assert any(e["type"] == "stage" for e in job.events)
+
+
+def test_render_process_cancels(tmp_path):
+    from folivox.book import Book
+    from folivox.pipeline import RenderOptions
+    from folivox.ui.jobs import JobManager
+
+    job = JobManager(process_target="render_fakes:slow").start("render", "b", Book(title="t"),
+                                                                RenderOptions(output=tmp_path / "x.m4b"))
+    deadline = time.time() + 60
+    while not job.events and time.time() < deadline:
+        time.sleep(0.1)
+    job.cancel_requested.set()
+    while job.state == "running" and time.time() < deadline:
+        time.sleep(0.1)
+    assert job.state == "cancelled"
