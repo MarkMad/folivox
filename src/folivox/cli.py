@@ -27,7 +27,7 @@ app = typer.Typer(add_completion=False, no_args_is_help=False, invoke_without_co
                   rich_markup_mode="rich", epilog=MAIN_EPILOG, context_settings={"help_option_names": ["-h", "--help"]},
                   help="Turn e-books (FB2, EPUB, DOCX, PDF, TXT, or ZIP of one) into m4b audiobooks, locally.")
 console = Console()
-COMMANDS = {"render", "inspect", "voices", "providers", "help", "ui", "doctor", "setup", "uninstall", "bench",
+COMMANDS = {"render", "inspect", "voices", "providers", "help", "ui", "doctor", "setup", "update", "uninstall", "bench",
             "--help", "-h", "--version"}
 
 # Option panels of `folivox render --help`
@@ -930,7 +930,7 @@ GUIDE = """[bold green]Folivox is ready.[/]
   [cyan]folivox doctor --bundle ~/Desktop[/]   saves a file to send to support
   [cyan]folivox help[/]              short guides: voices, providers, resuming, quality
 
-Update: run the install command again (models and voices are kept)    Remove: [cyan]folivox uninstall[/]
+Update: [cyan]folivox update[/] (models and voices are kept)    Remove: [cyan]folivox uninstall[/]
 """
 
 
@@ -978,6 +978,44 @@ def setup(skip_models: bool = typer.Option(False, "--skip-models", help="Only ch
         events.close()
     console.rule()
     console.print(GUIDE)
+
+
+INSTALLER_URL = "https://raw.githubusercontent.com/vatavale/folivox/main/scripts/install.{ext}"
+
+
+@app.command(help="Update Folivox to the latest version from GitHub (models, voices and settings are kept).",
+             rich_help_panel="Other",
+             epilog="[bold]Example[/]\n\n  [cyan]folivox update[/]   or, for a specific version, "
+                    "[cyan]FOLIVOX_SOURCE=git+https://github.com/vatavale/folivox@<tag> folivox update[/]")
+def update(yes: bool = typer.Option(False, "--yes", "-y", help="Do not ask for confirmation.")):
+    """Runs the same installer you used the first time, whichever way that was."""
+    import subprocess
+    import tempfile
+    import urllib.request
+
+    windows = sys.platform == "win32"
+    url = INSTALLER_URL.format(ext="ps1" if windows else "sh")
+    console.print(f"Installed now: folivox {__version__}. The latest installer is fetched from [cyan]{url}[/]")
+    if not yes and not typer.confirm("Update now?", default=True):
+        console.print("Cancelled, nothing was changed.")
+        raise typer.Exit(1)
+    try:
+        with urllib.request.urlopen(url, timeout=30) as r:  # noqa: S310 (fixed https URL)
+            script = r.read()
+    except OSError as e:
+        console.print(f"[red]Could not download the installer:[/] {e}\nCheck the network and try again.")
+        raise typer.Exit(1) from None
+    with tempfile.TemporaryDirectory() as d:
+        path = Path(d) / ("install.ps1" if windows else "install.sh")
+        path.write_bytes(script)
+        env = {**os.environ, "FOLIVOX_NO_START": "1"}
+        cmd = (["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(path)] if windows
+               else ["bash", str(path)])
+        code = subprocess.call(cmd, env=env)
+    if code:
+        console.print("[red]Update failed.[/] It is safe to run [cyan]folivox update[/] again.")
+        raise typer.Exit(code)
+    console.print("[green]✓[/] Updated. Check the version with [cyan]folivox --version[/].")
 
 
 @app.command(help="Remove what Folivox downloaded (models; with --everything also voices and settings). "

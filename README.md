@@ -103,8 +103,24 @@ stopped. Prefer the terminal to the studio? `folivox render book.fb2` puts the a
 
 ### 3. Update
 
-Run the same install command again. It fetches the latest version and keeps your models, voices, settings and
-unfinished renders. Details, options, manual install and troubleshooting: [docs/install.md](docs/install.md).
+```bash
+folivox update
+```
+
+Whichever way you installed, this fetches the latest version and keeps your models, voices, settings and
+unfinished renders. Check the version with `folivox --version`.
+
+### 4. Uninstall
+
+```bash
+folivox uninstall               # delete the downloaded models (asks first; --dry-run only shows what would go)
+folivox uninstall --everything  # also delete your voices and settings
+uv tool uninstall folivox       # last step: remove the program itself
+```
+
+It removes only what Folivox created. Your books, audiobooks, ffmpeg and uv are never touched.
+
+Details, options, manual install and troubleshooting: [docs/install.md](docs/install.md).
 
 ## Choose how your book is read
 

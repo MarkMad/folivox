@@ -53,9 +53,16 @@ terminal again.
 
 ## Update
 
-Run the same install command again (for example the `curl … | bash` or `irm … | iex` line, or
-`bash scripts/install.sh` in an updated checkout). It always fetches the latest Folivox from GitHub and
-reinstalls it; downloaded models, your voices, settings and unfinished renders are kept. Check the version with
+Run:
+
+```bash
+folivox update
+```
+
+It downloads the latest installer from GitHub and runs it, whichever way you installed the first time (you do not need
+to remember the `curl` line). It reinstalls Folivox from the latest `main` and keeps downloaded models, your voices,
+settings and unfinished renders. You can also still run the install command again (the `curl … | bash` or
+`irm … | iex` line, or `bash scripts/install.sh` in an updated checkout), with the same result. Check the version with
 `folivox --version`.
 
 Options for the installer (environment variables, also for updates):
