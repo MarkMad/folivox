@@ -29,6 +29,9 @@ def _model():
     import logging
     import warnings
 
+    from folivox import gpu
+
+    gpu.pin_cudnn()  # onnxruntime (imported by ruaccent) must not bind to another cuDNN on PATH (error 127)
     logging.getLogger("ruaccent").setLevel(logging.ERROR)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

@@ -241,6 +241,7 @@
  "stage.build": "Capitoli",
  "stage.encode": "Codifica",
  "ph.prep": "Preparazione del testo: {n} di {total} capitoli",
+ "ph.prepprev": "Preparazione del testo per l'anteprima",
  "hint.prep": "suddivisione del testo in frammenti",
  "ph.build": "Creazione del capitolo {n}: {title}",
  "ph.encode": "Codifica {fmt}",

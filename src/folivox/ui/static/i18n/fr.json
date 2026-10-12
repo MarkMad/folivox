@@ -241,6 +241,7 @@
  "stage.build": "Chapitres",
  "stage.encode": "Encoder",
  "ph.prep": "Préparation du texte : {n} chapitres sur {total}",
+ "ph.prepprev": "Préparation du texte de l'aperçu",
  "hint.prep": "découpage du texte en fragments",
  "ph.build": "Assemblage du chapitre {n} : {title}",
  "ph.encode": "Encodage {fmt}",

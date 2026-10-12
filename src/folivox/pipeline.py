@@ -11,11 +11,13 @@ from pathlib import Path
 
 import numpy as np
 
+from folivox import lang as languages
 from folivox.audio import postprocess, save
 from folivox.audio.assemble import BookMeta, ChapterAudio, build_chapter, write_m4b, write_mp3s
 from folivox.book import Book, Chapter
 from folivox.journal import Journal, PlannedChunk, Take
 from folivox.text.chunk import ChunkOptions, plan_chapter
+from folivox.text.stress import strip_marks
 
 # Bump when synthesis changes in a way that invalidates cached audio.
 SYNTH_VERSION = "cv3-1"
@@ -138,7 +140,8 @@ def parse_selection(spec: str | None, count: int) -> list[int]:
 def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, events: Events, engine=None) -> list[str]:
     chapters = book.chapters(opts.depth)
     selected = parse_selection(opts.chapters, len(chapters))
-    events.stage("plan", f"Preparing text: {len(selected)} of {len(chapters)} chapters")
+    events.stage("plan", "Preparing the preview text" if opts.preview else
+                 f"Preparing text: {len(selected)} of {len(chapters)} chapters")
     cloud = engine is not None and not engine.local
     stress = opts.stress
     if cloud and stress == "all":  # stress marks are CosyVoice markup; a cloud voice would read them aloud
@@ -204,12 +207,19 @@ def _plan_preview(chapter: Chapter, copts: ChunkOptions, preview: int | None):
     if not preview:
         return plan_chapter(chapter, copts)
     budget = max(PREVIEW_HEAD, preview * 4)
+    bare = replace(copts, stress="none")  # stress is a neural model: run it only on the fragments we keep
     while True:
         part, cut = _head(chapter, budget)
-        out = _limit(plan_chapter(part, copts), preview, copts)
+        out = _limit(plan_chapter(part, bare), preview, copts)
         if not cut or sum(len(c.source) for c in out) >= preview:
-            return out
+            break
         budget *= 4
+    if copts.stress != "none":
+        language = languages.get(copts.lang)
+        for c in out:
+            c.text = language.stress(c.text, copts.stress)
+            c.source = strip_marks(c.text)
+    return out
 
 
 def _limit(chunks, preview: int | None, copts: ChunkOptions):

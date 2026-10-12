@@ -241,6 +241,7 @@
  "stage.build": "Kapitel",
  "stage.encode": "Kodieren",
  "ph.prep": "Text wird vorbereitet: {n} von {total} Kapiteln",
+ "ph.prepprev": "Text für die Vorschau wird vorbereitet",
  "hint.prep": "der Text wird in Fragmente zerlegt",
  "ph.build": "Kapitel {n} wird gebaut: {title}",
  "ph.encode": "{fmt} wird kodiert",

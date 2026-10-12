@@ -241,6 +241,7 @@
  "stage.build": "章",
  "stage.encode": "エンコード",
  "ph.prep": "テキストを準備中: {total} 章中 {n} 章",
+ "ph.prepprev": "プレビュー用のテキストを準備中",
  "hint.prep": "テキストをフラグメントに分割しています",
  "ph.build": "第 {n} 章を作成中: {title}",
  "ph.encode": "{fmt} をエンコード中",

@@ -241,6 +241,7 @@
  "stage.build": "章节",
  "stage.encode": "编码",
  "ph.prep": "正在准备文本：{n} / {total} 章",
+ "ph.prepprev": "正在准备试听文本",
  "hint.prep": "正在把文本拆分成片段",
  "ph.build": "正在构建第 {n} 章：{title}",
  "ph.encode": "正在编码 {fmt}",

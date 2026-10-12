@@ -932,7 +932,7 @@ const STAGES = [["prepare", "stage.prepare"], ["model", "stage.model"], ["synth"
 const STAGE_OF = { asr: "prepare", plan: "prepare", download: "model", model: "model", chapter: "build", encode: "encode" };
 const SEG = { PENDING: 0, SYNTH: 1, CHECK: 2, DONE: 3, RETAKE: 4 };
 // Phase texts come from the backend in English; the known ones are recognised here and shown in the UI language.
-const PHASES = [[/^Preparing text: (\d+) of (\d+) chapters/, "ph.prep", "hint.prep", ["n", "total"]], [/^Building chapter (\d+): (.*)$/s, "ph.build", "", ["n", "title"]],
+const PHASES = [[/^Preparing the preview text$/, "ph.prepprev", "hint.prep", []], [/^Preparing text: (\d+) of (\d+) chapters/, "ph.prep", "hint.prep", ["n", "total"]], [/^Building chapter (\d+): (.*)$/s, "ph.build", "", ["n", "title"]],
   [/^Encoding (\w+)/, "ph.encode", "", ["fmt"]], [/^Loading speech recognition for QA \((.*)\)/, "ph.asr", "hint.asr", ["name"]],
   [/^Preparing the model download/, "ph.dlprep", "hint.dlprep", []], [/^Loading TTS model into memory \((.*)\)/, "ph.loadmodel", "hint.loadmodel", ["name"]]];
 function phaseOf(detail) {

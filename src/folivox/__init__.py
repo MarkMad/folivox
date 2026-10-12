@@ -1,6 +1,7 @@
 """Folivox — local audiobook maker (book file → chaptered m4b) powered by CosyVoice 3."""
 
-__version__ = "0.1.0.dev0"
+# 0.1.0.<commit number>: bumped by .githooks/pre-commit (enable: git config core.hooksPath .githooks)
+__version__ = "0.1.0.154"
 
 import os as _os
 

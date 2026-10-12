@@ -241,6 +241,7 @@
  "stage.build": "챕터",
  "stage.encode": "인코딩",
  "ph.prep": "텍스트 준비 중: {total}개 챕터 중 {n}개",
+ "ph.prepprev": "미리듣기용 텍스트 준비 중",
  "hint.prep": "텍스트를 조각으로 나누는 중",
  "ph.build": "챕터 {n} 만드는 중: {title}",
  "ph.encode": "{fmt} 인코딩 중",
