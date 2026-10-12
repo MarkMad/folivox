@@ -7,6 +7,8 @@ the TTS model and Whisper side by side. So "auto" uses CUDA only after a probe i
 
 from __future__ import annotations
 
+import glob
+import os
 import subprocess
 import sys
 from functools import lru_cache
@@ -14,13 +16,45 @@ from functools import lru_cache
 MIN_TTS_VRAM_GB = 4.0  # the TTS model alone (Whisper stays on the CPU below 8 GB); `folivox bench` measures it
 MIN_WHISPER_VRAM_GB = 8.0  # the speech-recognition model also lives on the GPU next to the TTS model
 
-_PROBE = ("import torch;x=torch.randn(1,3,16,16,device='cuda');c=torch.nn.Conv2d(3,4,3).cuda();"
+_PROBE = ("from folivox.gpu import pin_cudnn;pin_cudnn();import torch;x=torch.randn(1,3,16,16,device='cuda');c=torch.nn.Conv2d(3,4,3).cuda();"
           "c(x).sum().item();torch.cuda.synchronize()")
+
+
+@lru_cache(maxsize=1)
+def pin_cudnn() -> None:
+    """Windows: load every cuDNN DLL shipped with torch up front.
+
+    cuDNN 9 loads its sub-libraries lazily, on the first op that needs them. If another cuDNN 9 build is on
+    PATH (a CUDA toolkit, another app), a late load picks that copy and the process dies with
+    "Could not load symbol cudnnGetLibConfig. Error code 127". Windows reuses an already loaded DLL of the
+    same name, so loading torch's whole set first keeps torch and faster-whisper (ctranslate2) on one build.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        import torch
+
+        lib = os.path.join(os.path.dirname(torch.__file__), "lib")
+        dlls = sorted(glob.glob(os.path.join(lib, "cudnn*.dll")), key=lambda p: "_" in os.path.basename(p))
+        if not dlls:
+            return
+        os.add_dll_directory(lib)
+        os.environ["PATH"] = lib + os.pathsep + os.environ.get("PATH", "")
+        for dll in dlls:  # cudnn64_9.dll first, then the sub-libraries
+            try:
+                ctypes.WinDLL(dll)
+            except OSError:
+                pass
+    except Exception:  # noqa: BLE001
+        pass
 
 
 @lru_cache(maxsize=1)
 def vram_gb() -> float | None:
     try:
+        pin_cudnn()
         import torch
 
         if torch.cuda.is_available():

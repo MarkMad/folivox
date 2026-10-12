@@ -20,12 +20,13 @@ MODEL_ID = "Fun-CosyVoice3-0.5B-2512"
 
 
 def pick_device(requested: str = "auto") -> str:
+    from folivox import gpu
+
+    gpu.pin_cudnn()
     import torch
 
     if requested != "auto":
         return requested
-    from folivox import gpu
-
     if torch.cuda.is_available() and gpu.cuda_skip_reason() is None:
         return "cuda"
     if torch.backends.mps.is_available():
@@ -44,6 +45,8 @@ class CosyVoiceEngine(TTSEngine):
 
         for name in ("folivox.vendor", "root"):
             logging.getLogger(name).setLevel(logging.WARNING)
+        # Qwen2 config noise ("Sliding Window Attention is enabled but not implemented"): CosyVoice never uses it
+        logging.getLogger("transformers").setLevel(logging.ERROR)
         if threads:
             torch.set_num_threads(threads)
         self.device = pick_device(device)
