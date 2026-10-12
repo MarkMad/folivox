@@ -68,3 +68,8 @@ Step 5 "Models and first check"
 $env:PYTHONIOENCODING = "utf-8"
 if ($env:FOLIVOX_SKIP_MODELS -eq "1") { folivox setup --skip-models } else { folivox setup }
 Write-Host "`nIf 'folivox' is not found in a new window: run  uv tool update-shell  and reopen PowerShell." -ForegroundColor White
+# Offer to open the studio, only for a person at a console (not agents, CI or redirected input). FOLIVOX_NO_START=1 skips it.
+if ($env:FOLIVOX_NO_START -ne "1" -and -not $env:CI -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected) {
+  $answer = Read-Host "`nStart the studio now? [Y/n]"
+  if ($answer -notmatch '^[nNнН]') { folivox ui }
+}

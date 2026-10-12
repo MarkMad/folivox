@@ -63,6 +63,7 @@ Options for the installer (environment variables, also for updates):
 | Variable | Effect |
 |---|---|
 | `FOLIVOX_SOURCE` | Install from a folder, a git URL (`git+https://…@<tag or commit>`), an archive URL or a package name instead of the latest `main` |
+| `FOLIVOX_NO_START=1` | Do not offer to start the studio at the end (it is offered only at an interactive terminal, never in CI or when input or output is redirected) |
 | `FOLIVOX_SKIP_MODELS=1` | Do not download models now (they are downloaded on first use) |
 
 For example, to install a specific commit or tag:
@@ -76,8 +77,17 @@ curl -fsSL https://raw.githubusercontent.com/vatavale/folivox/main/scripts/insta
 ```bash
 folivox doctor                  # ffmpeg, hardware, models, free disk
 folivox setup                   # download what is missing; safe to repeat
-uv tool uninstall folivox       # remove (downloaded models stay in the data folder; see `folivox doctor`)
+folivox uninstall               # step 1: delete the downloaded models (asks first; --dry-run only shows)
+uv tool uninstall folivox       # step 2: remove the program itself
 ```
+
+`folivox uninstall` removes only what Folivox created: the CosyVoice model and, if Folivox was the one that
+downloaded it, the Whisper model (a Whisper model you already had for other programs stays). Your voices and settings
+are kept unless you add `--everything`. It never touches your books, the `BOOK.folivox` work folders, finished
+audiobooks, or a model folder you set yourself with `FOLIVOX_MODEL_DIR`.
+
+The installer may also have installed `uv` and `ffmpeg`. Remove them only if you do not use them for anything else:
+`uv self uninstall`; `winget uninstall Gyan.FFmpeg` (Windows) or `brew uninstall ffmpeg` (macOS).
 
 For problems, see [support.md](support.md) (`folivox doctor --bundle`).
 

@@ -27,7 +27,8 @@ app = typer.Typer(add_completion=False, no_args_is_help=False, invoke_without_co
                   rich_markup_mode="rich", epilog=MAIN_EPILOG, context_settings={"help_option_names": ["-h", "--help"]},
                   help="Turn e-books (FB2, EPUB, DOCX, PDF, TXT) into m4b audiobooks, locally.")
 console = Console()
-COMMANDS = {"render", "inspect", "voices", "providers", "help", "ui", "doctor", "setup", "--help", "-h", "--version"}
+COMMANDS = {"render", "inspect", "voices", "providers", "help", "ui", "doctor", "setup", "uninstall", "--help", "-h",
+            "--version"}
 
 # Option panels of `folivox render --help`
 P_INPUT, P_VOICE, P_TEXT, P_QA = "Input", "Voice", "Text", "Quality control"
@@ -925,7 +926,7 @@ GUIDE = """[bold green]Folivox is ready.[/]
   [cyan]folivox doctor --bundle ~/Desktop[/]   saves a file to send to support
   [cyan]folivox help[/]              short guides: voices, providers, resuming, quality
 
-Update: run the install command again (models and voices are kept)    Remove: [cyan]uv tool uninstall folivox[/]
+Update: run the install command again (models and voices are kept)    Remove: [cyan]folivox uninstall[/]
 """
 
 
@@ -973,6 +974,48 @@ def setup(skip_models: bool = typer.Option(False, "--skip-models", help="Only ch
         events.close()
     console.rule()
     console.print(GUIDE)
+
+
+@app.command(help="Remove what Folivox downloaded (models; with --everything also voices and settings). "
+                  "Never touches books, audiobooks, ffmpeg or uv.", rich_help_panel="Other")
+def uninstall(everything: bool = typer.Option(False, "--everything", help="Also remove your voices and settings (without "
+                                              "it only the downloaded models go)."),
+              yes: bool = typer.Option(False, "--yes", "-y", help="Do not ask for confirmation."),
+              dry_run: bool = typer.Option(False, "--dry-run", help="Only show what would be removed.")):
+    """Step 1 of removal; step 2 is the last line it prints."""
+    from folivox import uninstall as un
+
+    items = un.plan(everything)
+    if items:
+        t = Table(box=None, show_header=False, padding=(0, 2))
+        for it in items:
+            t.add_row(it.label, f"{it.size / 1e9:.1f} GB" if it.size >= 1e8 else f"{it.size / 1e6:.1f} MB",
+                      f"[dim]{it.path}[/]")
+        console.print("[bold]Will be removed:[/]")
+        console.print(t)
+        console.print(f"Frees about {sum(i.size for i in items) / 1e9:.1f} GB.")
+    else:
+        console.print("Nothing to remove: no downloaded models" + (" or settings" if everything else "") + " found.")
+    if not everything:
+        console.print("[dim]Kept: your voices and settings (add --everything to remove them too).[/]")
+    console.print("[dim]Never touched: your books, BOOK.folivox work folders and finished audiobooks, ffmpeg, uv, "
+                  "and any model folder you set yourself (FOLIVOX_MODEL_DIR).[/]")
+    if dry_run:
+        return
+    if items:
+        if not yes and not typer.confirm("Remove these now?", default=False):
+            console.print("Cancelled, nothing was removed.")
+            raise typer.Exit(1)
+        errors = un.remove(items, everything)
+        for e in errors:
+            console.print(f"[red]Could not remove:[/] {e}")
+        if errors:
+            console.print("Close anything that uses these files (the studio, a render) and run it again.")
+            raise typer.Exit(1)
+        console.print("[green]✓[/] Removed.")
+    console.print("\nLast step, remove the program itself: [cyan]uv tool uninstall folivox[/]\n"
+                  "(Optional, only if you installed them for Folivox and use them for nothing else: "
+                  "[cyan]uv self uninstall[/], [cyan]winget uninstall Gyan.FFmpeg[/], [cyan]brew uninstall ffmpeg[/].)")
 
 
 @app.command(help="Check the setup (ffmpeg, model, devices, disk) and optionally write a redacted support bundle.",

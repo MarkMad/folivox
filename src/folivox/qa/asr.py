@@ -121,10 +121,8 @@ class FasterWhisper(ASR):
             except ImportError:
                 device = "cpu"
         self.model = model or FW_MODEL
-        from folivox.tts.weights import with_retries
-
         # the first call downloads the model (~1.6 GB) from huggingface: retry network failures, resume parts
-        from folivox.tts.weights import watch_repo
+        from folivox.tts.weights import watch_repo, with_retries
 
         with watch_repo("Speech recognition model", _fw_repo(self.model)):
             self._fw = with_retries(lambda: WhisperModel(self.model, device=device,

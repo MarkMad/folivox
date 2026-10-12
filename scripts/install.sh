@@ -77,3 +77,9 @@ ok "folivox $(folivox --version 2>/dev/null || true)"
 step 5 "Models and first check"
 if [ "${FOLIVOX_SKIP_MODELS:-0}" = 1 ]; then folivox setup --skip-models; else folivox setup; fi
 printf '\n%sIf the command is not found in a new terminal:%s run  %suv tool update-shell%s  and reopen the terminal.\n' "$B" "$N" "$C" "$N"
+# Offer to open the studio, only for a person at a terminal (not agents, CI or pipes). FOLIVOX_NO_START=1 skips it.
+if [ "${FOLIVOX_NO_START:-0}" != 1 ] && [ -z "${CI:-}" ] && [ -t 1 ] && (: </dev/tty) 2>/dev/null; then
+  printf '\n%sStart the studio now?%s [Y/n] ' "$B" "$N"
+  read -r ANSWER </dev/tty || ANSWER=n
+  case "$ANSWER" in [nNнН]*) ;; *) exec folivox ui </dev/tty ;; esac
+fi

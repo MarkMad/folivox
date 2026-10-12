@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fnmatch
+import json
 import os
 import threading
 from collections.abc import Callable, Iterator
@@ -141,18 +142,50 @@ def _repo_total(repo_id: str) -> int:
 
 def _cache_bytes(repo_id: str) -> int:
     """Bytes in the huggingface cache folder of ``repo_id`` (finished blobs and ``.incomplete`` parts)."""
-    from huggingface_hub import constants
-
-    root = Path(constants.HF_HUB_CACHE) / ("models--" + repo_id.replace("/", "--")) / "blobs"
+    root = _hf_repo_dir(repo_id) / "blobs"
     try:
         return sum(p.stat().st_size for p in root.iterdir() if p.is_file())
     except OSError:
         return 0
 
 
+def _hf_repo_dir(repo_id: str) -> Path:
+    from huggingface_hub import constants
+
+    return Path(constants.HF_HUB_CACHE) / ("models--" + repo_id.replace("/", "--"))
+
+
+def _owned_file() -> Path:
+    return Path(user_data_dir("folivox", appauthor=False)) / "owned.json"
+
+
+def owned_repos() -> list[str]:
+    """huggingface repos in the shared cache that Folivox downloaded itself (so `uninstall` may remove them)."""
+    try:
+        return list(json.loads(_owned_file().read_text(encoding="utf-8")).get("hf_repos", []))
+    except (OSError, ValueError, AttributeError):
+        return []
+
+
+def _claim_repo(repo_id: str) -> None:
+    """Remember ``repo_id`` as ours when its cache folder does not exist yet (never claim what the user had)."""
+    try:
+        if _hf_repo_dir(repo_id).exists():
+            return
+        repos = owned_repos()
+        if repo_id not in repos:
+            f = _owned_file()
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(json.dumps({"hf_repos": repos + [repo_id]}), encoding="utf-8")
+    except OSError:
+        pass  # without the note `uninstall` leaves the model alone: the safe direction
+
+
 @contextmanager
 def watch_repo(name: str, repo_id: str | None) -> Iterator[None]:
     """Progress for a download into the shared huggingface cache that we do not drive ourselves (Whisper)."""
+    if repo_id:
+        _claim_repo(repo_id)
     if _hook is None or not repo_id:
         yield
         return

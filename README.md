@@ -329,6 +329,10 @@ press Render) again.
 or third-party voices and has no feature for imitating real people.
 The bundled voices are real readers' public-domain recordings from LibriVox; a reader can ask for their recording to be removed, and the voice will then be dropped.
 
+**How do I remove it?** `folivox uninstall` deletes the models Folivox downloaded (it shows the list and asks first;
+your voices and settings stay unless you add `--everything`), then `uv tool uninstall folivox` removes the program.
+Your books, audiobooks, ffmpeg and anything you had before are never touched. Details: [docs/install.md](docs/install.md).
+
 ## Documentation
 
 | Page | What is in it |
