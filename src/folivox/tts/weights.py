@@ -78,6 +78,19 @@ def _total_size(patterns: list[str]) -> int:
         return 0
 
 
+def _hub_bars_off() -> Callable[[], None]:
+    """Silence huggingface_hub's own per-file tqdm bars (parallel bars tear apart on a Windows console and fight
+    our single progress line); returns a function that restores them."""
+    try:
+        from huggingface_hub.utils import are_progress_bars_disabled, disable_progress_bars, enable_progress_bars
+    except ImportError:
+        return lambda: None
+    if are_progress_bars_disabled():
+        return lambda: None
+    disable_progress_bars()
+    return enable_progress_bars
+
+
 @contextmanager
 def _watch(name: str, target: Path, patterns: list[str]) -> Iterator[None]:
     hook = _hook
@@ -86,6 +99,7 @@ def _watch(name: str, target: Path, patterns: list[str]) -> Iterator[None]:
         return
     stop = threading.Event()
     total = _total_size(patterns)
+    hub_bars = _hub_bars_off()
 
     def poll() -> None:
         last = -1
@@ -104,6 +118,7 @@ def _watch(name: str, target: Path, patterns: list[str]) -> Iterator[None]:
     finally:
         stop.set()
         t.join()
+        hub_bars()
         hook(name, total or _downloaded(target, patterns), total)
 
 
