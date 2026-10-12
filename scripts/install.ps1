@@ -17,6 +17,12 @@ function RefreshPath { $env:Path = [Environment]::GetEnvironmentVariable("Path",
 
 Write-Host "Folivox installer (Windows)" -ForegroundColor White
 
+# `folivox update` starts this script and exits: wait until the running folivox is gone, or uv cannot replace its files.
+if ($env:FOLIVOX_WAIT_PID) {
+  Write-Host "Waiting for folivox to close..."
+  foreach ($p in ($env:FOLIVOX_WAIT_PID -split ",")) { if ($p -match '^\d+$') { Wait-Process -Id ([int]$p) -Timeout 60 -ErrorAction SilentlyContinue } }
+}
+
 Step 1 "Package manager (uv)"
 if (-not (Has uv)) {
   Write-Host "  uv not found, installing it for your user (https://astral.sh/uv)..."
@@ -73,3 +79,5 @@ if ($env:FOLIVOX_NO_START -ne "1" -and -not $env:CI -and -not [Console]::IsInput
   $answer = Read-Host "`nStart the studio now? [Y/n]"
   if ($answer -notmatch '^[nNнН]') { folivox ui }
 }
+if ($env:FOLIVOX_SELF_DELETE -eq "1" -and $MyInvocation.MyCommand.Path) { Remove-Item (Split-Path -Parent $MyInvocation.MyCommand.Path) -Recurse -Force -ErrorAction SilentlyContinue }
+if ($env:FOLIVOX_WAIT_PID) { Read-Host "`nDone. Press Enter to close" | Out-Null }

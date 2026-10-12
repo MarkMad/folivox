@@ -1007,6 +1007,18 @@ def update(yes: bool = typer.Option(False, "--yes", "-y", help="Do not ask for c
     except OSError as e:
         console.print(f"[red]Could not download the installer:[/] {e}\nCheck the network and try again.")
         raise typer.Exit(1) from None
+    if windows:
+        # Windows will not let uv replace Scripts\\folivox.exe while it is running, so the installer
+        # goes to its own console and waits for this process (and the launcher that started it) to exit.
+        path = Path(tempfile.mkdtemp(prefix="folivox-update-")) / "install.ps1"
+        path.write_bytes(script)
+        env = {**os.environ, "FOLIVOX_NO_START": "1", "FOLIVOX_WAIT_PID": f"{os.getpid()},{os.getppid()}",
+               "FOLIVOX_SELF_DELETE": "1"}
+        subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(path)],
+                         env=env, creationflags=subprocess.CREATE_NEW_CONSOLE)  # type: ignore[attr-defined]
+        console.print("The installer continues in a new window; this one closes so the files can be replaced. "
+                      "Check the version afterwards with [cyan]folivox --version[/].")
+        raise typer.Exit(0)
     with tempfile.TemporaryDirectory() as d:
         path = Path(d) / ("install.ps1" if windows else "install.sh")
         path.write_bytes(script)
