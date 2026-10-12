@@ -1,6 +1,6 @@
 [project]
 name = "folivox"
-version = "0.1.0.dev0"
+dynamic = ["version"]
 description = "Turn e-books (FB2, EPUB, DOCX, PDF, TXT) into chaptered audiobooks locally with CosyVoice 3"
 readme = "README.md"
 license = "Apache-2.0"
@@ -87,6 +87,9 @@ default-groups = ["dev", "test"]
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/folivox/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/folivox"]

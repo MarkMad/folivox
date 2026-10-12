@@ -26,7 +26,7 @@ def pin_cudnn() -> None:
     """Windows: load every cuDNN DLL shipped with torch up front.
 
     cuDNN 9 loads its sub-libraries lazily, on the first op that needs them. If another cuDNN 9 build is on
-    PATH (a CUDA toolkit, another app), a late load picks that copy and the process dies with
+    PATH (a CUDA toolkit, another app) or already loaded (ctranslate2 ships a bare cudnn64_9.dll), a late load picks that copy and the process dies with
     "Could not load symbol cudnnGetLibConfig. Error code 127". Windows reuses an already loaded DLL of the
     same name, so loading torch's whole set first keeps torch and faster-whisper (ctranslate2) on one build.
     """

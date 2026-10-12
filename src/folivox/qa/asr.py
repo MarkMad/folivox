@@ -109,6 +109,11 @@ class FasterWhisper(ASR):
 
     def __init__(self, language: str = "ru", model: str | None = None, device: str | None = None):
         super().__init__(language)
+        from folivox import gpu
+
+        # before ctranslate2 is imported, even for the CPU: on Windows it ships a bare cudnn64_9.dll of another
+        # version, and once that is loaded torch's own cuDNN sub-libraries fail (cudnnGetLibConfig, error 127)
+        gpu.pin_cudnn()
         try:
             from faster_whisper import WhisperModel
         except ImportError as e:
@@ -120,10 +125,6 @@ class FasterWhisper(ASR):
                 device = gpu.whisper_device()
             except ImportError:
                 device = "cpu"
-        if device == "cuda":
-            from folivox import gpu
-
-            gpu.pin_cudnn()  # ctranslate2 must bind to torch's cuDNN, not another one on PATH
         self.model = model or FW_MODEL
         # the first call downloads the model (~1.6 GB) from huggingface: retry network failures, resume parts
         from folivox.tts.weights import watch_repo, with_retries
