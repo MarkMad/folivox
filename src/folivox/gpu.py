@@ -16,7 +16,8 @@ from functools import lru_cache
 MIN_TTS_VRAM_GB = 4.0  # the TTS model alone (Whisper stays on the CPU below 8 GB); `folivox bench` measures it
 MIN_WHISPER_VRAM_GB = 8.0  # the speech-recognition model also lives on the GPU next to the TTS model
 
-_PROBE = ("from folivox.gpu import pin_cudnn;pin_cudnn();import torch;x=torch.randn(1,3,16,16,device='cuda');c=torch.nn.Conv2d(3,4,3).cuda();"
+_PROBE = ("from folivox.gpu import pin_cudnn;pin_cudnn();"
+          "import torch;x=torch.randn(1,3,16,16,device='cuda');c=torch.nn.Conv2d(3,4,3).cuda();"
           "c(x).sum().item();torch.cuda.synchronize()")
 
 
