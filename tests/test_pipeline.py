@@ -229,3 +229,17 @@ def test_edited_details_become_tags(tmp_path):
     assert tags["title"] == "Title" and tags["artist"] == "Author" and tags["composer"] == "Anna"
     assert tags["genre"] == "Fantasy" and tags["comment"] == "About it." and tags["date"] == "2024"
     assert tags["grouping"] == "Saga #2"
+
+
+def test_flagged_uses_recorded_qa_level_and_short_line_slack(tmp_path):
+    long = "Это достаточно длинное предложение, чтобы порог был базовым для проверки."
+    j = Journal(tmp_path)
+    j.set_plan([("Глава 1", _chunks([long, "Не-а."]))], "voice", "s1")
+    a, b = j.chunks()
+    j.record(Take(a.key, 3.0, 0.2, "что-то другое", 3, 1.0))
+    j.record(Take(b.key, 1.0, 0.2, "не", 3, 1.0))  # a short line gets 0.35 of slack: not flagged
+    assert list(j.flagged()) == []  # no QA level recorded (render with --no-qa)
+    j.set_meta(qa_threshold=0.10, lang="ru")
+    assert [c.key for c, _ in j.flagged()] == [a.key]
+    j.set_meta(qa_threshold=0.25)
+    assert list(j.flagged()) == []

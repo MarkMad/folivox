@@ -159,8 +159,17 @@ class Journal:
         return {"total_chars": total_chars, "done_chars": done_chars, "audio_seconds": audio,
                 "synth_seconds": synth}
 
-    def flagged(self, threshold: float) -> Iterable[tuple[PlannedChunk, Take]]:
+    def flagged(self, threshold: float | None = None, lang: str | None = None) -> Iterable[tuple[PlannedChunk, Take]]:
+        """Fragments whose kept take still fails QA after every retake (and split): the ones to listen to.
+        ``threshold`` and ``lang`` default to what the render recorded; the limit per fragment is the
+        same as during the render (short lines get more slack)."""
+        from folivox.qa import threshold_for
+
+        base = threshold if threshold is not None else self.meta("qa_threshold")
+        if base is None:
+            return
+        lang = lang or self.meta("lang") or "ru"
         for c in self.chunks():
             t = self.take(c.key)
-            if t and t.score is not None and t.score > threshold:
+            if t and t.score is not None and t.score > threshold_for(c.source, base, lang):
                 yield c, t

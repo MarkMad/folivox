@@ -492,5 +492,10 @@
  "engine.gemini.blurb": "Voces de Google: 30 ya hechas, o describe una voz nueva con palabras (solo existe mientras se hacen las tomas). Entiende una nota como «narrador de audiolibro tranquilo». Hay un nivel gratuito (Google puede usar entonces tu texto); el de pago cuesta una fracción de céntimo por muestra.",
  "engine.openai.blurb": "13 voces ya hechas; una nota de estilo guía el tono y el ritmo («narración de audiolibro, tranquila, ritmo constante»). Sin voz a partir de una descripción. Sencillo, fiable y barato.",
  "engine.elevenlabs.blurb": "Voces muy naturales. Describe una voz con palabras y obtén 3 candidatas a la vez, o elige una ya hecha. El plan gratuito es solo para uso personal no comercial; los audiolibros que vendas necesitan un plan de pago.",
- "engine.cartesia.blurb": "Voces limpias y rápidas en más de 40 idiomas. Elige una voz, dale el acento nativo del idioma del libro o clona una de tus propias voces a partir de tu grabación. Sin voz a partir de una descripción. Clonar requiere un plan de pago."
+ "engine.cartesia.blurb": "Voces limpias y rápidas en más de 40 idiomas. Elige una voz, dale el acento nativo del idioma del libro o clona una de tus propias voces a partir de tu grabación. Sin voz a partir de una descripción. Clonar requiere un plan de pago.",
+ "rv.h": "Por revisar: {n}",
+ "rv.sub": "Todas las repeticiones seguían sin coincidir con el texto. Escucha y compara con lo que oyó el reconocimiento de voz.",
+ "rv.heard": "oído",
+ "rv.where": "cap. {c} · n.º {i}",
+ "rv.play": "Escuchar el fragmento"
 }

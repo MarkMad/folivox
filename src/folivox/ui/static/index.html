@@ -84,6 +84,13 @@ h1 { padding-right:140px; }
 .lane.full .lp { color:var(--seg-done); } .lane .lplay { padding:0; width:24px; height:24px; border-radius:50%; line-height:1; }
 .feed { margin-top:12px; font-size:13px; } .feed div { display:flex; gap:10px; padding:3px 0; color:var(--mute); animation:rise .5s ease-out; white-space:nowrap; overflow:hidden; }
 .feed div:nth-child(1) { color:var(--ink); } .feed div:nth-child(n+4) { opacity:.55; } .feed div:nth-child(n+6) { opacity:.3; }
+.review { margin-top:14px; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+.review h4 { margin:0 0 2px; font-size:14px; } .review > p { margin:0 0 8px; font-size:12.5px; color:var(--mute); }
+.review ul { list-style:none; margin:0; padding:0; max-height:420px; overflow:auto; }
+.review li { display:grid; grid-template-columns:26px 1fr auto; gap:4px 10px; align-items:start; padding:7px 0; border-top:1px solid var(--line); font-size:13.5px; }
+.review li button { padding:0; width:24px; height:24px; border-radius:50%; line-height:1; }
+.review .rx { grid-column:2; min-width:0; overflow-wrap:anywhere; } .review .rh { grid-column:2; color:var(--mute); font-size:12.5px; overflow-wrap:anywhere; }
+.review .rm { grid-column:3; grid-row:1; color:var(--mute); font-size:12px; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .feed .t { overflow:hidden; text-overflow:ellipsis; } .feed .m { margin-left:auto; flex:none; font-variant-numeric:tabular-nums; }
 @keyframes rise { from { opacity:0; transform:translateY(6px); } }
 #log { max-height:180px; margin-top:6px; }
@@ -446,6 +453,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
       <div id="now-time"></div></div>
     <div class="lanes" id="lanes" data-i18n-attr="data-empty:lanes.empty" data-empty="Fragments appear here as soon as the text is prepared — one line per chapter, one tick per fragment."></div>
     <div class="feed" id="feed"></div>
+    <div class="review" id="review" hidden><h4 id="rv-h"></h4><p data-i18n="rv.sub">Every retake still differed from the text. Listen and compare with what speech recognition heard.</p><ul id="rv-list"></ul></div>
     <details style="margin-top:10px"><summary data-i18n="run.log">Log</summary><div id="log"></div></details>
   </div>
 </section>
@@ -1014,6 +1022,7 @@ function newStudio(j) {
   $("#stages").innerHTML = STAGES.map(([id, n]) => `<span class="stage" data-s="${id}">${t(n)}</span>`).join("");
   $("#wave").innerHTML = "<i></i>".repeat(30);
   [...$("#wave").children].forEach((b, i) => b.style.animationDelay = (-(i * 0.09) % 1.1).toFixed(2) + "s");
+  if (rplayer) { rplayer.pause(); rplayer = null; } $("#review").hidden = true; $("#rv-list").innerHTML = "";
   $("#lanes").innerHTML = ""; $("#feed").innerHTML = ""; $("#log").innerHTML = ""; $("#hero-status").textContent = "";
   $("#t-retakes").textContent = "0"; $("#pct").textContent = "0"; $("#overall").style.width = "0";
   if (player) { player.pause(); player = null; }
@@ -1036,7 +1045,28 @@ function end(state) {
   S.activeLane = -1; document.querySelectorAll(".lane.active").forEach(l => l.classList.remove("active"));
   if (state === "done") { setStage(STAGES.length); $("#overall").style.width = "100%"; $("#pct").textContent = "100"; }
   $("#now-time").textContent = ""; updateTiles();
+  if (state === "done" || state === "cancelled") loadReview(job);
 }
+// Fragments whose best take still fails QA after every retake (and split): a short list for a human to listen to
+let rplayer = null;
+async function loadReview(j) {
+  let items = [];
+  try { items = (await api(`/api/jobs/${j.id}/review`)).items || []; } catch (x) { return; }
+  if (job !== j) return;
+  $("#review").hidden = !items.length; if (!items.length) return;
+  $("#rv-h").textContent = t("rv.h", { n: items.length });
+  $("#rv-list").innerHTML = items.map(it => `<li><button data-rk="${esc(it.key)}" aria-label="${esc(t("rv.play"))}">▶</button>
+    <span class="rx">${esc(it.text)}</span><span class="rh">${esc(t("rv.heard"))}: ${esc(it.heard || "—")}</span>
+    <span class="rm">${esc(t("rv.where", { c: it.chapter, i: it.idx }))} · ${dec(it.score, 2)} · ↻ ${it.takes}</span></li>`).join("");
+}
+$("#rv-list").onclick = (ev) => {
+  const btn = ev.target.closest("button[data-rk]"); if (!btn) return;
+  if (rplayer && rplayer.btn === btn) { rplayer.paused ? rplayer.play() : rplayer.pause(); return; }
+  if (rplayer) rplayer.pause();
+  if (player && !player.paused) player.pause();
+  const a = rplayer = new Audio(tok(`/api/jobs/${job.id}/fragments/${btn.dataset.rk}`)); a.btn = btn;
+  a.onplay = () => btn.textContent = "❚❚"; a.onpause = a.onended = () => btn.textContent = "▶"; a.play();
+};
 function fmtClock(sec) { sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
   return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`; }
 let RUNSECS = 0, PACE_ENGINE = "cosyvoice3";  // audio seconds of the running selection; engine of the running job

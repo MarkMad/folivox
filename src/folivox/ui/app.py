@@ -685,6 +685,37 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             raise ApiError("Chapter is not built yet", 404)
         return FileResponse(path, media_type="audio/flac")
 
+    def review_list(work: Path) -> list[dict]:
+        from folivox.journal import Journal
+
+        if not (work / "journal.sqlite").exists():
+            return []
+        j = Journal(work)
+        try:
+            return [{"key": c.key, "chapter": c.chapter + 1, "idx": c.idx, "text": c.source, "heard": t.asr or "",
+                     "score": round(t.score, 3), "takes": t.takes, "duration": round(t.duration, 1)}
+                    for c, t in j.flagged()]
+        finally:
+            j.close()
+
+    async def job_review(request: Request):
+        """Fragments whose kept take still fails QA after every retake: listed for a human to check."""
+        job = get_job(request)
+        if job.opts is None:
+            raise ApiError("This job has no fragments", 404)
+        items = await asyncio.to_thread(review_list, job.opts.resolved_work_dir())
+        return JSONResponse({"items": items})
+
+    async def job_fragment(request: Request):
+        job = get_job(request)
+        key = request.path_params["key"]
+        if job.opts is None or not re.fullmatch(r"[0-9a-f]{24}", key):
+            raise ApiError("Unknown fragment", 404)
+        path = job.opts.resolved_work_dir() / "audio" / f"{key}.flac"
+        if not path.exists():
+            raise ApiError("Unknown fragment", 404)
+        return FileResponse(path, media_type="audio/flac")
+
     def diag_work_dir() -> Path | None:
         job = state.manager.current
         return job.opts.resolved_work_dir() if job is not None and job.opts is not None else None
@@ -1197,6 +1228,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/jobs/{job_id}/cancel", job_cancel, methods=["POST"]),
         Route("/api/jobs/{job_id}/reveal", job_reveal, methods=["POST"]),
         Route("/api/jobs/{job_id}/chapters/{n:int}", job_chapter),
+        Route("/api/jobs/{job_id}/review", job_review),
+        Route("/api/jobs/{job_id}/fragments/{key}", job_fragment),
         Route("/api/diagnostics", diagnostics),
         Route("/api/support-bundle", support_bundle),
         Route("/api/settings", get_settings),

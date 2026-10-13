@@ -492,5 +492,10 @@
  "engine.gemini.blurb": "Stimmen von Google: 30 fertige oder eine neue Stimme aus einer Beschreibung (sie existiert nur, solange die Aufnahmen entstehen). Versteht Hinweise wie „ruhiger Hörbuchsprecher“. Es gibt eine kostenlose Stufe (Google darf dann Ihren Text verwenden); die bezahlte kostet Bruchteile eines Cents pro Probe.",
  "engine.openai.blurb": "13 fertige Stimmen; ein Stilhinweis steuert Ton und Tempo („Hörbuch, ruhig, gleichmäßiges Tempo“). Keine Stimme aus einer Beschreibung. Einfach, zuverlässig und günstig.",
  "engine.elevenlabs.blurb": "Sehr natürliche Stimmen. Beschreiben Sie eine Stimme und erhalten Sie gleich 3 Varianten, oder wählen Sie eine fertige. Der kostenlose Plan ist nur für private, nicht kommerzielle Nutzung; verkaufte Hörbücher brauchen einen bezahlten Plan.",
- "engine.cartesia.blurb": "Klare, schnelle Stimmen in über 40 Sprachen. Wählen Sie eine Stimme, geben Sie ihr den muttersprachlichen Akzent Ihres Buches oder klonen Sie eine Ihrer eigenen Stimmen aus Ihrer Aufnahme. Keine Stimme aus einer Beschreibung. Klonen braucht einen bezahlten Plan."
+ "engine.cartesia.blurb": "Klare, schnelle Stimmen in über 40 Sprachen. Wählen Sie eine Stimme, geben Sie ihr den muttersprachlichen Akzent Ihres Buches oder klonen Sie eine Ihrer eigenen Stimmen aus Ihrer Aufnahme. Keine Stimme aus einer Beschreibung. Klonen braucht einen bezahlten Plan.",
+ "rv.h": "Zu prüfen: {n}",
+ "rv.sub": "Auch jede Wiederholung wich vom Text ab. Anhören und mit dem vergleichen, was die Spracherkennung gehört hat.",
+ "rv.heard": "gehört",
+ "rv.where": "Kap. {c} · #{i}",
+ "rv.play": "Fragment abspielen"
 }

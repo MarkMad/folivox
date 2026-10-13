@@ -239,7 +239,10 @@ def journal_summary(work_dir: Path) -> dict | None:
             chapters = [snippet(t, 30) for (t,) in con.execute("SELECT title FROM chapters ORDER BY idx LIMIT 200")]
             meta = {k: v for k, v in con.execute("SELECT key, value FROM meta")
                     if not k.startswith("chapter_") and k != "book_title"}
-            flagged = con.execute("SELECT COUNT(*) FROM takes WHERE score > 0.08").fetchone()[0]
+            row = con.execute("SELECT value FROM meta WHERE key = 'qa_threshold'").fetchone()
+            limit = json.loads(row[0]) if row and row[0] else None  # base limit; short lines get more slack
+            flagged = con.execute("SELECT COUNT(*) FROM takes WHERE score > ?",
+                                  (limit if limit is not None else 0.10,)).fetchone()[0]
         finally:
             con.close()
     except sqlite3.Error as e:

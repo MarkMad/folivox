@@ -164,7 +164,8 @@ def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, event
         if cloud:
             settings = f"{opts.tts}|{engine.model}"
     journal.set_plan(planned, voice_id, settings)
-    journal.set_meta(book_title=book.title, chapters_selected=[i + 1 for i in selected], settings=settings)
+    journal.set_meta(book_title=book.title, chapters_selected=[i + 1 for i in selected], settings=settings,
+                     lang=copts.lang, qa_threshold=opts.qa_threshold if opts.qa else None)
     return [t for t, _ in planned]
 
 

@@ -492,5 +492,10 @@
  "engine.gemini.blurb": "Le voci di Google: 30 pronte, oppure descrivi a parole una voce nuova (esiste solo mentre si fanno le prove). Capisce un'indicazione come «narratore di audiolibri calmo». Esiste un livello gratuito (Google può allora usare il tuo testo); quello a pagamento costa una frazione di centesimo per campione.",
  "engine.openai.blurb": "13 voci pronte; un'indicazione di stile regola tono e ritmo («lettura di audiolibro, calma, ritmo costante»). Nessuna voce da descrizione. Semplice, affidabile ed economico.",
  "engine.elevenlabs.blurb": "Voci molto naturali. Descrivi a parole una voce e ottieni subito 3 candidate, oppure scegline una pronta. Il piano gratuito è solo per uso personale non commerciale; gli audiolibri che vendi richiedono un piano a pagamento.",
- "engine.cartesia.blurb": "Voci pulite e veloci in oltre 40 lingue. Scegli una voce, dalle l'accento nativo della lingua del libro o clona una delle tue voci dalla tua registrazione. Nessuna voce da descrizione. La clonazione richiede un piano a pagamento."
+ "engine.cartesia.blurb": "Voci pulite e veloci in oltre 40 lingue. Scegli una voce, dalle l'accento nativo della lingua del libro o clona una delle tue voci dalla tua registrazione. Nessuna voce da descrizione. La clonazione richiede un piano a pagamento.",
+ "rv.h": "Da controllare: {n}",
+ "rv.sub": "Anche ogni ripresa differiva dal testo. Ascolta e confronta con ciò che ha sentito il riconoscimento vocale.",
+ "rv.heard": "sentito",
+ "rv.where": "cap. {c} · n. {i}",
+ "rv.play": "Ascolta il frammento"
 }

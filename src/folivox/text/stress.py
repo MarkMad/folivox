@@ -22,10 +22,6 @@ class StressUnavailable(RuntimeError):
 
 @lru_cache(maxsize=1)
 def _model():
-    try:
-        from ruaccent import RUAccent
-    except ImportError as e:  # pragma: no cover - depends on extras
-        raise StressUnavailable("ruaccent не установлен: pip install 'folivox[tts]'") from e
     import logging
     import warnings
 
@@ -34,7 +30,11 @@ def _model():
     gpu.pin_cudnn()  # onnxruntime (imported by ruaccent) must not bind to another cuDNN on PATH (error 127)
     logging.getLogger("ruaccent").setLevel(logging.ERROR)
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
+        warnings.simplefilter("ignore")  # ruaccent's own SyntaxWarning (invalid escape in a regex) while compiling it
+        try:
+            from ruaccent import RUAccent
+        except ImportError as e:  # pragma: no cover - depends on extras
+            raise StressUnavailable("ruaccent не установлен: pip install 'folivox[tts]'") from e
         acc = RUAccent()
         acc.load(omograph_model_size="turbo3.1", use_dictionary=True, tiny_mode=False)
     return acc

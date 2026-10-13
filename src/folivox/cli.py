@@ -178,7 +178,7 @@ class RichEvents(Events):
                                  transient=False)
         self.task = None
         self.audio = self.synth = 0.0
-        self.retakes = self.flagged = 0
+        self.retakes = 0
         self._dl = None
         self._dl_task: dict = {}
 
@@ -487,6 +487,29 @@ def render(
     if events.audio:
         console.print(f"Synthesis: {fmt_duration(events.synth)} for {fmt_duration(events.audio)} of audio, "
                       f"RTF {events.synth / events.audio:.2f}")
+    _print_flagged(opts.resolved_work_dir())
+
+
+def _print_flagged(work_dir: Path) -> None:
+    """Fragments that still fail QA after every retake: worth a listen before publishing."""
+    from folivox.journal import Journal
+
+    if not (work_dir / "journal.sqlite").exists():
+        return
+    j = Journal(work_dir)
+    try:
+        flagged = list(j.flagged())
+    finally:
+        j.close()
+    if not flagged:
+        return
+    console.print(f"\n[yellow]{len(flagged)} fragment(s) still differ from the text after every retake[/] — "
+                  "listen to them (the studio lists them under “Needs review”):")
+    for c, t in flagged[:20]:
+        console.print(f"  [dim]ch.{c.chapter + 1} #{c.idx} · {t.score:.2f}[/] {c.source[:70]}\n"
+                      f"    [dim]heard:[/] {(t.asr or '')[:70]}")
+    if len(flagged) > 20:
+        console.print(f"  [dim]… and {len(flagged) - 20} more[/]")
 
 
 def _is_cloud(name: str) -> bool:

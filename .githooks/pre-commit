@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Version = 0.1.0.<number of this commit>, so every commit is a new version users can see after `folivox update`.
+# Enable once per clone:  git config core.hooksPath .githooks
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+f=src/folivox/__init__.py
+n=$(( $(git rev-list --count HEAD 2>/dev/null || echo 0) + 1 ))
+# amend rewrites HEAD instead of adding a commit, so the number stays as it was
+if [ "${GIT_REFLOG_ACTION:-}" = "commit (amend)" ] || ps -o args= -p "$PPID" 2>/dev/null | grep -q -- '--amend'; then n=$((n - 1)); fi
+sed -E -i.bak "s/^__version__ = \".*\"/__version__ = \"0.1.0.$n\"/" "$f" && rm -f "$f.bak"
+git add "$f"
