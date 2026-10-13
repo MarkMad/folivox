@@ -48,14 +48,28 @@ fi
 # -- 3. hardware → which PyTorch -----------------------------------------------------------------
 step 3 "Your computer"
 EXTRA=()
+TORCH="torch<2.6"  # the tested version; RTX 50 cards need 2.7 (below)
 if [ "$OS" = Darwin ]; then
   if [ "$ARCH" = arm64 ]; then ok "Apple Silicon: the GPU is used (hybrid mode)"; else warn "Intel Mac: runs on the CPU only (slow)"; fi
 elif command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then
   ok "NVIDIA GPU found: $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)"
+  # RTX 50 (Blackwell, compute capability 12.x / 10.x) has no kernels in builds before PyTorch 2.7 + CUDA 12.8:
+  # "CUDA error: no kernel image is available". Older drivers lack compute_cap, so the name is the fallback.
+  CAPS="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null || true)"
+  NAMES="$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null || true)"
+  if printf '%s\n' "$CAPS" | grep -Eq '^ *1[0-9]\.' || printf '%s\n' "$NAMES" | grep -Eq 'RTX 50[0-9]0|Blackwell'; then
+    ok "RTX 50 series: using the PyTorch build for CUDA 12.8"
+    TORCH="torch==2.7.1"
+    EXTRA=(--index-strategy unsafe-best-match --extra-index-url https://download.pytorch.org/whl/cu128)
+  fi
 else
   warn "No NVIDIA GPU: using the smaller CPU build of PyTorch (synthesis is slow without a GPU)"
   EXTRA=(--index-strategy unsafe-best-match --extra-index-url https://download.pytorch.org/whl/cpu)
 fi
+CONSTRAINTS="$(mktemp "${TMPDIR:-/tmp}/folivox-torch.XXXXXX")"
+trap 'rm -f "$CONSTRAINTS"' EXIT
+printf '%s\n%s\n' "$TORCH" "${TORCH/torch/torchaudio}" > "$CONSTRAINTS"
+EXTRA+=(--constraints "$CONSTRAINTS")
 
 # -- 4. folivox ----------------------------------------------------------------------------------
 step 4 "Installing Folivox (a few minutes: PyTorch is large)"

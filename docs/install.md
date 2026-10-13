@@ -26,7 +26,8 @@ powershell -ExecutionPolicy Bypass -File scripts\install.ps1
 
 The script, step by step: installs `uv` (for your user, no administrator rights) if missing, checks ffmpeg (installs it
 with Homebrew/winget when it can, otherwise tells you the exact command), looks at your hardware to pick the right
-PyTorch build (NVIDIA GPU, Apple Silicon, or the smaller CPU build), installs Folivox, then runs `folivox setup`: it
+PyTorch build (NVIDIA GPU, Apple Silicon, or the smaller CPU build; RTX 50 cards get PyTorch 2.7 for CUDA 12.8,
+other NVIDIA cards keep the tested 2.5), installs Folivox, then runs `folivox setup`: it
 shows your computer (cores, RAM, GPU) with advice, downloads the models once (about 6 GB for the voice and 1.6 GB for the
 quality check) with a progress bar, speed and time left, and prints how to start. It is safe to run again; an interrupted
 download continues where it stopped.
@@ -106,3 +107,8 @@ For problems, see [support.md](support.md) (`folivox doctor --bundle`).
 
 The scripts were written to run on macOS, Linux and Windows, but only the shell syntax and `folivox setup` were run on
 macOS. The CUDA/CPU PyTorch index choice and the Windows script have not been run on real Windows or NVIDIA machines.
+
+If an NVIDIA card fails with "CUDA error: no kernel image is available for execution on the device", the installed
+PyTorch build has no code for that GPU (typical for an RTX 50 card set up before Folivox picked the build by card).
+Run `folivox update`: the installer detects the card and installs the matching build. Until then `--device auto`
+stays on the CPU and `folivox doctor` names the reason.

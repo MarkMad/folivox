@@ -45,9 +45,23 @@ Ok ((ffmpeg -version | Select-Object -First 1))
 
 Step 3 "Your computer"
 $extra = @()
+$torch = "torch<2.6"  # the tested version; RTX 50 cards need 2.7 (below)
 if ((Has nvidia-smi) -and ((nvidia-smi 2>$null) -ne $null)) {
   Ok ("NVIDIA GPU found: " + (nvidia-smi --query-gpu=name --format=csv,noheader | Select-Object -First 1))
-  $extra = @("--index-strategy","unsafe-best-match","--extra-index-url","https://download.pytorch.org/whl/cu121")
+  # RTX 50 (Blackwell, compute capability 12.x / 10.x) has no kernels in builds before PyTorch 2.7 + CUDA 12.8:
+  # "CUDA error: no kernel image is available". Older drivers lack compute_cap, so the name is the fallback.
+  $caps = @(); $names = @()
+  try { $caps = @(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>$null) } catch { }
+  try { $names = @(nvidia-smi --query-gpu=name --format=csv,noheader 2>$null) } catch { }
+  $blackwell = (@($caps | Where-Object { "$_" -match '^\s*1[0-9]\.' }).Count -gt 0) -or
+               (@($names | Where-Object { "$_" -match 'RTX 50[0-9]0|Blackwell' }).Count -gt 0)
+  if ($blackwell) {
+    Ok "RTX 50 series: using the PyTorch build for CUDA 12.8"
+    $torch = "torch==2.7.1"
+    $extra = @("--index-strategy","unsafe-best-match","--extra-index-url","https://download.pytorch.org/whl/cu128")
+  } else {
+    $extra = @("--index-strategy","unsafe-best-match","--extra-index-url","https://download.pytorch.org/whl/cu121")
+  }
 } else {
   Warn "No NVIDIA GPU: the CPU build of PyTorch is used (synthesis is slow without a GPU)"
 }
@@ -63,7 +77,12 @@ if (-not $src) {
 if ($src -match '^(http|git\+)') { $spec = "folivox[all] @ $src" }
 elseif (Test-Path (Join-Path $src "pyproject.toml")) { $spec = (Resolve-Path $src).Path + "[all]" }
 else { $spec = "$src[all]" }
-& uv tool install --force --refresh-package folivox --python ">=3.10,<3.13" @extra $spec
+$constraints = Join-Path ([IO.Path]::GetTempPath()) "folivox-torch.txt"
+[IO.File]::WriteAllLines($constraints, [string[]]@($torch, ($torch -replace '^torch', 'torchaudio')))  # no BOM
+& uv tool install --force --refresh-package folivox --python ">=3.10,<3.13" --constraints $constraints @extra $spec
+$code = $LASTEXITCODE
+Remove-Item $constraints -ErrorAction SilentlyContinue
+$LASTEXITCODE = $code
 if ($LASTEXITCODE -ne 0) { Die "Installation failed. Check the network and run this script again; it is safe to repeat." }
 # update-shell writes "already in PATH" to stderr; under Stop, PowerShell 5.1 turns that into a terminating error even with 2>$null
 $ErrorActionPreference = "Continue"

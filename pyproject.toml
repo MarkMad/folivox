@@ -31,8 +31,9 @@ dependencies = [
 [project.optional-dependencies]
 # Speech synthesis (CosyVoice 3, vendored) + stress marks.
 tts = [
-    "torch>=2.3,<2.6",
-    "torchaudio>=2.3,<2.6",
+    # 2.7 only for RTX 50 (Blackwell, needs the cu128 build); the installers hold every other machine at <2.6
+    "torch>=2.3,<2.8",
+    "torchaudio>=2.3,<2.8",
     "numpy<2",
     "onnxruntime>=1.18,<1.24",
     "transformers==4.51.3",
