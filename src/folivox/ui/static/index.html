@@ -211,6 +211,7 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
 <body>
 <main>
 <div id="offline" class="err" hidden data-i18n-html="offline" style="padding:8px 12px;border:1px solid var(--err);border-radius:8px">Cannot reach the Folivox server — is <code>folivox ui</code> still running? This page will reconnect by itself.</div>
+<div id="stale" class="err" hidden data-i18n-html="stale" style="padding:8px 12px;border:1px solid var(--err);border-radius:8px;margin-top:8px">This page is newer than the studio server: it was started before an update and lacks the new features. Run <code>folivox ui --restart</code> (or press Ctrl+C in its terminal and start it again).</div>
 <h1>Folivox <small data-i18n="app.tagline">local audiobook generator — everything stays on this computer</small></h1>
 <div class="langsw"><select id="ui-lang" aria-label="Language" data-i18n-attr="aria-label:ui.lang"></select></div>
 
@@ -1783,7 +1784,7 @@ function refreshUi() {
 }
 (async () => {
   CAT_EN = await loadCatalog("en"); await setUiLang(pickUiLang(), false); engLoad();
-  try { await loadSettings(); loadKeys().catch(() => {}); await restoreSession(); await reconcile(); setInterval(reconcile, 4000); uiReady = true; }
+  try { checkServer(); await loadSettings(); loadKeys().catch(() => {}); await restoreSession(); await reconcile(); setInterval(reconcile, 4000); uiReady = true; }
   catch (e) { document.body.insertAdjacentHTML("afterbegin", `<p class="err" style="padding:16px">${t("boot.fail", { msg: esc(e.message) })}</p>`); }
 })();
 </script>

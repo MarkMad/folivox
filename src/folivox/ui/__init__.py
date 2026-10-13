@@ -42,7 +42,102 @@ def ui_token() -> str:
     return value
 
 
-def run(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True) -> None:
+def read_token() -> str | None:
+    """The saved access token, or None if the studio never ran (unlike :func:`ui_token`, creates nothing)."""
+    from pathlib import Path
+
+    from platformdirs import user_data_dir
+
+    try:
+        value = (Path(user_data_dir("folivox", appauthor=False)) / "ui_token").read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return value if len(value) >= 16 else None
+
+
+def _call(host: str, port: int, path: str, body: dict | None = None, timeout: float = 2.0) -> dict | None:
+    """One request to a studio on host:port with the saved token. The JSON answer (an error answer carries its
+    ``status``), or None if nothing studio-like answered."""
+    import json
+    import urllib.error
+    import urllib.request
+
+    token = read_token()
+    if token is None:
+        return None
+    data = None if body is None else json.dumps(body).encode()
+    req = urllib.request.Request(f"http://{host}:{port}{path}", data=data, method="GET" if body is None else "POST",
+                                 headers={"X-Folivox-Token": token, "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        try:
+            return {**json.loads(e.read()), "status": e.code}
+        except ValueError:
+            return None
+    except (OSError, ValueError):
+        return None
+
+
+def studio_on(host: str, port: int) -> dict | None:
+    """What /api/ping says if a Folivox studio (with our token) is on host:port, else None."""
+    info = _call(host, port, "/api/ping")
+    return info if info and info.get("app") == "folivox-studio" else None
+
+
+def older_studio(host: str, port: int) -> str | None:
+    """A studio that predates /api/ping (it cannot be asked to stop): a description with its pid if we can find
+    it, else None. Recognised by answering our token on an old route."""
+    if not isinstance(_call(host, port, "/api/settings"), dict):
+        return None
+    import shutil
+    import subprocess
+
+    pid = ""
+    if shutil.which("lsof"):
+        out = subprocess.run(["lsof", "-nP", "-t", f"-iTCP:{port}", "-sTCP:LISTEN"], capture_output=True, text=True,
+                             check=False).stdout.split()  # noqa: S603, S607 — fixed argv
+        pid = out[0] if out else ""
+    return (f"An older Folivox studio{f' (pid {pid})' if pid else ''} is running on port {port}; it cannot be "
+            "stopped remotely. Stop it once with Ctrl+C in its terminal" + (f" or: kill {pid}" if pid else "")
+            + ". Newer ones can be replaced with: folivox ui --restart")
+
+
+def wait_free(host: str, port: int, seconds: float = 15.0) -> bool:
+    import time
+
+    end = time.time() + seconds
+    while time.time() < end:
+        if not port_in_use(host, port):
+            return True
+        time.sleep(0.2)
+    return not port_in_use(host, port)
+
+
+def stop_running(host: str, port: int, force: bool = False) -> dict:
+    """Ask the studio on this port to exit and wait until the port is free. Exits with a message if there is no
+    studio, if it is rendering (without ``force``) or if it does not stop."""
+    info = studio_on(host, port)
+    if info is None:
+        if not port_in_use(host, port):
+            raise SystemExit(f"No Folivox studio is running on port {port}.")
+        raise SystemExit(older_studio(host, port) or f"Port {port} is used by another program, not by the studio.")
+    answer = _call(host, port, "/api/shutdown", {"force": force}) or {}
+    if answer.get("status") == 409:
+        raise SystemExit(f"The studio on port {port} is rendering now. Wait for it to finish, or stop it anyway "
+                         "(the work is saved and continues next time): folivox ui --restart --force")
+    if not answer.get("stopping"):
+        raise SystemExit(f"The studio on port {port} did not accept the stop request "
+                         f"(version {info.get('version', '?')}, pid {info.get('pid', '?')}): stop it with Ctrl+C "
+                         "in its terminal or kill that process.")
+    if not wait_free(host, port):
+        raise SystemExit(f"The studio on port {port} did not stop in time (pid {info.get('pid', '?')}).")
+    return info
+
+
+def run(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True, restart: bool = False,
+        force: bool = False) -> None:
     import threading
     import webbrowser
 
@@ -51,14 +146,25 @@ def run(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True) ->
     from folivox.ui.app import create_app
 
     if port_in_use(host, port):
-        raise SystemExit(f"Port {port} is already in use by another program. "
-                         f"Choose another one: folivox ui --port {port + 1}")
+        info = studio_on(host, port)
+        if info is None:
+            raise SystemExit(older_studio(host, port) or f"Port {port} is used by another program. "
+                             f"Choose another one: folivox ui --port {port + 1}")
+        if not restart:
+            state = ", rendering now" if info.get("busy") else ""
+            raise SystemExit(f"The Folivox studio is already running at http://{host}:{port}/ "
+                             f"(version {info.get('version', '?')}{state}). Open it, or replace it with this "
+                             "version: folivox ui --restart")
+        stop_running(host, port, force)
+        print(f"Stopped the previous studio (pid {info.get('pid', '?')}).", flush=True)
 
     token = ui_token()
     app = create_app(token=token, port=port)
+    server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning"))
+    app.state.request_exit = lambda: setattr(server, "should_exit", True)
     url = f"http://{host}:{port}/?token={token}"
     print(f"Folivox UI: {url}\nOpen this link once: the browser then keeps a cookie and you can use "
           f"http://{host}:{port}/ (bookmark it). Press Ctrl+C to stop.", flush=True)
     if open_browser:
         threading.Timer(1.0, webbrowser.open, args=(url,)).start()
-    uvicorn.run(app, host=host, port=port, log_level="warning")
+    server.run()

@@ -1,5 +1,6 @@
 {
  "offline": "Cannot reach the Folivox server — is <code>folivox ui</code> still running? This page will reconnect by itself.",
+ "stale": "This page is newer than the studio server: it was started before an update and lacks the new features. Run <code>folivox ui --restart</code> (or press Ctrl+C in its terminal and start it again).",
  "app.tagline": "local audiobook generator — everything stays on this computer",
  "ui.lang": "Language",
  "s1.h": "1 · Book",

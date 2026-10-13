@@ -42,6 +42,9 @@ Nothing is started in the background and nothing starts by itself at login.
 2. Type `folivox ui` and press Enter. The browser opens the studio; if it does not, open the address printed in the
    terminal.
 3. Work in the studio. To stop, go back to the terminal and press `Ctrl+C`. Closing the terminal also stops it.
+   From another terminal: `folivox ui --stop`. The studio runs once: starting it again says where it already is, and
+   `folivox ui --restart` replaces it by the current version on the same port (after an update, for instance). If a
+   render is running it asks you to wait; `--force` stops it anyway, and the work is saved and continues next time.
 
 Without a browser: `folivox render book.fb2` (the audiobook appears next to the book). If it is interrupted by a
 crash, a closed lid or a power cut, run the same command again: it continues from the first unfinished fragment.
@@ -63,7 +66,8 @@ It downloads the latest installer from GitHub and runs it, whichever way you ins
 to remember the `curl` line). It reinstalls Folivox from the latest `main` and keeps downloaded models, your voices,
 settings and unfinished renders. You can also still run the install command again (the `curl … | bash` or
 `irm … | iex` line, or `bash scripts/install.sh` in an updated checkout), with the same result. Check the version with
-`folivox --version`.
+`folivox --version`. A studio that was open during the update keeps running the old code until you restart it
+(`folivox ui --restart`); its page tells you so.
 
 Options for the installer (environment variables, also for updates):
 

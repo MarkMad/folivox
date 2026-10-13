@@ -1,5 +1,6 @@
 {
  "offline": "No se puede conectar con el servidor de Folivox: ¿sigue en marcha <code>folivox ui</code>? Esta página se reconectará sola.",
+ "stale": "Esta página es más nueva que el servidor del estudio: se inició antes de una actualización y no tiene las funciones nuevas. Ejecuta <code>folivox ui --restart</code> (o pulsa Ctrl+C en su terminal y vuelve a iniciarlo).",
  "app.tagline": "generador local de audiolibros: todo se queda en este equipo",
  "ui.lang": "Idioma",
  "s1.h": "1 · Libro",

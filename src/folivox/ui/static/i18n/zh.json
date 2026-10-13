@@ -1,5 +1,6 @@
 {
  "offline": "无法连接 Folivox 服务器——<code>folivox ui</code> 还在运行吗？本页面会自动重新连接。",
+ "stale": "此页面比工作室服务器更新：服务器在更新之前启动，不支持新功能。请运行 <code>folivox ui --restart</code>（或在其终端按 Ctrl+C 后重新启动）。",
  "app.tagline": "本地有声书生成器——一切都留在这台电脑上",
  "ui.lang": "语言",
  "s1.h": "1 · 书籍",

@@ -17,7 +17,16 @@ interface and keeps working unchanged; the UI is a second front end over the sam
 uv tool install "folivox[all,ui]"
 folivox ui                  # opens http://127.0.0.1:8765
 folivox ui --port 9000 --no-open
+folivox ui --restart        # replace the running studio by this version, on the same port
+folivox ui --stop
 ```
+
+One studio per port: the uploads, the session and the voices are shared, and only one render runs at a time. A second
+`folivox ui` on the same port finds out whether the occupant is the Folivox studio (`GET /api/ping`, answered with the
+saved access token: `app`, `api` level, version, pid, whether it is rendering) and says so instead of "port in use".
+`--restart` and `--stop` ask it to exit (`POST /api/shutdown`; `409` while rendering unless forced) and wait until the
+port is free. The page asks `/api/ping` too: a server that predates the page (lower `api` level, or no `/api/ping`)
+gets a banner telling the user to restart it. Bump `API_LEVEL` in `ui/app.py` when the page starts using a new route.
 
 ## Architecture
 

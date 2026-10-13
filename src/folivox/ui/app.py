@@ -26,6 +26,9 @@ from folivox.text import pronounce as pronunciations
 from folivox.ui.jobs import JobManager, chapter_files
 
 STATIC = Path(__file__).parent / "static"
+# Bumped when the page starts using a route that servers started before the update do not have: the page asks
+# /api/ping and, if the server is older, tells the user to restart it.
+API_LEVEL = 2
 MAX_UPLOAD = 200 * 1024 * 1024
 PREVIEW_CHARS = 600
 
@@ -137,6 +140,28 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             resp.set_cookie(cookie_name, session, httponly=True, samesite="strict", path="/", max_age=90 * 86400)
             return resp
         return HTMLResponse((STATIC / "index.html").read_text(encoding="utf-8"))
+
+    async def ping(request: Request):
+        """Who is on this port: lets `folivox ui` tell its own studio from another program, and the page tell an
+        outdated server from a current one."""
+        import os
+
+        from folivox import __version__
+
+        return JSONResponse({"app": "folivox-studio", "api": API_LEVEL, "version": __version__, "pid": os.getpid(),
+                             "busy": state.manager.busy()})
+
+    async def shutdown(request: Request):
+        """Stop this server (`folivox ui --restart` / `--stop`); a running job is not killed without ``force``."""
+        from starlette.background import BackgroundTask
+
+        body = await request.json() if request.headers.get("content-length", "0") != "0" else {}
+        if state.manager.busy() and not (isinstance(body, dict) and body.get("force")):
+            raise ApiError("A render is running; stopping the studio would interrupt it", 409, busy=True)
+        request_exit = getattr(app.state, "request_exit", None)
+        if request_exit is None:
+            raise ApiError("This server cannot be stopped from outside", 501)
+        return JSONResponse({"stopping": True}, background=BackgroundTask(request_exit))
 
     async def i18n_catalog(request: Request):
         """UI message catalogs (static JSON next to index.html); the code is checked against the shipped files."""
@@ -1146,6 +1171,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     routes = [
         Route("/", index),
         Route("/i18n/{code}.json", i18n_catalog),
+        Route("/api/ping", ping),
+        Route("/api/shutdown", shutdown, methods=["POST"]),
         Route("/api/books", upload_book, methods=["POST"]),
         Route("/api/books/{book_id}/chapters", book_chapters),
         Route("/api/books/{book_id}/meta", get_meta),
@@ -1196,6 +1223,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                                                       TypeError: bad_request, KeyError: bad_request})
     app.add_middleware(_Guard, check=check)
     app.state.ui = state
+    app.state.request_exit = None  # set by `folivox ui`: asks uvicorn to stop
     return app
 
 

@@ -1,5 +1,6 @@
 {
  "offline": "Der Folivox-Server ist nicht erreichbar – läuft <code>folivox ui</code> noch? Diese Seite verbindet sich von selbst wieder.",
+ "stale": "Diese Seite ist neuer als der Studio-Server: Er wurde vor einem Update gestartet und kennt die neuen Funktionen nicht. Führe <code>folivox ui --restart</code> aus (oder drücke Strg+C in seinem Terminal und starte ihn neu).",
  "app.tagline": "lokaler Hörbuch-Generator – alles bleibt auf diesem Computer",
  "ui.lang": "Sprache",
  "s1.h": "1 · Buch",

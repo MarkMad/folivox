@@ -1,5 +1,6 @@
 {
  "offline": "Impossibile raggiungere il server di Folivox: <code>folivox ui</code> è ancora in esecuzione? Questa pagina si ricollegherà da sola.",
+ "stale": "Questa pagina è più recente del server dello studio: è stato avviato prima di un aggiornamento e non conosce le nuove funzioni. Esegui <code>folivox ui --restart</code> (oppure premi Ctrl+C nel suo terminale e riavvialo).",
  "app.tagline": "generatore locale di audiolibri: tutto resta su questo computer",
  "ui.lang": "Lingua",
  "s1.h": "1 · Libro",

@@ -948,10 +948,18 @@ def providers():
 
 
 @app.command("ui", help="Start the local web interface (127.0.0.1 only; needs folivox[ui]).",
-             rich_help_panel="Main commands", epilog="[bold]Example[/]\n\n  [cyan]folivox ui --port 9000 --no-open[/]")
+             rich_help_panel="Main commands",
+             epilog="[bold]Examples[/]\n\n  [cyan]folivox ui --port 9000 --no-open[/]\n"
+                    "  [cyan]folivox ui --restart[/]   replace the running studio (after an update)\n"
+                    "  [cyan]folivox ui --stop[/]      stop the running studio")
 def ui(port: int = typer.Option(8765, "--port", help="Port to listen on (127.0.0.1 only)."),
        open_browser: bool = typer.Option(True, "--open/--no-open", show_default=False,
-                                         help="Open the browser automatically (on).")):
+                                         help="Open the browser automatically (on)."),
+       restart: bool = typer.Option(False, "--restart", help="Stop the studio already running on this port, "
+                                                              "then start this version there."),
+       stop: bool = typer.Option(False, "--stop", help="Stop the studio running on this port and exit."),
+       force: bool = typer.Option(False, "--force", help="With --restart/--stop: do it even if a render is running "
+                                                          "(its progress is saved).")):
     """Start the local web interface."""
     try:
         import starlette  # noqa: F401
@@ -959,9 +967,13 @@ def ui(port: int = typer.Option(8765, "--port", help="Port to listen on (127.0.0
     except ImportError:
         console.print("[red]The web interface needs extra packages:[/] pip install \"folivox[ui]\"")
         raise typer.Exit(1) from None
-    from folivox.ui import run
+    from folivox.ui import run, stop_running
 
-    run(port=port, open_browser=open_browser)
+    if stop:
+        info = stop_running("127.0.0.1", port, force)
+        console.print(f"Stopped the Folivox studio on port {port} (pid {info.get('pid', '?')}).")
+        return
+    run(port=port, open_browser=open_browser, restart=restart, force=force)
 
 
 GUIDE = """[bold green]Folivox is ready.[/]
