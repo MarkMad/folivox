@@ -116,6 +116,23 @@ recorded in a journal.
   • Changing the voice, speed or TTS settings starts those fragments over.
   • Delete the work directory when the book is done (or to start from scratch).
   • [cyan]--work-dir[/] puts the cache elsewhere, e.g. on a bigger disk."""),
+    "pronunciation": ("Custom pronunciations: names, invented words, stress", """\
+A text file next to the book, [cyan]book.pronounce.txt[/] (or [cyan]pronounce.txt[/] for a series), one entry per line:
+
+  [cyan]Kvothe = Quothe[/]                  respell the word the way it sounds (every engine)
+  [cyan]Tolkien* = Tolkeen[/]               [cyan]*[/] keeps any ending: Tolkien's, Tolkiens
+  [cyan]Kvothe = /K W OW1 TH/ | Quothe[/]   phonemes for the local engine | respelling for the online ones
+
+Stress: [cyan]+[/] before the stressed vowel ([cyan]Mir+andel[/]) or [cyan]'[/] right after it ([cyan]Mira'ndel[/]).
+Russian works the same way (and also takes one capital letter). Not an apostrophe after the syllable.
+Enter each form of a word yourself: stress can move between forms. Online engines ignore stress marks and
+phonemes. Check by ear: [cyan]folivox book.epub --preview 400 -c 1[/].
+
+  [cyan]folivox names book.epub[/]           list the names in the book (a start for the file)
+  [cyan]folivox names book.epub --write[/]   add them to book.pronounce.txt
+  [cyan]--pronounce FILE[/]                  use another file (repeat the option for several)
+
+In the studio the same file is edited under the book details. More: docs/pronunciation.md"""),
     "quality": ("Quality control (QA)", """\
 Each fragment is re-transcribed with speech recognition and compared with the source text. On a
 mismatch the fragment is synthesised again (up to [cyan]--takes[/] times) and the best take is kept.

@@ -212,9 +212,10 @@ native counters, Chinese `两`); sentences split and packed into fragments; dial
 <tr>
 <td valign="top">
 
-**Stress and `ё`**<br>
+**Stress, `ё` and your own pronunciations**<br>
 For Russian, `ё` is restored automatically with ruaccent, and full stress marks are available
-(`--stress all`, experimental).
+(`--stress all`, experimental). Names and invented words: a plain-text dictionary next to the book
+(`Kvothe = Quothe`), also editable in the studio. [Details](docs/pronunciation.md).
 
 </td>
 <td valign="top">
@@ -360,6 +361,7 @@ Your books, audiobooks, ffmpeg and anything you had before are never touched. De
 |---|---|
 | [docs/install.md](docs/install.md) | One-command install, starting the studio, update and removal |
 | [docs/cli.md](docs/cli.md) | All `folivox render` options and examples |
+| [docs/pronunciation.md](docs/pronunciation.md) | Custom pronunciations: names, invented words, Russian stress, phonemes |
 | [docs/voices.md](docs/voices.md) | Voice library, your own voice, the voice sample, designing and generating voices |
 | [docs/cloud-engines.md](docs/cloud-engines.md) | Online reading engines: prices, limits, terms, spending cap |
 | [docs/providers.md](docs/providers.md) | Pluggable providers and `config.toml` |

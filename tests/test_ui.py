@@ -375,6 +375,32 @@ def test_book_details_are_editable_saved_and_sent_to_the_render(client):
     assert back["meta"] == back["defaults"] and back["meta"]["narrator"] == ""
 
 
+def test_pronunciations_are_edited_checked_saved_and_sent_to_the_render(client):
+    bid = upload(client)["book_id"]
+    assert client.get(f"/api/books/{bid}/pronounce").json() == {"text": "", "count": 0, "warnings": []}
+    text = "# names\nKvothe = Quothe\nTolkien* = Tolkeen\nbroken line\nFoo = /Q Z/\n"
+    saved = client.put(f"/api/books/{bid}/pronounce", json={"text": text}).json()
+    assert saved["text"] == text and saved["count"] == 2 and len(saved["warnings"]) == 2
+    assert saved["warnings"][0].startswith("line 4:") and ".txt" not in saved["warnings"][0]
+    assert client.get(f"/api/books/{bid}/pronounce").json()["text"] == text  # kept on the server
+    assert client.get(f"/api/books/{bid}/chapters").status_code == 200  # the lexicon is not mistaken for the book
+    assert client.put(f"/api/books/{bid}/pronounce", json={"text": "x" * 200_000}).status_code == 400
+    assert client.put(f"/api/books/{bid}/pronounce", json={"text": 5}).status_code == 400
+    assert client.get("/api/books/nope/pronounce").status_code == 404
+    seen = {}
+
+    def spy(book, opts, events):
+        seen["files"] = [p.read_text(encoding="utf-8") for p in opts.pronounce]
+        return fake_render(book, opts, events)
+
+    client.app.state.ui.manager._render = spy
+    wait_done(client, client.post("/api/jobs", json={"kind": "preview", "book_id": bid, "chapters": [1]}).json()["id"])
+    assert seen["files"] == [text]
+    assert client.put(f"/api/books/{bid}/pronounce", json={"text": "  \n"}).json()["count"] == 0
+    wait_done(client, client.post("/api/jobs", json={"kind": "preview", "book_id": bid, "chapters": [1]}).json()["id"])
+    assert seen["files"] == []  # an emptied lexicon is not passed on
+
+
 def test_cookie_survives_a_server_restart(tmp_path):
     """The cookie is derived from the saved token, so restarting `folivox ui` does not log the browser out."""
     def boot():
@@ -424,3 +450,25 @@ def test_render_process_cancels(tmp_path):
     while job.state == "running" and time.time() < deadline:
         time.sleep(0.1)
     assert job.state == "cancelled"
+
+
+def test_pronunciation_sample_is_picked_from_the_book_and_played_as_a_preview(client):
+    bid = upload(client)["book_id"]
+    assert client.get(f"/api/books/{bid}/pronounce/sample").json() == {"text": "", "missing": []}  # no entries yet
+    client.put(f"/api/books/{bid}/pronounce", json={"text": "river = rivver\nvillage = vilidge\nghost = gost\n"})
+    picked = client.get(f"/api/books/{bid}/pronounce/sample").json()
+    assert picked["missing"] == ["ghost"]
+    assert picked["text"].index("river") < picked["text"].index("village") < picked["text"].index("ghost")  # file order
+    seen = {}
+
+    def spy(book, opts, events):
+        seen["text"] = book.sections[0].blocks[0].text
+        seen["pronounce"] = opts.pronounce
+        return fake_render(book, opts, events)
+
+    client.app.state.ui.manager._render = spy
+    job = {"kind": "preview", "book_id": bid, "chapters": [1], "sample_text": "  My own  sentence about the river. "}
+    wait_done(client, client.post("/api/jobs", json=job).json()["id"])
+    assert seen["text"] == "My own sentence about the river." and len(seen["pronounce"]) == 1
+    for bad in ({**job, "kind": "render"}, {**job, "sample_text": "  "}, {**job, "sample_text": "x" * 601}):
+        assert client.post("/api/jobs", json=bad).status_code == 400

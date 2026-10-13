@@ -171,6 +171,8 @@ h1 { padding-right:140px; }
 .kstate.ok { color:var(--seg-done); } .kstate.none { color:var(--mute); }
 @media (max-width:700px) { .eng, .keyrow { grid-template-columns:1fr; } }
 .meta-box { margin-top:12px; padding:10px 14px; border:1px solid var(--line); border-radius:12px; } .meta-box summary { cursor:pointer; font-weight:600; } .meta-box summary small { font-weight:400; margin-left:6px; }
+.pron-box { margin-top:12px; padding:10px 14px; border:1px solid var(--line); border-radius:12px; } .pron-box summary { cursor:pointer; font-weight:600; } .pron-box summary small { font-weight:400; margin-left:6px; }
+.pron-box textarea { width:100%; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; line-height:1.5; white-space:pre; tab-size:4; } .pron-help { margin:8px 0 0; padding-left:18px; } .pron-help li { margin:3px 0; } .pron-try { margin-top:12px; padding-top:10px; border-top:1px dashed var(--line); } .pron-try textarea { width:100%; margin:8px 0; } .pron-try .row { gap:10px; align-items:center; } .pron-warn { margin:6px 0 0; padding-left:18px; color:var(--err, #c0392b); }
 .gp-adv summary { cursor:pointer; color:var(--mute); font-size:13px; } .gp-est { font-size:14px; }
 .gp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px 20px; }
 .gp-take { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,200px) 18px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; }
@@ -235,6 +237,24 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
     <label class="f" style="margin-top:10px"><span data-i18n="s1.m.desc">Description</span><textarea id="m-description" data-m="description" rows="3"></textarea></label>
     <div class="row" style="margin-top:8px"><button type="button" id="m-reset" class="chip" data-i18n="s1.m.reset">Reset to the book's own data</button><span id="m-msg" class="mute"></span></div>
     <small class="mute" data-i18n="s1.m.note">Saved automatically for this book. The series is written as the “Grouping” tag (“Name #2”), which most audiobook apps show as the series. Empty fields fall back to the book's data.</small>
+  </details>
+  <details id="pron-box" class="pron-box" hidden><summary><span data-i18n="s1.pron.h">Pronunciations</span> <small class="mute" data-i18n="s1.pron.sub">names and invented words, read your way</small></summary>
+    <ul class="pron-help mute">
+      <li data-i18n-html="s1.pron.help">One entry per line: <code>word = how to read it</code>. Respell the word the way it sounds (<code>Kvothe = Quothe</code>). A <code>*</code> at the end keeps any ending (<code>Tolkien* = Tolkeen</code>). Lines starting with <code>#</code> are comments.</li>
+      <li data-i18n-html="s1.pron.forms">Enter each form of a word yourself (<code>Mirandel</code>, <code>Mirandels</code>): the stress can move between forms. Use <code>*</code> only for names whose stem does not change.</li>
+      <li data-i18n-html="s1.pron.stress">Stress: <code>+</code> before the stressed vowel (<code>Mir+andel</code>) or <code>'</code> right after it (<code>Mira'ndel</code>). Russian works the same way and also takes one capital letter. Check it by ear: the model does not always follow.</li>
+      <li data-i18n-html="s1.pron.phon">Local engine only: phonemes between slashes, then a respelling for online engines (<code>Kvothe = /K W OW1 TH/ | Quothe</code>). Online engines ignore stress marks and phonemes.</li>
+    </ul>
+    <label class="f" style="margin-top:10px"><textarea id="pron-text" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="# word = how to read it&#10;Mirandel = Mir+andel&#10;Kvothe = Quothe&#10;Tolkien* = Tolkeen" data-i18n-attr="placeholder:s1.pron.ph"></textarea></label>
+    <ul id="pron-warn" class="pron-warn" hidden></ul>
+    <div class="row" style="margin-top:8px"><span id="pron-count" class="mute"></span><span id="pron-msg" class="mute"></span></div>
+    <div class="pron-try">
+      <div class="row"><b data-i18n="s1.pron.try">Try it by ear</b><button type="button" id="pron-pick" class="chip" title="Finds sentences of the book that contain your words, in the order of your list" data-i18n="s1.pron.pick" data-i18n-attr="title:s1.pron.pick.t">Pick sentences from my book</button></div>
+      <textarea id="pron-sample" rows="3" maxlength="600" spellcheck="false" autocomplete="off" placeholder="Type a sentence with your words, or press “Pick sentences from my book”" data-i18n-attr="placeholder:s1.pron.sample.ph"></textarea>
+      <div class="row"><button type="button" id="pron-listen" class="chip" title="Reads the text above with your pronunciations applied" data-i18n="s1.pron.listen" data-i18n-attr="title:s1.pron.listen.t">▶ Listen</button><span id="pron-try-msg" class="mute"></span></div>
+      <small class="mute" data-i18n="s1.pron.try.note">This exact text is read with your pronunciations applied, using the voice and engine chosen below. It takes about half a minute and is not added to the audiobook (an online engine bills this small test).</small>
+    </div>
+    <small class="mute" data-i18n="s1.pron.note">Saved automatically for this book. Only the fragments with changed words are read again.</small>
   </details>
 </section>
 
@@ -550,10 +570,35 @@ function saveMeta(reset) {
 }
 document.querySelectorAll("[data-m]").forEach(e => e.addEventListener("input", () => saveMeta(false)));
 $("#m-reset").onclick = () => saveMeta(true);
+// ---- pronunciations ----------------------------------------------------------------------------------
+let pronTimer = null, pronFor = "";
+function showPron(r) {
+  $("#pron-count").textContent = t("s1.pron.count", { n: r.count });
+  const w = $("#pron-warn"); w.hidden = !r.warnings.length; w.innerHTML = r.warnings.map(x => `<li>${esc(x)}</li>`).join("");
+}
+async function loadPron() {
+  if (!book) return; const id = book.book_id; pronFor = id;
+  try { const r = await api(`/api/books/${id}/pronounce`); if (pronFor !== id) return; $("#pron-box").hidden = false;
+    $("#pron-text").value = r.text; $("#pron-msg").textContent = ""; showPron(r); }
+  catch (e) { $("#pron-box").hidden = true; }
+}
+async function savePron() {
+  clearTimeout(pronTimer); const id = book.book_id;
+  try { const r = await api(`/api/books/${id}/pronounce`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: $("#pron-text").value }) });
+    if (pronFor === id) { showPron(r); $("#pron-msg").textContent = t("saved"); } }
+  catch (e) { $("#pron-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; throw e; }
+}
+$("#pron-text").addEventListener("input", () => { clearTimeout(pronTimer); $("#pron-msg").textContent = ""; pronTimer = setTimeout(() => savePron().catch(() => {}), 700); });
+// A server started before an update lacks the routes this page uses: say so instead of failing one feature at a time.
+const PAGE_API = 2;
+async function checkServer() {
+  try { const r = await api("/api/ping"); if (!(r.api >= PAGE_API)) $("#stale").hidden = false; }
+  catch (e) { if (e.message === "Not Found") $("#stale").hidden = false; }  // a server too old to have /api/ping
+}
 function renderBookInfo() { const b = book;$("#book-info").innerHTML = `<b style="color:var(--ink)">${esc(b.title)}</b> — ${esc(b.author || t("book.noauthor"))} · ${esc(b.lang_name)} · ${esc(b.format.toUpperCase())}${b.year ? " · " + esc(b.year) : ""} · ${t("book.chars", { n: num(b.chars) })} · ≈ ${fmt(b.estimated_seconds)}`; }
 function setBook(b, keep, lang) {
   book = b; showCover(b.cover || "");
-  renderBookInfo(); loadMeta();
+  renderBookInfo(); loadMeta(); loadPron();
   $("#lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}" ${c === b.lang ? "selected" : ""}>${n}</option>`).join("");
   if (lang) $("#lang").value = lang;
   renderChapters(keep);
@@ -908,17 +953,34 @@ function options() {
   return { speed: +v("speed"), max_chars: +v("max_chars"), stress: v("stress"), takes: +v("takes"), qa: v("qa") === "1", qa_level: v("qa_level"),
            mp3: v("mp3") === "1", output_dir: v("output_dir"), device: v("device"), depth: +$("#depth").value || 2, ...engOptions() };
 }
-async function start(kind) {
-  const chapters = selected();
+async function start(kind, sample) {
+  const chapters = sample ? [1] : selected();
   if (!chapters.length) { $("#run-msg").textContent = t("run.nochap"); return; }
   $("#run-msg").textContent = "";
   if (ENG.cloud() && !$("#eng-ack").checked) { $("#run-msg").innerHTML = `<span class="err">${t("run.tick")}</span>`; return; }
   if (ENG.cloud() && ENG.cur().voice_modes.includes("clone") && $("#o-tts_mode").value === "clone" && !$("#eng-own").checked) { $("#run-msg").innerHTML = `<span class="err">${t("run.confirmown")}</span>`; return; }
-  RUNSECS = kind === "preview" ? Math.min(book.chapters.find(c => c.n === chapters[0]).seconds, 600 * book.estimated_seconds / Math.max(1, book.chars)) : book.chapters.filter(c => chapters.includes(c.n)).reduce((a, c) => a + c.seconds, 0); PACE_ENGINE = ENG.cur() ? ENG.cur().name : "cosyvoice3";
+  RUNSECS = sample ? 25 : kind === "preview" ? Math.min(book.chapters.find(c => c.n === chapters[0]).seconds, 600 * book.estimated_seconds / Math.max(1, book.chars)) : book.chapters.filter(c => chapters.includes(c.n)).reduce((a, c) => a + c.seconds, 0); PACE_ENGINE = ENG.cur() ? ENG.cur().name : "cosyvoice3";
   try { attach(await api("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kind, book_id: book.book_id, voice, chapters, options: options(), acknowledged: ENG.cloud() ? $("#eng-ack").checked : undefined }) })); }
+    body: JSON.stringify({ kind, book_id: book.book_id, voice, chapters, sample_text: sample || undefined, options: options(), acknowledged: ENG.cloud() ? $("#eng-ack").checked : undefined }) })); }
   catch (e) { $("#run-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 }
+async function pickSample() {
+  const msg = $("#pron-try-msg"); msg.textContent = "";
+  try { await savePron(); const r = await api(`/api/books/${book.book_id}/pronounce/sample`);
+    if (!r.text) { msg.textContent = t("s1.pron.needwords"); return ""; }
+    $("#pron-sample").value = r.text;
+    msg.textContent = r.missing.length ? t("s1.pron.missing", { words: r.missing.join(", ") }) : "";
+    return r.text; }
+  catch (e) { msg.innerHTML = `<span class="err">${esc(e.message)}</span>`; return ""; }
+}
+$("#pron-pick").onclick = pickSample;
+$("#pron-listen").onclick = async () => {
+  try { await savePron(); } catch (e) { return; }
+  let text = $("#pron-sample").value.trim();
+  if (!text) text = await pickSample();
+  if (!text) return;
+  await start("preview", text); $("#studio").scrollIntoView({ behavior: "smooth" });
+};
 $("#preview").onclick = () => start("preview"); $("#render").onclick = () => start("render");
 $("#dc-close").onclick = () => { $("#done-card").hidden = true; };
 $("#dc-reveal").onclick = () => $("#reveal").click();
@@ -1071,7 +1133,7 @@ function invalidatePreview() {
 }
 const PREVIEW_INERT = "#eng-ack, #eng-own, #o-max_cost, #o-output_dir, #o-mp3, #o-device, #vq, #vgender, #vlangs, #vc-lang, #vc-sex";
 function previewTouched(ev) {
-  const t = ev.target; if (!t || !t.closest || t.closest(PREVIEW_INERT) || t.closest("#genvoice, #addvoice, #meta-box, #s-book, #adv")) return;
+  const t = ev.target; if (!t || !t.closest || t.closest(PREVIEW_INERT) || t.closest("#genvoice, #addvoice, #meta-box, #pron-box, #s-book, #adv")) return;
   if (t.closest("#s-chapters, #s-engine, #s-voice, #s-run details")) invalidatePreview();
 }
 document.addEventListener("change", previewTouched); document.addEventListener("input", previewTouched);

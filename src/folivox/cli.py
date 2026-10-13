@@ -27,8 +27,8 @@ app = typer.Typer(add_completion=False, no_args_is_help=False, invoke_without_co
                   rich_markup_mode="rich", epilog=MAIN_EPILOG, context_settings={"help_option_names": ["-h", "--help"]},
                   help="Turn e-books (FB2, EPUB, DOCX, PDF, TXT, or ZIP of one) into m4b audiobooks, locally.")
 console = Console()
-COMMANDS = {"render", "inspect", "voices", "providers", "help", "ui", "doctor", "setup", "update", "uninstall", "bench",
-            "--help", "-h", "--version"}
+COMMANDS = {"render", "inspect", "names", "voices", "providers", "help", "ui", "doctor", "setup", "update", "uninstall",
+            "bench", "--help", "-h", "--version"}
 
 # Option panels of `folivox render --help`
 P_INPUT, P_VOICE, P_TEXT, P_QA = "Input", "Voice", "Text", "Quality control"
@@ -264,6 +264,43 @@ class RichEvents(Events):
             self._dl = None
 
 
+@app.command(help="List the names in a book that may need a custom pronunciation (a start for the dictionary).",
+             rich_help_panel="Main commands",
+             epilog="[bold]Examples[/]\n\n  [cyan]folivox names book.epub[/]\n"
+                    "  [cyan]folivox names book.epub --write[/]   adds them to book.pronounce.txt\n\n"
+                    "[dim]More: folivox help pronunciation[/]")
+def names(
+    book_path: Path = typer.Argument(..., help="Book file (FB2, EPUB, DOCX, PDF, TXT, or ZIP of one)."),
+    lang: str | None = typer.Option(None, "--lang", show_default="from book / detected",
+                                    help="Book language: ru en de fr es it zh ja ko."),
+    min_count: int = typer.Option(3, "--min", min=1, help="Only names that occur at least this many times."),
+    limit: int = typer.Option(150, "--limit", min=1, help="At most this many names (the most frequent first)."),
+    write: bool = typer.Option(False, "--write", help="Add the new names to <book>.pronounce.txt instead of printing."),
+):
+    from folivox.text import names as found
+    from folivox.text.pronounce import Lexicon
+
+    book = _load(book_path, lang)
+    target = book_path.with_name(book_path.stem + ".pronounce.txt")
+    known = {e.word.rstrip("*").lower() for e in Lexicon.load([target] if target.is_file() else []).entries}
+    fresh = [c for c in found.candidates(book, min_count=min_count) if c.word.lower() not in known][:limit]
+    lines = [f"{c.word} = {c.word}   # {c.count}x" for c in fresh]
+    if not write:
+        if not lines:
+            console.print("[dim]No names found (try a lower --min).[/]")
+        for line in lines:
+            typer.echo(line)
+        return
+    if not lines:
+        console.print("No new names to add.")
+        return
+    head = "" if not target.is_file() else ("\n" if not target.read_text(encoding="utf-8").endswith("\n") else "")
+    note = "# Found by `folivox names`: replace the right-hand side with how to read the name.\n"
+    with target.open("a", encoding="utf-8") as f:
+        f.write(head + ("\n" if target.stat().st_size else "") + note + "\n".join(lines) + "\n")
+    console.print(f"Added {len(lines)} names to [bold]{target}[/]. Edit the right-hand sides, then render as usual.")
+
+
 @app.command(help="Render a book into an audiobook (m4b with chapters and cover).", epilog=RENDER_EPILOG,
              rich_help_panel="Main commands")
 def render(
@@ -287,6 +324,9 @@ def render(
                                   help="Longest fragment sent to the model at once."),
     stress: Stress = typer.Option(Stress.yo, "--stress", rich_help_panel=P_TEXT,
                                   help="Russian only: none | yo (restore ё) | all (stress marks, experimental)."),
+    pronounce: list[Path] = typer.Option(None, "--pronounce", rich_help_panel=P_TEXT, show_default=False,
+                                         help="Custom pronunciations (name = how to read it). Default: "
+                                              "<book>.pronounce.txt and pronounce.txt next to the book."),
     qa: bool = typer.Option(True, "--qa/--no-qa", rich_help_panel=P_QA, show_default=False,
                             help="Check every fragment with speech recognition and retake mismatches (on)."),
     qa_level: str = typer.Option("standard", "--qa-level", rich_help_panel=P_QA,
@@ -375,7 +415,17 @@ def render(
             raise typer.Exit(2)
     if output is None:
         output = book_path.with_suffix("" if mp3 else ".m4b")
-    opts = RenderOptions(output=output, voice_wav=voice_path, voice_text=voice_text, work_dir=work_dir,
+    from folivox.text import pronounce as pronunciations
+
+    lexicon_files = tuple(pronounce) if pronounce else tuple(pronunciations.find(book_path))
+    for f in lexicon_files:
+        if not f.is_file():
+            console.print(f"[red]Pronunciation file not found:[/] {f}")
+            raise typer.Exit(2)
+    if lexicon_files:
+        console.print(f"Pronunciations: {', '.join(f.name for f in lexicon_files)}")
+    opts = RenderOptions(output=output, pronounce=lexicon_files,
+                         voice_wav=voice_path, voice_text=voice_text, work_dir=work_dir,
                          chapters=chapters, preview=preview, depth=depth, max_chars=max_chars, stress=stress.value,
                          lang=book.lang, speed=speed, device=device.value, threads=threads,
                          model_dir=str(model_dir) if model_dir else None, qa=qa,

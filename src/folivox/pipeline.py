@@ -11,13 +11,12 @@ from pathlib import Path
 
 import numpy as np
 
-from folivox import lang as languages
 from folivox.audio import postprocess, save
 from folivox.audio.assemble import BookMeta, ChapterAudio, build_chapter, write_m4b, write_mp3s
 from folivox.book import Book, Chapter
 from folivox.journal import Journal, PlannedChunk, Take
-from folivox.text.chunk import ChunkOptions, plan_chapter
-from folivox.text.stress import strip_marks
+from folivox.text.chunk import ChunkOptions, finalize, plan_chapter
+from folivox.text.pronounce import Lexicon
 
 # Bump when synthesis changes in a way that invalidates cached audio.
 SYNTH_VERSION = "cv3-1"
@@ -57,6 +56,7 @@ class RenderOptions:
     no_cover: bool = False  # write no cover at all
     meta: dict[str, str] = field(default_factory=dict)  # edited book details; an empty value keeps the book's own
     chunk: ChunkOptions = field(default_factory=ChunkOptions)
+    pronounce: tuple[Path, ...] = ()  # custom pronunciation files, the book's own last (see folivox.text.pronounce)
     # cloud engines (paid, the text leaves the computer)
     tts_model: str = "auto"
     tts_voice: str = ""  # provider voice id or name
@@ -150,7 +150,13 @@ def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, event
     max_chars = min(opts.max_chars, engine.max_chars) if cloud else opts.max_chars  # the provider's request limit
     copts = ChunkOptions(max_chars=max_chars, min_chars=min(opts.chunk.min_chars, max_chars), stress=stress,
                          lang=opts.lang or book.lang or "ru", pauses=opts.chunk.pauses,
-                         speak_headings=opts.chunk.speak_headings)
+                         speak_headings=opts.chunk.speak_headings, local_engine=not cloud)
+    if opts.pronounce:
+        copts.lexicon = Lexicon.load(opts.pronounce)
+        for w in copts.lexicon.warnings:
+            events.warning(f"Pronunciations: {w}")
+        for w in copts.lexicon.unusable_here(not cloud):
+            events.warning(f"Pronunciations: «{w}» is given as phonemes only; an online engine reads it as written")
     planned = [(chapters[i].title, _plan_preview(chapters[i], copts, opts.preview)) for i in selected]
     settings = f"{SYNTH_VERSION}|llm={opts.llm}|speed={opts.speed}"
     if opts.tts != "cosyvoice3":  # keep cache keys of existing CosyVoice renders valid
@@ -207,18 +213,16 @@ def _plan_preview(chapter: Chapter, copts: ChunkOptions, preview: int | None):
     if not preview:
         return plan_chapter(chapter, copts)
     budget = max(PREVIEW_HEAD, preview * 4)
-    bare = replace(copts, stress="none")  # stress is a neural model: run it only on the fragments we keep
+    bare = replace(copts, stress="none", lexicon=None)  # stress is a neural model: run it only on the kept fragments
     while True:
         part, cut = _head(chapter, budget)
         out = _limit(plan_chapter(part, bare), preview, copts)
         if not cut or sum(len(c.source) for c in out) >= preview:
             break
         budget *= 4
-    if copts.stress != "none":
-        language = languages.get(copts.lang)
+    if copts.stress != "none" or copts.lexicon:
         for c in out:
-            c.text = language.stress(c.text, copts.stress)
-            c.source = strip_marks(c.text)
+            c.text, c.source = finalize(c.text, copts)
     return out
 
 
@@ -252,6 +256,7 @@ def _mostly_foreign(source: str, lang: str) -> bool:
     return sum("a" <= c.lower() <= "z" for c in letters) / len(letters) >= FOREIGN_SHARE
 
 
+_PHONEMES = re.compile(r"(?:\[[A-Z]{1,2}[0-2]?\])+")  # custom-pronunciation markup, not text to compare with
 SPLIT_PAUSE = 0.25  # seconds between the halves of a fragment split after failed takes
 
 
@@ -311,7 +316,8 @@ def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: 
             cut = i
             break
     halves = [" ".join(parts[:cut]), " ".join(parts[cut:])]
-    results = [_best_take(prefetch, asr, opts, f"{key}/{i}", h, strip_marks(h), depth + 1, events)
+    # a half's check text is rebuilt from the model input: phoneme markup of custom pronunciations is dropped
+    results = [_best_take(prefetch, asr, opts, f"{key}/{i}", h, _PHONEMES.sub("", strip_marks(h)), depth + 1, events)
                for i, h in enumerate(halves)]
     sr = prefetch.engine.sample_rate
     audio = np.concatenate([results[0][1], np.zeros(int(sr * SPLIT_PAUSE), np.float32), results[1][1]])

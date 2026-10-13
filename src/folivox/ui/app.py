@@ -22,6 +22,7 @@ from starlette.routing import Route
 from folivox import config
 from folivox import voices as catalog
 from folivox.pipeline import QA_LEVELS, RenderOptions
+from folivox.text import pronounce as pronunciations
 from folivox.ui.jobs import JobManager, chapter_files
 
 STATIC = Path(__file__).parent / "static"
@@ -215,6 +216,58 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             meta_file(bid).parent.mkdir(parents=True, exist_ok=True)
             meta_file(bid).write_text(json.dumps(current, ensure_ascii=False), encoding="utf-8")
         return JSONResponse({"meta": book_meta(bid, book), "defaults": meta_defaults(book)})
+
+    # ---- pronunciations: the lexicon of this book (see folivox.text.pronounce) ---------------------------
+    PRONOUNCE_LIMIT = 100_000
+    SAMPLE_LIMIT = 600
+
+    def pronounce_file(book_id: str) -> Path:
+        return state.data_dir / "pronounce" / f"{Path(book_id).name}.txt"
+
+    def pronounce_state(book_id: str, text: str | None = None) -> dict:
+        f = pronounce_file(book_id)
+        if text is None:
+            text = f.read_text(encoding="utf-8") if f.is_file() else ""
+        lex = pronunciations.Lexicon.load([f]) if f.is_file() else pronunciations.Lexicon()
+        warnings = [w.replace(f"{f.name}:", "line ", 1) for w in lex.warnings]  # the file is internal: say «line 3»
+        return {"text": text, "count": len(lex.entries), "warnings": warnings}
+
+    async def get_pronounce(request: Request):
+        bid = request.path_params["book_id"]
+        state.book(bid)
+        return JSONResponse(pronounce_state(bid))
+
+    async def put_pronounce(request: Request):
+        bid = request.path_params["book_id"]
+        state.book(bid)
+        body = await request.json()
+        text = body.get("text") if isinstance(body, dict) else None
+        if not isinstance(text, str):
+            raise ApiError("The pronunciations must be text")
+        if len(text) > PRONOUNCE_LIMIT:
+            raise ApiError(f"The pronunciations are longer than {PRONOUNCE_LIMIT} characters")
+        f = pronounce_file(bid)
+        if text.strip():
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(text, encoding="utf-8")
+        else:
+            f.unlink(missing_ok=True)
+        return JSONResponse(pronounce_state(bid, text))
+
+    def lexicon_of(book_id: str):
+        f = pronounce_file(book_id)
+        return pronunciations.Lexicon.load([f]) if f.is_file() else pronunciations.Lexicon()
+
+    async def pronounce_sample(request: Request):
+        """Sentences of the book that contain the first entries of the lexicon, in the order of the file."""
+        from folivox import lang as languages
+
+        bid = request.path_params["book_id"]
+        book = state.book(bid)["book"]
+        lex = lexicon_of(bid)
+        paragraphs = [b.text for ch in book.chapters() for b in ch.blocks]
+        text, missing = lex.sample(paragraphs, languages.get(book.lang or "ru").sentences)
+        return JSONResponse({"text": text, "missing": missing})
 
     # ---- cover: the book's own, an image you upload, or none ----------------------------------------
     IMAGE_TYPES = ((b"\xff\xd8\xff", "jpg", "image/jpeg"), (b"\x89PNG\r\n\x1a\n", "png", "image/png"),
@@ -495,6 +548,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         chapters = body.get("chapters") or []
         spec = ",".join(str(int(n)) for n in chapters) or None
         cloud_opts = cloud_options(body, o, tts, v) if cloud else {}
+        lexicon = pronounce_file(str(body.get("book_id", "")))
         common = dict(voice_wav=v.path if v else None,
                       voice_text=body.get("voice_text") or (v.transcript if v else None), lang=book.lang, **cloud_opts,
                       depth=int(o.get("depth", 2)), max_chars=int(o.get("max_chars", 300)), stress=stress,
@@ -502,6 +556,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                       qa_threshold=QA_LEVELS.get(str(o.get("qa_level")), QA_LEVELS["standard"]),
                       max_takes=int(o.get("takes") or (2 if cloud else 3)),
                       tts=tts, asr=asr, device=str(o.get("device", "auto")),
+                      pronounce=(lexicon,) if lexicon.is_file() else (),
                       cover=custom_cover(str(body.get("book_id", ""))),
                       no_cover=cover_kind(str(body.get("book_id", "")), book) == "none",
                       meta=book_meta(str(body.get("book_id", "")), book))
@@ -525,9 +580,17 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         if state.manager.busy():
             raise ApiError("Another job is running; cancel it or wait", 409)
         opts = build_options(body, entry, kind)
+        book = entry["book"]
+        if body.get("sample_text") is not None:  # listen to a short text of your own (or picked from the book)
+            from folivox.book import Block, BlockKind, Book, Section
+
+            text = " ".join(str(body["sample_text"]).split())
+            if kind != "preview" or not text or len(text) > SAMPLE_LIMIT:
+                raise ApiError(f"A test text is 1–{SAMPLE_LIMIT} characters, played as a preview")
+            book = Book(title=book.title, lang=book.lang, sections=[Section(blocks=[Block(BlockKind.PARAGRAPH, text)])])
         opts.output.parent.mkdir(parents=True, exist_ok=True)
         try:
-            job = state.manager.start(kind, body["book_id"], entry["book"], opts)
+            job = state.manager.start(kind, body["book_id"], book, opts)
         except RuntimeError:  # another request won the race between the busy() check and start()
             raise ApiError("Another job is running; cancel it or wait", 409) from None
         return JSONResponse(job.summary(), status_code=202)
@@ -1087,6 +1150,9 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/books/{book_id}/chapters", book_chapters),
         Route("/api/books/{book_id}/meta", get_meta),
         Route("/api/books/{book_id}/meta", put_meta, methods=["PUT"]),
+        Route("/api/books/{book_id}/pronounce", get_pronounce),
+        Route("/api/books/{book_id}/pronounce", put_pronounce, methods=["PUT"]),
+        Route("/api/books/{book_id}/pronounce/sample", pronounce_sample),
         Route("/api/books/{book_id}/cover", get_cover),
         Route("/api/books/{book_id}/cover", put_cover, methods=["PUT", "POST"]),
         Route("/api/session", get_session),

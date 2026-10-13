@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from folivox import lang as languages
 from folivox.book import Block, BlockKind, Chapter
 from folivox.lang import has_speech
+from folivox.text.pronounce import Lexicon
 from folivox.text.stress import strip_marks
 
 
@@ -37,6 +38,8 @@ class ChunkOptions:
     lang: str = "ru"
     pauses: Pauses = field(default_factory=Pauses)
     speak_headings: bool = True
+    lexicon: Lexicon | None = None  # the book's custom pronunciations
+    local_engine: bool = True  # False: an online engine, which cannot take stress marks or phonemes
 
 
 @dataclass
@@ -124,6 +127,16 @@ def _poem_text(stanza: str) -> str:
         "" if re.search(r"[.!?…]$", lines[-1]) else ".") if lines else ""
 
 
+def finalize(text: str, opts: ChunkOptions) -> tuple[str, str]:
+    """Model input (stress marks, custom pronunciations) and the plain text that quality control compares with."""
+    tts = languages.get(opts.lang).stress(text, opts.stress)
+    source = strip_marks(tts)
+    if opts.lexicon:
+        tts = opts.lexicon.apply(tts, local=opts.local_engine)
+        source = opts.lexicon.apply(source, quality_control=True)
+    return tts, source
+
+
 def plan_chapter(chapter: Chapter, opts: ChunkOptions | None = None) -> list[Chunk]:
     opts = opts or ChunkOptions()
     p = opts.pauses
@@ -160,8 +173,8 @@ def plan_chapter(chapter: Chapter, opts: ChunkOptions | None = None) -> list[Chu
     for text, pause, kind in raw:
         if not has_speech(text):
             continue
-        tts = language.stress(text, opts.stress)
-        chunks.append(Chunk(len(chunks), tts, strip_marks(tts), pause, kind))
+        tts, source = finalize(text, opts)
+        chunks.append(Chunk(len(chunks), tts, source, pause, kind))
     if chunks:
         chunks[-1].pause_after = p.chapter_end
     return chunks
