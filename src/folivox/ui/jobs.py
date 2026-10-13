@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import multiprocessing as mp
 import os
-import queue
 import sys
 import threading
 import time
@@ -141,28 +140,31 @@ class JobManager:
         from folivox import diag
 
         ctx = mp.get_context("spawn")  # never fork a process that may hold CUDA or Metal state
-        events, cancel = ctx.Queue(), ctx.Event()
+        # A pipe, not a Queue: Queue.put hands the message to a feeder thread, so events sent just before a native
+        # crash (os._exit, SIGSEGV) never reach the parent. Connection.send writes to the pipe synchronously.
+        events, child_end = ctx.Pipe(duplex=False)
+        cancel = ctx.Event()
         log = job.opts.resolved_work_dir() / "render-process.log"
         log.parent.mkdir(parents=True, exist_ok=True)
-        proc = ctx.Process(target=_child, args=(self._target, book, job.opts, events, cancel, str(log)), daemon=True,
-                           name=f"folivox-render-{job.id}")
+        args = (self._target, book, job.opts, child_end, cancel, str(log))
+        proc = ctx.Process(target=_child, args=args, daemon=True, name=f"folivox-render-{job.id}")
         diag.event("job started", job=job.id, kind=job.kind, options=diag.options_summary(job.opts), process=True)
         t0 = time.time()
         proc.start()
+        child_end.close()  # only the child holds the write end, so its death shows up as EOF
         final = None
         while final is None:
             if job.cancel_requested.is_set():
                 cancel.set()
             try:
-                msg = events.get(timeout=0.5)
-            except queue.Empty:
-                if not proc.is_alive():
-                    try:  # the last messages may still be in the pipe
-                        msg = events.get(timeout=1)
-                    except queue.Empty:
+                if not events.poll(0.5):
+                    if proc.is_alive():
+                        continue
+                    if not events.poll(1):  # the last messages may still be in the pipe
                         break
-                else:
-                    continue
+                msg = events.recv()
+            except (EOFError, OSError):
+                break  # every message sent before the child died has been read
             kind, type_, data = msg
             if kind == "event":
                 if type_ == "plan":
@@ -172,6 +174,7 @@ class JobManager:
                 job.emit(type_, **data)
             else:
                 final = (type_, data)
+        events.close()
         proc.join(timeout=30)
         secs = round(time.time() - t0, 1)
         if final is None:
@@ -246,8 +249,22 @@ class JobManager:
         return job
 
 
+class _Sender:
+    """Child side of the events pipe: ``put`` is synchronous and thread-safe."""
+
+    def __init__(self, conn):
+        self._conn, self._lock = conn, threading.Lock()
+
+    def put(self, msg) -> None:
+        with self._lock:
+            self._conn.send(msg)
+
+    def close(self) -> None:
+        self._conn.close()
+
+
 class _ChildJob:
-    """What ``UIEvents`` needs from a job, inside the render process: events go to the parent's queue."""
+    """What ``UIEvents`` needs from a job, inside the render process: events go to the parent over a pipe."""
 
     def __init__(self, events, cancel):
         self._events, self.cancel_requested = events, cancel
@@ -266,9 +283,10 @@ def _tail(path: Path, lines: int = 6, limit: int = 600) -> str:
     return " | ".join(keep)[-limit:]
 
 
-def _child(target: str, book, opts: RenderOptions, events, cancel, log: str) -> None:
+def _child(target: str, book, opts: RenderOptions, conn, cancel, log: str) -> None:
     """Render process entry point. Native libraries write straight to fds 1 and 2: keep them in a log the
     parent quotes if the process dies without a word."""
+    events = _Sender(conn)
     fd = os.open(log, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
     for std in (1, 2):
         os.dup2(fd, std)
@@ -292,7 +310,6 @@ def _child(target: str, book, opts: RenderOptions, events, cancel, log: str) -> 
         events.put(("final", "error", {"message": str(e) or type(e).__name__, "traceback": traceback.format_exc()}))
     finally:
         events.close()
-        events.join_thread()
 
 
 def chapter_files(work_dir: Path) -> dict[int, Path]:
