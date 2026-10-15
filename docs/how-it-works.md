@@ -7,8 +7,11 @@
    for Russian), splits sentences ([razdel](https://github.com/natasha/razdel) for Russian, a
    punctuation splitter elsewhere, including `。！？` for Chinese and Japanese) and packs them into
    fragments.
-3. **Synthesise** — CosyVoice 3 clones the voice zero-shot. Each accepted take is stored in the
-   work dir and recorded in an SQLite journal.
+3. **Synthesise** — CosyVoice 3 clones the voice zero-shot (or an optional Fish Audio engine, which runs
+   in its own worker process and Python environment: [Fish Audio engines](fish-engines.md)). Each accepted
+   take is stored in the work dir and recorded in an SQLite journal; its key hashes the text, the voice and
+   the synthesis settings (engine, build and revision, plus speaker and expression tags when used), so a
+   changed engine or build never reuses old audio.
 4. **Check** — Whisper transcribes the take; character error rate and speaking rate decide whether
    to retake.
 5. **Assemble** — fragments are joined with structural pauses (sentence < paragraph < heading <

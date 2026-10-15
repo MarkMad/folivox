@@ -90,6 +90,16 @@ ok "folivox $(folivox --version 2>/dev/null || true)"
 # -- 5. models + guide ---------------------------------------------------------------------------
 step 5 "Models and first check"
 if [ "${FOLIVOX_SKIP_MODELS:-0}" = 1 ]; then folivox setup --skip-models; else folivox setup; fi
+# Optional Fish Audio engines (separate licences, 7-24 GB). Asked only of a person at a terminal, only where a tested build fits.
+FISH_BUILD="$(folivox engines best 2>/dev/null || true)"
+if [ -n "$FISH_BUILD" ] && [ "${FOLIVOX_NO_START:-0}" != 1 ] && [ -z "${CI:-}" ] && [ -t 1 ] && (: </dev/tty) 2>/dev/null; then
+  printf '\n%sOptional: Fish Audio engines%s (more natural voices, several speakers in one book).\n' "$B" "$N"
+  printf '  They are not part of Folivox: a separate download from Hugging Face under the vendor'"'"'s licence.\n'
+  printf '  Personal use is free; selling audiobooks needs a commercial licence (details are shown before the download).\n'
+  printf '  Install %s now? You will see the licence first. [y/N] ' "$FISH_BUILD"
+  read -r ANSWER </dev/tty || ANSWER=n
+  case "$ANSWER" in [yYдД]*) folivox engines install "$FISH_BUILD" </dev/tty || warn "Fish engine not installed. Later: folivox engines install $FISH_BUILD" ;; esac
+fi
 printf '\n%sIf the command is not found in a new terminal:%s run  %suv tool update-shell%s  and reopen the terminal.\n' "$B" "$N" "$C" "$N"
 # Offer to open the studio, only for a person at a terminal (not agents, CI or pipes). FOLIVOX_NO_START=1 skips it.
 if [ "${FOLIVOX_NO_START:-0}" != 1 ] && [ -z "${CI:-}" ] && [ -t 1 ] && (: </dev/tty) 2>/dev/null; then

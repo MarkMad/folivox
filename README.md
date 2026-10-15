@@ -364,6 +364,7 @@ Your books, audiobooks, ffmpeg and anything you had before are never touched. De
 | [docs/pronunciation.md](docs/pronunciation.md) | Custom pronunciations: names, invented words, Russian stress, phonemes |
 | [docs/voices.md](docs/voices.md) | Voice library, your own voice, the voice sample, designing and generating voices |
 | [docs/cloud-engines.md](docs/cloud-engines.md) | Online reading engines: prices, limits, terms, spending cap |
+| [docs/fish-engines.md](docs/fish-engines.md) | Optional Fish Audio engines (S2 Pro, Drama 3): licences, memory, catalog |
 | [docs/providers.md](docs/providers.md) | Pluggable providers and `config.toml` |
 | [docs/ui.md](docs/ui.md) | The web studio: design, screens and API |
 | [docs/ui-languages.md](docs/ui-languages.md) | Interface languages and translations |

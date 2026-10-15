@@ -28,6 +28,18 @@ saved access token: `app`, `api` level, version, pid, whether it is rendering) a
 port is free. The page asks `/api/ping` too: a server that predates the page (lower `api` level, or no `/api/ping`)
 gets a banner telling the user to restart it. Bump `API_LEVEL` in `ui/app.py` when the page starts using a new route.
 
+## Fish Audio engines (implemented)
+
+On Apple Silicon, *3 · Reading engine* also lists the optional Fish Audio engines. Choosing one shows a
+card with the build (automatic or a specific one), its download size and memory need, a warning when
+free memory is below the measured peak, and: *Read and accept the licence…* (a dialog with the main
+points, a button for the full text, a checkbox, then *Accept*; the accepted version is stored in
+`config.toml` and asked again when it changes), *Download and install* (with progress) and *Remove*.
+Routes: `GET /api/engines/fish`, `GET /api/engines/fish/licence/{id}`, `POST …/accept`, `…/revoke`,
+`GET/POST …/install`, `POST …/remove`. Starting a job with a Fish engine is refused with a reason when the
+licence is not accepted, the build is not installed or the voice is a bundled one.
+See [Fish Audio engines](fish-engines.md).
+
 ## Architecture
 
 ```
