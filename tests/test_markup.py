@@ -141,7 +141,7 @@ def test_read_text_is_unchanged_by_markup():
     m = marked()
     plain = " ".join(c.source for c in plan(None))
     marked_text = " ".join(c.source for c in plan(MarkupContext(m, 0, True)))
-    squash = lambda s: "".join(s.replace("—", "").split())  # noqa: E731  (the narrator does not say a dialogue dash)
+    squash = lambda s: "".join(s.replace("—", "").lower().split())  # noqa: E731  (no dash is read; a segment starts a sentence)
     assert squash(plain) == squash(marked_text)
 
 
