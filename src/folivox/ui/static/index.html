@@ -193,6 +193,10 @@ h1 { padding-right:140px; }
 .mk-sp.cur { border-color:var(--accent); } .mk-sp .sw { width:18px; height:18px; border-radius:5px; display:grid; place-items:center; font-size:10px; color:#fff; font-weight:700; }
 .mk-sp input[type=text] { width:100%; min-width:0; padding:2px 6px; } .mk-sp select { width:100%; min-width:0; padding:2px 4px; font-size:12.5px; } .mk-sp .sub { grid-column:2 / 4; display:flex; gap:6px; }
 .mk-taglist { display:flex; flex-wrap:wrap; gap:5px; max-height:170px; overflow:auto; margin-top:6px; } .mk-taglist .chip { font-size:12px; padding:2px 9px; }
+
+.mk-vd { margin:10px 0; padding:10px; border:1px solid var(--accent); border-radius:10px; } .mk-vd textarea { width:100%; font:inherit; font-size:12.5px; min-height:54px; resize:vertical; }
+.mk-vd .tier { display:block; margin:8px 0; padding:6px 8px; border:1px solid var(--line); border-radius:8px; } .mk-vd .tier.on { border-color:var(--accent); }
+.mk-vd .tier b { font-size:12px; } .mk-vd .take { display:flex; gap:8px; align-items:center; padding:4px 0; border-bottom:1px dashed var(--line); }
 .mk-chars { margin-top:8px; font-size:12.5px; } .mk-chars div { padding:2px 0; border-bottom:1px dashed var(--line); }
 @media (max-width:860px) { .mk-body { grid-template-columns:1fr; grid-template-rows:55% 45%; } .mk-side { border-left:0; border-top:1px solid var(--line); } }
 .pron-box { margin-top:12px; padding:10px 14px; border:1px solid var(--line); border-radius:12px; } .pron-box summary { cursor:pointer; font-weight:600; } .pron-box summary small { font-weight:400; margin-left:6px; }
@@ -308,6 +312,19 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
       <div class="mute" id="mk-hint" data-i18n="mk.hint" style="margin-bottom:8px">Select text, then click a speaker (or press its number).</div>
       <div id="mk-speakers"></div>
       <div class="row" style="margin-top:6px"><button type="button" id="mk-addsp" class="chip" data-i18n="mk.add">+ Add speaker</button><button type="button" id="mk-clear" class="chip" data-i18n="mk.clear">Clear selection</button></div>
+      <div id="mk-vd" class="mk-vd" hidden>
+        <div class="row"><b id="mk-vd-title"></b><span class="grow"></span><button type="button" id="mk-vd-close" class="chip" aria-label="Close" data-i18n-attr="aria-label:mk.close">&#10005;</button></div>
+        <small class="mute" data-i18n="mk.vd.hint">English descriptions: the simple one works with any model, the detailed one helps strong models. Edit them freely; you choose the voice by ear.</small>
+        <div id="mk-vd-cards"></div>
+        <div class="row"><button type="button" id="mk-vd-write" class="chip" data-i18n="mk.vd.write">Write ideas</button><span id="mk-vd-msg" class="mute"></span></div>
+        <label class="f" style="margin-top:8px"><span data-i18n="mk.vd.provider">Voice generator</span><select id="mk-vd-prov"></select></label>
+        <label class="f" style="margin-top:6px"><span data-i18n="mk.model">Model</span><select id="mk-vd-model"></select></label>
+        <div id="mk-vd-est" class="mute" style="margin-top:6px"></div>
+        <label class="consent" style="margin-top:6px"><input type="checkbox" id="mk-vd-ack"><span data-i18n="mk.vd.ack">I understand that the sample text is sent to this online service and billed to my account.</span></label>
+        <div class="row" style="margin-top:8px"><button type="button" id="mk-vd-gen" class="primary" data-i18n="mk.vd.generate">Generate 3 takes</button></div>
+        <h4 data-i18n="mk.vd.takes">Takes: listen and choose</h4>
+        <div id="mk-vd-takes"></div>
+      </div>
       <div class="row" style="margin-top:10px"><button type="button" id="mk-listen" class="primary" data-i18n="mk.listen">&#9654; Listen to the selection</button><span id="mk-listenmsg" class="mute"></span></div>
       <h4 data-i18n="mk.tags">Expression tags</h4>
       <label class="consent"><input type="checkbox" id="mk-exprtags" checked><span data-i18n="mk.tags.on">Use expression tags (Fish engines)</span></label>
@@ -831,11 +848,12 @@ function mkSpeakers() {
   $("#mk-speakers").innerHTML = MK.data.speakers.map(s => `<div class="mk-sp ${s.id === MK.cur ? "cur" : ""}" data-id="${s.id}">
     <span class="sw" style="background:${mkSwatch(s.id)}" title="${esc(t("mk.press", { n: s.id }))}">${s.id}</span>
     <input type="text" data-f="name" value="${esc(s.name)}" aria-label="${esc(t("mk.name"))}"><span class="mute">${used[s.id] || (s.id ? 0 : "")}</span>
-    <div class="sub">${s.id ? `<select data-f="voice" aria-label="${esc(t("mk.voice"))}">${mkVoiceOptions(s.voice)}</select><button type="button" class="chip" data-rm="${s.id}" title="${esc(t("mk.rmsp"))}">&#10005;</button>` : `<span class="mute">${esc(t("mk.narrator.note"))}</span>`}</div></div>`).join("");
+    <div class="sub">${s.id ? `<select data-f="voice" aria-label="${esc(t("mk.voice"))}">${mkVoiceOptions(s.voice)}</select><button type="button" class="chip" data-vd="${s.id}" title="${esc(t("mk.vd.btn.title"))}">${esc(t("mk.vd.btn"))}</button><button type="button" class="chip" data-rm="${s.id}" title="${esc(t("mk.rmsp"))}">&#10005;</button>` : `<span class="mute">${esc(t("mk.narrator.note"))}</span>`}</div></div>`).join("");
   $("#mk-exprtags").checked = MK.data.expression_tags !== false;
 }
 $("#mk-speakers").addEventListener("mousedown", (ev) => { if (!ev.target.closest("input, select")) ev.preventDefault(); });
 $("#mk-speakers").addEventListener("click", (ev) => {
+  const vd = ev.target.closest("[data-vd]"); if (vd) { vdOpen(+vd.dataset.vd); return; }
   const rm = ev.target.closest("[data-rm]");
   if (rm) { const id = +rm.dataset.rm, sp = mkSpeaker(id); if (!confirm(t("mk.rmsp.confirm", { name: sp.name }))) return; mkSnap();
     Object.values(MK.data.chapters).forEach(c => { c.spans = c.spans.filter(s => s.sp !== id); }); MK.data.speakers = MK.data.speakers.filter(s => s.id !== id); mkRender(); return; }
@@ -969,6 +987,110 @@ $("#mk-chars").addEventListener("click", (ev) => {
 });
 $("#mk-analyse").onclick = () => mkLlm("analyse"); $("#mk-auto").onclick = () => mkLlm("auto");
 $("#mk-stop").onclick = () => api(`/api/books/${book.book_id}/llm/cancel`, { method: "POST" });
+
+// ---- voice ideas: English voice-design prompts for a character, takes to listen to, you choose --------------------
+const VD = { sid: 0, info: null, provs: [], takes: {}, audio: null, tier: "standard" };
+const VD_TIERS = ["simple", "standard", "detailed"];
+const vdMsg = (m, err) => { $("#mk-vd-msg").innerHTML = err ? `<span class="err">${esc(m)}</span>` : esc(m || ""); };
+async function vdOpen(sid) {
+  VD.sid = sid; MK.cur = sid; $("#mk-vd").hidden = false; mkSpeakers();
+  if (!await mkSave()) return;
+  vdMsg("");
+  await vdLoad(); await vdProviders(); $("#mk-vd").scrollIntoView({ block: "nearest" });
+}
+async function vdLoad() {
+  VD.info = await api(`/api/books/${book.book_id}/speakers/${VD.sid}/voice`); vdRender();
+}
+function vdRender() {
+  const i = VD.info; if (!i) return;
+  $("#mk-vd-title").textContent = t("mk.vd.title", { name: (mkSpeaker(VD.sid) || {}).name || i.name });
+  const has = i.prompts && i.prompts.standard;
+  $("#mk-vd-cards").innerHTML = has ? VD_TIERS.map(k => `<label class="tier ${k === VD.tier ? "on" : ""}"><input type="radio" name="vdtier" value="${k}" ${k === VD.tier ? "checked" : ""}> <b>${esc(t("mk.vd.tier." + k))}</b>
+    <textarea data-tier="${k}" spellcheck="false">${esc(i.prompts[k] || "")}</textarea></label>`).join("") : `<div class="mute" style="margin:8px 0">${esc(t("mk.vd.noprompts"))}</div>`;
+  $("#mk-vd-write").textContent = t(has ? "mk.vd.again" : "mk.vd.write");
+  vdTakes();
+}
+$("#mk-vd-cards").addEventListener("change", (ev) => { if (ev.target.name === "vdtier") { VD.tier = ev.target.value; vdRender(); } });
+$("#mk-vd-cards").addEventListener("input", (ev) => { const k = ev.target.dataset.tier; if (k) VD.info.prompts[k] = ev.target.value; });
+async function vdWait(bid) {
+  for (;;) {
+    await new Promise(r => setTimeout(r, 1200));
+    const s = await api(`/api/books/${bid}/llm/status`);
+    if (s.state !== "running") return s;
+    vdMsg(`${s.stage} ${s.done}/${s.total} ${s.message}`);
+  }
+}
+$("#mk-vd-write").onclick = async () => {
+  if (!await mkSave()) return;
+  const again = !!(VD.info && VD.info.prompts && VD.info.prompts.standard);
+  vdMsg(t("mk.vd.writing")); $("#mk-vd-write").disabled = true;
+  try {
+    await api(`/api/books/${book.book_id}/llm/start`, { method: "POST", headers: JSONH, body: JSON.stringify({ task: "prompts", speakers: [VD.sid], regenerate: again, model: $("#mk-model").value || undefined }) });
+    const s = await vdWait(book.book_id);
+    if (s.state === "error") { vdMsg(s.message, true); return; }
+    vdMsg(""); await vdLoad();
+  } catch (e) { vdMsg(e.message, true); }
+  finally { $("#mk-vd-write").disabled = false; }
+};
+function vdProvider() { return VD.provs.find(p => p.name === $("#mk-vd-prov").value); }
+async function vdProviders() {
+  try { VD.provs = (await api("/api/gen/providers")).providers.filter(p => p.modes.includes("design") && (!p.languages || p.languages.includes(book.lang))); }
+  catch (e) { VD.provs = []; }
+  $("#mk-vd-prov").innerHTML = VD.provs.map(p => `<option value="${esc(p.name)}">${esc(p.label)}</option>`).join("");
+  $("#mk-vd-gen").disabled = !VD.provs.length; if (!VD.provs.length) $("#mk-vd-est").textContent = t("mk.vd.nodesign");
+  vdModels();
+}
+function vdModels() {
+  const p = vdProvider(); if (!p) return;
+  $("#mk-vd-model").innerHTML = `<option value="auto">${esc(t("eng.autonew"))}</option>` + (p.models || []).map(m => `<option value="${esc(m.id)}">${esc(m.label || m.id)}</option>`).join("");
+  vdEstimate();
+}
+const vdPrompt = () => { const el = document.querySelector(`#mk-vd-cards textarea[data-tier="${VD.tier}"]`); return el ? el.value.trim() : ""; };
+function vdBody() {
+  return { provider: $("#mk-vd-prov").value, mode: "design", model: $("#mk-vd-model").value, lang: book.lang, texts: (VD.info.texts || []).slice(0, 1),
+           takes: 3, description: vdPrompt(), rank: false, book_id: book.book_id };
+}
+async function vdEstimate() {
+  const el = $("#mk-vd-est"); el.textContent = ""; if (!VD.info || vdPrompt().length < 10 || !vdProvider()) return;
+  try { const r = await api("/api/gen/estimate", { method: "POST", headers: JSONH, body: JSON.stringify(vdBody()) });
+    el.textContent = r.usd != null ? t("mk.vd.price", { usd: r.usd.toFixed(2) }) : ""; } catch (e) { el.textContent = ""; }
+}
+$("#mk-vd-prov").onchange = vdModels; $("#mk-vd-model").onchange = vdEstimate;
+$("#mk-vd-cards").addEventListener("change", vdEstimate);
+$("#mk-vd-gen").onclick = async () => {
+  if (vdPrompt().length < 10) { vdMsg(t("mk.vd.noprompts"), true); return; }
+  if (!$("#mk-vd-ack").checked) { vdMsg(t("mk.vd.ack"), true); return; }
+  vdMsg(t("mk.vd.generating")); $("#mk-vd-gen").disabled = true;
+  try {
+    const j = await api("/api/gen/start", { method: "POST", headers: JSONH, body: JSON.stringify({ ...vdBody(), acknowledged: true }) });
+    for (;;) {
+      await new Promise(r => setTimeout(r, 1200));
+      const s = await api(`/api/jobs/${j.id}`);
+      if (s.state === "running") continue;
+      if (s.state !== "done") { vdMsg(s.error || t("mk.listen.failed"), true); break; }
+      const list = VD.takes[VD.sid] = VD.takes[VD.sid] || [];
+      (s.takes || []).forEach(x => list.push({ job: j.id, tier: VD.tier, name: x.name, text: x.text, duration: x.duration }));
+      vdMsg(""); vdTakes(); break;
+    }
+  } catch (e) { vdMsg(e.message + (/key/i.test(e.message) ? " " + t("mk.vd.keyhint") : ""), true); }
+  finally { $("#mk-vd-gen").disabled = !VD.provs.length; }
+};
+function vdTakes() {
+  const list = VD.takes[VD.sid] || [];
+  $("#mk-vd-takes").innerHTML = list.map((x, n) => `<div class="take"><button type="button" class="chip" data-play="${n}">&#9654;</button><span class="grow mute">${esc(t("mk.vd.tier." + x.tier))} &middot; ${x.duration}s</span><button type="button" class="chip" data-use="${n}">${esc(t("mk.vd.use"))}</button></div>`).join("");
+}
+$("#mk-vd-takes").addEventListener("click", async (ev) => {
+  const list = VD.takes[VD.sid] || [], pl = ev.target.closest("[data-play]"), us = ev.target.closest("[data-use]");
+  if (pl) { const x = list[+pl.dataset.play]; if (VD.audio) VD.audio.pause(); VD.audio = new Audio(tok(`/api/gen/${x.job}/takes/${encodeURIComponent(x.name)}`)); VD.audio.play(); return; }
+  if (!us) return;
+  const x = list[+us.dataset.use], sp = mkSpeaker(VD.sid);
+  try {
+    const v = await api(`/api/gen/${x.job}/add`, { method: "POST", headers: JSONH, body: JSON.stringify({ take: x.name, id: freeId(`char-${book.book_id.slice(0, 6)}-s${VD.sid}`),
+      name: `${book.title} · ${sp.name}`, gender: (VD.info && VD.info.gender) || sp.gender || "", lang: book.lang }) });
+    await loadVoices(); mkSnap(); sp.voice = v.id; mkRender(); vdMsg(t("mk.vd.used", { name: sp.name }));
+  } catch (e) { vdMsg(e.message, true); }
+});
+$("#mk-vd-close").onclick = () => { $("#mk-vd").hidden = true; if (VD.audio) VD.audio.pause(); };
 const PAGE_API = 3;
 async function checkServer() {
   try { const r = await api("/api/ping"); if (!(r.api >= PAGE_API)) $("#stale").hidden = false; }

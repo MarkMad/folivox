@@ -49,6 +49,14 @@ about the prompt — accent and rhythm included — so listen to the *cloned* na
 take. Describe the speaker as a **native** speaker of the language: preset voices of multilingual
 models carry their own accent into other languages.
 
+### Voices for the characters of a book
+
+After the characters are known (`folivox markup analyse`), `folivox markup voices book.epub` writes three English
+voice-design prompts for every character (simple, standard, detailed) and `-g qwen3-voicedesign` (local) or
+`-g gemini` (cloud) makes takes of each speaker's own line to listen to; you choose by ear, add the take with
+`folivox voices add` and give it to the speaker with `folivox markup speaker`. The studio editor does the same
+with a *Voice ideas* button per speaker (cloud generators). See [Speakers and expression tags](markup.md).
+
 ### Cloud voice generation
 
 A third source of voices, besides uploaded and recorded samples: let a cloud TTS provider read a

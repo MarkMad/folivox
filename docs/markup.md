@@ -134,6 +134,16 @@ the editor (and has the switch *Use the markup when rendering*).
 - **Automatic markup**: choose a model, press *Analyse characters* (the list shows how many voices the book needs;
   *Create speakers from the characters* adds them) or *Mark speakers automatically* (optionally only this chapter,
   optionally with expression tags). Progress is saved; the editor reloads the result so you can correct it.
+- **Voice ideas**: the *Voice ideas* button of a speaker writes three **English** voice descriptions from the
+  character list (simple, standard, detailed: the simple one works with any voice-design model, the detailed one
+  helps strong ones; a weak model ignores words it does not know). They never contain the character's name or a
+  real person, and each character is asked to differ from the voices described before. Edit them, choose one,
+  pick a generator (cloud providers that can design a voice in the book's language; the estimate and the
+  "text is sent and billed" confirmation are shown) and make 3 takes that read one of the character's own
+  lines. **You listen and choose**: no take is preferred automatically (speech recognition is not used), takes
+  from several descriptions stay in the list, *Use for this speaker* adds the take to your voices and gives it
+  to the speaker. In the console: `folivox markup voices BOOK` (add `-g qwen3-voicedesign` or a cloud provider to
+  make takes into `BOOK.voices/`).
 - **Save / Undo / Redo**: *Save* (Ctrl/Cmd+S) checks the markup against the book; Undo/Redo (Ctrl/Cmd+Z, with Shift
   to redo) cover every edit since the editor was opened. Closing with unsaved changes asks first.
 

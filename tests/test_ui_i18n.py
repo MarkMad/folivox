@@ -15,7 +15,8 @@ INDEX = (STATIC / "index.html").read_text(encoding="utf-8")
 # Keys a language may leave untranslated (it then shows the English text): {code: {key, ...}}. Keep this short.
 ALLOW_MISSING: dict[str, set[str]] = {}
 # Keys built at run time ("cover.state." + kind), so a literal scan cannot see them.
-DYNAMIC_PREFIXES = ("cover.state.", "g.", "used.", "mode.", "kind.", "stage.", "gp.idea.", "engine.", "fish.points.")
+DYNAMIC_PREFIXES = ("cover.state.", "g.", "used.", "mode.", "kind.", "stage.", "gp.idea.", "engine.", "fish.points.",
+                    "mk.vd.tier.")
 NATIVE = {"ru": "Русский", "es": "Español", "de": "Deutsch", "fr": "Français", "it": "Italiano",
           "zh": "中文", "ja": "日本語", "ko": "한국어", "en": "English"}
 
