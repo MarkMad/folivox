@@ -89,6 +89,18 @@ goes to that service). Set a default in `config.toml`: `[llm.ollama] model = "ge
 runs before the audio is made, never together with the voice model. Small models miss subtle speakers: check
 the result.
 
+A small test on an Apple-silicon Mac with 36 GB (two made-up texts of 20 paragraphs, 15 with speech, one in
+English and one in Russian; counted: paragraphs whose quoted speech went to the right character):
+
+| Model | English | Russian | Time per text |
+|---|---|---|---|
+| `gemma4:31b-it-qat` | 15/15 | 15/15 | 4-5 min |
+| `gemma4:e2b-it-qat` | 10/15 | 0/15 (it repeated the text without any speaker marks) | 20-35 s |
+
+So the smallest model is a fair way to *see how the feature works* on an English book and is about seven times
+faster, but it cannot yet be trusted with a Russian one; it finds the characters but does not mark them. This is a
+tiny sample, not a benchmark. A model that writes a speaker tag with a missing bar (`<|speaker:1>`) is understood.
+
 **Character list ("bible").** `analyse` goes through the book in windows of about 5000 characters. For each
 window the model gets the characters found so far (those named in the window, those active in the last windows
 and the busiest) and reports who speaks, thinks or matters, with aliases, gender, age, speech traits,

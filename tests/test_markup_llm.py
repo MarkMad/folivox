@@ -304,3 +304,10 @@ def test_sample_texts_are_the_characters_own_lines():
     assert lines and all(len(x) >= 25 for x in lines) or lines == []
     assert cv.sample_texts(markup, CH, anna, "ru")
     assert cv.sample_texts(None, None, 3, "ru") == cv.sample_texts(None, None, 4, "ru")  # the built-in sample
+
+
+def test_loose_speaker_tags_are_read_as_the_tag_they_mean():
+    from folivox.markup_llm import _fix_speaker_tags
+
+    assert _fix_speaker_tags('<|speaker:1>"Hi" <|speaker:0|>said <speaker:2|>x <|speaker: 3 >y') == \
+        '<|speaker:1|>"Hi" <|speaker:0|>said <|speaker:2|>x <|speaker:3|>y'

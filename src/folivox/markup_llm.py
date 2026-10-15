@@ -297,6 +297,14 @@ class Window:
         return "\n".join(f"[B{b}] {t}" for b, t in self.blocks)
 
 
+_LOOSE_SPEAKER = re.compile(r"<\|?\s*speaker\s*:\s*(\d{1,2})\s*\|?>")
+
+
+def _fix_speaker_tags(line: str) -> str:
+    """Small models often drop a bar (``<|speaker:1>``); read those as the tag they meant."""
+    return _LOOSE_SPEAKER.sub(r"<|speaker:\1|>", line)
+
+
 def windows(chapters: list, max_chars: int = WINDOW_CHARS, only_speech: bool = False) -> list[Window]:
     """Consecutive paragraphs of a chapter, up to ``max_chars`` (a paragraph is never cut)."""
     out: list[Window] = []
@@ -564,7 +572,7 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
         for item in out["blocks"]:
             try:
                 b = int(str(item["b"]).lstrip("B"))
-                line = str(item["text"])
+                line = _fix_speaker_tags(str(item["text"]))
             except (KeyError, TypeError, ValueError):
                 continue
             original = originals.get(b)
