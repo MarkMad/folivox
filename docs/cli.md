@@ -50,7 +50,7 @@ folivox markup import book.epub book.txt
 folivox render book.epub --tts fish-drama3 --voice me.wav     # picks up book.markup.json by itself
 ```
 
-Also `markup speaker|speakers|check|tags|clear`, and for `render`: `--markup FILE`, `--no-markup`,
+Automatic: `markup models|analyse|characters|auto` (a local Gemma 4 or any LLM). Also `markup speaker|speakers|check|tags|clear`, and for `render`: `--markup FILE`, `--no-markup`,
 `--no-expression-tags`. See [Speakers and expression tags](markup.md).
 
 ## Fish Audio engines

@@ -342,8 +342,9 @@ def export_text(markup: Markup, chapters: list) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _parse_block(line: str, original: str) -> tuple[list[Span], list[Mark]]:
-    """Walk the edited line against the original text; tags are the only differences allowed."""
+def _parse_block(line: str, original: str, loose: bool = False) -> tuple[list[Span], list[Mark]]:
+    """Walk the edited line against the original text; tags are the only differences allowed. ``loose`` also
+    tolerates differences in whitespace (a language model re-typing a paragraph); offsets stay in the original."""
     events: list[tuple[int, str, object]] = []
     i = p = 0
 
@@ -364,8 +365,14 @@ def _parse_block(line: str, original: str) -> tuple[list[Span], list[Mark]]:
         elif p < len(original) and line[i] == original[p]:
             i += 1
             p += 1
+        elif loose and line[i].isspace():
+            i += 1
+        elif loose and p < len(original) and original[p].isspace():
+            p += 1
         else:
             raise MarkupError("the text differs from the book")
+    while loose and p < len(original) and original[p].isspace():
+        p += 1
     if p != len(original):
         raise MarkupError("the text differs from the book")
     spans: list[Span] = []
@@ -383,6 +390,12 @@ def _parse_block(line: str, original: str) -> tuple[list[Span], list[Mark]]:
     if len(original) > start and (speaker != 0 or tags):
         spans.append(Span(-1, start, len(original), speaker, tuple(tags)))
     return spans, marks
+
+
+def parse_block(line: str, original: str, loose: bool = False) -> tuple[list[Span], list[Mark]]:
+    """Spans and marks (block index -1) of one annotated line; raises :class:`MarkupError` if its text is not the
+    original text (so annotations can be taken from untrusted sources, such as a language model)."""
+    return _parse_block(line, original, loose)
 
 
 def import_text(text: str, chapters: list, base: Markup | None = None) -> Markup:

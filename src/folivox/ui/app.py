@@ -23,7 +23,7 @@ from folivox import config
 from folivox import voices as catalog
 from folivox.pipeline import QA_LEVELS, RenderOptions
 from folivox.text import pronounce as pronunciations
-from folivox.ui import fish_routes
+from folivox.ui import fish_routes, markup_routes
 from folivox.ui.jobs import JobManager, chapter_files
 
 STATIC = Path(__file__).parent / "static"
@@ -1344,6 +1344,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/keys/{name}", put_key, methods=["PUT"]),
         Route("/api/keys/{name}", delete_key, methods=["DELETE"]),
         *fish_routes.routes(ApiError, fish_install),
+        *markup_routes.routes(ApiError, state, services),
     ]
     app = Starlette(routes=routes, exception_handlers={ApiError: api_error, ValueError: bad_request,
                                                       TypeError: bad_request, KeyError: bad_request})

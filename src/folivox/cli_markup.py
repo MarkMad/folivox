@@ -195,3 +195,157 @@ def markup_clear(book_path: Path = typer.Argument(...), file: Path = typer.Optio
     if path.is_file():
         path.unlink()
         console.print(f"Deleted {path}")
+
+
+def _llm(provider: str | None, model: str | None):
+    from folivox import markup_llm as ml
+
+    try:
+        return ml.make_llm(provider, model)
+    except ml.LLMError as e:
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(2) from None
+    except Exception as e:  # noqa: BLE001 — a missing key, an unknown provider…
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(2) from None
+
+
+def _progress():
+    def show(stage: str, done: int, total: int, message: str) -> None:
+        console.print(f"  {stage} {done}/{total}  {message}")
+
+    return show
+
+
+def _chapter_set(spec: str | None, count: int) -> set[int] | None:
+    if not spec:
+        return None
+    from folivox.pipeline import parse_selection
+
+    return set(parse_selection(spec, count))
+
+
+@markup_app.command("models", help="Which Gemma 4 model suits this computer for the analysis, and what is installed.")
+def markup_models():
+    from folivox import diag
+    from folivox.llm import GEMMA_TIERS, Ollama, recommend_model
+
+    ram = diag.ram_gb()
+    have = Ollama().installed()
+    rec = recommend_model(ram)
+    t = Table(title=f"Gemma 4 for the book analysis ({ram:.0f} GB of memory)" if ram else "Gemma 4")
+    for col in ("Model (--model)", "Download", "Needs", "Note", ""):
+        t.add_column(col)
+    for need, tag, gb, note in GEMMA_TIERS:
+        mark = ("recommended" if tag == rec else "") + (" installed" if tag in have else "")
+        t.add_row(tag, f"{gb} GB", f"{need}+ GB RAM" if need else "any", note, mark)
+    console.print(t)
+    console.print("Install with  ollama pull MODEL  (the analysis runs before the audio is made, never together "
+                  "with the voice model). Any other Ollama model or an OpenAI-compatible API works too: "
+                  "--llm openai --model NAME.")
+
+
+@markup_app.command("analyse", help="Read the whole book once and list its characters (how many voices it needs).")
+def markup_analyse(book_path: Path = typer.Argument(...), depth: int = typer.Option(2, "--depth"),
+                   llm_name: str = typer.Option(None, "--llm", help="ollama (default) or openai"),
+                   model: str = typer.Option(None, "--model", help="Model name (default: the Gemma 4 that fits)."),
+                   sample: int = typer.Option(None, "--sample", help="Only N windows, spread over the book."),
+                   fresh: bool = typer.Option(False, "--fresh", help="Start over instead of continuing.")):
+    from folivox import cli
+    from folivox import markup_llm as ml
+
+    book = cli._load(book_path)
+    llm, model_name = _llm(llm_name, model)
+    bp, cp = ml.bible_path(book_path), ml.cache_path(book_path)
+    bible = ml.Bible.load(bp) if bp.is_file() and not fresh else ml.Bible()
+    if bible.model and bible.model != model_name:
+        console.print(f"[yellow]The list was made with {bible.model}; continuing with {model_name}.[/]")
+    cache = ml.Cache(cp)
+    runner = ml.Runner(llm, model_name, cache)
+    console.print(f"Analysing {book.title} with {model_name}…")
+    try:
+        bible = ml.analyse(book.chapters(depth), book.lang, runner, bible, max_windows=sample,
+                           save=lambda b: b.save(bp), progress=_progress())
+    except ml.LLMError as e:
+        console.print(f"[red]{e}[/] Progress is saved: run the same command again to continue.")
+        raise typer.Exit(1) from None
+    finally:
+        cache.close()
+    _print_bible(bible)
+    console.print(f"Saved {bp}. Next: folivox markup auto {book_path.name}")
+
+
+def _print_bible(bible) -> None:
+    t = Table(title="Characters")
+    for col in ("Id", "Name", "Aliases", "Gender", "Age", "Lines", "Speech"):
+        t.add_column(col)
+    for c in sorted(bible.characters, key=lambda c: -c.lines):
+        t.add_row(str(c.id or "-"), c.name + (" (unnamed)" if c.unnamed else ""), ", ".join(c.aliases[:4]),
+                  c.gender or "?", c.age or "?", str(c.lines), c.traits)
+    console.print(t)
+    n = bible.voices_needed()
+    console.print(f"Voices needed: [bold]{n}[/] (the narrator and {n - 1} character(s) with "
+                  f"{3}+ lines). Narration: {bible.narration or 'unknown'}-person.")
+
+
+@markup_app.command("characters", help="Show the saved character list of a book.")
+def markup_characters(book_path: Path = typer.Argument(...)):
+    from folivox import markup_llm as ml
+
+    bp = ml.bible_path(book_path)
+    if not bp.is_file():
+        console.print(f"[red]No character list yet.[/] Run: folivox markup analyse {book_path}")
+        raise typer.Exit(2)
+    _print_bible(ml.Bible.load(bp))
+
+
+@markup_app.command("auto", help="Let a language model mark who speaks each part (and optionally expression tags).")
+def markup_auto(book_path: Path = typer.Argument(...), depth: int = typer.Option(2, "--depth"),
+                llm_name: str = typer.Option(None, "--llm"), model: str = typer.Option(None, "--model"),
+                chapters: str = typer.Option(None, "--chapters", help="Only these chapters, e.g. 1-3,5."),
+                expression: bool = typer.Option(False, "--expression-tags/--no-expression-tags",
+                                                help="Also place expression tags like [sighs] (off by default)."),
+                file: Path = typer.Option(None, "--markup", help="Markup file (default: <book>.markup.json)."),
+                fresh: bool = typer.Option(False, "--fresh", help="Forget the saved model replies for this book.")):
+    from folivox import cli
+    from folivox import markup as mk
+    from folivox import markup_llm as ml
+
+    book = cli._load(book_path)
+    llm, model_name = _llm(llm_name, model)
+    chs = book.chapters(depth)
+    bp, cp, mp = ml.bible_path(book_path), ml.cache_path(book_path), file or mk.path_for(book_path)
+    if fresh:
+        cp.unlink(missing_ok=True)
+    cache = ml.Cache(cp)
+    runner = ml.Runner(llm, model_name, cache)
+    try:
+        bible = ml.Bible.load(bp) if bp.is_file() else ml.Bible()
+        if bible.done_windows < max(bible.total_windows, 1):
+            console.print("Reading the book for its characters first…")
+            bible = ml.analyse(chs, book.lang, runner, bible, save=lambda b: b.save(bp), progress=_progress())
+        markup = mk.Markup.load(mp) if mp.is_file() else mk.Markup(depth=depth)
+
+        def save(m, b):
+            mk.stamp(m, chs)
+            m.save(mp)
+            b.save(bp)
+
+        console.print(f"Marking speakers with {model_name}{' and expression tags' if expression else ''}…")
+        markup, stats = ml.annotate(chs, book.lang, bible, runner, markup, expression_tags=expression,
+                                    chapter_filter=_chapter_set(chapters, len(chs)), save=save,
+                                    progress=_progress(), depth=depth)
+    except ml.LLMError as e:
+        console.print(f"[red]{e}[/] Progress is saved: run the same command again to continue.")
+        raise typer.Exit(1) from None
+    finally:
+        cache.close()
+    markup.expression_tags = markup.expression_tags if not expression else True
+    mk.stamp(markup, chs)
+    markup.save(mp)
+    bible.save(bp)
+    console.print(f"Saved {mp}: {stats.marked} of {stats.blocks} paragraphs with speech marked; "
+                  f"{stats.fell_back} read by the narrator because the answer changed the text or failed; "
+                  f"{stats.unknown_speakers} unknown speakers and {stats.dropped_tags} unknown tags dropped.")
+    console.print("Check and fix it with `folivox markup export` / `import`, assign voices with "
+                  "`folivox markup speaker`.")

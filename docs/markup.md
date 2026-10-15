@@ -70,8 +70,53 @@ only `[sighs]` and `[laughs]`; the others were documented for S2 and are expecte
 Refresh the list with `python tools/fish_tags.py` (prints tags found in the vendors' pages that the database
 does not have yet).
 
+## Automatic markup with a language model
+
+A local model (or an API you choose) can find the characters and mark who speaks each part. It only
+*annotates*: the text is never taken from the model.
+
+```bash
+folivox markup models                        # which Gemma 4 suits this computer, what is installed
+folivox markup analyse book.epub             # read the book once: who is in it, how many voices it needs
+folivox markup characters book.epub          # show the saved list again
+folivox markup auto book.epub                # mark the speakers (--chapters 1-3, --expression-tags)
+```
+
+**Models.** Gemma 4 is multilingual and comes in sizes for different memory; Folivox proposes the largest that
+fits (`gemma4:31b-it-qat` from 48 GB, `26b-a4b-it-qat` from 32 GB, `12b-it-qat` from 16 GB, `e4b`, `e2b`) and
+you can use any other Ollama model, or an OpenAI-compatible API (`--llm openai --model NAME`, your key, the text
+goes to that service). Set a default in `config.toml`: `[llm.ollama] model = "gemma4:12b-it-qat"`. The analysis
+runs before the audio is made, never together with the voice model. Small models miss subtle speakers: check
+the result.
+
+**Character list ("bible").** `analyse` goes through the book in windows of about 5000 characters. For each
+window the model gets the characters found so far (those named in the window, those active in the last windows
+and the busiest) and reports who speaks, thinks or matters, with aliases, gender, age, speech traits,
+relations and the number of lines. Names are merged across cases and nicknames ("Анна", "Анну", "Аня"). It
+lists the characters in `BOOK.characters.json` with the number of **voices the book needs** (the narrator plus
+every character with at least three lines), so you can choose voices before rendering. First-person narration,
+unnamed speakers ("old guard"), thoughts and letters are covered by the prompt; the prompt names the dialogue
+conventions of all nine book languages. Up to 15 characters get an id of their own; the rarest share ids 14
+(men) and 15 (women).
+
+**Marking.** `auto` takes the paragraphs that contain speech and asks the model to repeat each one with
+`<|speaker:N|>` markers (and, with `--expression-tags`, `[tag]`s from the tag list, at most one per sentence).
+The model gets the relevant bible entries and the last few marked paragraphs, so "he said" and pronouns resolve
+across chapters, and may add or correct entries as it reads. The answer is accepted for a paragraph only if
+removing the markers gives exactly the book's paragraph (whitespace differences are tolerated), the speaker
+exists and the tags are in the tag list. Otherwise the narrator reads that paragraph. The summary at the end
+counts how many fell back. Expression tags are a separate switch, off by default: the models already read
+emotion reasonably well on their own.
+
+Everything is **cached and resumable**: the replies are kept in `BOOK.llm-cache.sqlite` and the list and the
+markup are saved after every window, so an interrupted run continues where it stopped and an unchanged window
+is never asked twice (`--fresh` forgets the replies). The result is the ordinary markup file: export it as
+text, fix what the model got wrong, import it back, assign voices with `folivox markup speaker`.
+
 ## Studio
 
 The studio keeps the markup per book (`GET/PUT /api/books/{id}/markup`, `GET /api/markup/tags`) and uses it in
-renders and previews (options `use_markup`, `expression_tags`). The visual editor is described in the studio
-documentation.
+renders and previews (options `use_markup`, `expression_tags`). Automatic markup runs as a background task per
+book: `POST /api/books/{id}/llm/start` (`{"task": "analyse" | "auto", "model", "llm", "chapters",
+"expression_tags", "sample"}`), `GET .../llm/status`, `POST .../llm/cancel`; the character list is
+`GET/PUT /api/books/{id}/characters` and the model proposals `GET /api/llm/models`.
