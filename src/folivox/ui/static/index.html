@@ -25,6 +25,7 @@ button:disabled { opacity:.5; cursor:default; }
 .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; } .grow { flex:1; }
 .mute { color:var(--mute); } .err { color:var(--err); } .warn { color:var(--warn); } small { font-size:13px; }
 #drop { border:2px dashed var(--line); border-radius:8px; padding:22px; text-align:center; color:var(--mute); cursor:pointer; }
+#drop .drop-or { margin-top:8px; font-size:13px; } #drop .drop-or a { color:var(--mute); text-decoration:underline dotted; text-underline-offset:3px; } #drop .drop-or a:hover { color:var(--ink); }
 #drop.over { border-color:var(--accent); color:var(--ink); }
 table { width:100%; border-collapse:collapse; } td, th { padding:4px 6px; text-align:left; border-bottom:1px solid var(--line); font-size:14px; }
 td.n, th.n { text-align:right; color:var(--mute); white-space:nowrap; }
@@ -223,7 +224,13 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
 <div class="langsw"><select id="ui-lang" aria-label="Language" data-i18n-attr="aria-label:ui.lang"></select></div>
 
 <section id="s-book"><h2 data-i18n="s1.h">1 · Book</h2>
-  <div id="drop"><span data-i18n="s1.drop">Drop an FB2, EPUB, DOCX, PDF, TXT or ZIP file here, or click to choose</span><input id="file" type="file" hidden accept=".fb2,.zip,.epub,.docx,.pdf,.txt"></div>
+  <div id="drop"><span data-i18n="s1.drop">Drop an FB2, EPUB, DOCX, PDF, TXT or ZIP file here, or click to choose</span><input id="file" type="file" hidden accept=".fb2,.zip,.epub,.docx,.pdf,.txt">
+    <div class="drop-or"><a href="#" id="paste-toggle" data-i18n="s1.paste">or paste text</a></div></div>
+  <div id="paste-box" hidden style="margin-top:10px">
+    <input id="paste-title" type="text" maxlength="200" placeholder="Title (optional)" data-i18n-attr="placeholder:s1.paste.title" style="width:100%;margin-bottom:6px">
+    <textarea id="paste-text" rows="8" placeholder="Paste an article or any text here" data-i18n-attr="placeholder:s1.paste.ph" style="width:100%"></textarea>
+    <button type="button" id="paste-go" disabled data-i18n="s1.paste.go">Use this text</button>
+  </div>
   <div id="book-info" class="mute" style="margin-top:10px"></div>
   <div id="cover-box" class="cover-box" hidden>
     <div class="cover-thumb"><img id="cover-img" alt="Audiobook cover" data-i18n-attr="alt:s1.cover.alt" hidden><span id="cover-empty" class="mute">no cover</span></div>
@@ -536,6 +543,15 @@ async function upload(file) {
   try { setBook(await api("/api/books", { method: "POST", body: fd })); }
   catch (e) { $("#book-info").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 }
+$("#paste-toggle").onclick = (e) => { e.preventDefault(); e.stopPropagation(); const b = $("#paste-box"); b.hidden = !b.hidden; if (!b.hidden) $("#paste-text").focus(); };
+$("#paste-text").oninput = () => { $("#paste-go").disabled = !$("#paste-text").value.trim(); };
+$("#paste-go").onclick = async () => {
+  uploads++;
+  $("#book-info").textContent = t("book.reading", { name: $("#paste-title").value.trim() || "…" });
+  try { setBook(await api("/api/books/text", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: $("#paste-text").value, title: $("#paste-title").value }) })); $("#paste-box").hidden = true; $("#paste-text").value = ""; $("#paste-go").disabled = true; }
+  catch (e) { $("#book-info").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+};
 // ---- cover ---------------------------------------------------------------------------------------
 function showCover(kind) {
   if (!book) return; book.cover = kind; $("#cover-box").hidden = false;

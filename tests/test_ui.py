@@ -75,6 +75,18 @@ def test_book_upload_and_chapters(client):
     assert client.post("/api/books", files={"file": ("x.xyz", b"?", "text/plain")}).status_code == 415
 
 
+def test_pasted_text_becomes_a_book(client):
+    text = "Article headline\n\n" + "A sentence about something. " * 20
+    r = client.post("/api/books/text", json={"text": text})
+    assert r.status_code == 200
+    b = r.json()
+    assert b["title"] == "Article headline" and b["chars"] > 100
+    r = client.post("/api/books/text", json={"text": text, "title": "A - B/C"})
+    assert "/" not in r.json()["title"] and r.json()["title"] == "A – B C"
+    assert client.get(f"/api/books/{b['book_id']}/chapters?depth=1").status_code == 200
+    assert client.post("/api/books/text", json={"text": "   "}).status_code == 400
+
+
 def test_voices_listing_and_sample(client):
     voices = client.get("/api/voices").json()["voices"]
     assert voices

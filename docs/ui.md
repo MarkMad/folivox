@@ -58,7 +58,7 @@ browser (static HTML + small JS)  ⇄  HTTP + SSE  ⇄  folivox.ui (Starlette)  
 
 ## Screens (first version, one page with sections)
 
-1. **Book** — drop a file (or pick a path). Shows title, author, detected language (editable), cover,
+1. **Book** — drop a file (or pick a path), or use *or paste text* to paste an article or any text (optional title). Shows title, author, detected language (editable), cover,
    estimated duration, the chapter tree — the output of `folivox inspect`.
 2. **Chapters** — checkboxes per chapter (select all / range), live estimate of the selected length.
    Depth selector.

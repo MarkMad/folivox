@@ -199,6 +199,36 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         write_session({"book_id": book_id})  # the last uploaded book survives a reload even before any other change
         return JSONResponse(_book_summary(book_id, book, cover=cover_kind(book_id, book)))
 
+    async def paste_text(request: Request):
+        """A book made of pasted text (an article, a note): stored as a .txt so it is read like any upload."""
+        from folivox.readers import read_book
+
+        body = await request.json()
+        text = str(body.get("text") or "").strip() if isinstance(body, dict) else ""
+        if not text:
+            raise ApiError("The text is empty")
+        if len(text.encode("utf-8")) > MAX_UPLOAD:
+            raise ApiError("Text is too large", 413)
+        title = " ".join(str(body.get("title") or "").split())
+        if not title:
+            first = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")
+            title = first[:60].rstrip()
+        # the file name carries the title; " - " would be read as "author - title", and path characters are unsafe
+        title = re.sub(r'[\\/:*?"<>|]', " ", title).replace(" - ", " – ").strip(" .") or "Pasted text"
+        book_id = uuid.uuid4().hex[:12]
+        folder = state.data_dir / "uploads" / book_id
+        folder.mkdir(parents=True)
+        path = folder / f"{title[:80].strip(' .')}.txt"
+        path.write_text(text, encoding="utf-8")
+        try:
+            book = await asyncio.to_thread(read_book, path)
+        except Exception as e:  # noqa: BLE001 — a broken text must not kill the server
+            shutil.rmtree(folder, ignore_errors=True)
+            raise ApiError(f"Cannot read the text: {e}") from None
+        state.books[book_id] = {"book": book, "path": path}
+        write_session({"book_id": book_id})
+        return JSONResponse(_book_summary(book_id, book, cover=cover_kind(book_id, book)))
+
     # ---- book details shown in the player (title, author, narrator, series…) -------------------------
     META_FIELDS = {"title": 300, "author": 300, "narrator": 300, "series": 300, "series_part": 20, "year": 20,
                    "description": 2000, "genre": 100}
@@ -1205,6 +1235,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/ping", ping),
         Route("/api/shutdown", shutdown, methods=["POST"]),
         Route("/api/books", upload_book, methods=["POST"]),
+        Route("/api/books/text", paste_text, methods=["POST"]),
         Route("/api/books/{book_id}/chapters", book_chapters),
         Route("/api/books/{book_id}/meta", get_meta),
         Route("/api/books/{book_id}/meta", put_meta, methods=["PUT"]),
