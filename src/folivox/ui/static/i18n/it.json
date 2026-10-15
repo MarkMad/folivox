@@ -642,5 +642,7 @@
  "mk.redo.t": "Ripristina la modifica annullata",
  "mk.model.missing": "non installato",
  "mk.model.pull": "Questo modello non è ancora installato. Installalo con: ollama pull {m}",
- "mk.model.hint": "I modelli piccoli sono più veloci ma distinguono peggio chi parla: vanno bene per una prova rapida."
+ "mk.model.hint": "I modelli piccoli sono più veloci ma distinguono peggio chi parla: vanno bene per una prova rapida.",
+ "mk.model.enonly": "accettabile solo per l'inglese",
+ "mk.model.enwarn": "Questo modello, il più piccolo, marca accettabilmente i libri in inglese e male le altre lingue. Scegline uno più grande."
 }

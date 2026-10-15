@@ -34,7 +34,7 @@ PROMPT_VERSION = "1"
 WINDOW_CHARS = 5000
 MIN_LINES_FOR_A_VOICE = 3  # a character who speaks less than this is not counted as needing a voice of their own
 MAX_RELEVANT = 25
-SPEECH_MARKS = re.compile(r"[«»„“”\"‘’「」『』]|^\s*[—–―-]\s|\bthink|\bthought", re.I | re.M)
+SPEECH_MARKS = re.compile(r"[«»„“”\"‘’「」『』]|^\s*[—–―]|^\s*-\s|\bthink|\bthought", re.I | re.M)
 
 Progress = Callable[[str, int, int, str], None]  # stage, done, total, message
 

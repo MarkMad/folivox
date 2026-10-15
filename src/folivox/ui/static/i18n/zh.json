@@ -642,5 +642,7 @@
  "mk.redo.t": "恢复刚撤销的修改",
  "mk.model.missing": "未安装",
  "mk.model.pull": "此模型尚未安装。请运行：ollama pull {m}",
- "mk.model.hint": "小模型更快，但分辨说话人较差：适合快速试一试。"
+ "mk.model.hint": "小模型更快，但分辨说话人较差：适合快速试一试。",
+ "mk.model.enonly": "仅适用于英语",
+ "mk.model.enwarn": "这个最小的模型标记英文书尚可，其他语言效果很差。请选更大的模型。"
 }

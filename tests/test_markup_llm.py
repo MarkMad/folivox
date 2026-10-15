@@ -311,3 +311,11 @@ def test_loose_speaker_tags_are_read_as_the_tag_they_mean():
 
     assert _fix_speaker_tags('<|speaker:1>"Hi" <|speaker:0|>said <speaker:2|>x <|speaker: 3 >y') == \
         '<|speaker:1|>"Hi" <|speaker:0|>said <|speaker:2|>x <|speaker:3|>y'
+
+
+def test_spanish_dialogue_dash_without_space_counts_as_speech():
+    from folivox.markup_llm import SPEECH_MARKS
+
+    assert SPEECH_MARKS.search("—¿Vas a alguna parte? —preguntó Daniel.")
+    assert SPEECH_MARKS.search("— Ты куда? — спросил он.")
+    assert not SPEECH_MARKS.search("Plain narration without any speech.")

@@ -642,5 +642,7 @@
  "mk.redo.t": "Redo the change you undid",
  "mk.model.missing": "not installed",
  "mk.model.pull": "This model is not installed yet. Install it with: ollama pull {m}",
- "mk.model.hint": "Smaller models are faster but miss subtle speakers: fine for a quick try."
+ "mk.model.hint": "Smaller models are faster but miss subtle speakers: fine for a quick try.",
+ "mk.model.enonly": "good for English only",
+ "mk.model.enwarn": "This smallest model marks English books acceptably and other languages poorly. Choose a larger one."
 }

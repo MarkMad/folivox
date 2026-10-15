@@ -642,5 +642,7 @@
  "mk.redo.t": "Rückgängig gemachte Änderung wiederherstellen",
  "mk.model.missing": "nicht installiert",
  "mk.model.pull": "Dieses Modell ist noch nicht installiert. Installieren Sie es mit: ollama pull {m}",
- "mk.model.hint": "Kleinere Modelle sind schneller, erkennen aber feine Sprecherwechsel schlechter: gut für einen schnellen Versuch."
+ "mk.model.hint": "Kleinere Modelle sind schneller, erkennen aber feine Sprecherwechsel schlechter: gut für einen schnellen Versuch.",
+ "mk.model.enonly": "nur für Englisch brauchbar",
+ "mk.model.enwarn": "Dieses kleinste Modell markiert englische Bücher brauchbar, andere Sprachen schlecht. Wählen Sie ein größeres."
 }

@@ -642,5 +642,7 @@
  "mk.redo.t": "Rehacer el cambio deshecho",
  "mk.model.missing": "no instalado",
  "mk.model.pull": "Este modelo aún no está instalado. Instálelo con: ollama pull {m}",
- "mk.model.hint": "Los modelos pequeños son más rápidos pero distinguen peor a los hablantes: sirven para una prueba rápida."
+ "mk.model.hint": "Los modelos pequeños son más rápidos pero distinguen peor a los hablantes: sirven para una prueba rápida.",
+ "mk.model.enonly": "aceptable solo para inglés",
+ "mk.model.enwarn": "Este modelo, el más pequeño, marca aceptablemente libros en inglés y mal otros idiomas. Elija uno mayor."
 }
