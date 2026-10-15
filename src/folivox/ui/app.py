@@ -248,6 +248,51 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     PRONOUNCE_LIMIT = 100_000
     SAMPLE_LIMIT = 600
 
+    def markup_file(book_id: str) -> Path:
+        return state.data_dir / "markup" / f"{Path(book_id).name}.json"
+
+    async def get_markup(request: Request):
+        """The book's markup (speakers, spans, tags) as JSON, or an empty one; spans never carry book text."""
+        from folivox import markup as mk
+
+        bid = request.path_params["book_id"]
+        state.book(bid)
+        f = markup_file(bid)
+        try:
+            m = mk.Markup.load(f) if f.is_file() else mk.Markup()
+        except mk.MarkupError as e:
+            raise ApiError(str(e)) from None
+        return JSONResponse(m.to_dict())
+
+    async def put_markup(request: Request):
+        """Save markup after checking it against the book (stale chapters and bad spans are refused, not repaired)."""
+        from folivox import markup as mk
+
+        bid = request.path_params["book_id"]
+        entry = state.book(bid)
+        body = await request.json()
+        try:
+            m = mk.Markup.from_dict(body)
+            chapters = entry["book"].chapters(m.depth)
+            clean, problems = mk.bind(m, chapters)
+        except mk.MarkupError as e:
+            raise ApiError(str(e)) from None
+        if problems:
+            raise ApiError("The markup does not fit the book: " + "; ".join(problems[:3]), 400, problems=problems)
+        mk.stamp(clean, chapters)
+        f = markup_file(bid)
+        if clean.is_empty() and len(clean.speakers) == 1:
+            f.unlink(missing_ok=True)
+        else:
+            f.parent.mkdir(parents=True, exist_ok=True)
+            clean.save(f)
+        return JSONResponse(clean.to_dict())
+
+    async def expression_tags(request: Request):
+        from folivox import markup as mk
+
+        return JSONResponse(mk.tag_database())
+
     def pronounce_file(book_id: str) -> Path:
         return state.data_dir / "pronounce" / f"{Path(book_id).name}.txt"
 
@@ -603,6 +648,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         if not cloud and fish_builds.is_fish_engine(tts):
             check_fish(tts, tts_build, v)
         lexicon = pronounce_file(str(body.get("book_id", "")))
+        markup = markup_file(str(body.get("book_id", "")))
         common = dict(voice_wav=v.path if v else None,
                       voice_text=body.get("voice_text") or (v.transcript if v else None), lang=book.lang, **cloud_opts,
                       depth=int(o.get("depth", 2)), max_chars=int(o.get("max_chars", 300)), stress=stress,
@@ -611,6 +657,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                       max_takes=int(o.get("takes") or (2 if cloud else 3)),
                       tts=tts, tts_build=tts_build, asr=asr, device=str(o.get("device", "auto")),
                       pronounce=(lexicon,) if lexicon.is_file() else (),
+                      markup=markup if markup.is_file() and o.get("use_markup", True) else None,
+                      expression_tags=bool(o.get("expression_tags", True)),
                       cover=custom_cover(str(body.get("book_id", ""))),
                       no_cover=cover_kind(str(body.get("book_id", "")), book) == "none",
                       meta=book_meta(str(body.get("book_id", "")), book))
@@ -1249,6 +1297,9 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/books/{book_id}/chapters", book_chapters),
         Route("/api/books/{book_id}/meta", get_meta),
         Route("/api/books/{book_id}/meta", put_meta, methods=["PUT"]),
+        Route("/api/books/{book_id}/markup", get_markup),
+        Route("/api/books/{book_id}/markup", put_markup, methods=["PUT"]),
+        Route("/api/markup/tags", expression_tags),
         Route("/api/books/{book_id}/pronounce", get_pronounce),
         Route("/api/books/{book_id}/pronounce", put_pronounce, methods=["PUT"]),
         Route("/api/books/{book_id}/pronounce/sample", pronounce_sample),

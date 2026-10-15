@@ -147,3 +147,21 @@ def test_default_engine_falls_back_to_cosyvoice_for_bundled_voices(client, monke
     bid = upload(client)
     r = start(client, bid)  # no engine named, default voice is bundled → CosyVoice, so no Fish refusal
     assert r.status_code == 202, r.text
+
+
+def test_markup_routes_store_checked_markup_and_tags(client):
+    bid = upload(client)
+    empty = client.get(f"/api/books/{bid}/markup").json()
+    assert empty["speakers"][0]["id"] == 0 and empty["chapters"] == {}
+    assert any(t["tag"] == "sighs" for t in client.get("/api/markup/tags").json()["tags"])
+    mk = {"version": 1, "depth": 2, "speakers": [{"id": 0, "name": "Narrator"}, {"id": 1, "name": "Anna"}],
+          "chapters": {"0": {"spans": [{"b": 0, "s": 0, "e": 10, "sp": 1, "tags": []}], "marks": []}}}
+    r = client.put(f"/api/books/{bid}/markup", json=mk)
+    assert r.status_code == 200 and r.json()["chapters"]["0"]["sig"]
+    assert client.get(f"/api/books/{bid}/markup").json()["chapters"]["0"]["spans"][0]["sp"] == 1
+    mk["chapters"]["0"]["spans"][0]["e"] = 10**6  # outside the block: refused, nothing is stored
+    assert client.put(f"/api/books/{bid}/markup", json=mk).status_code == 400
+    assert client.get(f"/api/books/{bid}/markup").json()["chapters"]["0"]["spans"][0]["e"] == 10
+    job = client.post("/api/jobs", json={"kind": "preview", "book_id": bid, "chapters": [1], "voice": "",
+                                         "options": {}}).json()
+    assert job["state"] in ("running", "done", "queued")

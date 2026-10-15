@@ -83,16 +83,16 @@ class Prefetcher:
         self.futures: dict[tuple[str, int], object] = {}
         self.hung = False
 
-    def submit(self, key: str, text: str, seed: int):
+    def submit(self, key: str, text: str, seed: int, voice: Voice | None = None):
         k = (key, seed)
         if k not in self.futures:
-            self.futures[k] = self.pool.submit(self.engine.prepare, text, self.voice, seed)
+            self.futures[k] = self.pool.submit(self.engine.prepare, text, voice or self.voice, seed)
         return self.futures[k]
 
-    def synthesize(self, key: str, text: str, seed: int, speed: float = 1.0) -> Synthesis:
+    def synthesize(self, key: str, text: str, seed: int, speed: float = 1.0, voice: Voice | None = None) -> Synthesis:
         limit = synth_timeout(len(text)) if getattr(self.engine, "local", True) else 0
         try:
-            tokens, t_llm = self.submit(key, text, seed).result(timeout=limit or None)
+            tokens, t_llm = self.submit(key, text, seed, voice).result(timeout=limit or None)
         except FutureTimeout:
             self.hung = True
             raise SynthTimeout(f"Synthesis of one fragment ({len(text)} characters) did not finish in "
@@ -100,7 +100,7 @@ class Prefetcher:
                                "to continue (set FOLIVOX_SYNTH_TIMEOUT=seconds to change the limit, 0 to turn it "
                                "off).") from None
         self.futures.pop((key, seed), None)
-        audio, t_wav = self.engine.finish(tokens, self.voice, speed)
+        audio, t_wav = self.engine.finish(tokens, voice or self.voice, speed)
         return Synthesis(audio, self.engine.sample_rate, t_llm + t_wav)
 
     def close(self) -> None:

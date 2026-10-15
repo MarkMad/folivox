@@ -27,7 +27,7 @@ app = typer.Typer(add_completion=False, no_args_is_help=False, invoke_without_co
                   rich_markup_mode="rich", epilog=MAIN_EPILOG, context_settings={"help_option_names": ["-h", "--help"]},
                   help="Turn e-books (FB2, EPUB, DOCX, PDF, TXT, or ZIP of one) into m4b audiobooks, locally.")
 console = Console()
-COMMANDS = {"render", "inspect", "names", "voices", "engines", "providers", "help", "ui", "doctor", "setup",
+COMMANDS = {"render", "inspect", "names", "voices", "engines", "markup", "providers", "help", "ui", "doctor", "setup",
             "update", "uninstall", "bench", "--help", "-h", "--version"}
 
 # Option panels of `folivox render --help`
@@ -327,6 +327,13 @@ def render(
     pronounce: list[Path] = typer.Option(None, "--pronounce", rich_help_panel=P_TEXT, show_default=False,
                                          help="Custom pronunciations (name = how to read it). Default: "
                                               "<book>.pronounce.txt and pronounce.txt next to the book."),
+    markup: Path = typer.Option(None, "--markup", rich_help_panel=P_VOICE, show_default=False,
+                                help="Speakers and expression tags (`folivox markup`). Default: <book>.markup.json "
+                                     "next to the book."),
+    no_markup: bool = typer.Option(False, "--no-markup", rich_help_panel=P_VOICE, help="Ignore the book's markup."),
+    expression_tags: bool = typer.Option(True, "--expression-tags/--no-expression-tags", rich_help_panel=P_VOICE,
+                                         show_default=False,
+                                         help="Write the markup's expression tags into the text (Fish engines; on)."),
     qa: bool = typer.Option(True, "--qa/--no-qa", rich_help_panel=P_QA, show_default=False,
                             help="Check every fragment with speech recognition and retake mismatches (on)."),
     qa_level: str = typer.Option("standard", "--qa-level", rich_help_panel=P_QA,
@@ -437,7 +444,15 @@ def render(
             raise typer.Exit(2)
     if lexicon_files:
         console.print(f"Pronunciations: {', '.join(f.name for f in lexicon_files)}")
-    opts = RenderOptions(output=output, pronounce=lexicon_files,
+    from folivox import markup as markups
+
+    markup_path = None if no_markup else (markup or markups.find(book_path))
+    if markup and not markup.is_file():
+        console.print(f"[red]Markup file not found:[/] {markup}")
+        raise typer.Exit(2)
+    if markup_path:
+        console.print(f"Markup: {markup_path.name}")
+    opts = RenderOptions(output=output, pronounce=lexicon_files, markup=markup_path, expression_tags=expression_tags,
                          voice_wav=voice_path, voice_text=voice_text, work_dir=work_dir,
                          chapters=chapters, preview=preview, depth=depth, max_chars=max_chars, stress=stress.value,
                          lang=book.lang, speed=speed, device=device.value, threads=threads,
@@ -592,6 +607,9 @@ def _resolve_voice(voice: str, voice_text: str | None, book_lang: str = "ru") ->
 
 
 from folivox.cli_engines import engines_app  # noqa: E402
+from folivox.cli_markup import markup_app  # noqa: E402
+
+app.add_typer(markup_app, name="markup", rich_help_panel="Setup")
 
 app.add_typer(engines_app, name="engines", rich_help_panel="Setup")
 

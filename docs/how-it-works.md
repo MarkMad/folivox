@@ -11,7 +11,8 @@
    in its own worker process and Python environment: [Fish Audio engines](fish-engines.md)). Each accepted
    take is stored in the work dir and recorded in an SQLite journal; its key hashes the text, the voice and
    the synthesis settings (engine, build and revision, plus speaker and expression tags when used), so a
-   changed engine or build never reuses old audio.
+   changed engine or build never reuses old audio. With [markup](markup.md) a paragraph is split by speaker first,
+   and every fragment is read with its speaker's voice.
 4. **Check** — Whisper transcribes the take; character error rate and speaking rate decide whether
    to retake.
 5. **Assemble** — fragments are joined with structural pauses (sentence < paragraph < heading <

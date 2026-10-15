@@ -35,7 +35,9 @@ def test_engine_list_has_prices_limits_and_badges(env):
     c, _ = env
     data = c.get("/api/tts/engines").json()
     by = {e["name"]: e for e in data["engines"]}
-    assert [e["name"] for e in data["engines"]] == ["cosyvoice3", "gemini", "cartesia", "elevenlabs", "openai"]
+    # the optional Fish engines appear only where a build can run (Apple Silicon): not part of this check
+    assert [e["name"] for e in data["engines"] if not e.get("fish")] == [
+        "cosyvoice3", "gemini", "cartesia", "elevenlabs", "openai"]
     assert by["gemini"]["tag"] == "cheap and best" and "non-English" in by["openai"]["tag"]
     assert by["cosyvoice3"]["local"] and not by["openai"]["local"]
     assert set(by) >= {"elevenlabs", "openai", "gemini", "cartesia"}

@@ -42,6 +42,17 @@ longer explanations (`voices`, `providers`, `config`, `languages`, `resuming`, `
 | | `--work-dir` | `<output>.folivox/` | cache and journal; delete it when done |
 | | `--verbose` | | print every fragment |
 
+## Speakers and expression tags
+
+```bash
+folivox markup export book.epub -o book.txt    # edit it, then:
+folivox markup import book.epub book.txt
+folivox render book.epub --tts fish-drama3 --voice me.wav     # picks up book.markup.json by itself
+```
+
+Also `markup speaker|speakers|check|tags|clear`, and for `render`: `--markup FILE`, `--no-markup`,
+`--no-expression-tags`. See [Speakers and expression tags](markup.md).
+
 ## Fish Audio engines
 
 ```bash
