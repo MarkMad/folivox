@@ -158,7 +158,8 @@ def _plan_segments(raw, segs, ctx, end_pause, opts, normalize, dialogue, p) -> N
     pieces, carry = [], ""
     for seg in segs:
         if has_speech(seg.text):
-            pieces.append((seg, seg.text.strip().strip("—–―").strip(), carry + tag_text(seg)))  # dialogue dashes at the edges
+            edge_trimmed = seg.text.strip().strip("—–―").strip()  # dialogue dashes at the edges are not read
+            pieces.append((seg, edge_trimmed, carry + tag_text(seg)))
             carry = ""
         else:  # a segment without speech (a stray space): its tags go to the next one
             carry += tag_text(seg)
