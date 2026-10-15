@@ -623,7 +623,7 @@
  "mk.run.mark": "話者をマークしています… {d}/{n}",
  "mk.res.novoice": "声が必要",
  "mk.res.choose": "声を選ぶ",
- "mk.nomodel": "言語モデルがまだ入っていません。次のコマンドで入れてください: ollama pull {m}",
+ "mk.nomodel": "言語モデルがまだ入っていません。次のコマンドで入れてください: ollama pull {m}（手早く試すなら粗くなりますが: ollama pull {s}）",
  "mk.next.voices": "次は、人物の声を選びましょう。",
  "mk.next.check": "次は、本文を読んで違うところを直しましょう。",
  "mk.next.read": "本文を確認",
@@ -639,5 +639,8 @@
  "mk.dur.hm": "{h} 時間 {m} 分",
  "mk.run.start": "開始しています…",
  "mk.undo.t": "直前の変更を元に戻す",
- "mk.redo.t": "取り消した変更をやり直す"
+ "mk.redo.t": "取り消した変更をやり直す",
+ "mk.model.missing": "未インストール",
+ "mk.model.pull": "このモデルはまだ入っていません。次のコマンドで入れてください: ollama pull {m}",
+ "mk.model.hint": "小さいモデルは速い反面、話者の見分けは粗めです。手早く試すのに向いています。"
 }

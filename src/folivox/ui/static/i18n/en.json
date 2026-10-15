@@ -623,7 +623,7 @@
  "mk.run.mark": "Marking who speaks… {d} of {n}",
  "mk.res.novoice": "needs a voice",
  "mk.res.choose": "Choose voices",
- "mk.nomodel": "No language model is installed yet. Install one with: ollama pull {m}",
+ "mk.nomodel": "No language model is installed yet. Install one with: ollama pull {m} (for a quick, rougher try: ollama pull {s})",
  "mk.next.voices": "Next: give the characters their voices.",
  "mk.next.check": "Next: read through the text and fix anything that looks wrong.",
  "mk.next.read": "Check the text",
@@ -639,5 +639,8 @@
  "mk.dur.hm": "{h} h {m} min",
  "mk.run.start": "Starting…",
  "mk.undo.t": "Undo the last change",
- "mk.redo.t": "Redo the change you undid"
+ "mk.redo.t": "Redo the change you undid",
+ "mk.model.missing": "not installed",
+ "mk.model.pull": "This model is not installed yet. Install it with: ollama pull {m}",
+ "mk.model.hint": "Smaller models are faster but miss subtle speakers: fine for a quick try."
 }

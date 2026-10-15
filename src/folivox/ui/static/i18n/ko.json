@@ -623,7 +623,7 @@
  "mk.run.mark": "화자를 표시하는 중… {d}/{n}",
  "mk.res.novoice": "음성 필요",
  "mk.res.choose": "음성 고르기",
- "mk.nomodel": "언어 모델이 설치되어 있지 않습니다. 다음 명령으로 설치하세요: ollama pull {m}",
+ "mk.nomodel": "언어 모델이 설치되어 있지 않습니다. 다음 명령으로 설치하세요: ollama pull {m} (빠르게 대충 해 보려면: ollama pull {s})",
  "mk.next.voices": "다음: 인물마다 목소리를 고르세요.",
  "mk.next.check": "다음: 본문을 훑어보고 이상한 곳을 고치세요.",
  "mk.next.read": "본문 확인",
@@ -639,5 +639,8 @@
  "mk.dur.hm": "{h}시간 {m}분",
  "mk.run.start": "시작하는 중…",
  "mk.undo.t": "마지막 변경 취소",
- "mk.redo.t": "취소한 변경 다시 적용"
+ "mk.redo.t": "취소한 변경 다시 적용",
+ "mk.model.missing": "설치 안 됨",
+ "mk.model.pull": "이 모델은 아직 설치되지 않았습니다. 다음 명령으로 설치하세요: ollama pull {m}",
+ "mk.model.hint": "작은 모델은 더 빠르지만 화자 구분이 거칠어요. 빠르게 시험해 보기에 좋습니다."
 }

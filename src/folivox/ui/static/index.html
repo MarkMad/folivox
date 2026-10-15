@@ -340,6 +340,7 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
         <div id="mk-llmmsg" class="mute" style="margin-top:6px"></div>
         <details id="mk-opts" class="mk-sub"><summary data-i18n="mk.options">Options</summary>
           <label class="f"><span data-i18n="mk.model">Model</span><select id="mk-model"></select></label>
+          <small class="mute" data-i18n="mk.model.hint">Smaller models are faster but miss subtle speakers: fine for a quick try.</small>
           <label class="consent" style="margin-top:6px"><input type="checkbox" id="mk-llmtags"><span data-i18n="mk.llmtags">Also place expression tags (off by default)</span></label>
           <div class="row" style="margin-top:8px"><button type="button" id="mk-analyse" class="chip" data-i18n="mk.analyse">Analyse characters</button></div>
         </details>
@@ -978,14 +979,15 @@ $("#mk-listen").onclick = async () => {
 // ---- automatic markup (language model) ----------------------------------------------------------------------------------
 async function mkLlmModels() {
   try {
-    const m = await api("/api/llm/models"), seen = new Set(), opts = [];
+    const m = await api("/api/llm/models"), seen = new Set(), opts = []; MK.models = m;
     const add = (name, note) => { if (name && !seen.has(name)) { seen.add(name); opts.push(`<option value="${esc(name)}">${esc(name)}${note ? " - " + esc(note) : ""}</option>`); } };
+    const has = (x) => m.installed.includes(x);
     add(m.configured, t("mk.model.configured"));
-    m.installed.filter(x => x.startsWith("gemma4")).forEach(x => add(x, t("mk.model.installed")));
-    add(m.recommended, t("mk.model.recommended"));
+    // the whole ladder, smallest (fastest) first; what is missing says so
+    [...m.tiers].reverse().forEach(x => add(x.model, [`${x.download_gb} GB`, has(x.model) ? t("mk.model.installed") : t("mk.model.missing"), x.model === m.recommended ? t("mk.model.recommended") : ""].filter(Boolean).join(", ")));
     m.installed.filter(x => !x.startsWith("gemma4") && !x.includes("embed")).forEach(x => add(x, t("mk.model.installed")));
     $("#mk-model").innerHTML = opts.join("");
-    const pick = m.configured || m.installed.find(x => x === m.recommended) || m.installed.find(x => x.startsWith("gemma4"));
+    const pick = m.configured || m.installed.find(x => x === m.recommended) || m.installed.find(x => x.startsWith("gemma4")) || m.recommended;
     if (pick) $("#mk-model").value = pick;
   } catch (e) { $("#mk-model").innerHTML = ""; }
 }
@@ -1017,7 +1019,7 @@ const mkEtaText = (model, est) => t("mk.eta.approx", { t: mkDur(mkSecs(model, es
 async function mkEtaMain() {
   const el = $("#mk-eta"); if (!book || $("#mk-none").hidden) return;
   try {
-    const p = await mkPickModel(); if (!p.pick) { el.textContent = t("mk.nomodel", { m: p.rec || "gemma4:12b-it-qat" }); return; }
+    const p = await mkPickModel(); if (!p.pick) { el.textContent = t("mk.nomodel", { m: p.rec || "gemma4:12b-it-qat", s: "gemma4:e2b-it-qat" }); return; }
     const sec = mkSecs(p.pick, await mkEstimate(0));
     el.textContent = t("mk.eta.before", { t: mkDur(sec.total) }) + (sec.total > 1200 ? " " + t("mk.eta.long") : "");
   } catch (e) { el.textContent = ""; }
@@ -1099,7 +1101,8 @@ async function mkLlm(task) {
   const hasMarkup = Object.values(MK.data.chapters).some(c => c.spans.length);
   if (task === "auto" && hasMarkup && !confirm(t("mk.again.confirm"))) return;
   let model = $("#mk-model").value;
-  if (!model) { try { const p = await mkPickModel(); model = p.pick; if (!model) { msg.textContent = t("mk.nomodel", { m: p.rec || "gemma4:12b-it-qat" }); return; } } catch (e) { /* let the server answer */ } }
+  if (model && MK.models && !MK.models.installed.includes(model)) { msg.textContent = t("mk.model.pull", { m: model }); return; }
+  if (!model) { try { const p = await mkPickModel(); model = p.pick; if (!model) { msg.textContent = t("mk.nomodel", { m: p.rec || "gemma4:12b-it-qat", s: "gemma4:e2b-it-qat" }); return; } } catch (e) { /* let the server answer */ } }
   const btns = ["#mk-analyse", "#mk-auto"];
   const s = await mkAutoRun(task, { model, tags: $("#mk-llmtags").checked, chapters: task === "auto" && $("#mk-scope-ch").checked ? [MK.ch + 1] : undefined }, {
     busy: (on) => { btns.forEach(b => $(b).disabled = on); $("#mk-stop").hidden = !on; $("#mk-prog").hidden = !on; },

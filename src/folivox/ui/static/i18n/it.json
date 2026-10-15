@@ -623,7 +623,7 @@
  "mk.run.mark": "Marcatura di chi parla… {d} di {n}",
  "mk.res.novoice": "serve una voce",
  "mk.res.choose": "Scegli le voci",
- "mk.nomodel": "Nessun modello linguistico è installato. Installane uno con: ollama pull {m}",
+ "mk.nomodel": "Nessun modello linguistico è installato. Installane uno con: ollama pull {m} (per una prova rapida ma più grezza: ollama pull {s})",
  "mk.next.voices": "Poi: scegli le voci dei personaggi.",
  "mk.next.check": "Poi: rileggi il testo e correggi ciò che sembra sbagliato.",
  "mk.next.read": "Controlla il testo",
@@ -639,5 +639,8 @@
  "mk.dur.hm": "{h} h {m} min",
  "mk.run.start": "Avvio…",
  "mk.undo.t": "Annulla l'ultima modifica",
- "mk.redo.t": "Ripristina la modifica annullata"
+ "mk.redo.t": "Ripristina la modifica annullata",
+ "mk.model.missing": "non installato",
+ "mk.model.pull": "Questo modello non è ancora installato. Installalo con: ollama pull {m}",
+ "mk.model.hint": "I modelli piccoli sono più veloci ma distinguono peggio chi parla: vanno bene per una prova rapida."
 }
