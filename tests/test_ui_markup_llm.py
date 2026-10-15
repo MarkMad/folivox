@@ -92,8 +92,8 @@ def test_listening_to_a_passage_uses_its_own_markup(tmp_path, monkeypatch):
 
     def capture(book, opts, events):
         seen["text"] = [b.text for s in book.sections for b in s.blocks]
-        seen["opts"] = opts
         seen["markup"] = mk.Markup.load(opts.markup) if opts.markup else None
+        seen["opts"] = opts  # last: the test waits for it
         return opts.output
 
     monkeypatch.setenv("FOLIVOX_CONFIG", str(tmp_path / "config.toml"))
@@ -122,3 +122,29 @@ def test_listening_to_a_passage_uses_its_own_markup(tmp_path, monkeypatch):
     time.sleep(0.3)  # the first job has finished: another may start
     wrong = dict(job, sample_range={"chapter": 7, "block_from": 0, "block_to": 1})
     assert c.post("/api/jobs", json=wrong).status_code == 400
+
+
+def test_voice_prompts_task_and_the_speakers_voice_info(client):
+    from test_markup_llm import VoiceLLM
+
+    bid = upload(client)
+    client.post(f"/api/books/{bid}/llm/start", json={"task": "analyse"})
+    wait(client, bid)
+    client.post(f"/api/books/{bid}/llm/start", json={"task": "auto"})
+    wait(client, bid)
+    client.holder["llm"] = VoiceLLM()
+    assert client.post(f"/api/books/{bid}/llm/start", json={"task": "prompts"}).status_code == 202
+    st = wait(client, bid)
+    assert st["state"] == "done" and "2 characters" in st["message"]
+    bible = client.get(f"/api/books/{bid}/characters").json()
+    assert all(set(c["voice_prompts"]) == {"simple", "standard", "detailed"} for c in bible["characters"])
+    anna = next(c for c in bible["characters"] if c["name"] == "Анна")
+    info = client.get(f"/api/books/{bid}/speakers/{anna['id']}/voice").json()
+    assert info["name"] == "Анна" and info["prompts"]["simple"].startswith("A woman") and info["texts"]
+    # a speaker made by hand gets described from its own record
+    mk = client.get(f"/api/books/{bid}/markup").json()
+    mk["speakers"].append({"id": 9, "name": "Хозяйка", "voice": "", "gender": "f", "aliases": [], "notes": ""})
+    assert client.put(f"/api/books/{bid}/markup", json=mk).status_code == 200
+    client.post(f"/api/books/{bid}/llm/start", json={"task": "prompts", "speakers": [9]})
+    assert wait(client, bid)["state"] == "done"
+    assert client.get(f"/api/books/{bid}/speakers/9/voice").json()["prompts"]["standard"]

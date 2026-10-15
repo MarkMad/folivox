@@ -47,6 +47,13 @@ def generate_takes(generator, texts: list[str], lang: str, out_dir: Path, *, des
     return [j.out for j in jobs]
 
 
+def audio_seconds_of(path: Path) -> float:
+    import soundfile as sf
+
+    info = sf.info(str(path))
+    return info.frames / info.samplerate
+
+
 def score_takes(paths: list[Path], texts_by_path: dict[Path, str], asr, lang: str) -> list[Candidate]:
     """Trim silence, transcribe and score every take; best first. Takes outside 6–16 s rank last."""
     from folivox.audio import trim_silence

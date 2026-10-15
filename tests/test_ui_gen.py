@@ -302,3 +302,23 @@ def test_voice_list_carries_sex_traits_and_preview(env, monkeypatch):
     r = make().get("/api/gen/voices/elevenlabs?lang=ru").json()
     assert r["voices"] == [{"id": "v1", "lang": "", "gender": "f", "name": "Sarah", "traits": "american",
                             "description": "Warm.", "preview_url": "https://cdn.example/s.mp3"}] and r["note"] == "note"
+
+
+def test_unranked_generation_leaves_the_choice_to_the_listener(env, monkeypatch):
+    holder, make, _ = env
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    from folivox.voicegen.cloud import cloud_providers
+
+    holder["gen"] = FakeGen(cloud_providers()["gemini"])
+
+    def no_asr(lang):
+        raise AssertionError("the recogniser must not be loaded when the person chooses")
+
+    c = make(asr=no_asr)
+    r = c.post("/api/gen/start", json=start_body(book_id=book(c), rank=False))
+    assert r.status_code == 202, r.text
+    j = r.json()
+    assert wait(c, j["id"])["state"] == "done"
+    takes = next(e for e in events(c, j["id"]) if e["type"] == "takes")["takes"]
+    assert [t["name"] for t in takes] == ["take_t1_0.wav", "take_t1_1.wav", "take_t1_2.wav"]
+    assert all(t["score"] is None and t["duration"] > 6 for t in takes)

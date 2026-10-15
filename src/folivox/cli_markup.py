@@ -350,3 +350,81 @@ def markup_auto(book_path: Path = typer.Argument(...), depth: int = typer.Option
                   f"{stats.unknown_speakers} unknown speakers and {stats.dropped_tags} unknown tags dropped.")
     console.print("Check and fix it with `folivox markup export` / `import`, assign voices with "
                   "`folivox markup speaker`.")
+
+
+@markup_app.command("voices", help="Write English voice-design prompts for the characters; optionally make takes.")
+def markup_voices(book_path: Path = typer.Argument(...), depth: int = typer.Option(2, "--depth"),
+                  speaker: list[int] = typer.Option(None, "--speaker", help="Only this speaker id (repeatable)."),
+                  regenerate: bool = typer.Option(False, "--regenerate", help="Write new prompts even if there are."),
+                  llm_name: str = typer.Option(None, "--llm"), model: str = typer.Option(None, "--model"),
+                  no_llm: bool = typer.Option(False, "--no-llm", help="Plain prompts from gender and age, no model."),
+                  generate: str = typer.Option(None, "--generate", "-g", help="Voice generator (`folivox providers`) "
+                                               "to make takes with: qwen3-voicedesign, gemini, elevenlabs…"),
+                  tier: str = typer.Option("standard", "--tier", help="Which prompt to generate with: simple | "
+                                           "standard | detailed"),
+                  takes: int = typer.Option(3, "--takes", help="Takes per speaker."),
+                  out: Path = typer.Option(None, "--out", help="Folder for the takes (default: <book>.voices/).")):
+    """Prompts are saved in the character list; takes are only written to files for you to listen to."""
+    from folivox import cli
+    from folivox import markup as mk
+    from folivox import markup_llm as ml
+    from folivox.voices import character_voice as cv
+
+    book = cli._load(book_path)
+    bp, mp = ml.bible_path(book_path), mk.path_for(book_path)
+    bible = ml.Bible.load(bp) if bp.is_file() else ml.Bible()
+    markup = mk.Markup.load(mp) if mp.is_file() else None
+    for sid in speaker or []:
+        sp = markup.speaker(sid) if markup else None
+        if sp and not any(c.id == sid for c in bible.characters):
+            bible.characters.append(ml.Character(name=sp.name, gender=sp.gender, id=sid, lines=1, traits=sp.notes))
+    if not bible.characters:
+        console.print(f"[red]No characters yet.[/] Run: folivox markup analyse {book_path.name}")
+        raise typer.Exit(2)
+    chs = book.chapters(markup.depth if markup else depth)
+    llm = None if no_llm else _llm(llm_name, model)[0]
+    ids = set(speaker) if speaker else None
+    n = cv.design_all(bible, book.lang, llm, markup, chs, ids, regenerate, progress=_progress())
+    bible.save(bp)
+    for c in sorted(bible.characters, key=lambda c: -c.lines):
+        if not c.id or not c.voice_prompts or (ids and c.id not in ids):
+            continue
+        console.print(f"\n[bold]{c.id}  {c.name}[/] ({c.gender or '?'}, {c.age or '?'})")
+        for t in cv.TIERS:
+            console.print(f"  {t:9} {c.voice_prompts.get(t, '')}", markup=False)
+    console.print(f"\n{n} character(s) described; saved in {bp.name}.")
+    if not generate:
+        console.print("Make takes to listen to with:  folivox markup voices BOOK -g qwen3-voicedesign  "
+                      "(or a cloud provider); you choose the voice yourself.")
+        return
+    _generate_takes(book, book_path, markup, chs, bible, ids, generate, tier, takes, out)
+
+
+def _generate_takes(book, book_path, markup, chs, bible, ids, generator, tier, takes, out) -> None:
+    from folivox.voicegen import GENERATORS
+    from folivox.voices import character_voice as cv
+    from folivox.voices.design import generate_takes
+
+    if tier not in cv.TIERS:
+        console.print(f"[red]--tier is one of {', '.join(cv.TIERS)}[/]")
+        raise typer.Exit(2)
+    try:
+        gen = GENERATORS.create(generator)
+    except Exception as e:  # noqa: BLE001
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(2) from None
+    out = out or book_path.with_name(book_path.stem + ".voices")
+    for c in sorted(bible.characters, key=lambda c: -c.lines):
+        if not c.id or not c.voice_prompts or (ids and c.id not in ids):
+            continue
+        texts = cv.sample_texts(markup, chs, c.id, book.lang)
+        folder = out / f"{c.id}-{''.join(ch for ch in c.name if ch.isalnum()) or 'speaker'}"
+        console.print(f"Making {takes} take(s) for {c.name} with {generator}…")
+        paths = generate_takes(gen, texts[:1], book.lang, folder, description=c.voice_prompts[tier], takes=takes,
+                               prefix=f"s{c.id}")
+        console.print(f"  reads: {texts[0]}", markup=False)
+        for p in paths:
+            console.print(f"  {p}", markup=False)
+    console.print("\nListen, then add the one you like and give it to the speaker:\n"
+                  "  folivox voices add NAME take.wav --text \"what the take says\" --gender f\n"
+                  "  folivox markup speaker BOOK ID --voice NAME")

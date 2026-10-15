@@ -75,6 +75,27 @@ def routes(api_error, state, services: dict) -> list[Route]:
         bible.save(f)
         return JSONResponse(bible.to_dict())
 
+    async def voice_info(request: Request):
+        """A speaker's voice-design prompts and the texts the generated voice can read (their own lines)."""
+        from folivox.voices import character_voice as cv
+
+        bid = request.path_params["book_id"]
+        entry = state.book(bid)
+        sid = int(request.path_params["speaker"])
+        bp, mp, _ = files(bid)
+        bible = ml.Bible.load(bp) if bp.is_file() else ml.Bible()
+        c = next((x for x in bible.characters if x.id == sid), None)
+        markup = mk.Markup.load(mp) if mp.is_file() else None
+        depth = markup.depth if markup else 2
+        chapters = entry["book"].chapters(depth)
+        sp = markup.speaker(sid) if markup else None
+        if c is None and sp is not None:  # a speaker made by hand: describe from what the speaker record says
+            c = ml.Character(name=sp.name, gender=sp.gender, id=sid, traits=sp.notes)
+        prompts = c.voice_prompts if c else {}
+        return JSONResponse({"speaker": sid, "name": c.name if c else "", "gender": c.gender if c else "",
+                             "prompts": prompts, "lang": entry["book"].lang,
+                             "texts": cv.sample_texts(markup, chapters, sid, entry["book"].lang)})
+
     async def status(request: Request):
         return JSONResponse(task_of(request.path_params["book_id"]).snapshot())
 
@@ -88,8 +109,8 @@ def routes(api_error, state, services: dict) -> list[Route]:
         entry = state.book(bid)
         body = await request.json()
         what = body.get("task")
-        if what not in ("analyse", "auto"):
-            raise api_error("task must be analyse or auto")
+        if what not in ("analyse", "auto", "prompts"):
+            raise api_error("task must be analyse, auto or prompts")
         t = task_of(bid)
         if t.state == "running":
             raise api_error("The language model is already working on this book", 409)
@@ -119,7 +140,29 @@ def routes(api_error, state, services: dict) -> list[Route]:
         def progress(stage: str, done: int, total: int, message: str) -> None:
             t.stage, t.done, t.total, t.message = stage, done, total, message
 
+        def work_prompts() -> None:
+            from folivox.voices import character_voice as cv
+
+            try:
+                bible = ml.Bible.load(bp) if bp.is_file() else ml.Bible()
+                markup = mk.Markup.load(mp) if mp.is_file() else None
+                ids = {int(i) for i in body.get("speakers") or []} or None
+                for sid in ids or ():  # a speaker made by hand has no entry in the character list yet
+                    sp = markup.speaker(sid) if markup else None
+                    if sp and not any(c.id == sid for c in bible.characters):
+                        bible.characters.append(ml.Character(name=sp.name, gender=sp.gender, id=sid, lines=1,
+                                                             traits=sp.notes))
+                if not bible.characters:
+                    raise ml.LLMError("Analyse the characters first")
+                n = cv.design_all(bible, book.lang, llm, markup, chapters, ids, bool(body.get("regenerate")), progress)
+                bible.save(bp)
+                t.state, t.message = "done", f"{n} characters described"
+            except Exception as e:  # noqa: BLE001
+                t.state, t.message = "error", str(e)
+
         def work() -> None:
+            if what == "prompts":
+                return work_prompts()
             cache = ml.Cache(cp)
             runner = ml.Runner(llm, model, cache)
             try:
@@ -156,6 +199,7 @@ def routes(api_error, state, services: dict) -> list[Route]:
     return [Route("/api/llm/models", models),
             Route("/api/books/{book_id}/characters", get_characters),
             Route("/api/books/{book_id}/characters", put_characters, methods=["PUT"]),
+            Route("/api/books/{book_id}/speakers/{speaker:int}/voice", voice_info),
             Route("/api/books/{book_id}/llm/start", start, methods=["POST"]),
             Route("/api/books/{book_id}/llm/status", status),
             Route("/api/books/{book_id}/llm/cancel", cancel, methods=["POST"])]

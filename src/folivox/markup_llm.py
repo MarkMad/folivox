@@ -81,6 +81,7 @@ class Character:
     first: int = -1  # chapter where the character first appears
     unnamed: bool = False
     id: int = 0  # speaker id in the markup (0 = not assigned)
+    voice_prompts: dict = field(default_factory=dict)  # voice-design descriptions: simple / standard / detailed
 
     def names(self) -> list[str]:
         return [self.name, *self.aliases]

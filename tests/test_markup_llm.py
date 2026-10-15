@@ -232,3 +232,75 @@ def test_cli_analyse_and_auto(tmp_path, monkeypatch):
     assert saved["chapters"] and any(s["name"] == "Анна" for s in saved["speakers"])
     assert r.invoke(app, ["markup", "check", str(book)]).exit_code == 0
     assert r.invoke(app, ["markup", "models"]).exit_code == 0
+
+
+# -- voice-design prompts for the characters -----------------------------------------------------------------
+
+class VoiceLLM(FakeLLM):
+    def __init__(self, reply=None):
+        super().__init__()
+        self.reply, self.prompts = reply, []
+
+    def complete_json(self, prompt, system=None, temperature=0.2):
+        self.prompts.append(prompt)
+        if self.reply == "down":
+            raise OSError("no server")
+        return self.reply if self.reply is not None else json.dumps({
+            "simple": "A woman in her thirties, calm and warm, speaking slowly.",
+            "standard": "A woman in her thirties with a soft, warm mid-range voice, a native Russian speaker, "
+                        "unhurried and gentle.",
+            "detailed": "A woman in her thirties with a soft, warm mid-range voice, a native Russian speaker, "
+                        "unhurried, with small pauses and a trace of tiredness that lifts when she is amused."})
+
+
+def test_voice_ideas_are_english_tiered_and_never_use_the_name():
+    from folivox.voices import character_voice as cv
+
+    anna = ml.Character("Анна", gender="f", age="adult", traits="quiet", id=1, lines=5)
+    ideas = cv.ideas_for(anna, "ru", VoiceLLM(), others=["A gruff old man"], lines=["— Ты куда?"])
+    assert ideas.from_llm and set(ideas.prompts) == set(cv.TIERS)
+    assert len(ideas.prompts["simple"]) <= cv.LIMITS["simple"] < len(ideas.prompts["detailed"]) <= cv.LIMITS["detailed"]
+    # a tier that names the character or imitates a person is replaced by the plain fallback
+    bad = json.dumps({"simple": "Анна, a woman with a warm voice", "standard": "She sounds like a famous actress today",
+                      "detailed": "A calm adult woman, native Russian speaker, even pace, soft low timbre."})
+    ideas = cv.ideas_for(anna, "ru", VoiceLLM(bad))
+    base = cv.fallback_prompts(anna, "Russian")
+    assert ideas.prompts["simple"] == base["simple"] and ideas.prompts["standard"] == base["standard"]
+    assert ideas.prompts["detailed"].startswith("A calm adult woman")
+    assert all(ord(ch) < 128 for p in base.values() for ch in p)  # plain English even for a Russian book
+
+
+def test_voice_ideas_without_a_usable_model_fall_back_to_plain_text():
+    from folivox.voices import character_voice as cv
+
+    boris = ml.Character("Борис", gender="m", age="old", traits="ворчливый")
+    for llm in (None, VoiceLLM("garbage"), VoiceLLM("down")):
+        ideas = cv.ideas_for(boris, "ru", llm)
+        assert not ideas.from_llm and "elderly man" in ideas.prompts["simple"]
+        assert "ворчливый" not in ideas.prompts["standard"]  # a non-English trait is not pasted into the prompt
+
+
+def test_design_all_tells_later_characters_how_to_differ_and_can_regenerate():
+    from folivox.voices import character_voice as cv
+
+    bible, _, _ = run_analyse()
+    llm = VoiceLLM()
+    assert cv.design_all(bible, "ru", llm) == 2
+    assert all(c.voice_prompts for c in bible.characters)
+    assert "none" in llm.prompts[0].split("already described")[1][:120] and "A woman in her thirties" in llm.prompts[1]
+    assert cv.design_all(bible, "ru", llm) == 0  # nothing new: no calls
+    assert len(llm.prompts) == 2
+    first = bible.characters[0].id
+    assert cv.design_all(bible, "ru", llm, speakers={first}) == 1  # one speaker again
+    assert cv.design_all(bible, "ru", llm, regenerate=True) == 2
+
+
+def test_sample_texts_are_the_characters_own_lines():
+    from folivox.voices import character_voice as cv
+
+    markup, _, bible = annotate()
+    anna = next(c.id for c in bible.characters if c.name == "Анна")
+    lines = cv.speaker_lines(markup, CH, anna, max_chars=300)
+    assert lines and all(len(x) >= 25 for x in lines) or lines == []
+    assert cv.sample_texts(markup, CH, anna, "ru")
+    assert cv.sample_texts(None, None, 3, "ru") == cv.sample_texts(None, None, 4, "ru")  # the built-in sample

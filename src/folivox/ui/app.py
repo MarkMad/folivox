@@ -1241,7 +1241,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         if len(description) > 1000:
             raise ApiError("The description is too long (1000 characters at most)")
         return {"cls": cls, "mode": mode, "lang": lang, "texts": texts, "takes": takes, "description": description,
-                "speaker": speaker, "model": model, "reference": reference}
+                "speaker": speaker, "model": model, "reference": reference, "rank": body.get("rank", True) is not False}
 
     async def gen_estimate(request: Request):
         from folivox.voicegen.cloud import COMMERCIAL_NOTICE
