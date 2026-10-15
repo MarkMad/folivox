@@ -197,6 +197,11 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
 .done-card button { background:var(--accent-ink); color:var(--accent); border-color:var(--accent-ink); } .done-card button.chip { background:transparent; color:var(--accent-ink); border-color:var(--accent-ink); }
 .runbar.redo .big-go { font-size:15px; font-weight:500; padding:8px 16px; background:var(--card); color:var(--ink); border-color:var(--line); box-shadow:none; }
 @media (max-width:560px) { .done-card { flex-direction:column; align-items:flex-start; } .runbar.redo .big-go { width:auto; } }
+dialog { border:1px solid var(--line); border-radius:14px; background:var(--card); color:var(--ink); width:min(680px,94vw); padding:20px 22px; }
+dialog::backdrop { background:rgba(0,0,0,.45); }
+dialog pre { max-height:42vh; overflow:auto; white-space:pre-wrap; font:12px/1.45 ui-monospace,Menlo,Consolas,monospace; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dialog .btns { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
+#eng-fish .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; } #eng-fish progress { width:100%; height:8px; }
 .costcard { margin:10px 0; padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:var(--card); }
 .cc-main { display:flex; flex-wrap:wrap; gap:14px 28px; align-items:flex-end; }
 .cc-big { font-size:34px; font-weight:700; line-height:1; color:var(--accent); } .cc-big small { display:block; margin-top:6px; font-size:13px; font-weight:400; color:var(--mute); }
@@ -280,7 +285,27 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
     <label class="f eng-cloud" hidden><span data-i18n="s3.cap">Spending cap, $ (optional)</span><input id="o-max_cost" type="number" min="0.5" step="0.5" placeholder="no cap" data-i18n-attr="placeholder:s3.cap.ph"></label>
   </div>
   <small class="mute" id="eng-blurb"></small>
+  <div id="eng-fish" class="costcard" hidden>
+    <label class="f"><span data-i18n="fish.build">Build</span><select id="o-tts_build"></select></label>
+    <div id="fish-info" class="mute" style="margin-top:8px"></div>
+    <div id="fish-warn" class="warn" style="margin-top:6px"></div>
+    <div class="row"><button type="button" id="fish-licence" class="primary" data-i18n="fish.licence.btn">Read and accept the licence…</button>
+      <button type="button" id="fish-install" class="primary" hidden></button><button type="button" id="fish-remove" hidden data-i18n="fish.remove">Remove</button>
+      <span id="fish-state" class="mute"></span></div>
+    <progress id="fish-progress" max="100" value="0" hidden></progress>
+    <small class="mute" id="fish-attrib" style="display:block;margin-top:8px"></small>
+  </div>
 </section>
+<dialog id="fish-dlg" aria-labelledby="fish-dlg-h">
+  <h3 id="fish-dlg-h" style="margin:0 0 6px"></h3>
+  <div class="mute" data-i18n="fish.licence.intro">Fish Audio models are not part of Folivox. You download them from Hugging Face under the vendor's licence. The main points:</div>
+  <ul id="fish-points"></ul>
+  <small class="mute" data-i18n="fish.licence.disclaimer">This is a summary, not legal advice. The full text is what binds you.</small>
+  <div style="margin-top:10px"><button type="button" id="fish-showfull" data-i18n="fish.licence.full">Show the full licence text</button> <a id="fish-page" href="#" target="_blank" rel="noopener" data-i18n="fish.licence.page">Open it on the vendor's page</a></div>
+  <pre id="fish-full" hidden></pre>
+  <label class="consent" style="margin-top:12px"><input type="checkbox" id="fish-check"><span data-i18n="fish.licence.check">I have read the licence and accept it. I will only clone voices that are mine, synthetic, or of people who agreed.</span></label>
+  <div class="btns"><button type="button" id="fish-cancel" data-i18n="fish.licence.cancel">Cancel</button><button type="button" id="fish-accept" class="primary" disabled data-i18n="fish.licence.accept">Accept</button></div>
+</dialog>
 
 <section id="s-voice" class="disabled"><h2 data-i18n="s4.h">4 · Voice</h2>
   <div id="v-cloud" class="eng-cloud" hidden>
@@ -689,7 +714,7 @@ function drawWave(cv, progress) {
   g.clearRect(0, 0, W, H);
   v.peaks.forEach((p, i) => { const h = Math.max(2 * dpr, H * p / 100); g.fillStyle = i / n < progress ? on : off; g.fillRect(i * step, (H - h) / 2, bw, h); });
 }
-function pickVoice(id) { voice = id; renderVoices(); saveSession(); if (typeof runSummary === "function") runSummary(); }
+function pickVoice(id) { voice = id; renderVoices(); saveSession(); if (typeof runSummary === "function") runSummary(); if (typeof ENG !== "undefined" && ENG.list.length) fishRender(); }
 function playVoice(id) {
   if (vplayer && vplayer.vid === id && !vplayer.paused) { vplayer.pause(); return; }
   if (vplayer) vplayer.pause();
@@ -1245,6 +1270,7 @@ function handle(ev) {
 // -- reading engine: local model or a paid online service ---------------------------------------------------------
 const ENG = { list: [], voices: {}, tm: null, cur() { return this.list.find(e => e.name === $("#o-tts").value) || this.list[0]; }, cloud() { const e = this.cur(); return !!e && e.cloud; } };
 function engOptions() {
+  if (ENG.cur() && ENG.cur().fish) return { tts: ENG.cur().name, tts_build: $("#o-tts_build").value || "auto" };
   if (!ENG.cloud()) return {};
   const cap = $("#o-max_cost").value;
   const base = { tts: ENG.cur().name, tts_model: $("#o-tts_model").value, tts_style: $("#o-tts_style").value, max_cost: cap ? +cap : null };
@@ -1265,10 +1291,74 @@ function engRelabel() {  // after a UI language switch: same selections, new lab
   if (e.cloud) { const m = $("#o-tts_model").value; $("#o-tts_model").innerHTML = engModelOptions(e); $("#o-tts_model").value = m; engMode(); engSaved(); if (ENG.vlist) engRenderVoices(); else engVoices(); renderEst(); }
   runSummary();
 }
+// -- Fish Audio engines (optional): choose a build, accept its licence, install
+const FISH = { st: null, timer: null };
+const FISH_POINTS = { "fish-research": ["research_only", "no_selling", "voices", "no_training", "attribution"], "fish-community": ["commercial", "no_hosting", "voices", "no_training", "attribution"] };
+async function fishRefresh() { try { FISH.st = await api("/api/engines/fish"); } catch (e) { FISH.st = null; } fishRender(); }
+function fishCur() {  // the build the choice resolves to (the server applies the same rule when it renders)
+  const e = ENG.cur(); if (!e || !e.fish || !FISH.st) return null;
+  const bs = FISH.st.builds.filter(b => b.engine === e.name), id = $("#o-tts_build").value;
+  return bs.find(b => b.id === id) || bs.find(b => b.installed) || bs.find(b => b.verified && b.fit !== "no") || bs[0] || null;
+}
+function fishRender() {
+  const e = ENG.cur(), box = $("#eng-fish"); box.hidden = !(e && e.fish && FISH.st); if (box.hidden) return;
+  const bs = FISH.st.builds.filter(b => b.engine === e.name), keep = $("#o-tts_build").value;
+  $("#o-tts_build").innerHTML = `<option value="auto">${esc(t("fish.auto"))}</option>` + bs.map(b => `<option value="${esc(b.id)}">${esc(b.title)}${b.verified ? "" : " — " + esc(t("fish.untested"))}</option>`).join("");
+  $("#o-tts_build").value = bs.some(b => b.id === keep) ? keep : "auto";
+  const b = fishCur(); if (!b) { box.hidden = true; return; }
+  $("#fish-info").textContent = t("fish.size", { gb: b.size_gb, peak: b.peak_gb, ram: b.min_total_gb });
+  const warn = [b.fit !== "ok" ? b.fit_message : "", !b.verified ? t("fish.untested.warn") : "", !b.commercial ? t("fish.noncommercial") : ""];
+  const v = VOICES.find(x => x.id === voice);
+  if (v && v.bundled && !FISH.st.bundled_voices_allowed) warn.push(t("fish.bundledvoice"));
+  $("#fish-warn").textContent = warn.filter(Boolean).join(" ");
+  const running = FISH.inst && FISH.inst.state === "running";
+  $("#fish-licence").hidden = b.accepted; $("#fish-install").hidden = !b.accepted || b.installed || running;
+  $("#fish-install").textContent = t("fish.install", { gb: b.size_gb }); $("#fish-remove").hidden = !b.installed || running;
+  $("#fish-state").textContent = b.installed ? t("fish.installed") : b.accepted ? t("fish.licence.accepted", { version: b.licence_version }) : "";
+  $("#fish-attrib").textContent = t("fish.attrib") + " · " + b.licence_name + " " + b.licence_version;
+}
+$("#o-tts_build").addEventListener("change", fishRender);
+async function fishPoll() {
+  clearTimeout(FISH.timer);
+  try { FISH.inst = await api("/api/engines/fish/install"); } catch (e) { return; }
+  const i = FISH.inst, bar = $("#fish-progress");
+  bar.hidden = i.state !== "running"; if (i.total) bar.value = Math.round(100 * i.done / i.total);
+  if (i.state === "running") { $("#fish-state").textContent = i.total ? t("fish.installing", { name: i.name, done: (i.done / 1e9).toFixed(1), total: (i.total / 1e9).toFixed(1) }) : (i.message || t("fish.preparing")); FISH.timer = setTimeout(fishPoll, 1500); return; }
+  if (i.state === "error") { $("#fish-warn").textContent = i.message; }
+  await fishRefresh();
+}
+$("#fish-install").addEventListener("click", async () => {
+  const b = fishCur(); if (!b) return;
+  try { await api("/api/engines/fish/install", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ build: b.id }) }); $("#fish-install").hidden = true; fishPoll(); }
+  catch (e) { $("#fish-warn").textContent = e.message; }
+});
+$("#fish-remove").addEventListener("click", async () => {
+  const b = fishCur(); if (!b || !confirm(t("fish.confirmrm", { name: b.title }))) return;
+  try { FISH.st = await api("/api/engines/fish/remove", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ build: b.id }) }); fishRender(); }
+  catch (e) { $("#fish-warn").textContent = e.message; }
+});
+$("#fish-licence").addEventListener("click", () => {
+  const b = fishCur(); if (!b) return; const L = FISH.st.licences[b.licence];
+  $("#fish-dlg-h").textContent = t("fish.licence.title", { name: L.name, version: L.version });
+  $("#fish-points").innerHTML = (FISH_POINTS[b.licence] || []).map(id => `<li>${esc(t("fish.points." + id))}</li>`).join("");
+  $("#fish-full").hidden = true; $("#fish-full").textContent = ""; $("#fish-page").href = L.page; $("#fish-check").checked = false; $("#fish-accept").disabled = true;
+  $("#fish-dlg").dataset.licence = b.licence; $("#fish-dlg").showModal();
+});
+$("#fish-showfull").addEventListener("click", async () => {
+  const box = $("#fish-full"); box.hidden = false; box.textContent = t("fish.loading");
+  try { const r = await api("/api/engines/fish/licence/" + $("#fish-dlg").dataset.licence); box.textContent = r.text || (r.error || "") ; }
+  catch (e) { box.textContent = e.message; }
+});
+$("#fish-check").addEventListener("change", () => { $("#fish-accept").disabled = !$("#fish-check").checked; });
+$("#fish-cancel").addEventListener("click", () => $("#fish-dlg").close());
+$("#fish-accept").addEventListener("click", async () => {
+  try { FISH.st = await api("/api/engines/fish/accept", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ licence: $("#fish-dlg").dataset.licence, confirm: $("#fish-check").checked }) }); $("#fish-dlg").close(); fishRender(); }
+  catch (e) { $("#fish-warn").textContent = e.message; $("#fish-dlg").close(); }
+});
 async function engLoad() {
   try {
     const r = await api("/api/tts/engines"); ENG.list = r.engines;
-    const st = await api("/api/settings").catch(() => null), pref = (st && st.kinds && st.kinds.tts && st.kinds.tts.selected) || "cosyvoice3";
+    const st = await api("/api/settings").catch(() => null), pref = (st && st.kinds && st.kinds.tts && st.kinds.tts.selected) || r.default || "cosyvoice3";
     let saved = ""; try { saved = localStorage.getItem("folivox.tts") || ""; } catch (e) {}
     $("#o-tts").innerHTML = engTtsOptions(r.engines);
     $("#o-tts").value = r.engines.some(e => e.name === saved) ? saved : r.engines.some(e => e.name === pref) ? pref : "cosyvoice3";
@@ -1294,6 +1384,7 @@ function engChange() {
   optionsVisibility(); ENG.est = null; $("#eng-est").textContent = ""; runSummary();
   $("#o-takes").parentElement.title = e.cloud ? t("eng.retakebilled") : "";
   $("#eng-blurb").innerHTML = engBlurb(e);
+  if (e.fish) fishRefresh(); else $("#eng-fish").hidden = true;
   if (!e.cloud) return;
   $("#o-tts_model").innerHTML = `<option value="auto">${esc(t("eng.autonew"))}</option>` + e.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${e.prices[m.id] != null ? ` (≈ $${dec(e.prices[m.id], 2)}/${t("u.h")})` : ""}${m.note ? " — " + esc(m.note) : ""}</option>`).join("");
   $("#o-tts_mode").innerHTML = e.voice_modes.map(m => `<option value="${m}">${esc((e.mode_labels || {})[m] || m)}</option>`).join("");

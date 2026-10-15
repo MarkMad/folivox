@@ -23,12 +23,13 @@ from folivox import config
 from folivox import voices as catalog
 from folivox.pipeline import QA_LEVELS, RenderOptions
 from folivox.text import pronounce as pronunciations
+from folivox.ui import fish_routes
 from folivox.ui.jobs import JobManager, chapter_files
 
 STATIC = Path(__file__).parent / "static"
 # Bumped when the page starts using a route that servers started before the update do not have: the page asks
 # /api/ping and, if the server is older, tells the user to restart it.
-API_LEVEL = 2
+API_LEVEL = 3
 MAX_UPLOAD = 200 * 1024 * 1024
 PREVIEW_CHARS = 600
 
@@ -123,6 +124,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                render=None, services: dict | None = None) -> Starlette:
     """``services`` (tests): ``generator(name)``, ``llm(name)`` and ``asr(lang)`` factories replacing the real ones."""
     state = State(data_dir or Path(user_data_dir("folivox", appauthor=False)) / "ui", render)
+    fish_install = fish_routes.Install()
     services = services or {}
     # what the cookie holds: derived from the token, so it survives restarts but the token itself never sits in it
     session = (hmac.new(token.encode(), b"folivox-ui-cookie", "sha256").hexdigest() if token
@@ -548,6 +550,24 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                     keep_voice=bool(o.get("keep_voice", False)) and not mine,
                     tts_voice_name=" ".join(str(o.get("tts_voice_name") or "").split())[:60])
 
+    def check_fish(tts: str, build_id: str, voice) -> None:
+        """Say why a Fish engine cannot start before a job is made (the render checks again)."""
+        from folivox.tts import builds as fb
+        from folivox.tts import fish_check, fish_setup, licences
+
+        try:
+            b = fb.build_for(tts, build_id)
+        except fb.CatalogError as e:
+            raise ApiError(str(e)) from None
+        if not licences.is_accepted(fb.load().licences[b.licence]):
+            raise ApiError(f"Accept the {fb.load().licences[b.licence].name} first (Engine → Licence).", 403,
+                           code="fish_licence")
+        if not fish_setup.is_ready(b):
+            raise ApiError(f"{b.title} is not installed yet ({b.size_gb:.1f} GB download): install it first.", 409,
+                           code="fish_install")
+        if voice is not None and fish_check.is_bundled_voice(voice.path) and not fish_check.bundled_voices_allowed():
+            raise ApiError(fish_check.BUNDLED_VOICES_NOTE, 400, code="fish_voice")
+
     def build_options(body: dict, book_entry: dict, kind: str) -> RenderOptions:
         from folivox.text.stress import MODES
 
@@ -555,17 +575,23 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         book = book_entry["book"]
         voice_id = body.get("voice") or ""
         from folivox.pipeline import is_cloud
+        from folivox.tts import builds as fish_builds
 
-        tts = config.provider("tts", o.get("tts") or None) or "cosyvoice3"
+        explicit_tts = config.provider("tts", o.get("tts") or None)
+        tts = explicit_tts or fish_builds.default_engine()
         cloud = tts in regs_tts_names() and is_cloud(tts)
         v = catalog.find(voice_id) if voice_id else catalog.default_for(book.lang)
+        if not explicit_tts and fish_builds.is_fish_engine(tts) and v is not None:
+            from folivox.tts import fish_check
+
+            if fish_check.is_bundled_voice(v.path) and not fish_check.bundled_voices_allowed():
+                tts = "cosyvoice3"  # the bundled voices are real readers: Fish engines do not use them
         if v is None and not cloud:
             raise ApiError(f"Unknown voice {voice_id!r}")
         stress = o.get("stress", "yo")
         if stress not in MODES:
             raise ApiError(f"stress must be one of {', '.join(MODES)}")
         regs = _registries()
-        tts = config.provider("tts", o.get("tts") or None) or "cosyvoice3"
         asr = config.provider("asr", o.get("asr") or None) or "auto"
         for kind_name, name in (("tts", tts), ("asr", asr)):
             if name not in regs[kind_name].names():
@@ -573,6 +599,9 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         chapters = body.get("chapters") or []
         spec = ",".join(str(int(n)) for n in chapters) or None
         cloud_opts = cloud_options(body, o, tts, v) if cloud else {}
+        tts_build = str(o.get("tts_build") or "auto")
+        if not cloud and fish_builds.is_fish_engine(tts):
+            check_fish(tts, tts_build, v)
         lexicon = pronounce_file(str(body.get("book_id", "")))
         common = dict(voice_wav=v.path if v else None,
                       voice_text=body.get("voice_text") or (v.transcript if v else None), lang=book.lang, **cloud_opts,
@@ -580,7 +609,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                       speed=float(o.get("speed", 1.0)), qa=bool(o.get("qa", True)),
                       qa_threshold=QA_LEVELS.get(str(o.get("qa_level")), QA_LEVELS["standard"]),
                       max_takes=int(o.get("takes") or (2 if cloud else 3)),
-                      tts=tts, asr=asr, device=str(o.get("device", "auto")),
+                      tts=tts, tts_build=tts_build, asr=asr, device=str(o.get("device", "auto")),
                       pronounce=(lexicon,) if lexicon.is_file() else (),
                       cover=custom_cover(str(body.get("book_id", ""))),
                       no_cover=cover_kind(str(body.get("book_id", "")), book) == "none",
@@ -743,7 +772,10 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     async def get_settings(request: Request):
         kinds = {}
         for kind, reg in _registries().items():
-            kinds[kind] = {"default": reg.default, "selected": config.provider(kind) or reg.default,
+            from folivox.tts import builds as fb
+
+            fallback = fb.default_engine() if kind == "tts" else reg.default
+            kinds[kind] = {"default": reg.default, "selected": config.provider(kind) or fallback,
                            "providers": [{"name": p.name, "description": p.description, "local": p.local,
                                           "needs": p.needs} for p in reg.providers()]}
         return JSONResponse({"kinds": kinds, "config_path": str(config.config_path()),
@@ -911,12 +943,21 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             out.append({**cls.capabilities(), **key_state(cls), "local": False, "cloud": True,
                         "voice_modes": list(voice_modes_of(cls)), "per_hour": prices.get(cls.models[0]["id"])
                         if cls.models else None, "prices": prices})
-        order = ["cosyvoice3", "gemini", "cartesia", "elevenlabs", "openai"]  # free first, then by value for money
+        from folivox.tts import builds as fb
+
+        hw = fb.detect_hardware()
+        for name in fb.load().engines():  # Fish engines show only where one of their builds can run
+            bs = [b for b in fb.load().for_engine(name) if hw.platform_tag in b.platforms]
+            if bs:
+                out.append({"name": name, "label": bs[0].title.split(",")[0], "local": True, "cloud": False,
+                            "fish": True, "blurb": "", "models": [], "per_hour": 0,
+                            "builds": [b.id for b in bs]})
+        order = ["cosyvoice3", "fish-drama3", "fish-s2", "gemini", "cartesia", "elevenlabs", "openai"]  # free first
         tags = {"gemini": "cheap and best", "openai": "low quality for non-English"}
         for e in out:
             e["tag"] = tags.get(e["name"], "")
         out.sort(key=lambda e: order.index(e["name"]) if e["name"] in order else len(order))
-        return JSONResponse({"engines": out, "notice": COMMERCIAL_NOTICE})
+        return JSONResponse({"engines": out, "notice": COMMERCIAL_NOTICE, "default": fb.default_engine(hw)})
 
     async def tts_estimate(request: Request):
         from folivox.tts import cost
@@ -1251,6 +1292,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/keys", get_keys),
         Route("/api/keys/{name}", put_key, methods=["PUT"]),
         Route("/api/keys/{name}", delete_key, methods=["DELETE"]),
+        *fish_routes.routes(ApiError, fish_install),
     ]
     app = Starlette(routes=routes, exception_handlers={ApiError: api_error, ValueError: bad_request,
                                                       TypeError: bad_request, KeyError: bad_request})
