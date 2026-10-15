@@ -34,8 +34,14 @@ CREATE TABLE IF NOT EXISTS takes (
 """
 
 
-def chunk_key(text: str, voice_id: str, settings: str) -> str:
-    return hashlib.sha1(f"{settings}\x1f{voice_id}\x1f{text}".encode()).hexdigest()[:24]
+def chunk_key(text: str, voice_id: str, settings: str, speaker: str = "", markup: str = "") -> str:
+    """Identity of a take. ``settings`` carries the engine, its build and the synthesis version; ``speaker`` and
+    ``markup`` (expression tags, delivery cues) are part of the key only when used, so keys of single-voice
+    renders made before multi-voice existed stay valid."""
+    base = f"{settings}\x1f{voice_id}\x1f{text}"
+    if speaker or markup:
+        base += f"\x1f{speaker}\x1f{markup}"
+    return hashlib.sha1(base.encode()).hexdigest()[:24]
 
 
 @dataclass

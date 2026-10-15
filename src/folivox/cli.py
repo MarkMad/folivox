@@ -27,8 +27,8 @@ app = typer.Typer(add_completion=False, no_args_is_help=False, invoke_without_co
                   rich_markup_mode="rich", epilog=MAIN_EPILOG, context_settings={"help_option_names": ["-h", "--help"]},
                   help="Turn e-books (FB2, EPUB, DOCX, PDF, TXT, or ZIP of one) into m4b audiobooks, locally.")
 console = Console()
-COMMANDS = {"render", "inspect", "names", "voices", "providers", "help", "ui", "doctor", "setup", "update", "uninstall",
-            "bench", "--help", "-h", "--version"}
+COMMANDS = {"render", "inspect", "names", "voices", "engines", "providers", "help", "ui", "doctor", "setup",
+            "update", "uninstall", "bench", "--help", "-h", "--version"}
 
 # Option panels of `folivox render --help`
 P_INPUT, P_VOICE, P_TEXT, P_QA = "Input", "Voice", "Text", "Quality control"
@@ -333,8 +333,11 @@ def render(
                                  help="How strict QA is: low | standard | high (stricter means more retakes)."),
     takes: int | None = typer.Option(None, "--takes", rich_help_panel=P_QA, show_default="3 local, 2 cloud",
                                      help="Max takes per fragment when QA finds a mismatch (cloud takes are billed)."),
-    tts: str | None = typer.Option(None, "--tts", rich_help_panel=P_PROVIDERS, show_default="cosyvoice3",
-                                   help="Speech synthesis provider (`folivox providers`)."),
+    tts: str | None = typer.Option(None, "--tts", rich_help_panel=P_PROVIDERS,
+                                   show_default="best installed Fish engine, else cosyvoice3",
+                                   help="Speech synthesis provider (`folivox providers`, `folivox engines`)."),
+    tts_build: str = typer.Option("auto", "--tts-build", rich_help_panel=P_PROVIDERS,
+                                  help="Fish engines: build id from `folivox engines` (auto = best installed)."),
     tts_model: str = typer.Option("auto", "--tts-model", rich_help_panel=P_CLOUD,
                                   help="Cloud engine model id, or auto = the newest the provider offers."),
     tts_voice: str = typer.Option("", "--tts-voice", rich_help_panel=P_CLOUD,
@@ -397,11 +400,21 @@ def render(
     from folivox.pipeline import render as run_render
     from folivox.providers import ProviderError
     book = _load(book_path, lang)
-    tts_name = config.provider("tts", tts) or "cosyvoice3"
+    from folivox.tts import builds as fish_builds
+
+    explicit_tts = config.provider("tts", tts)
+    tts_name = explicit_tts or fish_builds.default_engine()
     cloud = _is_cloud(tts_name)
     voice_path, voice_lang, voice_ref = None, "", None
     if not cloud:
         voice_path, voice_text, voice_lang = _resolve_voice(voice, voice_text, book.lang)
+        if not explicit_tts and tts_name != "cosyvoice3":
+            from folivox.tts import fish_check
+
+            if fish_check.is_bundled_voice(voice_path) and not fish_check.bundled_voices_allowed():
+                console.print("[yellow]The bundled voices are real readers, so Fish engines do not use them: "
+                              "reading with CosyVoice 3. Give your own voice with --voice to use Fish.[/]")
+                tts_name = "cosyvoice3"
     elif tts_mode == "clone":
         voice_ref = _clone_source(voice, own_voice)
     if voice_lang and voice_lang != book.lang:
@@ -431,7 +444,8 @@ def render(
                          model_dir=str(model_dir) if model_dir else None, qa=qa,
         qa_threshold=QA_LEVELS.get(qa_level, QA_LEVELS["standard"]),
                          max_takes=takes or (2 if cloud else 3), mp3=mp3,
-                         bitrate=bitrate, llm=llm.value, tts=tts_name, tts_model=tts_model, tts_voice=tts_voice,
+                         bitrate=bitrate, llm=llm.value, tts=tts_name, tts_build=tts_build, tts_model=tts_model,
+                         tts_voice=tts_voice,
                          tts_style=tts_style, tts_mode=tts_mode, tts_description=tts_describe, voice_ref=voice_ref,
                          max_cost=max_cost, keep_voice=keep_voice, tts_voice_name=voice_name,
                          asr=config.provider("asr", asr) or "auto", cover=cover_path,
@@ -576,6 +590,10 @@ def _resolve_voice(voice: str, voice_text: str | None, book_lang: str = "ru") ->
         raise typer.Exit(2)
     return path, voice_text, ""
 
+
+from folivox.cli_engines import engines_app  # noqa: E402
+
+app.add_typer(engines_app, name="engines", rich_help_panel="Setup")
 
 voices_app = typer.Typer(help="Voice catalog: list, add, remove, design.", no_args_is_help=False,
                          invoke_without_command=True, rich_markup_mode="rich",

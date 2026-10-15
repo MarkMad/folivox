@@ -26,6 +26,7 @@ dependencies = [
     "razdel>=0.5",
     "platformdirs>=4",
     "tomli>=2; python_version < '3.11'",
+    "tomli-w>=1.0",  # config.toml writes: licence acceptance, settings
 ]
 
 [project.optional-dependencies]

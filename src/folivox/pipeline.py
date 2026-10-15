@@ -20,6 +20,7 @@ from folivox.text.pronounce import Lexicon
 
 # Bump when synthesis changes in a way that invalidates cached audio.
 SYNTH_VERSION = "cv3-1"
+FISH_SYNTH_VERSION = "fish-1"  # Fish engines (S2 Pro, Drama 3): own counter, independent of CosyVoice
 
 
 # QA strictness: highest speech-recognition error (CER + rate penalty) a take may have without a retake
@@ -42,6 +43,7 @@ class RenderOptions:
     speed: float = 1.0
     device: str = "auto"
     tts: str = "cosyvoice3"  # provider name in folivox.tts.ENGINES
+    tts_build: str = "auto"  # Fish engines: build id from the catalog (auto = the best installed one that fits)
     asr: str = "auto"  # provider name in folivox.qa.asr.ASR_PROVIDERS
     llm: str = "rl"  # CosyVoice LLM weights: "rl" (fewer content errors, per upstream eval) or "base"
     threads: int | None = None
@@ -163,6 +165,11 @@ def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, event
         settings = f"{opts.tts}|speed={opts.speed}"
         if cloud:
             settings = f"{opts.tts}|{engine.model}"
+        elif is_fish(opts.tts):  # another build or revision sounds different
+            from folivox.tts import builds
+
+            b = builds.build_for(opts.tts, opts.tts_build)
+            settings = f"{opts.tts}|{FISH_SYNTH_VERSION}|{b.id}@{b.revision[:12]}"
     journal.set_plan(planned, voice_id, settings)
     journal.set_meta(book_title=book.title, chapters_selected=[i + 1 for i in selected], settings=settings,
                      lang=copts.lang, qa_threshold=opts.qa_threshold if opts.qa else None)
@@ -439,6 +446,8 @@ def device_label(engine) -> str:
             return "CUDA"
     if dev == "mps":
         return "MPS · Apple GPU"
+    if dev == "mlx":
+        return "MLX · Apple GPU"
     return dev.upper() or "CPU"
 
 
@@ -506,7 +515,15 @@ def assemble(journal: Journal, book: Book, opts: RenderOptions, sample_rate: int
 def _engine_options(opts: RenderOptions) -> dict:
     if opts.tts == "cosyvoice3":
         return {"model_dir": opts.model_dir, "device": opts.device, "threads": opts.threads, "llm": opts.llm}
+    if is_fish(opts.tts):
+        return {"build": opts.tts_build, "device": opts.device}
     return {"device": opts.device}
+
+
+def is_fish(name: str) -> bool:
+    from folivox.tts import builds
+
+    return builds.is_fish_engine(name)
 
 
 def is_cloud(name: str) -> bool:
@@ -573,12 +590,16 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
     opts.lang = languages.get(opts.lang or book.lang or "ru").code
     preflight(opts, events)
     journal = Journal(opts.resolved_work_dir())
-    voice, owned = None, False
+    voice, owned, engine = None, False, None
     try:
         bad = journal.audit()
         if bad:
             events.warning(f"{len(bad)} saved fragment(s) were damaged and will be synthesised again")
         cloud = is_cloud(opts.tts)
+        if is_fish(opts.tts):
+            from folivox.tts import fish_check
+
+            fish_check.check(opts, events)
         if cloud and not opts.accept_cloud:
             from folivox.providers import ProviderError
 
@@ -594,7 +615,6 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
             except Exception as e:  # noqa: BLE001 — QA is optional; do not block the whole render
                 events.warning(f"Speech recognition could not be loaded ({e}); rendering without the quality check")
                 asr = None
-        engine = None
         if cloud:
             if opts.speed != 1.0:
                 events.warning("Reading speed is not applied by cloud engines; the provider's own pace is used")
@@ -625,6 +645,10 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
 
                 with weights.reporting(events.download):
                     engine = load_engine(opts, events)
+                start = getattr(engine, "start", None)
+                if start is not None:  # Fish: load the worker's model and warm it up with the book's voice
+                    events.stage("model", f"Warming up {engine.build.title} (the first call takes a while)")
+                    start(voice)
                 events.stage("model", f"Model loaded in {time.time() - t0:.0f} s ({engine.device})")
                 sample_rate = engine.sample_rate
             events.stage("device", f"Device: {device_label(engine)}")
@@ -638,4 +662,7 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
             journal.set_meta(cloud_voice="", cloud_voice_for="")
         return result
     finally:
+        closer = getattr(engine, "close", None)
+        if closer is not None:
+            closer()  # a Fish worker holds tens of GB: stop it when the render stops
         journal.close()
