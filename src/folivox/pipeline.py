@@ -61,6 +61,7 @@ class RenderOptions:
     pronounce: tuple[Path, ...] = ()  # custom pronunciation files, the book's own last (see folivox.text.pronounce)
     markup: Path | None = None  # speakers and expression tags for the book (see folivox.markup)
     expression_tags: bool = True  # write the markup's expression tags into the model input (Fish engines only)
+    sample_exact: bool = False  # a preview of a chosen passage: read it from its first word, skip nothing
     # cloud engines (paid, the text leaves the computer)
     tts_model: str = "auto"
     tts_voice: str = ""  # provider voice id or name
@@ -215,7 +216,8 @@ def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, event
     def ctx(i: int):
         return MarkupContext(markup, i, tags_ok) if markup is not None else None
 
-    planned = [(chapters[i].title, _plan_preview(chapters[i], copts, opts.preview, ctx(i))) for i in selected]
+    planned = [(chapters[i].title, _plan_preview(chapters[i], copts, opts.preview, ctx(i), opts.sample_exact))
+               for i in selected]
     settings = f"{SYNTH_VERSION}|llm={opts.llm}|speed={opts.speed}"
     if opts.tts != "cosyvoice3":  # keep cache keys of existing CosyVoice renders valid
         settings = f"{opts.tts}|speed={opts.speed}"
@@ -271,7 +273,8 @@ def _head(chapter: Chapter, budget: int) -> tuple[Chapter, bool]:
     return chapter, False
 
 
-def _plan_preview(chapter: Chapter, copts: ChunkOptions, preview: int | None, ctx: MarkupContext | None = None):
+def _plan_preview(chapter: Chapter, copts: ChunkOptions, preview: int | None, ctx: MarkupContext | None = None,
+                  exact: bool = False):
     """Plan a chapter; for a preview only its beginning, so a huge book is not split into thousands of
     fragments to keep the first few hundred characters. The window grows if the title pages eat it."""
     if not preview:
@@ -280,7 +283,7 @@ def _plan_preview(chapter: Chapter, copts: ChunkOptions, preview: int | None, ct
     bare = replace(copts, stress="none", lexicon=None)  # stress is a neural model: run it only on the kept fragments
     while True:
         part, cut = _head(chapter, budget)
-        out = _limit(plan_chapter(part, bare, ctx), preview, copts)
+        out = _limit(plan_chapter(part, bare, ctx), preview, copts, exact)
         if not cut or sum(len(c.source) for c in out) >= preview:
             break
         budget *= 4
@@ -290,11 +293,12 @@ def _plan_preview(chapter: Chapter, copts: ChunkOptions, preview: int | None, ct
     return out
 
 
-def _limit(chunks, preview: int | None, copts: ChunkOptions):
+def _limit(chunks, preview: int | None, copts: ChunkOptions, exact: bool = False):
     """Keep fragments until ``preview`` characters are covered; end with a chapter pause."""
     if not preview:
         return chunks
-    chunks = chunks[_prose_start(chunks):]
+    if not exact:
+        chunks = chunks[_prose_start(chunks):]
     out, n = [], 0
     for c in chunks:
         if n >= preview:

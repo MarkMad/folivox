@@ -247,6 +247,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     # ---- pronunciations: the lexicon of this book (see folivox.text.pronounce) ---------------------------
     PRONOUNCE_LIMIT = 100_000
     SAMPLE_LIMIT = 600
+    SAMPLE_RANGE_LIMIT = 1500
 
     def markup_file(book_id: str) -> Path:
         return state.data_dir / "markup" / f"{Path(book_id).name}.json"
@@ -287,6 +288,19 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             f.parent.mkdir(parents=True, exist_ok=True)
             clean.save(f)
         return JSONResponse(clean.to_dict())
+
+    async def chapter_text(request: Request):
+        """The paragraphs of one chapter, as the markup addresses them (block index, text)."""
+        bid = request.path_params["book_id"]
+        entry = state.book(bid)
+        depth = int(request.query_params.get("depth", 2))
+        n = int(request.query_params.get("chapter", 0))
+        chapters = entry["book"].chapters(depth)
+        if not 0 <= n < len(chapters):
+            raise ApiError("No such chapter", 404)
+        ch = chapters[n]
+        blocks = [{"b": i, "kind": b.kind.value, "text": b.text} for i, b in enumerate(ch.blocks)]
+        return JSONResponse({"chapter": n, "title": ch.title, "headings": ch.headings, "blocks": blocks})
 
     async def expression_tags(request: Request):
         from folivox import markup as mk
@@ -673,6 +687,38 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         return RenderOptions(output=out_dir / stem if mp3 else out_dir / f"{stem}.m4b", chapters=spec, mp3=mp3,
                              bitrate=str(o.get("bitrate", "64k")), **common)
 
+    def sample_from_range(body: dict, entry: dict, kind: str, opts: RenderOptions):
+        """A one-chapter book made of the chosen paragraphs, and its markup, for a preview."""
+        from folivox import markup as mk
+        from folivox.book import Book, Section
+
+        r = body["sample_range"]
+        try:
+            n, first, last, depth = int(r["chapter"]), int(r["block_from"]), int(r["block_to"]), int(r.get("depth", 2))
+        except (KeyError, TypeError, ValueError):
+            raise ApiError("sample_range needs chapter, block_from and block_to") from None
+        chapters = entry["book"].chapters(depth)
+        if kind != "preview" or not 0 <= n < len(chapters):
+            raise ApiError("A passage is played as a preview of an existing chapter")
+        blocks = chapters[n].blocks[first:last + 1]
+        total = sum(len(b.text) for b in blocks)
+        if not blocks or first < 0 or total > SAMPLE_RANGE_LIMIT:
+            raise ApiError(f"Pick 1–{SAMPLE_RANGE_LIMIT} characters of whole paragraphs to listen to")
+        mf = markup_file(str(body.get("book_id", "")))
+        opts.markup = None
+        if mf.is_file() and (body.get("options") or {}).get("use_markup", True):
+            try:
+                m = mk.Markup.load(mf)
+                if m.depth == depth:
+                    sliced = mk.slice_markup(m, n, first, last)
+                    opts.markup = opts.output.parent / "passage.markup.json"
+                    opts.output.parent.mkdir(parents=True, exist_ok=True)
+                    sliced.save(opts.markup)
+            except mk.MarkupError as e:
+                raise ApiError(str(e)) from None
+        opts.sample_exact, opts.preview, opts.chapters, opts.depth = True, total + 50, "1", 2
+        return Book(title=entry["book"].title, lang=entry["book"].lang, sections=[Section(blocks=list(blocks))])
+
     async def start_job(request: Request):
         body = await request.json()
         kind = body.get("kind", "render")
@@ -690,6 +736,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             if kind != "preview" or not text or len(text) > SAMPLE_LIMIT:
                 raise ApiError(f"A test text is 1–{SAMPLE_LIMIT} characters, played as a preview")
             book = Book(title=book.title, lang=book.lang, sections=[Section(blocks=[Block(BlockKind.PARAGRAPH, text)])])
+        if body.get("sample_range"):  # listen to some paragraphs with their speakers and tags
+            book = sample_from_range(body, entry, kind, opts)
         opts.output.parent.mkdir(parents=True, exist_ok=True)
         try:
             job = state.manager.start(kind, body["book_id"], book, opts)
@@ -1300,6 +1348,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/books/{book_id}/markup", get_markup),
         Route("/api/books/{book_id}/markup", put_markup, methods=["PUT"]),
         Route("/api/markup/tags", expression_tags),
+        Route("/api/books/{book_id}/text", chapter_text),
         Route("/api/books/{book_id}/pronounce", get_pronounce),
         Route("/api/books/{book_id}/pronounce", put_pronounce, methods=["PUT"]),
         Route("/api/books/{book_id}/pronounce/sample", pronounce_sample),

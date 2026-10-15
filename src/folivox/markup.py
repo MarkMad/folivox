@@ -239,6 +239,21 @@ class Markup:
             raise MarkupError(f"{path}: not valid JSON ({e})") from None
 
 
+def slice_markup(markup: Markup, chapter: int, first: int, last: int) -> Markup:
+    """The markup of blocks ``first..last`` of a chapter as the markup of a one-chapter book of just those blocks
+    (to listen to a passage with its speakers and tags)."""
+    out = Markup(speakers=[Speaker(**s.__dict__) for s in markup.speakers], expression_tags=markup.expression_tags,
+                 depth=markup.depth)
+    cm = markup.chapters.get(chapter)
+    if cm is None:
+        return out
+    new = out.chapter(0)
+    new.spans = [Span(s.block - first, s.start, s.end, s.speaker, s.tags) for s in cm.spans
+                 if first <= s.block <= last]
+    new.marks = [Mark(m.block - first, m.at, m.tag) for m in cm.marks if first <= m.block <= last]
+    return out
+
+
 def find(book_path: Path) -> Path | None:
     """``<book>.markup.json`` next to the book."""
     p = Path(book_path)

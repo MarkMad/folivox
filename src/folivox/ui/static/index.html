@@ -178,6 +178,23 @@ h1 { padding-right:140px; }
 .kstate.ok { color:var(--seg-done); } .kstate.none { color:var(--mute); }
 @media (max-width:700px) { .eng, .keyrow { grid-template-columns:1fr; } }
 .meta-box { margin-top:12px; padding:10px 14px; border:1px solid var(--line); border-radius:12px; } .meta-box summary { cursor:pointer; font-weight:600; } .meta-box summary small { font-weight:400; margin-left:6px; }
+
+.mk-dlg { width:min(1240px,96vw); height:92vh; padding:0; overflow:hidden; } .mk-dlg[open] { display:flex; flex-direction:column; }
+.mk-top { padding:10px 14px; border-bottom:1px solid var(--line); gap:8px; } .mk-top select { max-width:300px; }
+.mk-body { flex:1; display:grid; grid-template-columns:minmax(0,1fr) 360px; min-height:0; }
+.mk-text { overflow:auto; padding:16px 22px 40px; font-size:16px; line-height:2; outline:none; }
+.mk-side { overflow:auto; padding:12px 14px 30px; border-left:1px solid var(--line); font-size:13.5px; } .mk-side h4 { margin:16px 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--mute); } .mk-side h4:first-child { margin-top:0; }
+.mk-b { margin:0 0 12px; position:relative; padding-left:42px; } .mk-b::before { content:attr(data-lbl); position:absolute; left:0; top:0; width:34px; text-align:right; font-size:10px; color:var(--mute); line-height:3.4; user-select:none; }
+.mk-b.ro { opacity:.55; user-select:none; font-style:italic; }
+.mkseg { background:var(--c, transparent); border-radius:4px; padding:2px 0; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
+.mkchip { display:inline-block; font-size:11px; line-height:1.6; background:var(--accent); color:var(--accent-ink); border-radius:99px; padding:0 8px; margin:0 3px; cursor:pointer; user-select:none; -webkit-user-select:none; vertical-align:1px; }
+.mkchip:hover { text-decoration:line-through; }
+.mk-sp { display:grid; grid-template-columns:22px minmax(0,1fr) auto; gap:4px 8px; align-items:center; padding:6px 8px; border:1px solid var(--line); border-radius:8px; margin-bottom:6px; cursor:pointer; }
+.mk-sp.cur { border-color:var(--accent); } .mk-sp .sw { width:18px; height:18px; border-radius:5px; display:grid; place-items:center; font-size:10px; color:#fff; font-weight:700; }
+.mk-sp input[type=text] { width:100%; min-width:0; padding:2px 6px; } .mk-sp select { width:100%; min-width:0; padding:2px 4px; font-size:12.5px; } .mk-sp .sub { grid-column:2 / 4; display:flex; gap:6px; }
+.mk-taglist { display:flex; flex-wrap:wrap; gap:5px; max-height:170px; overflow:auto; margin-top:6px; } .mk-taglist .chip { font-size:12px; padding:2px 9px; }
+.mk-chars { margin-top:8px; font-size:12.5px; } .mk-chars div { padding:2px 0; border-bottom:1px dashed var(--line); }
+@media (max-width:860px) { .mk-body { grid-template-columns:1fr; grid-template-rows:55% 45%; } .mk-side { border-left:0; border-top:1px solid var(--line); } }
 .pron-box { margin-top:12px; padding:10px 14px; border:1px solid var(--line); border-radius:12px; } .pron-box summary { cursor:pointer; font-weight:600; } .pron-box summary small { font-weight:400; margin-left:6px; }
 .pron-box textarea { width:100%; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; line-height:1.5; white-space:pre; tab-size:4; } .pron-help { margin:8px 0 0; padding-left:18px; } .pron-help li { margin:3px 0; } .pron-try { margin-top:12px; padding-top:10px; border-top:1px dashed var(--line); } .pron-try textarea { width:100%; margin:8px 0; } .pron-try .row { gap:10px; align-items:center; } .pron-warn { margin:6px 0 0; padding-left:18px; color:var(--err, #c0392b); }
 .gp-adv summary { cursor:pointer; color:var(--mute); font-size:13px; } .gp-est { font-size:14px; }
@@ -269,7 +286,45 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
     </div>
     <small class="mute" data-i18n="s1.pron.note">Saved automatically for this book. Only the fragments with changed words are read again.</small>
   </details>
+  <details id="mk-box" class="pron-box" hidden><summary><span data-i18n="mk.h">Voices and markup</span> <small class="mute" data-i18n="mk.sub">several voices, expression tags</small></summary>
+    <div class="row" style="margin-top:10px"><span id="mk-summary" class="mute grow"></span><button type="button" id="mk-open" class="primary" data-i18n="mk.open">Open the editor</button></div>
+    <label class="consent" style="margin-top:8px"><input type="checkbox" id="mk-use" checked><span data-i18n="mk.use">Use the markup when rendering</span></label>
+  </details>
 </section>
+
+<dialog id="mk-dlg" class="mk-dlg" aria-labelledby="mk-title">
+  <div class="mk-top row">
+    <b id="mk-title" data-i18n="mk.title">Markup editor</b>
+    <select id="mk-ch" aria-label="Chapter" data-i18n-attr="aria-label:mk.chapter"></select>
+    <button type="button" id="mk-prev" aria-label="Previous chapter" data-i18n-attr="aria-label:mk.prev">&#8249;</button><button type="button" id="mk-next" aria-label="Next chapter" data-i18n-attr="aria-label:mk.next">&#8250;</button>
+    <span class="grow"></span><span id="mk-state" class="mute"></span>
+    <button type="button" id="mk-undo" data-i18n="mk.undo">Undo</button><button type="button" id="mk-redo" data-i18n="mk.redo">Redo</button>
+    <button type="button" id="mk-save" class="primary" data-i18n="mk.save">Save</button><button type="button" id="mk-close" data-i18n="mk.close">Close</button>
+  </div>
+  <div class="mk-body">
+    <div id="mk-text" class="mk-text" tabindex="0"></div>
+    <aside class="mk-side">
+      <h4 data-i18n="mk.speakers">Speakers</h4>
+      <div class="mute" id="mk-hint" data-i18n="mk.hint" style="margin-bottom:8px">Select text, then click a speaker (or press its number).</div>
+      <div id="mk-speakers"></div>
+      <div class="row" style="margin-top:6px"><button type="button" id="mk-addsp" class="chip" data-i18n="mk.add">+ Add speaker</button><button type="button" id="mk-clear" class="chip" data-i18n="mk.clear">Clear selection</button></div>
+      <div class="row" style="margin-top:10px"><button type="button" id="mk-listen" class="primary" data-i18n="mk.listen">&#9654; Listen to the selection</button><span id="mk-listenmsg" class="mute"></span></div>
+      <h4 data-i18n="mk.tags">Expression tags</h4>
+      <label class="consent"><input type="checkbox" id="mk-exprtags" checked><span data-i18n="mk.tags.on">Use expression tags (Fish engines)</span></label>
+      <input type="search" id="mk-tagq" style="width:100%;margin-top:6px" placeholder="Search tags" data-i18n-attr="placeholder:mk.tags.search">
+      <small class="mute" data-i18n="mk.tags.hint">Put the cursor where the effect should happen, then click a tag.</small>
+      <div id="mk-taglist" class="mk-taglist"></div>
+      <h4 data-i18n="mk.auto.h">Automatic markup</h4>
+      <label class="f"><span data-i18n="mk.model">Model</span><select id="mk-model"></select></label>
+      <label class="consent" style="margin-top:6px"><input type="checkbox" id="mk-llmtags"><span data-i18n="mk.llmtags">Also place expression tags (off by default)</span></label>
+      <label class="consent" style="margin-top:4px"><input type="checkbox" id="mk-onlych"><span data-i18n="mk.onlych">Only this chapter</span></label>
+      <div class="row" style="margin-top:8px"><button type="button" id="mk-analyse" class="chip" data-i18n="mk.analyse">Analyse characters</button><button type="button" id="mk-auto" class="chip" data-i18n="mk.auto">Mark speakers automatically</button><button type="button" id="mk-stop" class="chip" hidden data-i18n="mk.stop">Stop</button></div>
+      <progress id="mk-prog" max="100" value="0" hidden style="width:100%;margin-top:8px"></progress>
+      <div id="mk-llmmsg" class="mute" style="margin-top:6px"></div>
+      <div id="mk-chars" class="mk-chars"></div>
+    </aside>
+  </div>
+</dialog>
 
 <section id="s-chapters" class="disabled"><h2 data-i18n="s2.h">2 · Chapters</h2>
   <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:6px"><span data-i18n="s2.lang">Language</span> <select id="lang"></select></label>
@@ -624,7 +679,297 @@ async function savePron() {
 }
 $("#pron-text").addEventListener("input", () => { clearTimeout(pronTimer); $("#pron-msg").textContent = ""; pronTimer = setTimeout(() => savePron().catch(() => {}), 700); });
 // A server started before an update lacks the routes this page uses: say so instead of failing one feature at a time.
-const PAGE_API = 2;
+
+// ---- markup editor: who speaks each part, expression tags (see docs/markup.md) ---------------------------------
+const MK = { data: null, bible: null, tags: null, ch: 0, blocks: [], shown: 0, undo: [], redo: [], dirty: false, sel: null, cur: 1, audio: null, llm: null };
+const MK_PAGE = 300, MK_LISTEN_MAX = 1500;
+const mkColor = (id) => id ? `hsl(${(id * 47) % 360} 70% 55% / .28)` : "transparent";
+const mkSwatch = (id) => id ? `hsl(${(id * 47) % 360} 65% 45%)` : "var(--mute)";
+const JSONH = { "Content-Type": "application/json" };
+const mkEmpty = () => ({ version: 1, depth: +$("#depth").value || 2, expression_tags: true, speakers: [{ id: 0, name: t("mk.narrator"), voice: "", gender: "", aliases: [], notes: "" }], chapters: {} });
+const mkSpeaker = (id) => MK.data.speakers.find(s => s.id === id);
+function mkCh(create) { const k = String(MK.ch); let c = MK.data.chapters[k]; if (!c && create) c = MK.data.chapters[k] = { title: "", sig: "", spans: [], marks: [] }; return c; }
+function mkSnap() { MK.undo.push(JSON.stringify(MK.data)); if (MK.undo.length > 100) MK.undo.shift(); MK.redo = []; MK.dirty = true; }
+function mkState() {
+  $("#mk-state").textContent = MK.dirty ? t("mk.unsavedmark") : "";
+  $("#mk-undo").disabled = !MK.undo.length; $("#mk-redo").disabled = !MK.redo.length;
+}
+function mkSummary() {
+  if (!MK.data) return;
+  const spans = Object.values(MK.data.chapters).reduce((n, c) => n + c.spans.length, 0);
+  $("#mk-summary").textContent = spans ? t("mk.summary", { n: MK.data.speakers.length, m: spans }) : t("mk.none");
+}
+async function loadMk() {
+  if (!book) return; const id = book.book_id; MK.bookId = id;
+  try { const r = await api(`/api/books/${id}/markup`); if (MK.bookId !== id) return; MK.data = r; MK.dirty = false; MK.undo = []; MK.redo = []; $("#mk-box").hidden = false; mkSummary(); }
+  catch (e) { $("#mk-box").hidden = true; }
+}
+// segments of a block: the same cut rules as the server (folivox.markup.Markup.segments)
+function mkSegments(b, text) {
+  const c = mkCh(false);
+  if (!c) return [{ s: 0, e: text.length, sp: 0, tags: [], span: null, marks: [] }];
+  const spans = c.spans.filter(x => x.b === b && x.s >= 0 && x.s < x.e && x.e <= text.length).sort((a, z) => a.s - z.s);
+  const marks = c.marks.filter(m => m.b === b && m.at > 0 && m.at < text.length);
+  const cuts = [...new Set([0, text.length, ...spans.flatMap(x => [x.s, x.e]), ...marks.map(m => m.at)])].sort((a, z) => a - z);
+  const out = [];
+  for (let i = 0; i + 1 < cuts.length; i++) {
+    const a = cuts[i], z = cuts[i + 1], span = spans.find(x => x.s <= a && z <= x.e) || null;
+    out.push({ s: a, e: z, sp: span ? span.sp : 0, span: span && span.s === a ? span : null, marks: marks.filter(m => m.at === a) });
+  }
+  return out;
+}
+const mkChip = (tag, attrs) => `<span class="mkchip" contenteditable="false" ${attrs} title="${esc(t("mk.chip.rm"))}">[${esc(tag)}]</span>`;
+function mkBlockHtml(blk) {
+  if (blk.text.includes("\n")) return `<div class="mk-b ro" data-lbl="${blk.b}" title="${esc(t("mk.poem"))}">${esc(blk.text)}</div>`;
+  const parts = [];
+  for (const g of mkSegments(blk.b, blk.text)) {
+    for (const m of g.marks) parts.push(mkChip(m.tag, `data-mb="${blk.b}" data-mat="${m.at}"`));
+    if (g.span) for (const tg of g.span.tags) parts.push(mkChip(tg, `data-sb="${blk.b}" data-ss="${g.span.s}"`));
+    const sp = mkSpeaker(g.sp);
+    parts.push(`<span class="mkseg" data-s="${g.s}" data-sp="${g.sp}" style="--c:${mkColor(g.sp)}" title="${esc(sp ? sp.name : "")}">${esc(blk.text.slice(g.s, g.e))}</span>`);
+  }
+  return `<div class="mk-b" data-b="${blk.b}" data-lbl="${blk.b}">${parts.join("")}</div>`;
+}
+function mkRender(keepScroll = true) {
+  const pane = $("#mk-text"), top = keepScroll ? pane.scrollTop : 0;
+  const shown = MK.blocks.slice(0, MK.shown);
+  pane.innerHTML = shown.map(mkBlockHtml).join("") + (MK.blocks.length > MK.shown ? `<button type="button" id="mk-more" class="chip">${esc(t("mk.more"))}</button>` : "");
+  pane.scrollTop = top; mkSpeakers(); mkState(); mkSummary();
+}
+async function mkLoadChapter(n) {
+  MK.ch = n; MK.sel = null; $("#mk-ch").value = String(n);
+  const r = await api(`/api/books/${book.book_id}/text?chapter=${n}&depth=${MK.data.depth || 2}`);
+  MK.blocks = r.blocks.filter(b => /\S/.test(b.text)); MK.shown = MK_PAGE; mkRender(false); $("#mk-text").scrollTop = 0;
+}
+// ---- selection --------------------------------------------------------------------------------------------------
+function mkPos(node, off) {
+  const segs = [...$("#mk-text").querySelectorAll(".mkseg")]; if (!segs.length) return null;
+  const at = (seg, o) => ({ b: +seg.closest(".mk-b").dataset.b, o: +seg.dataset.s + o });
+  for (const seg of segs) {
+    const probe = document.createRange(); probe.selectNodeContents(seg);
+    const c = probe.comparePoint(node, off);
+    if (c === 0) { const r = document.createRange(); r.setStart(seg, 0); r.setEnd(node, off); return at(seg, r.toString().length); }
+    if (c < 0) return at(seg, 0);
+  }
+  const last = segs[segs.length - 1]; return at(last, last.textContent.length);
+}
+function mkReadSelection() {
+  const sel = getSelection(); if (!sel.rangeCount) return null;
+  const r = sel.getRangeAt(0), pane = $("#mk-text");
+  if (!pane.contains(r.startContainer) || !pane.contains(r.endContainer)) return null;
+  const a = mkPos(r.startContainer, r.startOffset), z = mkPos(r.endContainer, r.endOffset);
+  return a && z ? { a, z, collapsed: r.collapsed } : null;
+}
+document.addEventListener("selectionchange", () => { if ($("#mk-dlg").open) { const s = mkReadSelection(); if (s) MK.sel = s; } });
+function mkRanges(sel) {
+  const out = [];
+  for (const blk of MK.blocks) {
+    if (blk.b < sel.a.b || blk.b > sel.z.b || blk.text.includes("\n")) continue;
+    const s = blk.b === sel.a.b ? sel.a.o : 0, e = blk.b === sel.z.b ? sel.z.o : blk.text.length;
+    if (e > s) out.push({ b: blk.b, s, e });
+  }
+  return out;
+}
+// ---- editing ----------------------------------------------------------------------------------------------------
+function mkApply(b, s, e, sp, tags) {
+  const c = mkCh(true), kept = [];
+  for (const x of c.spans) {
+    if (x.b !== b || x.e <= s || x.s >= e) { kept.push(x); continue; }
+    if (x.s < s) kept.push({ ...x, e: s });
+    if (x.e > e) kept.push({ b, s: e, e: x.e, sp: x.sp, tags: [] });
+  }
+  if (sp !== 0 || tags.length) kept.push({ b, s, e, sp, tags });
+  c.spans = kept.sort((p, q) => p.b - q.b || p.s - q.s);
+}
+function mkHint(msg, err) { $("#mk-hint").innerHTML = err ? `<span class="err">${esc(msg)}</span>` : esc(msg); }
+function mkAssign(sp) {
+  const rs = MK.sel ? mkRanges(MK.sel) : [];
+  if (!rs.length) { mkHint(t("mk.needsel"), true); return; }
+  mkSnap(); rs.forEach(r => mkApply(r.b, r.s, r.e, sp, [])); MK.cur = sp; mkRender(); mkHint(t("mk.hint"));
+}
+function mkClear() {
+  const rs = MK.sel ? mkRanges(MK.sel) : [];
+  if (!rs.length) { mkHint(t("mk.needsel"), true); return; }
+  mkSnap(); const c = mkCh(true);
+  rs.forEach(r => { mkApply(r.b, r.s, r.e, 0, []); c.marks = c.marks.filter(m => !(m.b === r.b && m.at >= r.s && m.at < r.e)); }); mkRender();
+}
+function mkInsertTag(tag) {
+  const sel = MK.sel; if (!sel) { mkHint(t("mk.needcaret"), true); return; }
+  const blk = MK.blocks.find(x => x.b === sel.a.b); if (!blk || blk.text.includes("\n")) { mkHint(t("mk.needcaret"), true); return; }
+  mkSnap(); const c = mkCh(true), o = sel.a.o;
+  if (o <= 0) {  // at the very start: a delivery tag of the passage that starts there
+    let span = c.spans.find(x => x.b === blk.b && x.s === 0);
+    if (!span) { const next = Math.min(blk.text.length, ...c.spans.filter(x => x.b === blk.b && x.s > 0).map(x => x.s), ...c.marks.filter(m => m.b === blk.b).map(m => m.at)); span = { b: blk.b, s: 0, e: next, sp: 0, tags: [] }; c.spans.push(span); }
+    if (!span.tags.includes(tag)) span.tags.push(tag);
+  } else if (o < blk.text.length) {
+    if (!c.marks.some(m => m.b === blk.b && m.at === o && m.tag === tag)) c.marks.push({ b: blk.b, at: o, tag });
+    c.marks.sort((p, q) => p.b - q.b || p.at - q.at);
+  } else { MK.undo.pop(); mkHint(t("mk.needcaret"), true); return; }
+  mkRender();
+}
+$("#mk-text").addEventListener("click", (ev) => {
+  if (ev.target.id === "mk-more") { MK.shown += MK_PAGE; mkRender(); return; }
+  const chip = ev.target.closest(".mkchip"); if (!chip) return;
+  mkSnap(); const c = mkCh(true);
+  if (chip.dataset.mb !== undefined) c.marks = c.marks.filter(m => !(m.b === +chip.dataset.mb && m.at === +chip.dataset.mat && `[${m.tag}]` === chip.textContent));
+  else { const sp = c.spans.find(x => x.b === +chip.dataset.sb && x.s === +chip.dataset.ss); if (sp) sp.tags = sp.tags.filter(g => `[${g}]` !== chip.textContent); }
+  mkRender();
+});
+function mkUndo(redo) {
+  const from = redo ? MK.redo : MK.undo, to = redo ? MK.undo : MK.redo; if (!from.length) return;
+  to.push(JSON.stringify(MK.data)); MK.data = JSON.parse(from.pop()); MK.dirty = true; mkRender();
+}
+// ---- speakers ---------------------------------------------------------------------------------------------------
+function mkVoiceOptions(cur) {
+  const have = new Set(VOICES.map(v => v.id));
+  return `<option value="">${esc(t("mk.mainvoice"))}</option>` + VOICES.map(v => `<option value="${esc(v.id)}" ${v.id === cur ? "selected" : ""}>${esc(v.name)}${v.bundled ? " *" : ""}</option>`).join("")
+    + (cur && !have.has(cur) ? `<option value="${esc(cur)}" selected>${esc(cur)}</option>` : "");
+}
+function mkSpeakers() {
+  if (!MK.data) return; const used = {};
+  Object.values(MK.data.chapters).forEach(c => c.spans.forEach(s => { used[s.sp] = (used[s.sp] || 0) + 1; }));
+  $("#mk-speakers").innerHTML = MK.data.speakers.map(s => `<div class="mk-sp ${s.id === MK.cur ? "cur" : ""}" data-id="${s.id}">
+    <span class="sw" style="background:${mkSwatch(s.id)}" title="${esc(t("mk.press", { n: s.id }))}">${s.id}</span>
+    <input type="text" data-f="name" value="${esc(s.name)}" aria-label="${esc(t("mk.name"))}"><span class="mute">${used[s.id] || (s.id ? 0 : "")}</span>
+    <div class="sub">${s.id ? `<select data-f="voice" aria-label="${esc(t("mk.voice"))}">${mkVoiceOptions(s.voice)}</select><button type="button" class="chip" data-rm="${s.id}" title="${esc(t("mk.rmsp"))}">&#10005;</button>` : `<span class="mute">${esc(t("mk.narrator.note"))}</span>`}</div></div>`).join("");
+  $("#mk-exprtags").checked = MK.data.expression_tags !== false;
+}
+$("#mk-speakers").addEventListener("mousedown", (ev) => { if (!ev.target.closest("input, select")) ev.preventDefault(); });
+$("#mk-speakers").addEventListener("click", (ev) => {
+  const rm = ev.target.closest("[data-rm]");
+  if (rm) { const id = +rm.dataset.rm, sp = mkSpeaker(id); if (!confirm(t("mk.rmsp.confirm", { name: sp.name }))) return; mkSnap();
+    Object.values(MK.data.chapters).forEach(c => { c.spans = c.spans.filter(s => s.sp !== id); }); MK.data.speakers = MK.data.speakers.filter(s => s.id !== id); mkRender(); return; }
+  if (ev.target.closest("input, select")) return;
+  const row = ev.target.closest(".mk-sp"); if (row) mkAssign(+row.dataset.id);
+});
+$("#mk-speakers").addEventListener("change", (ev) => {
+  const row = ev.target.closest(".mk-sp"), f = ev.target.dataset.f; if (!row || !f) return;
+  mkSnap(); mkSpeaker(+row.dataset.id)[f] = ev.target.value; MK.dirty = true; mkState(); if (f === "name") mkRender();
+});
+$("#mk-addsp").onclick = () => {
+  const id = [...Array(16).keys()].find(i => !mkSpeaker(i)); if (id === undefined) { mkHint(t("mk.max"), true); return; }
+  mkSnap(); MK.data.speakers.push({ id, name: t("mk.newname", { n: id }), voice: "", gender: "", aliases: [], notes: "" }); MK.data.speakers.sort((a, b) => a.id - b.id); MK.cur = id; mkRender();
+};
+$("#mk-clear").onclick = mkClear;
+$("#mk-exprtags").onchange = (ev) => { mkSnap(); MK.data.expression_tags = ev.target.checked; mkState(); };
+document.querySelectorAll("#mk-dlg button").forEach(b => b.addEventListener("mousedown", (ev) => ev.preventDefault()));  // keep the text selected
+// ---- tags -------------------------------------------------------------------------------------------------------
+function mkTagList() {
+  if (!MK.tags) return; const q = $("#mk-tagq").value.trim().toLowerCase();
+  $("#mk-taglist").innerHTML = MK.tags.tags.filter(x => !q || x.tag.includes(q) || x.category.includes(q)).map(x => `<button type="button" class="chip" data-tag="${esc(x.tag)}" title="${esc(x.category)}">${esc(x.tag)}</button>`).join("");
+}
+$("#mk-tagq").addEventListener("input", mkTagList);
+$("#mk-taglist").addEventListener("click", (ev) => { const b = ev.target.closest("[data-tag]"); if (b) mkInsertTag(b.dataset.tag); });
+// ---- save, open, close -------------------------------------------------------------------------------------------
+async function mkSave() {
+  if (!MK.dirty) return true;
+  try {
+    const r = await api(`/api/books/${book.book_id}/markup`, { method: "PUT", headers: JSONH, body: JSON.stringify(MK.data) });
+    MK.data = r; MK.dirty = false; mkRender(); $("#mk-state").textContent = t("saved"); return true;
+  } catch (e) { mkHint(e.message, true); return false; }
+}
+$("#mk-save").onclick = mkSave;
+$("#mk-undo").onclick = () => mkUndo(false); $("#mk-redo").onclick = () => mkUndo(true);
+$("#mk-open").onclick = async () => {
+  try { MK.data = await api(`/api/books/${book.book_id}/markup`); } catch (e) { MK.data = mkEmpty(); }
+  if (!MK.data.speakers.length) MK.data = mkEmpty();
+  MK.undo = []; MK.redo = []; MK.dirty = false; MK.sel = null; MK.cur = 1;
+  MK.data.depth = MK.data.depth || +$("#depth").value || 2;
+  if (!MK.tags) { try { MK.tags = await api("/api/markup/tags"); } catch (e) { MK.tags = { tags: [] }; } }
+  mkTagList();
+  $("#mk-ch").innerHTML = book.chapters.map((c, i) => `<option value="${i}">${esc(c.n + ". " + c.title)}</option>`).join("");
+  $("#mk-dlg").showModal(); mkLlmModels(); await mkLoadChapter(0); $("#mk-text").focus();
+};
+function mkClose() { if (MK.dirty && !confirm(t("mk.unsaved"))) return; if (MK.audio) MK.audio.pause(); $("#mk-dlg").close(); loadMk(); }
+$("#mk-close").onclick = mkClose;
+$("#mk-dlg").addEventListener("cancel", (ev) => { ev.preventDefault(); mkClose(); });
+$("#mk-ch").onchange = async (ev) => { await mkLoadChapter(+ev.target.value); };
+$("#mk-prev").onclick = () => { if (MK.ch > 0) mkLoadChapter(MK.ch - 1); };
+$("#mk-next").onclick = () => { if (MK.ch < book.chapters.length - 1) mkLoadChapter(MK.ch + 1); };
+$("#mk-dlg").addEventListener("keydown", (ev) => {
+  const typing = ev.target.matches("input, select, textarea"), mod = ev.metaKey || ev.ctrlKey;
+  if (mod && ev.key.toLowerCase() === "s") { ev.preventDefault(); mkSave(); }
+  else if (mod && ev.key.toLowerCase() === "z") { ev.preventDefault(); mkUndo(ev.shiftKey); }
+  else if (!typing && !mod && /^[0-9]$/.test(ev.key) && mkSpeaker(+ev.key)) { ev.preventDefault(); mkAssign(+ev.key); }
+});
+// ---- listen to the selection with the current voices ---------------------------------------------------------------
+$("#mk-listen").onclick = async () => {
+  const msg = $("#mk-listenmsg"), rs = MK.sel ? mkRanges(MK.sel) : [];
+  if (ENG.cloud()) { msg.textContent = t("mk.listen.local"); return; }
+  if (!rs.length && MK.sel) rs.push({ b: MK.sel.a.b });
+  if (!rs.length) { msg.textContent = t("mk.needsel"); return; }
+  const from = rs[0].b, to = rs[rs.length - 1].b, chars = MK.blocks.filter(b => b.b >= from && b.b <= to).reduce((n, b) => n + b.text.length, 0);
+  if (chars > MK_LISTEN_MAX) { msg.textContent = t("mk.listen.toolong", { n: MK_LISTEN_MAX }); return; }
+  if (!await mkSave()) return;
+  msg.textContent = t("mk.listening"); $("#mk-listen").disabled = true;
+  try {
+    const j = await api("/api/jobs", { method: "POST", headers: JSONH, body: JSON.stringify({ kind: "preview", book_id: book.book_id, voice, chapters: [1], options: options(),
+      sample_range: { chapter: MK.ch, block_from: from, block_to: to, depth: MK.data.depth || 2 } }) });
+    for (;;) {
+      await new Promise(r => setTimeout(r, 1000));
+      const s = await api(`/api/jobs/${j.id}`);
+      if (s.state === "running") continue;
+      if (s.state === "done") { if (MK.audio) MK.audio.pause(); MK.audio = new Audio(tok(`/api/jobs/${j.id}/chapters/1`)); await MK.audio.play(); msg.textContent = t("mk.playing"); }
+      else msg.innerHTML = `<span class="err">${esc(s.error || t("mk.listen.failed"))}</span>`;
+      break;
+    }
+  } catch (e) { msg.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  finally { $("#mk-listen").disabled = false; }
+};
+// ---- automatic markup (language model) ----------------------------------------------------------------------------------
+async function mkLlmModels() {
+  try {
+    const m = await api("/api/llm/models"), seen = new Set(), opts = [];
+    const add = (name, note) => { if (name && !seen.has(name)) { seen.add(name); opts.push(`<option value="${esc(name)}">${esc(name)}${note ? " - " + esc(note) : ""}</option>`); } };
+    add(m.configured, t("mk.model.configured"));
+    m.installed.filter(x => x.startsWith("gemma4")).forEach(x => add(x, t("mk.model.installed")));
+    add(m.recommended, t("mk.model.recommended"));
+    m.installed.filter(x => !x.startsWith("gemma4") && !x.includes("embed")).forEach(x => add(x, t("mk.model.installed")));
+    $("#mk-model").innerHTML = opts.join("");
+    const pick = m.configured || m.installed.find(x => x === m.recommended) || m.installed.find(x => x.startsWith("gemma4"));
+    if (pick) $("#mk-model").value = pick;
+  } catch (e) { $("#mk-model").innerHTML = ""; }
+}
+async function mkLlm(task) {
+  if (!await mkSave()) return;
+  const body = { task, model: $("#mk-model").value || undefined, expression_tags: $("#mk-llmtags").checked, depth: MK.data.depth || 2,
+    chapters: task === "auto" && $("#mk-onlych").checked ? [MK.ch + 1] : undefined };
+  $("#mk-llmmsg").textContent = ""; $("#mk-chars").innerHTML = "";
+  try { await api(`/api/books/${book.book_id}/llm/start`, { method: "POST", headers: JSONH, body: JSON.stringify(body) }); }
+  catch (e) { $("#mk-llmmsg").innerHTML = `<span class="err">${esc(e.message)}</span>`; return; }
+  ["#mk-analyse", "#mk-auto"].forEach(s => $(s).disabled = true); $("#mk-stop").hidden = false; $("#mk-prog").hidden = false;
+  for (;;) {
+    await new Promise(r => setTimeout(r, 1500));
+    let s; try { s = await api(`/api/books/${book.book_id}/llm/status`); } catch (e) { break; }
+    $("#mk-prog").value = s.total ? Math.round(100 * s.done / s.total) : 0;
+    $("#mk-llmmsg").textContent = s.state === "running" ? `${s.stage} ${s.done}/${s.total} ${s.message}` : "";
+    if (s.state === "running") continue;
+    if (s.state === "error") $("#mk-llmmsg").innerHTML = `<span class="err">${esc(s.message)}</span>`;
+    else if (task === "analyse") await mkShowChars();
+    else { const d = await api(`/api/books/${book.book_id}/markup`); MK.data = d; MK.dirty = false; MK.undo = []; MK.redo = []; await mkLoadChapter(MK.ch);
+      $("#mk-llmmsg").textContent = t("mk.auto.done", { m: s.stats.marked || 0, f: s.stats.fell_back || 0 }); await mkShowChars(); }
+    break;
+  }
+  ["#mk-analyse", "#mk-auto"].forEach(s => $(s).disabled = false); $("#mk-stop").hidden = true; $("#mk-prog").hidden = true;
+}
+async function mkShowChars() {
+  try { MK.bible = await api(`/api/books/${book.book_id}/characters`); } catch (e) { return; }
+  const cs = MK.bible.characters.filter(c => c.lines > 0).sort((a, b) => b.lines - a.lines);
+  if (!cs.length) { $("#mk-chars").innerHTML = ""; return; }
+  $("#mk-chars").innerHTML = `<b>${esc(t("mk.chars.voices", { n: MK.bible.voices_needed }))}</b>` + cs.map(c => `<div>${esc(c.name)}${c.aliases.length ? " (" + esc(c.aliases.slice(0, 3).join(", ")) + ")" : ""} - ${esc(c.gender || "?")}, ${c.lines}</div>`).join("")
+    + `<button type="button" class="chip" id="mk-usechars" style="margin-top:8px">${esc(t("mk.chars.use"))}</button>`;
+}
+$("#mk-chars").addEventListener("click", (ev) => {
+  if (!ev.target.closest("#mk-usechars") || !MK.bible) return; mkSnap();
+  MK.bible.characters.filter(c => c.id > 0 && c.lines > 0).forEach(c => {
+    let sp = mkSpeaker(c.id); if (!sp) { sp = { id: c.id, name: c.name, voice: "", gender: c.gender, aliases: c.aliases, notes: c.traits }; MK.data.speakers.push(sp); }
+    else if (/^Speaker \d+$/.test(sp.name)) sp.name = c.name;
+  });
+  MK.data.speakers.sort((a, b) => a.id - b.id); mkRender();
+});
+$("#mk-analyse").onclick = () => mkLlm("analyse"); $("#mk-auto").onclick = () => mkLlm("auto");
+$("#mk-stop").onclick = () => api(`/api/books/${book.book_id}/llm/cancel`, { method: "POST" });
+const PAGE_API = 3;
 async function checkServer() {
   try { const r = await api("/api/ping"); if (!(r.api >= PAGE_API)) $("#stale").hidden = false; }
   catch (e) { if (e.message === "Not Found") $("#stale").hidden = false; }  // a server too old to have /api/ping
@@ -632,7 +977,7 @@ async function checkServer() {
 function renderBookInfo() { const b = book;$("#book-info").innerHTML = `<b style="color:var(--ink)">${esc(b.title)}</b> — ${esc(b.author || t("book.noauthor"))} · ${esc(b.lang_name)} · ${esc(b.format.toUpperCase())}${b.year ? " · " + esc(b.year) : ""} · ${t("book.chars", { n: num(b.chars) })} · ≈ ${fmt(b.estimated_seconds)}`; }
 function setBook(b, keep, lang) {
   book = b; showCover(b.cover || "");
-  renderBookInfo(); loadMeta(); loadPron();
+  renderBookInfo(); loadMeta(); loadPron(); loadMk();
   $("#lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}" ${c === b.lang ? "selected" : ""}>${n}</option>`).join("");
   if (lang) $("#lang").value = lang;
   renderChapters(keep);
@@ -985,7 +1330,8 @@ async function restoreSession() {
 function options() {
   const v = (id) => $("#o-" + id).value;
   return { speed: +v("speed"), max_chars: +v("max_chars"), stress: v("stress"), takes: +v("takes"), qa: v("qa") === "1", qa_level: v("qa_level"),
-           mp3: v("mp3") === "1", output_dir: v("output_dir"), device: v("device"), depth: +$("#depth").value || 2, ...engOptions() };
+           mp3: v("mp3") === "1", output_dir: v("output_dir"), device: v("device"), depth: +$("#depth").value || 2, ...engOptions(),
+           use_markup: $("#mk-use").checked, expression_tags: !(MK.data && MK.data.expression_tags === false) };
 }
 async function start(kind, sample) {
   const chapters = sample ? [1] : selected();

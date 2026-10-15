@@ -40,6 +40,17 @@ Routes: `GET /api/engines/fish`, `GET /api/engines/fish/licence/{id}`, `POST …
 licence is not accepted, the build is not installed or the voice is a bundled one.
 See [Fish Audio engines](fish-engines.md).
 
+## Markup editor (implemented)
+
+*1 · Book* has a **Voices and markup** box that opens a full-screen editor: the chapter text with coloured speaker
+passages, a speaker panel (names, voices, add/remove), a tag picker built from the tag database, assign/clear on
+the selection, listen to a selected passage with the current voices, undo/redo/save, and the buttons for the
+automatic markup. Routes: `GET /api/books/{id}/text?chapter=N` (the paragraphs the markup addresses),
+`GET/PUT /api/books/{id}/markup`, `GET/PUT /api/books/{id}/characters`, `POST /api/books/{id}/llm/start|cancel`,
+`GET /api/books/{id}/llm/status`, `GET /api/llm/models`, `GET /api/markup/tags`; a preview job takes
+`sample_range: {chapter, block_from, block_to}` to read just those paragraphs with their markup. See
+[Speakers and expression tags](markup.md).
+
 ## Architecture
 
 ```

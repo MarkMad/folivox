@@ -76,3 +76,49 @@ def test_model_failure_is_reported_not_raised(client):
     client.post(f"/api/books/{bid}/llm/start", json={"task": "analyse"})
     st = wait(client, bid)
     assert st["state"] == "error" and "did not answer" in st["message"]
+
+
+def test_chapter_text_route_gives_the_paragraphs_the_markup_addresses(client):
+    bid = upload(client)
+    r = client.get(f"/api/books/{bid}/text?chapter=0").json()
+    assert r["title"] == "Глава 1" and [b["text"] for b in r["blocks"]] == [P1, P2, P3, P4]
+    assert client.get(f"/api/books/{bid}/text?chapter=9").status_code == 404
+
+
+def test_listening_to_a_passage_uses_its_own_markup(tmp_path, monkeypatch):
+    from folivox import markup as mk
+
+    seen = {}
+
+    def capture(book, opts, events):
+        seen["text"] = [b.text for s in book.sections for b in s.blocks]
+        seen["opts"] = opts
+        seen["markup"] = mk.Markup.load(opts.markup) if opts.markup else None
+        return opts.output
+
+    monkeypatch.setenv("FOLIVOX_CONFIG", str(tmp_path / "config.toml"))
+    config.load.cache_clear()
+    app = create_app(token=TOKEN, port=8765, data_dir=tmp_path / "ui", render=capture)
+    c = TestClient(app, base_url="http://127.0.0.1:8765", headers={"X-Folivox-Token": TOKEN})
+    bid = upload(c)
+    m = mk.Markup()
+    m.ensure_speaker(1, "Анна")
+    m.assign(0, 2, 0, 5, 1)
+    m.assign(0, 0, 0, 3, 1)  # outside the chosen passage
+    mk.stamp(m, [])
+    body = {"version": 1, "depth": 2, **{k: v for k, v in m.to_dict().items() if k in ("speakers", "chapters")}}
+    assert c.put(f"/api/books/{bid}/markup", json=body).status_code == 200
+    job = {"kind": "preview", "book_id": bid, "chapters": [1], "voice": "", "options": {},
+           "sample_range": {"chapter": 0, "block_from": 1, "block_to": 2}}
+    r = c.post("/api/jobs", json=job)
+    assert r.status_code == 202, r.text
+    for _ in range(100):
+        if "opts" in seen:
+            break
+        time.sleep(0.05)
+    assert seen["text"] == [P2, P3] and seen["opts"].sample_exact
+    spans = seen["markup"].chapters[0].spans
+    assert [(s.block, s.speaker) for s in spans] == [(1, 1)]  # the old block 2 is block 1 of the passage
+    time.sleep(0.3)  # the first job has finished: another may start
+    wrong = dict(job, sample_range={"chapter": 7, "block_from": 0, "block_to": 1})
+    assert c.post("/api/jobs", json=wrong).status_code == 400

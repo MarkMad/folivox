@@ -113,7 +113,34 @@ markup are saved after every window, so an interrupted run continues where it st
 is never asked twice (`--fresh` forgets the replies). The result is the ordinary markup file: export it as
 text, fix what the model got wrong, import it back, assign voices with `folivox markup speaker`.
 
-## Studio
+## Studio: the markup editor
+
+In *1 · Book* the box **Voices and markup** shows how many speakers and marked passages the book has and opens
+the editor (and has the switch *Use the markup when rendering*).
+
+- The **text** of the chapter is shown with every passage coloured by its speaker; the narrator's text has no
+  colour. Pick the chapter in the list at the top (or with the arrows).
+- **Assign**: select text (it may span paragraphs) and click a speaker in the panel on the right, or press the
+  speaker's number key (0–9). *Clear selection* gives the selected text back to the narrator and removes its tags.
+- **Speakers**: rename, choose the **voice** of each (from the voice list; "main voice" = the book's voice),
+  add (up to 16 in all) or remove a speaker (their passages return to the narrator). With a Fish engine the
+  bundled voices are marked with `*` and are refused (see [Fish Audio engines](fish-engines.md#voices-of-real-people)).
+- **Expression tags**: put the cursor where the effect should happen and click a tag in the list (search by name
+  or category). A tag at the very start of a passage is a delivery tag of that passage. Click a tag in the text to
+  remove it. *Use expression tags* is the per-book switch.
+- **Listen**: select a passage (up to 1500 characters, whole paragraphs are read) and press *Listen to the
+  selection*; it is read with the speakers' voices and tags using the engine chosen in *3 · Reading engine*
+  (a local one), without touching the audiobook.
+- **Automatic markup**: choose a model, press *Analyse characters* (the list shows how many voices the book needs;
+  *Create speakers from the characters* adds them) or *Mark speakers automatically* (optionally only this chapter,
+  optionally with expression tags). Progress is saved; the editor reloads the result so you can correct it.
+- **Save / Undo / Redo**: *Save* (Ctrl/Cmd+S) checks the markup against the book; Undo/Redo (Ctrl/Cmd+Z, with Shift
+  to redo) cover every edit since the editor was opened. Closing with unsaved changes asks first.
+
+Paragraphs that contain line breaks (poems) are shown but cannot be marked in the editor; the JSON can address
+them. The same operations exist in the console (`folivox markup export` / `import`).
+
+## Studio routes
 
 The studio keeps the markup per book (`GET/PUT /api/books/{id}/markup`, `GET /api/markup/tags`) and uses it in
 renders and previews (options `use_markup`, `expression_tags`). Automatic markup runs as a background task per
