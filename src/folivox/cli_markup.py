@@ -284,8 +284,9 @@ def _print_bible(bible) -> None:
                   c.gender or "?", c.age or "?", str(c.lines), c.traits)
     console.print(t)
     n = bible.voices_needed()
-    console.print(f"Voices needed: [bold]{n}[/] (the narrator and {n - 1} character(s) with "
-                  f"{3}+ lines). Narration: {bible.narration or 'unknown'}-person.")
+    speaking = sum(1 for c in bible.characters if c.lines > 0)
+    console.print(f"Voices needed: [bold]{n}[/] (the narrator and {n - 1} character(s) with 3+ lines; "
+                  f"{speaking} characters speak in all). Narration: {bible.narration or 'unknown'}-person.")
 
 
 @markup_app.command("characters", help="Show the saved character list of a book.")
