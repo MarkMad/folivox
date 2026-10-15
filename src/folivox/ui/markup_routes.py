@@ -96,6 +96,22 @@ def routes(api_error, state, services: dict) -> list[Route]:
                              "prompts": prompts, "lang": entry["book"].lang,
                              "texts": cv.sample_texts(markup, chapters, sid, entry["book"].lang)})
 
+    async def estimate(request: Request):
+        """How many model calls an automatic run needs (the page turns them into time for the chosen model)."""
+        bid = request.path_params["book_id"]
+        entry = state.book(bid)
+        depth = int(request.query_params.get("depth", 2))
+        chapter = request.query_params.get("chapter")
+        chapters = entry["book"].chapters(depth)
+        bp = files(bid)[0]
+        bible = ml.Bible.load(bp) if bp.is_file() else ml.Bible()
+        every = ml.windows(chapters, ml.WINDOW_CHARS, only_speech=False)
+        speech = [w for w in ml.windows(chapters, ml.WINDOW_CHARS, only_speech=True)
+                  if not chapter or w.chapter == int(chapter) - 1]
+        left = max(bible.total_windows - bible.done_windows, 0) if bible.total_windows else len(every)
+        return JSONResponse({"analyse_windows": left, "annotate_windows": len(speech), "window_chars": ml.WINDOW_CHARS,
+                             "chars": sum(len(w.text()) for w in every)})
+
     async def status(request: Request):
         return JSONResponse(task_of(request.path_params["book_id"]).snapshot())
 
@@ -202,4 +218,5 @@ def routes(api_error, state, services: dict) -> list[Route]:
             Route("/api/books/{book_id}/speakers/{speaker:int}/voice", voice_info),
             Route("/api/books/{book_id}/llm/start", start, methods=["POST"]),
             Route("/api/books/{book_id}/llm/status", status),
+            Route("/api/books/{book_id}/llm/estimate", estimate),
             Route("/api/books/{book_id}/llm/cancel", cancel, methods=["POST"])]

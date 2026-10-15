@@ -115,23 +115,28 @@ text, fix what the model got wrong, import it back, assign voices with `folivox 
 
 ## Studio: the markup editor
 
-Automatic markup is the main path; everything by hand is tucked away.
+Several voices are an **optional extra**: most books sound fine read by one voice. The box **Different voices for
+characters** in *1 · Book* is collapsed and says so. Open it for one button, **Voice the characters
+automatically**: it finds the characters, marks who speaks (with the installed model that fits this computer best) and shows
+how many voices the book needs and which character still needs a voice. If no language model is installed the box
+says so in one sentence and gives the command (`ollama pull <model>`). **Advanced settings** opens the editor.
 
-In *1 · Book* the box **Voices and markup** offers one button, **Voice the characters automatically**. It runs the
-whole flow with defaults (find the characters, mark who speaks, using the installed model that fits this
-computer best) and then shows how many voices the book needs and which character still needs a voice. If no
-language model is installed the box says so in one sentence and gives the command (`ollama pull <model>`).
-Once the book has markup the box shows a one-line summary, **Review and fine-tune** (opens the editor),
-**Run again** and the switch *Use the markup when rendering*. *Mark by hand* opens the editor without running anything.
+**Time.** The box shows an estimate *before* you press the button and the progress line shows the time left while it
+works. The estimate counts the model calls the run needs (the server's `/llm/estimate`) and turns them into time by
+the model's size; it is a rough guess. During a run the speed is measured and the estimate corrected, and the speed
+of the last run is remembered in the browser for that model. A long estimate suggests trying one chapter first.
 
-In the editor the top of the right panel is the same button, **Mark automatically**, with a progress bar and a
-plain result. With no markup yet the text area also shows a banner with the button. *Options* (collapsed) holds
-the model, *also place expression tags*, *only this chapter* and *Analyse characters* alone. After a run the panel
-lists the characters and offers the next step: *Choose voices* (opens *Fine-tune by hand* at the voice lists),
-or, when every character has a voice, to read through the text. Coloured chips under it assign the selection to a
-speaker. Running again asks first, because passages you changed by hand may be replaced.
+Once the book has markup the box shows a one-line summary, **Review and fine-tune**, **Run again** and the switch
+*Use the markup when rendering*.
 
-Everything manual sits under *Fine-tune by hand* (collapsed until you ask for it):
+In the editor the top of the right panel holds the one **Mark automatically** button with the choice *Whole book* /
+*Only this chapter* (each with its own estimate), a progress bar and a plain result. *Options* (collapsed) holds the
+model, *also place expression tags* and *Analyse characters* alone. After a run the panel lists the characters and
+offers the next step (*Choose voices*, or reading the text through when everyone has a voice). Coloured chips assign
+the selection to a speaker. Running again asks first, because passages you changed by hand may be replaced. The top
+bar has the chapter picker, undo and redo (the arrows), Save and a close cross.
+
+Below the button the manual tools are always visible:
 
 - The **text** of the chapter is shown with every passage coloured by its speaker; the narrator's text has no
   colour. Pick the chapter in the list at the top (or with the arrows).
@@ -168,5 +173,5 @@ them. The same operations exist in the console (`folivox markup export` / `impor
 The studio keeps the markup per book (`GET/PUT /api/books/{id}/markup`, `GET /api/markup/tags`) and uses it in
 renders and previews (options `use_markup`, `expression_tags`). Automatic markup runs as a background task per
 book: `POST /api/books/{id}/llm/start` (`{"task": "analyse" | "auto", "model", "llm", "chapters",
-"expression_tags", "sample"}`), `GET .../llm/status`, `POST .../llm/cancel`; the character list is
+"expression_tags", "sample"}`), `GET .../llm/status`, `GET .../llm/estimate?chapter=N` (windows of a run), `POST .../llm/cancel`; the character list is
 `GET/PUT /api/books/{id}/characters` and the model proposals `GET /api/llm/models`.

@@ -148,3 +148,14 @@ def test_voice_prompts_task_and_the_speakers_voice_info(client):
     client.post(f"/api/books/{bid}/llm/start", json={"task": "prompts", "speakers": [9]})
     assert wait(client, bid)["state"] == "done"
     assert client.get(f"/api/books/{bid}/speakers/9/voice").json()["prompts"]["standard"]
+
+
+def test_estimate_counts_the_windows_of_a_run(client):
+    bid = upload(client)
+    e = client.get(f"/api/books/{bid}/llm/estimate").json()
+    assert e["analyse_windows"] >= 1 and e["annotate_windows"] >= 1 and e["window_chars"] > 0
+    one = client.get(f"/api/books/{bid}/llm/estimate?chapter=2").json()
+    assert 1 <= one["annotate_windows"] <= e["annotate_windows"]
+    client.post(f"/api/books/{bid}/llm/start", json={"task": "analyse"})
+    wait(client, bid)
+    assert client.get(f"/api/books/{bid}/llm/estimate").json()["analyse_windows"] == 0
