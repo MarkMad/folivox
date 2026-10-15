@@ -623,7 +623,7 @@
  "mk.run.mark": "Sprecher werden markiert … {d} von {n}",
  "mk.res.novoice": "braucht eine Stimme",
  "mk.res.choose": "Stimmen wählen",
- "mk.nomodel": "Es ist noch kein Sprachmodell installiert. Installieren Sie eines mit: ollama pull {m} (für einen schnellen, gröberen Versuch: ollama pull {s})",
+ "mk.nomodel": "Es ist noch kein Sprachmodell installiert. Installieren Sie eines mit: ollama pull {m}",
  "mk.next.voices": "Als Nächstes: Stimmen für die Figuren wählen.",
  "mk.next.check": "Als Nächstes: Text durchsehen und Falsches korrigieren.",
  "mk.next.read": "Text prüfen",
@@ -642,7 +642,5 @@
  "mk.redo.t": "Rückgängig gemachte Änderung wiederherstellen",
  "mk.model.missing": "nicht installiert",
  "mk.model.pull": "Dieses Modell ist noch nicht installiert. Installieren Sie es mit: ollama pull {m}",
- "mk.model.hint": "Kleinere Modelle sind schneller, erkennen aber feine Sprecherwechsel schlechter: gut für einen schnellen Versuch.",
- "mk.model.enonly": "nur für Englisch brauchbar",
- "mk.model.enwarn": "Dieses kleinste Modell markiert englische Bücher brauchbar, andere Sprachen schlecht. Wählen Sie ein größeres."
+ "mk.model.hint": "Kleinere Modelle sind schneller, erkennen aber feine Sprecherwechsel schlechter: gut für einen schnellen Versuch."
 }

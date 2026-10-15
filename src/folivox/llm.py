@@ -30,9 +30,7 @@ class LLM:
 GEMMA_TIERS = (
     (48, "gemma4:31b-it-qat", 19, "best understanding of long, complex books"),
     (32, "gemma4:26b-a4b-it-qat", 16, "nearly as good, much faster (4B active parameters)"),
-    (16, "gemma4:12b-it-qat", 7.2, "good for most books"),
-    (10, "gemma4:e4b-it-qat", 6.1, "small and fast, misses subtle speakers"),
-    (0, "gemma4:e2b-it-qat", 4.3, "smallest; expect mistakes in crowded dialogue"),
+    (0, "gemma4:12b-it-qat", 7.2, "good for most books; the smallest that was reliable (slow below 16 GB of memory)"),
 )
 
 

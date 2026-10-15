@@ -623,7 +623,7 @@
  "mk.run.mark": "Marcando quién habla… {d} de {n}",
  "mk.res.novoice": "necesita una voz",
  "mk.res.choose": "Elegir voces",
- "mk.nomodel": "Aún no hay ningún modelo de lenguaje instalado. Instale uno con: ollama pull {m} (para una prueba rápida y más tosca: ollama pull {s})",
+ "mk.nomodel": "Aún no hay ningún modelo de lenguaje instalado. Instale uno con: ollama pull {m}",
  "mk.next.voices": "Siguiente: elija las voces de los personajes.",
  "mk.next.check": "Siguiente: repase el texto y corrija lo que parezca mal.",
  "mk.next.read": "Revisar el texto",
@@ -642,7 +642,5 @@
  "mk.redo.t": "Rehacer el cambio deshecho",
  "mk.model.missing": "no instalado",
  "mk.model.pull": "Este modelo aún no está instalado. Instálelo con: ollama pull {m}",
- "mk.model.hint": "Los modelos pequeños son más rápidos pero distinguen peor a los hablantes: sirven para una prueba rápida.",
- "mk.model.enonly": "aceptable solo para inglés",
- "mk.model.enwarn": "Este modelo, el más pequeño, marca aceptablemente libros en inglés y mal otros idiomas. Elija uno mayor."
+ "mk.model.hint": "Los modelos pequeños son más rápidos pero distinguen peor a los hablantes: sirven para una prueba rápida."
 }

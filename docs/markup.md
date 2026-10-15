@@ -83,7 +83,7 @@ folivox markup auto book.epub                # mark the speakers (--chapters 1-3
 ```
 
 **Models.** Gemma 4 is multilingual and comes in sizes for different memory; Folivox proposes the largest that
-fits (`gemma4:31b-it-qat` from 48 GB, `26b-a4b-it-qat` from 32 GB, `12b-it-qat` from 16 GB, `e4b`, `e2b`) and
+fits (`gemma4:31b-it-qat` from 48 GB, `26b-a4b-it-qat` from 32 GB, `12b-it-qat` for everything smaller) and
 you can use any other Ollama model, or an OpenAI-compatible API (`--llm openai --model NAME`, your key, the text
 goes to that service). Set a default in `config.toml`: `[llm.ollama] model = "gemma4:12b-it-qat"`. The analysis
 runs before the audio is made, never together with the voice model. Small models miss subtle speakers: check
@@ -95,15 +95,12 @@ English, Russian, German and Spanish; counted: paragraphs whose quoted speech we
 | Model | English | Russian | German | Spanish | Time per text |
 |---|---|---|---|---|---|
 | `gemma4:31b-it-qat` | 15/15 | 15/15 | not run | not run | 4-5 min (mostly loading and the character pass) |
-| `gemma4:e4b-it-qat` | 0/15 and 12/15 (two runs) | 10/15 | 9-12/15 | 12/15 | 15-30 s |
-| `gemma4:e2b-it-qat` | 10/15 (twice) | 0/15 | 0/15 (an HTTP 500 from Ollama in some runs) | 0/15 | 15-35 s |
 
-The smallest model is about ten times faster than the largest and is only usable for English; being a relative of
-English (German, Spanish) did not help it. `e4b` is the smallest that handled the other languages, but not
-reliably: the same text gave 0/15 once and 12/15 on the next run. This is a tiny, noisy sample, not a benchmark.
-The small models usually fail the same way: they repeat the paragraph without any speaker marks, so the narrator
-reads it. A speaker tag with a missing bar (`<|speaker:1>`) is understood, and a paragraph that starts with a
-dialogue dash with no space after it (Spanish «—¿Vas?») counts as speech.
+The two smallest Gemma 4 builds (`e4b` 6 GB, `e2b` 4 GB) were tried and **dropped from the list**: they are about ten
+times faster, but unstable. `e2b` worked only on English (10/15) and returned unmarked text for Russian, German
+and Spanish (0/15); `e4b` handled all four languages (9-12/15) but the same English text gave 0/15 once and
+12/15 on the next run, and an unreliable result is worse than a slow one. A speaker tag with a missing bar
+(`<|speaker:1>`) is understood, and a paragraph that starts with a dialogue dash with no space after it (Spanish «—¿Vas?») counts as speech.
 
 **Character list ("bible").** `analyse` goes through the book in windows of about 5000 characters. For each
 window the model gets the characters found so far (those named in the window, those active in the last windows

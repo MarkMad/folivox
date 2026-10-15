@@ -204,7 +204,7 @@ def test_annotation_is_cached_and_chapters_can_be_filtered():
 
 def test_model_recommendation_follows_memory():
     assert recommend_model(64) == "gemma4:31b-it-qat" and recommend_model(36) == "gemma4:26b-a4b-it-qat"
-    assert recommend_model(16) == "gemma4:12b-it-qat" and recommend_model(8) == "gemma4:e2b-it-qat"
+    assert recommend_model(16) == "gemma4:12b-it-qat" and recommend_model(8) == "gemma4:12b-it-qat"
     assert recommend_model(None) == "gemma4:12b-it-qat"
 
 

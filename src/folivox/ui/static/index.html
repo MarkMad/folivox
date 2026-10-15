@@ -340,7 +340,6 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
         <div id="mk-llmmsg" class="mute" style="margin-top:6px"></div>
         <details id="mk-opts" class="mk-sub"><summary data-i18n="mk.options">Options</summary>
           <label class="f"><span data-i18n="mk.model">Model</span><select id="mk-model"></select></label>
-          <div id="mk-modelwarn" class="err" style="font-size:12.5px;margin-top:4px" hidden data-i18n="mk.model.enwarn">This smallest model marks English books acceptably and other languages poorly. Choose a larger one.</div>
           <small class="mute" data-i18n="mk.model.hint">Smaller models are faster but miss subtle speakers: fine for a quick try.</small>
           <label class="consent" style="margin-top:6px"><input type="checkbox" id="mk-llmtags"><span data-i18n="mk.llmtags">Also place expression tags (off by default)</span></label>
           <div class="row" style="margin-top:8px"><button type="button" id="mk-analyse" class="chip" data-i18n="mk.analyse">Analyse characters</button></div>
@@ -938,7 +937,7 @@ async function mkOpenEditor(fine) {
   mkTagList();
   $("#mk-ch").innerHTML = book.chapters.map((c, i) => `<option value="${i}">${esc(c.n + ". " + c.title)}</option>`).join("");
   $("#mk-step").hidden = true; $("#mk-chars").innerHTML = ""; $("#mk-llmmsg").textContent = "";
-  $("#mk-dlg").showModal(); mkLlmModels().then(() => { mkModelWarn(); mkEtaEditor(); }); await mkLoadChapter(0); $("#mk-text").focus(); if (fine) $("#mk-speakers").scrollIntoView({ block: "start" });
+  $("#mk-dlg").showModal(); mkLlmModels().then(mkEtaEditor); await mkLoadChapter(0); $("#mk-text").focus(); if (fine) $("#mk-speakers").scrollIntoView({ block: "start" });
 }
 $("#mk-open").onclick = () => mkOpenEditor(false); $("#mk-open2").onclick = () => mkOpenEditor(false);
 function mkClose() { if (MK.dirty && !confirm(t("mk.unsaved"))) return; if (MK.audio) MK.audio.pause(); $("#mk-dlg").close(); loadMk(); }
@@ -985,7 +984,7 @@ async function mkLlmModels() {
     const has = (x) => m.installed.includes(x);
     add(m.configured, t("mk.model.configured"));
     // the whole ladder, smallest (fastest) first; what is missing says so
-    [...m.tiers].reverse().forEach(x => add(x.model, [`${x.download_gb} GB`, /:e2b/.test(x.model) ? t("mk.model.enonly") : "", has(x.model) ? t("mk.model.installed") : t("mk.model.missing"), x.model === m.recommended ? t("mk.model.recommended") : ""].filter(Boolean).join(", ")));
+    [...m.tiers].reverse().forEach(x => add(x.model, [`${x.download_gb} GB`, has(x.model) ? t("mk.model.installed") : t("mk.model.missing"), x.model === m.recommended ? t("mk.model.recommended") : ""].filter(Boolean).join(", ")));
     m.installed.filter(x => !x.startsWith("gemma4") && !x.includes("embed")).forEach(x => add(x, t("mk.model.installed")));
     $("#mk-model").innerHTML = opts.join("");
     const pick = m.configured || m.installed.find(x => x === m.recommended) || m.installed.find(x => x.startsWith("gemma4")) || m.recommended;
@@ -1020,7 +1019,7 @@ const mkEtaText = (model, est) => t("mk.eta.approx", { t: mkDur(mkSecs(model, es
 async function mkEtaMain() {
   const el = $("#mk-eta"); if (!book || $("#mk-none").hidden) return;
   try {
-    const p = await mkPickModel(); if (!p.pick) { el.textContent = t("mk.nomodel", { m: p.rec || "gemma4:12b-it-qat", s: "gemma4:e2b-it-qat" }); return; }
+    const p = await mkPickModel(); if (!p.pick) { el.textContent = t("mk.nomodel", { m: p.rec || "gemma4:12b-it-qat" }); return; }
     const sec = mkSecs(p.pick, await mkEstimate(0));
     el.textContent = t("mk.eta.before", { t: mkDur(sec.total) }) + (sec.total > 1200 ? " " + t("mk.eta.long") : "");
   } catch (e) { el.textContent = ""; }
@@ -1032,8 +1031,7 @@ async function mkEtaEditor() {
     $("#mk-eta-all").textContent = mkEtaText(model, all); $("#mk-eta-ch").textContent = mkEtaText(model, ch);
   } catch (e) { $("#mk-eta-all").textContent = $("#mk-eta-ch").textContent = ""; }
 }
-const mkModelWarn = () => { $("#mk-modelwarn").hidden = !(/:e2b/.test($("#mk-model").value) && book && book.lang !== "en"); };
-$("#mk-model").addEventListener("change", () => { mkModelWarn(); mkEtaEditor(); });
+$("#mk-model").addEventListener("change", mkEtaEditor);
 const mkStageText = (s) => s.state !== "running" ? "" : !s.total ? t("mk.run.start") : t(s.stage === "analyse" ? "mk.run.read" : "mk.run.mark", { d: s.done, n: s.total });
 // one run of the whole flow (characters, then speakers); ui = { busy(on), progress(pct, text), error(text) }
 async function mkAutoRun(task, o, ui) {
@@ -1104,7 +1102,7 @@ async function mkLlm(task) {
   if (task === "auto" && hasMarkup && !confirm(t("mk.again.confirm"))) return;
   let model = $("#mk-model").value;
   if (model && MK.models && !MK.models.installed.includes(model)) { msg.textContent = t("mk.model.pull", { m: model }); return; }
-  if (!model) { try { const p = await mkPickModel(); model = p.pick; if (!model) { msg.textContent = t("mk.nomodel", { m: p.rec || "gemma4:12b-it-qat", s: "gemma4:e2b-it-qat" }); return; } } catch (e) { /* let the server answer */ } }
+  if (!model) { try { const p = await mkPickModel(); model = p.pick; if (!model) { msg.textContent = t("mk.nomodel", { m: p.rec || "gemma4:12b-it-qat" }); return; } } catch (e) { /* let the server answer */ } }
   const btns = ["#mk-analyse", "#mk-auto"];
   const s = await mkAutoRun(task, { model, tags: $("#mk-llmtags").checked, chapters: task === "auto" && $("#mk-scope-ch").checked ? [MK.ch + 1] : undefined }, {
     busy: (on) => { btns.forEach(b => $(b).disabled = on); $("#mk-stop").hidden = !on; $("#mk-prog").hidden = !on; },
