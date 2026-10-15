@@ -115,8 +115,23 @@ text, fix what the model got wrong, import it back, assign voices with `folivox 
 
 ## Studio: the markup editor
 
-In *1 · Book* the box **Voices and markup** shows how many speakers and marked passages the book has and opens
-the editor (and has the switch *Use the markup when rendering*).
+Automatic markup is the main path; everything by hand is tucked away.
+
+In *1 · Book* the box **Voices and markup** offers one button, **Voice the characters automatically**. It runs the
+whole flow with defaults (find the characters, mark who speaks, using the installed model that fits this
+computer best) and then shows how many voices the book needs and which character still needs a voice. If no
+language model is installed the box says so in one sentence and gives the command (`ollama pull <model>`).
+Once the book has markup the box shows a one-line summary, **Review and fine-tune** (opens the editor),
+**Run again** and the switch *Use the markup when rendering*. *Mark by hand* opens the editor without running anything.
+
+In the editor the top of the right panel is the same button, **Mark automatically**, with a progress bar and a
+plain result. With no markup yet the text area also shows a banner with the button. *Options* (collapsed) holds
+the model, *also place expression tags*, *only this chapter* and *Analyse characters* alone. After a run the panel
+lists the characters and offers the next step: *Choose voices* (opens *Fine-tune by hand* at the voice lists),
+or, when every character has a voice, to read through the text. Coloured chips under it assign the selection to a
+speaker. Running again asks first, because passages you changed by hand may be replaced.
+
+Everything manual sits under *Fine-tune by hand* (collapsed until you ask for it):
 
 - The **text** of the chapter is shown with every passage coloured by its speaker; the narrator's text has no
   colour. Pick the chapter in the list at the top (or with the arrows).
@@ -125,15 +140,13 @@ the editor (and has the switch *Use the markup when rendering*).
 - **Speakers**: rename, choose the **voice** of each (from the voice list; "main voice" = the book's voice),
   add (up to 16 in all) or remove a speaker (their passages return to the narrator). With a Fish engine the
   bundled voices are marked with `*` and are refused (see [Fish Audio engines](fish-engines.md#voices-of-real-people)).
-- **Expression tags**: put the cursor where the effect should happen and click a tag in the list (search by name
+- **Expression tags** (a nested disclosure): put the cursor where the effect should happen and click a tag in the list (search by name
   or category). A tag at the very start of a passage is a delivery tag of that passage. Click a tag in the text to
   remove it. *Use expression tags* is the per-book switch.
 - **Listen**: select a passage (up to 1500 characters, whole paragraphs are read) and press *Listen to the
   selection*; it is read with the speakers' voices and tags using the engine chosen in *3 · Reading engine*
   (a local one), without touching the audiobook.
-- **Automatic markup**: choose a model, press *Analyse characters* (the list shows how many voices the book needs;
-  *Create speakers from the characters* adds them) or *Mark speakers automatically* (optionally only this chapter,
-  optionally with expression tags). Progress is saved; the editor reloads the result so you can correct it.
+- **Automatic markup**: see above; progress is saved and the editor reloads the result so you can correct it.
 - **Voice ideas**: the *Voice ideas* button of a speaker writes three **English** voice descriptions from the
   character list (simple, standard, detailed: the simple one works with any voice-design model, the detailed one
   helps strong ones; a weak model ignores words it does not know). They never contain the character's name or a

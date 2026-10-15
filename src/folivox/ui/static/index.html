@@ -182,6 +182,7 @@ h1 { padding-right:140px; }
 .mk-dlg { width:min(1240px,96vw); height:92vh; padding:0; overflow:hidden; } .mk-dlg[open] { display:flex; flex-direction:column; }
 .mk-top { padding:10px 14px; border-bottom:1px solid var(--line); gap:8px; } .mk-top select { max-width:300px; }
 .mk-body { flex:1; display:grid; grid-template-columns:minmax(0,1fr) 360px; min-height:0; }
+.mk-main { display:flex; flex-direction:column; min-height:0; } .mk-main .mk-text { flex:1; min-height:0; }
 .mk-text { overflow:auto; padding:16px 22px 40px; font-size:16px; line-height:2; outline:none; }
 .mk-side { overflow:auto; padding:12px 14px 30px; border-left:1px solid var(--line); font-size:13.5px; } .mk-side h4 { margin:16px 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--mute); } .mk-side h4:first-child { margin-top:0; }
 .mk-b { margin:0 0 12px; position:relative; padding-left:42px; } .mk-b::before { content:attr(data-lbl); position:absolute; left:0; top:0; width:34px; text-align:right; font-size:10px; color:var(--mute); line-height:3.4; user-select:none; }
@@ -192,6 +193,14 @@ h1 { padding-right:140px; }
 .mk-sp { display:grid; grid-template-columns:22px minmax(0,1fr) auto; gap:4px 8px; align-items:center; padding:6px 8px; border:1px solid var(--line); border-radius:8px; margin-bottom:6px; cursor:pointer; }
 .mk-sp.cur { border-color:var(--accent); } .mk-sp .sw { width:18px; height:18px; border-radius:5px; display:grid; place-items:center; font-size:10px; color:#fff; font-weight:700; }
 .mk-sp input[type=text] { width:100%; min-width:0; padding:2px 6px; } .mk-sp select { width:100%; min-width:0; padding:2px 4px; font-size:12.5px; } .mk-sp .sub { grid-column:2 / 4; display:flex; gap:6px; }
+.mk-card .mk-res, .mk-chars .mk-res { margin-top:8px; }
+.mk-autocard { padding:12px; border:1px solid var(--accent); border-radius:12px; margin-bottom:12px; } .mk-autocard > .primary { width:100%; padding:10px 14px; font-size:15px; } .mk-autocard > .primary + .chip { margin-top:6px; }
+.mk-sub { margin-top:10px; } .mk-sub > summary { cursor:pointer; color:var(--mute); font-size:13px; } .mk-sub[open] > summary { margin-bottom:6px; }
+.mk-nextstep { padding:10px 12px; border:1px dashed var(--accent); border-radius:10px; margin-bottom:12px; } .mk-nextstep .row { margin-top:8px; }
+.mk-legend { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0; } .mk-legend .chip { font-size:12px; padding:2px 9px; border-left:5px solid var(--c); }
+.mk-empty { margin:16px 22px 0; padding:16px 18px; border:1px solid var(--accent); border-radius:12px; } .mk-empty p { margin:6px 0 12px; }
+.mk-res div { padding:2px 0; border-bottom:1px dashed var(--line); font-size:13.5px; }
+@media (max-width:760px) { .mk-top select { max-width:150px; } .mk-body { grid-template-rows:42% 58%; } }
 .mk-taglist { display:flex; flex-wrap:wrap; gap:5px; max-height:170px; overflow:auto; margin-top:6px; } .mk-taglist .chip { font-size:12px; padding:2px 9px; }
 
 .mk-vd { margin:10px 0; padding:10px; border:1px solid var(--accent); border-radius:10px; } .mk-vd textarea { width:100%; font:inherit; font-size:12.5px; min-height:54px; resize:vertical; }
@@ -290,10 +299,20 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
     </div>
     <small class="mute" data-i18n="s1.pron.note">Saved automatically for this book. Only the fragments with changed words are read again.</small>
   </details>
-  <details id="mk-box" class="pron-box" hidden><summary><span data-i18n="mk.h">Voices and markup</span> <small class="mute" data-i18n="mk.sub">several voices, expression tags</small></summary>
-    <div class="row" style="margin-top:10px"><span id="mk-summary" class="mute grow"></span><button type="button" id="mk-open" class="primary" data-i18n="mk.open">Open the editor</button></div>
-    <label class="consent" style="margin-top:8px"><input type="checkbox" id="mk-use" checked><span data-i18n="mk.use">Use the markup when rendering</span></label>
-  </details>
+  <div id="mk-box" class="meta-box mk-card" hidden>
+    <b data-i18n="mk.h">Voices and markup</b>
+    <div id="mk-none">
+      <p class="mute" style="margin:6px 0 10px" data-i18n="mk.cta.text">Give each character their own voice. The program finds the characters and who says what; you only check the result.</p>
+      <div class="row"><button type="button" id="mk-cta" class="primary" data-i18n="mk.cta">Voice the characters automatically</button><button type="button" id="mk-open2" class="chip" data-i18n="mk.open.manual">Mark by hand</button></div>
+    </div>
+    <div id="mk-have" hidden>
+      <div class="row" style="margin-top:8px"><span id="mk-summary" class="mute grow"></span><button type="button" id="mk-open" class="primary" data-i18n="mk.review">Review and fine-tune</button><button type="button" id="mk-again" class="chip" data-i18n="mk.again">Run again</button></div>
+      <label class="consent" style="margin-top:8px"><input type="checkbox" id="mk-use" checked><span data-i18n="mk.use">Use the markup when rendering</span></label>
+    </div>
+    <div class="row" style="margin-top:8px"><progress id="mk-mprog" max="100" value="0" hidden class="grow"></progress><button type="button" id="mk-mstop" class="chip" hidden data-i18n="mk.stop">Stop</button></div>
+    <div id="mk-mmsg" class="mute" style="margin-top:6px"></div>
+    <div id="mk-mres" class="mk-res"></div>
+  </div>
 </section>
 
 <dialog id="mk-dlg" class="mk-dlg" aria-labelledby="mk-title">
@@ -306,12 +325,30 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
     <button type="button" id="mk-save" class="primary" data-i18n="mk.save">Save</button><button type="button" id="mk-close" data-i18n="mk.close">Close</button>
   </div>
   <div class="mk-body">
-    <div id="mk-text" class="mk-text" tabindex="0"></div>
+    <div class="mk-main"><div id="mk-empty" class="mk-empty" hidden><b data-i18n="mk.empty.h">Nothing is marked yet</b><p data-i18n="mk.empty.p">Press the button and the program will find the characters and give each their lines. It takes a few minutes.</p><button type="button" id="mk-auto2" class="primary" data-i18n="mk.auto.btn">Mark automatically</button></div>
+    <div id="mk-text" class="mk-text" tabindex="0"></div></div>
     <aside class="mk-side">
-      <h4 data-i18n="mk.speakers">Speakers</h4>
-      <div class="mute" id="mk-hint" data-i18n="mk.hint" style="margin-bottom:8px">Select text, then click a speaker (or press its number).</div>
-      <div id="mk-speakers"></div>
-      <div class="row" style="margin-top:6px"><button type="button" id="mk-addsp" class="chip" data-i18n="mk.add">+ Add speaker</button><button type="button" id="mk-clear" class="chip" data-i18n="mk.clear">Clear selection</button></div>
+      <div class="mk-autocard">
+        <button type="button" id="mk-auto" class="primary" data-i18n="mk.auto.btn">Mark automatically</button>
+        <button type="button" id="mk-stop" class="chip" hidden data-i18n="mk.stop">Stop</button>
+        <div class="mute" style="margin-top:6px" data-i18n="mk.auto.note">Finds the characters and who says what. It takes a few minutes and you can fix anything afterwards.</div>
+        <progress id="mk-prog" max="100" value="0" hidden style="width:100%;margin-top:8px"></progress>
+        <div id="mk-llmmsg" class="mute" style="margin-top:6px"></div>
+        <details id="mk-opts" class="mk-sub"><summary data-i18n="mk.options">Options</summary>
+          <label class="f"><span data-i18n="mk.model">Model</span><select id="mk-model"></select></label>
+          <label class="consent" style="margin-top:6px"><input type="checkbox" id="mk-llmtags"><span data-i18n="mk.llmtags">Also place expression tags (off by default)</span></label>
+          <label class="consent" style="margin-top:4px"><input type="checkbox" id="mk-onlych"><span data-i18n="mk.onlych">Only this chapter</span></label>
+          <div class="row" style="margin-top:8px"><button type="button" id="mk-analyse" class="chip" data-i18n="mk.analyse">Analyse characters</button></div>
+        </details>
+      </div>
+      <div id="mk-step" class="mk-nextstep" hidden></div>
+      <div id="mk-chars" class="mk-chars"></div>
+      <div id="mk-legend" class="mk-legend"></div>
+      <details id="mk-fine" class="mk-sub"><summary data-i18n="mk.fine">Fine-tune by hand</summary>
+        <h4 data-i18n="mk.speakers">Speakers</h4>
+        <div class="mute" id="mk-hint" data-i18n="mk.hint" style="margin-bottom:8px">Select text, then click a speaker (or press its number).</div>
+        <div id="mk-speakers"></div>
+        <div class="row" style="margin-top:6px"><button type="button" id="mk-addsp" class="chip" data-i18n="mk.add">+ Add speaker</button><button type="button" id="mk-clear" class="chip" data-i18n="mk.clear">Clear selection</button></div>
       <div id="mk-vd" class="mk-vd" hidden>
         <div class="row"><b id="mk-vd-title"></b><span class="grow"></span><button type="button" id="mk-vd-close" class="chip" aria-label="Close" data-i18n-attr="aria-label:mk.close">&#10005;</button></div>
         <small class="mute" data-i18n="mk.vd.hint">English descriptions: the simple one works with any model, the detailed one helps strong models. Edit them freely; you choose the voice by ear.</small>
@@ -325,20 +362,14 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
         <h4 data-i18n="mk.vd.takes">Takes: listen and choose</h4>
         <div id="mk-vd-takes"></div>
       </div>
-      <div class="row" style="margin-top:10px"><button type="button" id="mk-listen" class="primary" data-i18n="mk.listen">&#9654; Listen to the selection</button><span id="mk-listenmsg" class="mute"></span></div>
-      <h4 data-i18n="mk.tags">Expression tags</h4>
-      <label class="consent"><input type="checkbox" id="mk-exprtags" checked><span data-i18n="mk.tags.on">Use expression tags (Fish engines)</span></label>
-      <input type="search" id="mk-tagq" style="width:100%;margin-top:6px" placeholder="Search tags" data-i18n-attr="placeholder:mk.tags.search">
-      <small class="mute" data-i18n="mk.tags.hint">Put the cursor where the effect should happen, then click a tag.</small>
-      <div id="mk-taglist" class="mk-taglist"></div>
-      <h4 data-i18n="mk.auto.h">Automatic markup</h4>
-      <label class="f"><span data-i18n="mk.model">Model</span><select id="mk-model"></select></label>
-      <label class="consent" style="margin-top:6px"><input type="checkbox" id="mk-llmtags"><span data-i18n="mk.llmtags">Also place expression tags (off by default)</span></label>
-      <label class="consent" style="margin-top:4px"><input type="checkbox" id="mk-onlych"><span data-i18n="mk.onlych">Only this chapter</span></label>
-      <div class="row" style="margin-top:8px"><button type="button" id="mk-analyse" class="chip" data-i18n="mk.analyse">Analyse characters</button><button type="button" id="mk-auto" class="chip" data-i18n="mk.auto">Mark speakers automatically</button><button type="button" id="mk-stop" class="chip" hidden data-i18n="mk.stop">Stop</button></div>
-      <progress id="mk-prog" max="100" value="0" hidden style="width:100%;margin-top:8px"></progress>
-      <div id="mk-llmmsg" class="mute" style="margin-top:6px"></div>
-      <div id="mk-chars" class="mk-chars"></div>
+        <div class="row" style="margin-top:10px"><button type="button" id="mk-listen" class="primary" data-i18n="mk.listen">&#9654; Listen to the selection</button><span id="mk-listenmsg" class="mute"></span></div>
+        <details class="mk-sub" id="mk-tagbox"><summary data-i18n="mk.tags">Expression tags</summary>
+          <label class="consent"><input type="checkbox" id="mk-exprtags" checked><span data-i18n="mk.tags.on">Use expression tags (Fish engines)</span></label>
+          <input type="search" id="mk-tagq" style="width:100%;margin-top:6px" placeholder="Search tags" data-i18n-attr="placeholder:mk.tags.search">
+          <small class="mute" data-i18n="mk.tags.hint">Put the cursor where the effect should happen, then click a tag.</small>
+          <div id="mk-taglist" class="mk-taglist"></div>
+        </details>
+      </details>
     </aside>
   </div>
 </dialog>
@@ -715,6 +746,8 @@ function mkSummary() {
   if (!MK.data) return;
   const spans = Object.values(MK.data.chapters).reduce((n, c) => n + c.spans.length, 0);
   $("#mk-summary").textContent = spans ? t("mk.summary", { n: MK.data.speakers.length, m: spans }) : t("mk.none");
+  $("#mk-none").hidden = spans > 0; $("#mk-have").hidden = !spans;
+  const e = $("#mk-empty"); if (e) e.hidden = spans > 0;
 }
 async function loadMk() {
   if (!book) return; const id = book.book_id; MK.bookId = id;
@@ -850,7 +883,9 @@ function mkSpeakers() {
     <input type="text" data-f="name" value="${esc(s.name)}" aria-label="${esc(t("mk.name"))}"><span class="mute">${used[s.id] || (s.id ? 0 : "")}</span>
     <div class="sub">${s.id ? `<select data-f="voice" aria-label="${esc(t("mk.voice"))}">${mkVoiceOptions(s.voice)}</select><button type="button" class="chip" data-vd="${s.id}" title="${esc(t("mk.vd.btn.title"))}">${esc(t("mk.vd.btn"))}</button><button type="button" class="chip" data-rm="${s.id}" title="${esc(t("mk.rmsp"))}">&#10005;</button>` : `<span class="mute">${esc(t("mk.narrator.note"))}</span>`}</div></div>`).join("");
   $("#mk-exprtags").checked = MK.data.expression_tags !== false;
+  $("#mk-legend").innerHTML = MK.data.speakers.filter(s => s.id && used[s.id]).map(s => `<button type="button" class="chip" data-lg="${s.id}" style="--c:${mkSwatch(s.id)}" title="${esc(t("mk.press", { n: s.id }))}">${esc(s.name)}</button>`).join("");
 }
+$("#mk-legend").addEventListener("click", (ev) => { const b = ev.target.closest("[data-lg]"); if (b) mkAssign(+b.dataset.lg); });
 $("#mk-speakers").addEventListener("mousedown", (ev) => { if (!ev.target.closest("input, select")) ev.preventDefault(); });
 $("#mk-speakers").addEventListener("click", (ev) => {
   const vd = ev.target.closest("[data-vd]"); if (vd) { vdOpen(+vd.dataset.vd); return; }
@@ -888,7 +923,7 @@ async function mkSave() {
 }
 $("#mk-save").onclick = mkSave;
 $("#mk-undo").onclick = () => mkUndo(false); $("#mk-redo").onclick = () => mkUndo(true);
-$("#mk-open").onclick = async () => {
+async function mkOpenEditor(fine) {
   try { MK.data = await api(`/api/books/${book.book_id}/markup`); } catch (e) { MK.data = mkEmpty(); }
   if (!MK.data.speakers.length) MK.data = mkEmpty();
   MK.undo = []; MK.redo = []; MK.dirty = false; MK.sel = null; MK.cur = 1;
@@ -896,8 +931,10 @@ $("#mk-open").onclick = async () => {
   if (!MK.tags) { try { MK.tags = await api("/api/markup/tags"); } catch (e) { MK.tags = { tags: [] }; } }
   mkTagList();
   $("#mk-ch").innerHTML = book.chapters.map((c, i) => `<option value="${i}">${esc(c.n + ". " + c.title)}</option>`).join("");
+  $("#mk-fine").open = !!fine; $("#mk-step").hidden = true; $("#mk-chars").innerHTML = ""; $("#mk-llmmsg").textContent = "";
   $("#mk-dlg").showModal(); mkLlmModels(); await mkLoadChapter(0); $("#mk-text").focus();
-};
+}
+$("#mk-open").onclick = () => mkOpenEditor(false); $("#mk-open2").onclick = () => mkOpenEditor(false);
 function mkClose() { if (MK.dirty && !confirm(t("mk.unsaved"))) return; if (MK.audio) MK.audio.pause(); $("#mk-dlg").close(); loadMk(); }
 $("#mk-close").onclick = mkClose;
 $("#mk-dlg").addEventListener("cancel", (ev) => { ev.preventDefault(); mkClose(); });
@@ -948,28 +985,89 @@ async function mkLlmModels() {
     if (pick) $("#mk-model").value = pick;
   } catch (e) { $("#mk-model").innerHTML = ""; }
 }
-async function mkLlm(task) {
-  if (!await mkSave()) return;
-  const body = { task, model: $("#mk-model").value || undefined, expression_tags: $("#mk-llmtags").checked, depth: MK.data.depth || 2,
-    chapters: task === "auto" && $("#mk-onlych").checked ? [MK.ch + 1] : undefined };
-  $("#mk-llmmsg").textContent = ""; $("#mk-chars").innerHTML = "";
-  try { await api(`/api/books/${book.book_id}/llm/start`, { method: "POST", headers: JSONH, body: JSON.stringify(body) }); }
-  catch (e) { $("#mk-llmmsg").innerHTML = `<span class="err">${esc(e.message)}</span>`; return; }
-  ["#mk-analyse", "#mk-auto"].forEach(s => $(s).disabled = true); $("#mk-stop").hidden = false; $("#mk-prog").hidden = false;
-  for (;;) {
-    await new Promise(r => setTimeout(r, 1500));
-    let s; try { s = await api(`/api/books/${book.book_id}/llm/status`); } catch (e) { break; }
-    $("#mk-prog").value = s.total ? Math.round(100 * s.done / s.total) : 0;
-    $("#mk-llmmsg").textContent = s.state === "running" ? `${s.stage} ${s.done}/${s.total} ${s.message}` : "";
-    if (s.state === "running") continue;
-    if (s.state === "error") $("#mk-llmmsg").innerHTML = `<span class="err">${esc(s.message)}</span>`;
-    else if (task === "analyse") await mkShowChars();
-    else { const d = await api(`/api/books/${book.book_id}/markup`); MK.data = d; MK.dirty = false; MK.undo = []; MK.redo = []; await mkLoadChapter(MK.ch);
-      $("#mk-llmmsg").textContent = t("mk.auto.done", { m: s.stats.marked || 0, f: s.stats.fell_back || 0 }); await mkShowChars(); }
-    break;
-  }
-  ["#mk-analyse", "#mk-auto"].forEach(s => $(s).disabled = false); $("#mk-stop").hidden = true; $("#mk-prog").hidden = true;
+// the model to use without asking: the configured one, else an installed Gemma 4, else any installed model
+async function mkPickModel() {
+  const m = await api("/api/llm/models");
+  const pick = m.configured || m.installed.find(x => x === m.recommended) || m.installed.find(x => x.startsWith("gemma4")) || m.installed.find(x => !x.includes("embed")) || "";
+  return { pick, rec: m.recommended };
 }
+const mkStageText = (s) => s.state !== "running" ? "" : t(s.stage === "analyse" ? "mk.run.read" : "mk.run.mark", { d: s.done, n: s.total });
+// one run of the whole flow (characters, then speakers); ui = { busy(on), progress(pct, text), error(text) }
+async function mkAutoRun(task, o, ui) {
+  const body = { task, model: o.model || undefined, expression_tags: !!o.tags, depth: (MK.data && MK.data.depth) || +$("#depth").value || 2, chapters: o.chapters };
+  try { await api(`/api/books/${book.book_id}/llm/start`, { method: "POST", headers: JSONH, body: JSON.stringify(body) }); }
+  catch (e) { ui.error(e.message); return null; }
+  ui.busy(true); MK.running = true;
+  try {
+    for (;;) {
+      await new Promise(r => setTimeout(r, 1500));
+      let s; try { s = await api(`/api/books/${book.book_id}/llm/status`); } catch (e) { return null; }
+      ui.progress(s.total ? Math.round(100 * s.done / s.total) : 0, mkStageText(s));
+      if (s.state === "running") continue;
+      if (s.state === "error") { ui.error(s.message); return null; }
+      return s;
+    }
+  } finally { ui.busy(false); MK.running = false; }
+}
+// who got which voice: the characters of the list with the voice of their speaker (or what is missing)
+function mkVoiceList() {
+  const sp = MK.data.speakers.filter(x => x.id > 0 && MK.data.chapters && Object.values(MK.data.chapters).some(c => c.spans.some(z => z.sp === x.id)));
+  const missing = sp.filter(x => !x.voice);
+  return { sp, missing, html: sp.map(x => `<div>${esc(x.name)} - ${x.voice ? esc(x.voice.split("/").pop()) : `<i>${esc(t("mk.res.novoice"))}</i>`}</div>`).join("") };
+}
+const mkNeeded = () => mkVoiceList().sp.length + 1;  // the narrator and every marked character
+async function mkReadBack() {
+  MK.data = await api(`/api/books/${book.book_id}/markup`); MK.dirty = false; MK.undo = []; MK.redo = [];
+  try { MK.bible = await api(`/api/books/${book.book_id}/characters`); } catch (e) { /* the list is optional */ }
+}
+// main page: the whole flow with defaults
+async function mkCta() {
+  if (MK.running) return;
+  const msg = $("#mk-mmsg"), res = $("#mk-mres"); res.innerHTML = ""; msg.textContent = "";
+  if (!$("#mk-have").hidden && !confirm(t("mk.again.confirm"))) return;
+  let pick; try { pick = await mkPickModel(); } catch (e) { pick = { pick: "", rec: "" }; }
+  if (!pick.pick) { msg.innerHTML = esc(t("mk.nomodel", { m: pick.rec || "gemma4:12b-it-qat" })); return; }
+  const btns = ["#mk-cta", "#mk-again", "#mk-open", "#mk-open2"];
+  const s = await mkAutoRun("auto", { model: pick.pick }, {
+    busy: (on) => { btns.forEach(b => $(b).disabled = on); $("#mk-mprog").hidden = !on; $("#mk-mstop").hidden = !on; },
+    progress: (pct, text) => { $("#mk-mprog").value = pct; msg.textContent = text; },
+    error: (m) => { msg.innerHTML = `<span class="err">${esc(m)}</span>`; } });
+  if (!s) return;
+  await mkReadBack(); mkSummary(); msg.textContent = "";
+  const v = mkVoiceList();
+  res.innerHTML = `<b>${esc(t("mk.chars.voices", { n: mkNeeded() }))}</b>` + v.html
+    + `<div class="row" style="margin-top:8px"><button type="button" class="primary" id="mk-res-open">${esc(t(v.missing.length ? "mk.res.choose" : "mk.review"))}</button></div>`;
+}
+$("#mk-cta").onclick = mkCta; $("#mk-again").onclick = mkCta;
+$("#mk-mstop").onclick = () => api(`/api/books/${book.book_id}/llm/cancel`, { method: "POST" });
+$("#mk-mres").addEventListener("click", (ev) => { if (ev.target.closest("#mk-res-open")) mkOpenEditor(true); });
+// editor: the same flow, or the characters only
+async function mkLlm(task) {
+  if (MK.running || !await mkSave()) return;
+  const msg = $("#mk-llmmsg"); msg.textContent = ""; $("#mk-chars").innerHTML = ""; $("#mk-step").hidden = true;
+  const hasMarkup = Object.values(MK.data.chapters).some(c => c.spans.length);
+  if (task === "auto" && hasMarkup && !confirm(t("mk.again.confirm"))) return;
+  let model = $("#mk-model").value;
+  if (!model) { try { const p = await mkPickModel(); model = p.pick; if (!model) { msg.textContent = t("mk.nomodel", { m: p.rec || "gemma4:12b-it-qat" }); return; } } catch (e) { /* let the server answer */ } }
+  const btns = ["#mk-analyse", "#mk-auto", "#mk-auto2"];
+  const s = await mkAutoRun(task, { model, tags: $("#mk-llmtags").checked, chapters: task === "auto" && $("#mk-onlych").checked ? [MK.ch + 1] : undefined }, {
+    busy: (on) => { btns.forEach(b => $(b).disabled = on); $("#mk-stop").hidden = !on; $("#mk-prog").hidden = !on; },
+    progress: (pct, text) => { $("#mk-prog").value = pct; msg.textContent = text; },
+    error: (m) => { msg.innerHTML = `<span class="err">${esc(m)}</span>`; } });
+  if (!s) return;
+  if (task === "analyse") { await mkShowChars(); return; }
+  await mkReadBack(); await mkLoadChapter(MK.ch);
+  msg.textContent = t("mk.auto.done", { m: s.stats.marked || 0, f: s.stats.fell_back || 0 });
+  const v = mkVoiceList();
+  $("#mk-chars").innerHTML = `<b>${esc(t("mk.chars.voices", { n: mkNeeded() }))}</b>` + `<div class="mk-res">${v.html}</div>`;
+  const nx = $("#mk-step"); nx.hidden = false;
+  nx.innerHTML = `<b>${esc(t(v.missing.length ? "mk.next.voices" : "mk.next.check"))}</b><div class="row"><button type="button" class="primary" id="mk-next-go">${esc(t(v.missing.length ? "mk.res.choose" : "mk.next.read"))}</button></div>`;
+}
+$("#mk-step").addEventListener("click", (ev) => {
+  if (!ev.target.closest("#mk-next-go")) return;
+  if (mkVoiceList().missing.length) { $("#mk-fine").open = true; $("#mk-speakers").scrollIntoView({ block: "start" }); const f = $("#mk-speakers select"); if (f) f.focus(); }
+  else $("#mk-text").focus();
+});
 async function mkShowChars() {
   try { MK.bible = await api(`/api/books/${book.book_id}/characters`); } catch (e) { return; }
   const cs = MK.bible.characters.filter(c => c.lines > 0).sort((a, b) => b.lines - a.lines);
@@ -985,7 +1083,7 @@ $("#mk-chars").addEventListener("click", (ev) => {
   });
   MK.data.speakers.sort((a, b) => a.id - b.id); mkRender();
 });
-$("#mk-analyse").onclick = () => mkLlm("analyse"); $("#mk-auto").onclick = () => mkLlm("auto");
+$("#mk-analyse").onclick = () => mkLlm("analyse"); $("#mk-auto").onclick = () => mkLlm("auto"); $("#mk-auto2").onclick = () => mkLlm("auto");
 $("#mk-stop").onclick = () => api(`/api/books/${book.book_id}/llm/cancel`, { method: "POST" });
 
 // ---- voice ideas: English voice-design prompts for a character, takes to listen to, you choose --------------------
