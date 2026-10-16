@@ -2219,7 +2219,13 @@ function engRelabel() {  // after a UI language switch: same selections, new lab
 // -- Fish Audio engines (optional): choose a build, accept its licence, install
 const FISH = { st: null, timer: null };
 const FISH_POINTS = { "fish-research": ["research_only", "no_selling", "voices", "no_training", "attribution"], "fish-community": ["commercial", "no_hosting", "voices", "no_training", "attribution"] };
-async function fishRefresh() { try { FISH.st = await api("/api/engines/fish"); } catch (e) { FISH.st = null; } fishRender(); }
+// an install may already be running on the server (started from another page load): the page joins it instead of offering the button again
+async function fishRefresh(fromPoll) {
+  try { FISH.st = await api("/api/engines/fish"); } catch (e) { FISH.st = null; }
+  if (!fromPoll) { try { FISH.inst = await api("/api/engines/fish/install"); } catch (e) { /* no status */ } }
+  fishRender();
+  if (!fromPoll && FISH.inst && FISH.inst.state === "running") fishPoll();
+}
 function fishCur() {  // the build the choice resolves to (the server applies the same rule when it renders)
   const e = ENG.cur(); if (!e || !e.fish || !FISH.st) return null;
   const bs = FISH.st.builds.filter(b => b.engine === e.name), id = $("#o-tts_build").value;
@@ -2257,7 +2263,7 @@ async function fishPoll() {
     FISH.timer = setTimeout(fishPoll, 1500); return;
   }
   if (i.state === "error") { $("#fish-warn").textContent = i.message; }
-  await fishRefresh();
+  await fishRefresh(true);
 }
 $("#fish-install").addEventListener("click", async () => {
   const b = fishCur(); if (!b) return;
