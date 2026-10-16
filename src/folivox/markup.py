@@ -136,17 +136,24 @@ class Markup:
     def is_empty(self) -> bool:
         return not any(c.spans or c.marks or c.done for c in self.chapters.values())
 
-    def segments(self, chapter: int, block: int, text: str) -> list[Segment]:
-        """The block split by speaker and inline tags. Concatenating the segment texts gives ``text`` exactly."""
+    def segments(self, chapter: int, block: int, text: str, book_lang: str = "") -> list[Segment]:
+        """The block split by speaker, language and inline tags. Concatenating the segment texts gives ``text``
+        exactly. With ``book_lang``, stretches in another script (Latin words in Russian text, …) are found
+        and get their language unless a span already names one."""
         cm = self.chapters.get(chapter)
-        if cm is None:
-            return [Segment(text, 0)]
         spans = sorted((s for s in cm.spans if s.block == block and 0 <= s.start < s.end <= len(text)),
-                       key=lambda s: s.start)
-        marks = sorted((m for m in cm.marks if m.block == block and 0 < m.at < len(text)), key=lambda m: m.at)
-        if not spans and not marks:
+                       key=lambda s: s.start) if cm else []
+        marks = sorted((m for m in cm.marks if m.block == block and 0 < m.at < len(text)),
+                       key=lambda m: m.at) if cm else []
+        runs = []
+        if book_lang:
+            from folivox.lang.runs import script_runs
+
+            runs = script_runs(text, book_lang)
+        if not spans and not marks and not runs:
             return [Segment(text, 0)]
-        cuts = sorted({0, len(text), *(s.start for s in spans), *(s.end for s in spans), *(m.at for m in marks)})
+        cuts = sorted({0, len(text), *(s.start for s in spans), *(s.end for s in spans), *(m.at for m in marks),
+                       *(r.start for r in runs), *(r.end for r in runs)})
         out: list[Segment] = []
         for a, b in zip(cuts, cuts[1:], strict=False):
             span = next((s for s in spans if s.start <= a and b <= s.end), None)
@@ -154,7 +161,8 @@ class Markup:
             if span and span.start == a:
                 tags += span.tags
             tags += [m.tag for m in marks if m.at == a]
-            out.append(Segment(text[a:b], span.speaker if span else 0, tuple(tags), span.lang if span else ""))
+            lang = span.lang if span and span.lang else next((r.lang for r in runs if r.start <= a and b <= r.end), "")
+            out.append(Segment(text[a:b], span.speaker if span else 0, tuple(tags), lang))
         return out
 
     # -- editing helpers (used by the CLI, the LLM pass and the editor)

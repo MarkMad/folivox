@@ -13,6 +13,70 @@ STOPWORDS = {
     "it": "il la che di e non un una per del gli le si è da con ho lo ma sono della",
 }
 _SETS = {k: set(v.split()) for k, v in STOPWORDS.items()}
+_ACCENTS = {"de": "ßäöü", "fr": "éèêëàâçîïôùûœ", "es": "ñ¿¡áíóú", "it": "ìòùà"}
+
+
+def latin_lang(text: str, default: str = "en") -> str:
+    """Which Latin-script language a short text is (en/de/fr/es/it), ``default`` when nothing says."""
+    words = re.findall(r"[^\W\d_]+", text.lower())
+    scores = {lang: sum(w in s for w in words) for lang, s in _SETS.items()}
+    low = text.lower()
+    for lang, chars in _ACCENTS.items():
+        scores[lang] += sum(low.count(c) for c in chars)
+    if scores.get("de") and "ß" in low:
+        scores["de"] += 2
+    best = max(scores, key=lambda k: (scores[k], k == default))
+    return best if scores[best] > scores.get(default, 0) or (scores[best] and best == default) else default
+
+
+def _script_counts(text: str) -> Counter:
+    counts: Counter = Counter()
+    for ch in text:
+        o = ord(ch)
+        if 0x0400 <= o <= 0x04FF:
+            counts["cyr"] += 1
+        elif 0x3040 <= o <= 0x30FF:
+            counts["kana"] += 1
+        elif 0xAC00 <= o <= 0xD7AF or 0x1100 <= o <= 0x11FF:
+            counts["hangul"] += 1
+        elif 0x4E00 <= o <= 0x9FFF:
+            counts["han"] += 1
+        elif ch.isascii() and ch.isalpha() or 0xC0 <= o <= 0x24F:
+            counts["lat"] += 1
+    return counts
+
+
+def shares(text: str, window: int = 800) -> dict[str, float]:
+    """The share of letters per language over the whole text, largest first: ``{"ru": 0.92, "en": 0.08}``.
+    Scripts say ru/ko/ja/zh; Latin text is told apart by function words per window of ``window`` characters
+    (a window that says nothing counts for the Latin language of the text as a whole). Shares under 1% are
+    left out."""
+    total = _script_counts(text)
+    letters = sum(total.values())
+    if not letters:
+        return {}
+    out: Counter = Counter()
+    out["ru"] = total["cyr"]
+    out["ko"] = total["hangul"]
+    cjk = total["han"] + total["kana"]
+    if cjk:
+        out["ja" if total["kana"] > 0.05 * cjk else "zh"] += cjk
+    if total["lat"]:
+        per_window: list[tuple[str, int]] = []
+        votes: Counter = Counter()
+        for i in range(0, len(text), window):
+            part = text[i:i + window]
+            n = _script_counts(part)["lat"]
+            if not n:
+                continue
+            lang = latin_lang(part, "")
+            per_window.append((lang, n))
+            if lang:
+                votes[lang] += n
+        main = votes.most_common(1)[0][0] if votes else "en"
+        for lang, n in per_window:
+            out[lang or main] += n
+    return {k: round(v / letters, 4) for k, v in out.most_common() if v / letters >= 0.01}
 
 
 def detect(text: str, default: str = "ru") -> str:
