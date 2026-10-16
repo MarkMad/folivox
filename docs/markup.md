@@ -159,17 +159,17 @@ text, fix what the model got wrong, import it back, assign voices with `folivox 
 
 ## Studio: the markup editor
 
-Several voices are an **optional extra**: most books sound fine read by one voice. Step *3 · Voice* starts with a
+Several voices are an **optional extra**: most books sound fine read by one voice. Step *4 · Voice* starts with a
 choice of two cards, **One voice** (the default: one voice reads the whole book) and **Several voices** (a narrator
 and a separate voice for each character, like a radio play). The voice list below it then means the book's voice,
 or, with several voices on, the **narrator's voice** (everything the characters do not say). Pressing *Render* with
 several voices on but no characters marked yet says so instead of silently reading with one voice. The choice is
 remembered per book (a book that already has markup opens in *Several voices*); switching back to one voice keeps the
-markup. Because the voice is chosen before the engine, the engine list in step *4 · Reading engine* follows the
-mode: online engines read the whole book in one voice, so they are not offered (and a chosen online engine is
-replaced by a local one) while *Several voices* is on.
+markup. The engine is chosen first, in step *3 · Reading engine*: online engines read the whole book in one voice,
+so with one of them chosen *Several voices* is greyed out (with a note saying why) and the mode switches back to
+*One voice*.
 
-With *Several voices* on, step 3 shows the **Characters** box. It does not run anything: it shows the **state** and
+With *Several voices* on, step 4 shows the **Characters** box. It does not run anything: it shows the **state** and
 has one button, **Characters and voices…**, which opens the editor, where the automatic marking and every manual
 tool live. The state says what is found ("Found 3 characters, 12 marked passages"), which chapters with dialogue are
 processed and which are not (only the chapters chosen in step 2 count: one you left out needs no markup, and a not-yet-processed chosen chapter is shown in red), and who has which
@@ -222,7 +222,7 @@ Below the button the manual tools are always visible:
 - **Listen**: select a passage (up to 1500 characters, whole paragraphs are read) and press *Listen* in the bar under
   the text, to the right of the speaker chips. It is read with the speakers' voices and tags without touching the
   audiobook. The list next to the button chooses the **engine** to listen with (the local ones; it starts with the
-  engine of step 4), so a passage can be tried with, say, CosyVoice 3 and Fish S2 Pro in turn.
+  engine of step 3), so a passage can be tried with, say, CosyVoice 3 and Fish S2 Pro in turn.
 - **Automatic markup**: see above; progress is saved and the editor reloads the result so you can correct it.
 - **Voice ideas**: the *Voice ideas* button of a speaker writes three **English** voice descriptions from the
   character list (simple, standard, detailed: the simple one works with any voice-design model, the detailed one

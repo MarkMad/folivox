@@ -1185,7 +1185,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                             "fish": True, "blurb": "", "models": [], "per_hour": 0,
                             "builds": [b.id for b in bs]})
         order = ["cosyvoice3", "fish-drama3", "fish-s2", "gemini", "cartesia", "elevenlabs", "openai"]  # free first
-        tags = {"gemini": "cheap and best", "openai": "low quality for non-English"}
+        tags = {"gemini": "cheap and best", "openai": "low quality for non-English",
+                "fish-drama3": "best"}
         for e in out:
             e["tag"] = tags.get(e["name"], "")
         out.sort(key=lambda e: order.index(e["name"]) if e["name"] in order else len(order))
