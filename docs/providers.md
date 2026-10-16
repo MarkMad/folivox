@@ -31,6 +31,21 @@ model = "some/model"
 api_key_env = "OPENROUTER_API_KEY"
 ```
 
+**Inference runtime** is a separate, general switch (not a provider): `--runtime auto|pytorch|native`,
+`FOLIVOX_RUNTIME`, or
+
+```toml
+[runtime]
+inference = "auto"        # auto | pytorch | native
+
+[runtime.native]          # all optional
+backend = "auto"          # auto | metal | cuda | vulkan
+weights = "q8_0"          # q8_0 | f32 (GGUF file of the CosyVoice 3 model)
+weight_type = "f16"       # precision the engine converts the weights to on load: native | f32 | f16 | bf16 | q8_0
+```
+
+It changes how `cosyvoice3` runs; the other engines ignore it. See [Native runtime](native-runtime.md).
+
 API keys are read from environment variables, or from your **OS keychain** when you save them in
 the web interface (`folivox ui` → Providers → API keys). The config file refuses `api_key` fields, so
 keys never end up in a file you might share. Cloud providers run at your own cost, and your text

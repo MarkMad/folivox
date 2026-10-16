@@ -103,6 +103,14 @@ The installer may also have installed `uv` and `ffmpeg`. Remove them only if you
 
 For problems, see [support.md](support.md) (`folivox doctor --bundle`).
 
+## Optional: the native runtime
+
+`folivox setup` offers (default: no) to download the optional native C++ engine on computers where a build exists;
+`folivox runtime install` does it any time. After `folivox update` brings a newer pinned engine release, `folivox
+runtime` says so and `folivox runtime install` fetches it. The
+installer scripts themselves download nothing extra; with `FOLIVOX_NATIVE=1` they run `folivox runtime install --yes`
+at the end. `folivox uninstall` removes it with the other downloads. See [Native runtime](native-runtime.md).
+
 ## Not verified yet
 
 The scripts were written to run on macOS, Linux and Windows, but only the shell syntax and `folivox setup` were run on

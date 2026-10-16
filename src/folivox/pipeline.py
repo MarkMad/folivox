@@ -43,6 +43,7 @@ class RenderOptions:
     speed: float = 1.0
     device: str = "auto"
     tts: str = "cosyvoice3"  # provider name in folivox.tts.ENGINES
+    runtime: str = ""  # "" = from the settings (auto | pytorch | native); see folivox.tts.runtime
     tts_build: str = "auto"  # Fish engines: build id from the catalog (auto = the best installed one that fits)
     asr: str = "auto"  # provider name in folivox.qa.asr.ASR_PROVIDERS
     llm: str = "rl"  # CosyVoice LLM weights: "rl" (fewer content errors, per upstream eval) or "base"
@@ -237,7 +238,11 @@ def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, event
     planned = [(chapters[i].title, _plan_preview(chapters[i], copts, opts.preview, ctx(i), opts.sample_exact))
                for i in selected]
     settings = f"{SYNTH_VERSION}|llm={opts.llm}|speed={opts.speed}"
-    if opts.tts != "cosyvoice3":  # keep cache keys of existing CosyVoice renders valid
+    from folivox.tts import runtime
+
+    if runtime.resolve(opts.tts, opts.runtime or None) == "native":
+        settings = runtime.take_settings(opts.speed)
+    elif opts.tts != "cosyvoice3":  # keep cache keys of existing CosyVoice renders valid
         settings = f"{opts.tts}|speed={opts.speed}"
         if cloud:
             settings = f"{opts.tts}|{engine.model}"
@@ -560,6 +565,8 @@ def device_label(engine) -> str:
             return f"CUDA · {torch.cuda.get_device_name(0)}"
         except Exception:  # noqa: BLE001
             return "CUDA"
+    if dev.startswith("native:"):
+        return f"Native C++ (audio.cpp) · {dev[7:].capitalize()}"
     if dev == "mps":
         return "MPS · Apple GPU"
     if dev == "mlx":
@@ -569,8 +576,15 @@ def device_label(engine) -> str:
 
 def load_engine(opts: RenderOptions, events: Events):
     """Create the local engine; a failed GPU load falls back to the CPU, other failures get a clear message."""
-    from folivox.tts import ENGINES
+    from folivox.tts import ENGINES, runtime
 
+    if runtime.resolve(opts.tts, opts.runtime or None) == "native":
+        from folivox import config
+        from folivox.tts.native import NativeCosyVoiceEngine
+
+        if opts.llm != "rl":
+            events.warning("The native runtime has one CosyVoice 3 model; --llm is ignored")
+        return NativeCosyVoiceEngine(threads=opts.threads, **config.native_options())
     last = None
     if opts.device == "auto":
         from folivox import gpu
@@ -712,6 +726,10 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
         if bad:
             events.warning(f"{len(bad)} saved fragment(s) were damaged and will be synthesised again")
         cloud = is_cloud(opts.tts)
+        from folivox.tts import runtime as tts_runtime
+
+        if tts_runtime.resolve(opts.tts, opts.runtime or None) == "native":
+            tts_runtime.require_ready()
         if is_fish(opts.tts):
             from folivox.tts import fish_check
 
@@ -769,7 +787,8 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
             if engine is not None:
                 sample_rate = engine.sample_rate
             else:
-                if opts.tts == "cosyvoice3" and weights.needs_download(opts.model_dir, opts.llm):
+                if opts.tts == "cosyvoice3" and tts_runtime.resolve(opts.tts, opts.runtime or None) != "native" \
+                        and weights.needs_download(opts.model_dir, opts.llm):
                     events.stage("download", "Preparing the model download (first run)")
                 else:
                     events.stage("model", f"Loading TTS model into memory ({opts.tts})")
