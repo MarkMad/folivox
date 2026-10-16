@@ -36,6 +36,8 @@ PROMPT_VERSION = "2"
 WINDOW_CHARS = 5000
 MIN_LINES_FOR_A_VOICE = 3  # a character who speaks less than this is not counted as needing a voice of their own
 MAX_RELEVANT = 25
+# a paragraph that opens with speech (not one that merely quotes a sign)
+DIALOGUE_START = re.compile(r"^\s*[—–―\"«„“”'‘「『]|^\s*-\s")
 SPEECH_MARKS = re.compile(r"[«»„“”\"‘’「」『』]|^\s*[—–―]|^\s*-\s|\bthink|\bthought", re.I | re.M)
 
 Progress = Callable[[str, int, int, str], None]  # stage, done, total, message
@@ -736,29 +738,43 @@ def _gender_hint(lang: str, narration: str) -> str:
     return seen.pop() if len(seen) == 1 else ""
 
 
+def _base_names(c: Character) -> set[str]:
+    """The ways the text names a character in the base form: the name, the aliases, the first word of a full name."""
+    out = {norm_name(n) for n in c.names() if len(n) >= 3}
+    if " " in c.name.strip():
+        out.add(norm_name(c.name.split()[0]))
+    return {n for n in out if n and " " not in n}
+
+
 def check_paragraph(text: str, parts: list[tuple[int, int]], ids: list[int], bible: Bible, lang: str) -> list[dict]:
     """Doubts about one marked paragraph, as review entries. Two rules that read only the text: the name in an
     attribution ("said Boris") must be the speaker of the speech it belongs to, and the pronoun or the verb
     ending in it must not contradict the speaker's gender."""
     by_id = {c.id: c for c in bible.characters if c.id}
+    names = set().union(*(_base_names(c) for c in by_id.values())) if by_id else set()
     out: list[dict] = []
     for i, (s, e) in enumerate(parts):
         if ids[i]:
             continue
         piece = text[s:e]
-        # the speech this narration belongs to: the nearest speech part before it, else the one after it
-        target = next((ids[j] for j in range(i - 1, -1, -1) if ids[j]), 0) or next((x for x in ids[i + 1:] if x), 0)
+        # the speech this narration belongs to: the part right before it, else the part right after it
+        target = (ids[i - 1] if i else 0) or (ids[i + 1] if i + 1 < len(ids) else 0)
         if not target or len(piece.split()) > 12 or not SPEECH_MARKS.search(text):
             continue
-        named = {c.id for c in bible.characters if c.id and any(
-            same_name(w, n) for w in re.findall(r"\w+", piece) if len(w) >= 3 for n in c.names())}
+        # the attribution is the first clause ("said Boris"); a name further on ("so quietly that Anna ...") is
+        # someone else's, and only the base form of a name counts (Russian "Анне" or "Анну" is the listener)
+        clause = re.split(r"[,;:]", piece, maxsplit=1)[0]
+        words = {norm_name(w) for w in re.findall(r"\w+", clause) if len(w) >= 3}
+        named = {c.id for c in bible.characters if c.id and words & _base_names(c)}
+        y = by_id.get(target)
         if len(named) == 1 and target not in named:
             x = by_id.get(next(iter(named)))
-            y = by_id.get(target)
             out.append({"b": -1, "code": "attribution", "named": x.name if x else "", "marked": y.name if y else ""})
             continue
+        # the pronoun rule is only safe when the narration names nobody (a name means someone else may be meant)
+        if any(norm_name(w) in names for w in re.findall(r"\w+", piece) if len(w) >= 3):
+            continue
         hint = _gender_hint(lang, piece)
-        y = by_id.get(target)
         if hint and y and y.gender in ("f", "m") and "gender" not in y.unsure() and y.gender != hint:
             out.append({"b": -1, "code": "gender", "marked": y.name, "says": hint})
     return out[:1]  # one note per paragraph is enough to send the person there
@@ -1015,7 +1031,7 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
         missing = [b for b, _ in w.blocks if b not in seen]
         stats.blocks += len(missing)  # paragraphs the model skipped: the narrator reads them
         for b, t in w.blocks:  # a paragraph with speech that the model left out is a place to look at
-            if b in missing and SPEECH_MARKS.search(t):
+            if b in missing and DIALOGUE_START.search(t):
                 cm.review = [r for r in cm.review if r.get("b") != b] + [{"b": b, "code": "skipped"}]
                 stats.flagged += 1
         if last_window[w.chapter] == n and not sampled:

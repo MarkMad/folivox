@@ -420,6 +420,32 @@ def test_check_paragraph_reads_pronouns_and_attributions():
     assert check_paragraph(t2, split_parts(t2), [boris, 0], b, "ru")[0]["code"] == "attribution"
 
 
+def test_check_paragraph_does_not_cry_wolf_on_names_and_pronouns_that_are_not_the_speaker():
+    from folivox.markup_llm import check_paragraph, split_parts
+
+    b = ml.Bible()
+    for _ in range(3):
+        b.merge({"name": "Анна", "gender": "f", "age": "adult", "lines": 2})
+        b.merge({"name": "Борис", "gender": "m", "age": "adult", "lines": 2})
+        b.merge({"name": "Вера Петровна", "aliases": ["мать"], "gender": "f", "age": "old", "lines": 2})
+    b.assign_ids()
+    anna, boris, vera = b.find("Анна").id, b.find("Борис").id, b.find("Вера Петровна").id
+    def ids_of(t, who):  # the first part is the speech, the rest is narration
+        return [who] + [0] * (len(split_parts(t)) - 1)
+
+    later = "— Не открывай ему больше, — сказала мать так тихо, что Анна едва расслышала."  # a name in a later clause
+    for t, who in ((later, vera),
+                   ("— Ты куда? — спросил Борис Анну.", boris),  # the listener in the accusative
+                   ("— Домой, — ответил Борис, глядя на неё.", boris),  # an object pronoun
+                   ("— Дурак, — выдохнула Анна, и он засмеялся.", anna),  # "он" is not the speaker here
+                   ("— Спасибо, — сказала ему Анна.", anna)):
+        assert check_paragraph(t, split_parts(t), ids_of(t, who), b, "ru") == [], t
+    t = "— Домой, — сказала она."  # a real contradiction is still found
+    assert check_paragraph(t, split_parts(t), ids_of(t, boris), b, "ru")[0]["code"] == "gender"
+    t = "— Домой, — сказал Борис. Анна кивнула."  # narration that is not next to the speech says nothing
+    assert check_paragraph(t, split_parts(t), ids_of(t, boris), b, "ru") == []
+
+
 def test_second_opinion_settles_a_doubtful_place_with_a_better_answer():
     markup, stats, bible = annotate(FakeLLM("swap"))
     flagged = sum(len(c.review) for c in markup.chapters.values())

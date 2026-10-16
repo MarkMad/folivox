@@ -2,11 +2,10 @@
 
 import re
 
-# (masculine, feminine) pronouns by language; a language with no entry (or an ambiguous pronoun) gives no hint
-PRONOUNS = {"en": ({"he", "him", "his"}, {"she", "her", "hers"}),
-            "ru": ({"он", "его", "ему"}, {"она", "её", "ее", "ей"}),
-            "de": ({"er", "ihn", "ihm"}, set()), "fr": ({"il", "lui"}, {"elle"}), "es": ({"él"}, {"ella"}),
-            "it": ({"lui"}, {"lei"})}
+# (masculine, feminine) subject pronouns by language: only the subject of "he said" is the speaker ("said Anna to
+# him" has a "him" who is not); a language with no entry (or an ambiguous pronoun) gives no hint
+PRONOUNS = {"en": ({"he"}, {"she"}), "ru": ({"он"}, {"она"}), "de": ({"er"}, set()), "fr": ({"il"}, {"elle"}),
+            "es": ({"él"}, {"ella"}), "it": ({"lui", "egli"}, {"lei", "ella"})}
 
 # Russian past-tense speech verbs: the ending "а" is feminine ("спросила"), none is masculine ("спросил")
 RU_SAID = re.compile(r"\b(сказал|спросил|ответил|воскликнул|прошептал|крикнул|пробормотал|проговорил|добавил|"
