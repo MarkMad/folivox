@@ -695,5 +695,22 @@
  "mk.a.young": "jeune",
  "mk.a.adult": "adulte",
  "mk.a.old": "âgé",
- "mk.unsure": "Pas sûr : à vérifier. Cela sert aux idées de voix."
+ "mk.unsure": "Pas sûr : à vérifier. Cela sert aux idées de voix.",
+ "rt.h": "Moteur d’inférence",
+ "rt.sub": "Ce qui calcule la voix CosyVoice 3 sur cet ordinateur. PyTorch est le choix testé par défaut. Le moteur natif C++ (audio.cpp) est facultatif et peut être bien plus rapide ; il demande un téléchargement unique et n’est utilisé que là où vous le choisissez.",
+ "rt.opt.auto": "Automatique (PyTorch pour l’instant)",
+ "rt.opt.pytorch": "PyTorch",
+ "rt.opt.native": "Natif C++ (audio.cpp)",
+ "rt.st.none": "Moteur natif : non installé.",
+ "rt.st.nobuild": "Il n’existe pas de moteur natif prêt pour cet ordinateur ({platform}) ; PyTorch est utilisé.",
+ "rt.st.ready": "Moteur natif installé ({backend}).",
+ "rt.st.untested": "Cette version n’a pas encore été vérifiée sur {platform} : essayez d’abord un court aperçu.",
+ "rt.install": "Télécharger le moteur natif ({gb} Go)",
+ "rt.remove": "Supprimer",
+ "rt.installing": "Téléchargement de {name} : {done} sur {total} Go",
+ "rt.preparing": "Préparation…",
+ "rt.confirm": "Télécharger {gb} Go ({what}) ? PyTorch reste installé.",
+ "rt.confirmrm": "Supprimer le moteur natif et ses fichiers de modèle ? PyTorch n’est pas touché.",
+ "rt.device": "Le moteur natif choisit lui-même son processeur graphique ; le réglage « Appareil » n’est pas utilisé.",
+ "rt.needinstall": "Installez d’abord le moteur natif."
 }

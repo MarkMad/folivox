@@ -95,6 +95,8 @@ Ok "folivox installed"
 Step 5 "Models and first check"
 $env:PYTHONIOENCODING = "utf-8"
 if ($env:FOLIVOX_SKIP_MODELS -eq "1") { folivox setup --skip-models } else { folivox setup }
+# Optional native C++ runtime (audio.cpp): only on request, FOLIVOX_NATIVE=1 (otherwise `folivox setup` asked, or: folivox runtime install)
+if ($env:FOLIVOX_NATIVE -eq "1") { folivox runtime install --yes; if ($LASTEXITCODE -ne 0) { Warn "Native runtime not installed. Later: folivox runtime install" } }
 # Optional Fish Audio engines (separate licences, 7-24 GB). Asked only of a person at a console, only where a tested build fits.
 $fishBuild = ""
 try { $fishBuild = ((& folivox engines best 2>$null) | Out-String).Trim() } catch { }

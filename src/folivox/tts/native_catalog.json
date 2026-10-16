@@ -1,0 +1,112 @@
+{
+ "release": "v0.9.2",
+ "download_base": "https://github.com/0xShug0/audio.cpp/releases/download/v0.9.2/",
+ "repo": "https://github.com/0xShug0/audio.cpp",
+ "licence": {
+  "name": "Apache-2.0",
+  "holder": "ShugoAI LLC",
+  "url": "https://github.com/0xShug0/audio.cpp/blob/v0.9.2/LICENSE"
+ },
+ "auto_ok": [],
+ "binaries": [
+  {
+   "id": "macos-arm64-metal",
+   "platform": "darwin-arm64",
+   "backend": "metal",
+   "status": "verified",
+   "note": "",
+   "assets": [
+    {
+     "name": "audio-v0.9.2-bin-macos-arm64-metal.tar.gz",
+     "size": 31972675,
+     "sha256": "827239e1d5824f8294cce461661dc7f20f933869bd333dfc60ba3c089f29faab"
+    }
+   ]
+  },
+  {
+   "id": "windows-x64-cuda13.3",
+   "platform": "win32-x64",
+   "backend": "cuda",
+   "status": "untested",
+   "note": "NVIDIA driver 580 or newer, GPU compute capability 7.5 or newer (RTX 20 series and later)",
+   "assets": [
+    {
+     "name": "audio-v0.9.2-bin-windows-x64-cuda13.3.zip",
+     "size": 275142402,
+     "sha256": "ddf7474656e4c47a1bc5b5a53a268709d968d87132367d646baae5a77c34391f"
+    },
+    {
+     "name": "audio-v0.9.2-cudart-windows-x64-cuda13.3.zip",
+     "size": 575457454,
+     "sha256": "f3bb616e43f4b8aec4be7f2c2b323aec381a1993bac382401a011c121c126e59"
+    }
+   ]
+  },
+  {
+   "id": "windows-x64-cuda12.4",
+   "platform": "win32-x64",
+   "backend": "cuda",
+   "status": "untested",
+   "note": "NVIDIA GPU with an older driver",
+   "assets": [
+    {
+     "name": "audio-v0.9.2-bin-windows-x64-cuda12.4.zip",
+     "size": 463532839,
+     "sha256": "099bd43b74a5175fd9e03ac95c9fabe8b97718826d547890a03950483e81b168"
+    },
+    {
+     "name": "audio-v0.9.2-cudart-windows-x64-cuda12.4.zip",
+     "size": 607273675,
+     "sha256": "50e278d213daa38e782a10b501b764c5c0738381898dacee7243101b890eeb0d"
+    }
+   ]
+  },
+  {
+   "id": "windows-x64-vulkan",
+   "platform": "win32-x64",
+   "backend": "vulkan",
+   "status": "untested",
+   "note": "any GPU with a Vulkan 1.1 driver (AMD, Intel, NVIDIA)",
+   "assets": [
+    {
+     "name": "audio-v0.9.2-bin-windows-x64-vulkan.zip",
+     "size": 62705751,
+     "sha256": "271402eae94195b9e2204e9f07e576bd0df879c75bafb0fa2f940830648d63f9"
+    }
+   ]
+  },
+  {
+   "id": "ubuntu-x64-vulkan",
+   "platform": "linux-x64",
+   "backend": "vulkan",
+   "status": "untested",
+   "note": "any GPU with a Vulkan 1.1 driver",
+   "assets": [
+    {
+     "name": "audio-v0.9.2-bin-ubuntu-x64-vulkan.tar.gz",
+     "size": 81428599,
+     "sha256": "f74b72124c412b28e6520e0c7b5cab31e89a9f933534f2ec2ab35664c4f491e6"
+    }
+   ]
+  }
+ ],
+ "weights": {
+  "cosyvoice3": {
+   "repo": "audio-cpp/audio.cpp-gguf",
+   "revision": "f861648c0c1f4da9f18e9a0ce5e217b0679bb2f5",
+   "licence": "Apache-2.0",
+   "files": {
+    "q8_0": {
+     "path": "CosyVoice3-GGUF/cosyvoice3-q8_0.gguf",
+     "size": 2257658080,
+     "sha256": "ff31bb29ba5723809ec817c9fcc09a5f88d5d8ef6cfbc623edb5a7d7be8a6fca"
+    },
+    "f32": {
+     "path": "CosyVoice3-GGUF/cosyvoice3-f32.gguf",
+     "size": 6995036608,
+     "sha256": "58f7f6c782268315c1d1f0783b6e652162d894dd4b94bde2153173218ab9bfe0"
+    }
+   }
+  }
+ }
+}
