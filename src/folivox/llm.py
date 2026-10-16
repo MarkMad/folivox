@@ -88,8 +88,9 @@ class Ollama(LLM):
              cancelled: Callable[[], bool] = lambda: False) -> None:
         """Download a model through Ollama (it resumes a half-finished download). ``progress(done, total, status)``
         gets bytes summed over the layers; raises ``PullError`` when Ollama refuses or cannot be reached."""
-        req = urllib.request.Request(f"{self.host}/api/pull", data=json.dumps({"model": model, "stream": True}).encode(),
-                                     method="POST", headers={"Content-Type": "application/json"})
+        body = json.dumps({"model": model, "stream": True}).encode()
+        req = urllib.request.Request(f"{self.host}/api/pull", data=body, method="POST",
+                                     headers={"Content-Type": "application/json"})
         layers: dict[str, tuple[int, int]] = {}
         try:
             with urllib.request.urlopen(req, timeout=60) as r:
