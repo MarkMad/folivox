@@ -792,13 +792,14 @@ function mkSummary() {
   const e = $("#mk-empty"); if (e) e.hidden = spans > 0;
   const el = $("#mk-stat"), people = MK.data.speakers.filter(x => x.id > 0);
   if (!spans && !people.length) { el.innerHTML = `<div class="mute">${esc(t("mk.st.none"))}</div>`; return; }
-  const stale = new Set(MK.stale || []), done = new Set(Object.keys(MK.data.chapters).map(Number).filter(i => !stale.has(i))), speech = MK.speech || [];
-  const missing = speech.filter(i => !done.has(i)), chosen = typeof selected === "function" ? new Set(selected()) : new Set();
+  // only the chapters chosen in step 2 matter: a chapter the person left out needs no markup
+  const chosen = typeof selected === "function" ? new Set(selected()) : new Set(), mine = (i) => chosen.has(i + 1);
+  const stale = new Set((MK.stale || []).filter(mine)), done = new Set(Object.keys(MK.data.chapters).map(Number).filter(i => !stale.has(i)));
+  const speech = (MK.speech || []).filter(mine), missing = speech.filter(i => !done.has(i));
   const rows = [`<div>${esc(t("mk.st.found", { n: people.length, m: spans }))}</div>`];
   if (speech.length) {
     const list = missing.slice(0, 8).map(i => i + 1).join(", ") + (missing.length > 8 ? "…" : "");
-    const warn = missing.some(i => chosen.has(i + 1));
-    rows.push(missing.length ? `<div class="${warn ? "err" : "mute"}">${esc(t("mk.st.cov.part", { d: speech.length - missing.length, t: speech.length, list }))}</div>`
+    rows.push(missing.length ? `<div class="err">${esc(t("mk.st.cov.part", { d: speech.length - missing.length, t: speech.length, list }))}</div>`
                              : `<div class="mute">${esc(t("mk.st.cov.ok", { t: speech.length }))}</div>`);
   }
   if (stale.size) rows.push(`<div class="err">${esc(t("mk.st.stale", { list: [...stale].map(i => i + 1).join(", ") }))}</div>`);

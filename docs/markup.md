@@ -157,7 +157,7 @@ replaced by a local one) while *Several voices* is on.
 With *Several voices* on, step 3 shows the **Characters** box. It does not run anything: it shows the **state** and
 has one button, **Characters and voices…**, which opens the editor, where the automatic marking and every manual
 tool live. The state says what is found ("Found 3 characters, 12 marked passages"), which chapters with dialogue are
-processed and which are not (in red when an unprocessed chapter is among those chosen in step 2), and who has which
+processed and which are not (only the chapters chosen in step 2 count: one you left out needs no markup, and a not-yet-processed chosen chapter is shown in red), and who has which
 voice (the characters without their own voice are read by the narrator). With nothing set up it says so and points to
 the editor. A chapter counts as processed once the automatic marking (or an edit) has touched it.
 
