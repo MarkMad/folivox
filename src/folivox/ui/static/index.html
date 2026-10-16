@@ -714,7 +714,9 @@ $("#recent-list").addEventListener("click", async (ev) => {
     try { await api(`/api/books/${x.dataset.rm}`, { method: "DELETE" }); } catch (e) { $("#book-info").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
     loadRecent(); return;
   }
-  const b = ev.target.closest(".rb"); if (!b || b.classList.contains("cur")) return;
+  const b = ev.target.closest(".rb"); if (!b) return;
+  $("#recent").open = false;  // the choice is made: fold the list away
+  if (b.classList.contains("cur")) return;
   uploads++; $("#book-info").textContent = t("rb.opening");
   try { setBook(await api(`/api/books/${b.dataset.id}/open`, { method: "POST" })); }
   catch (e) { $("#book-info").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
