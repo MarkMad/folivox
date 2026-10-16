@@ -219,3 +219,16 @@ def test_preview_and_best_modes(client):
     assert client.get(f"/api/books/{bid}/characters").json()["sampled"] is False
     m = client.get(f"/api/books/{bid}/markup").json()
     assert all(c["done"] for c in m["chapters"].values())
+
+
+def test_a_hand_made_change_of_gender_is_not_outvoted(client):
+    bid = upload(client)
+    client.post(f"/api/books/{bid}/llm/start", json={"task": "analyse"})
+    wait(client, bid)
+    bible = client.get(f"/api/books/{bid}/characters").json()
+    anna = next(c for c in bible["characters"] if c["name"] == "Анна")
+    assert "unsure" in anna
+    anna["gender"] = "m"
+    saved = client.put(f"/api/books/{bid}/characters", json=bible).json()
+    again = next(c for c in saved["characters"] if c["name"] == "Анна")
+    assert again["gender"] == "m" and again["votes"]["gender"]["m"] >= 1000 and "gender" not in again["unsure"]

@@ -198,7 +198,7 @@ class Bible:
         return {"version": 1, "lang": self.lang, "narration": self.narration, "model": self.model,
                 "done_windows": self.done_windows, "total_windows": self.total_windows,
                 "sampled": self.sampled, "voices_needed": self.voices_needed(),
-                "characters": [c.__dict__ for c in self.characters]}
+                "characters": [{**c.__dict__, "unsure": c.unsure()} for c in self.characters]}
 
     @classmethod
     def from_dict(cls, d: dict) -> Bible:

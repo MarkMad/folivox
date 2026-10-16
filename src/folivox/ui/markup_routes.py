@@ -94,6 +94,16 @@ def routes(api_error, state, services: dict) -> list[Route]:
             if not 0 <= c.id < mk.MAX_SPEAKERS:
                 raise api_error(f"{c.name}: the speaker id must be 0..{mk.MAX_SPEAKERS - 1}")
         f = files(bid)[0]
+        try:  # what the person changed by hand is not outvoted by the windows later: it is a heavy vote
+            before = {c.id: c for c in ml.Bible.load(f).characters if c.id} if f.is_file() else {}
+        except ml.LLMError:
+            before = {}
+        for c in bible.characters:
+            old = before.get(c.id)
+            if old is not None:
+                for what in ("gender", "age"):
+                    if getattr(c, what) != getattr(old, what):
+                        c.vote(what, getattr(c, what), 1000)
         f.parent.mkdir(parents=True, exist_ok=True)
         bible.save(f)
         return JSONResponse(bible.to_dict())
