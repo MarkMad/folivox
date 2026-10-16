@@ -222,7 +222,7 @@ def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, event
     settings = f"{SYNTH_VERSION}|llm={opts.llm}|speed={opts.speed}"
     from folivox.tts import runtime
 
-    if runtime.resolve(opts.tts, opts.runtime or None) == "native":
+    if runtime.cosyvoice_native(opts.tts, opts.runtime or None):
         settings = runtime.take_settings(opts.speed)
     elif opts.tts != "cosyvoice3":  # keep cache keys of existing CosyVoice renders valid
         settings = f"{opts.tts}|speed={opts.speed}"
@@ -231,7 +231,7 @@ def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, event
         elif is_fish(opts.tts):  # another build or revision sounds different
             from folivox.tts import builds
 
-            b = builds.build_for(opts.tts, opts.tts_build)
+            b = builds.build_for(opts.tts, opts.tts_build, runtime=runtime.resolve(opts.tts, opts.runtime or None))
             settings = f"{opts.tts}|{FISH_SYNTH_VERSION}|{b.id}@{b.revision[:12]}"
     journal.set_plan(planned, voice_id, settings, {sid: v.id for sid, v in (voices or {}).items()})
     journal.set_meta(book_title=book.title, chapters_selected=[i + 1 for i in selected], settings=settings,
@@ -525,7 +525,7 @@ def load_engine(opts: RenderOptions, events: Events):
     """Create the local engine; a failed GPU load falls back to the CPU, other failures get a clear message."""
     from folivox.tts import ENGINES, runtime
 
-    if runtime.resolve(opts.tts, opts.runtime or None) == "native":
+    if runtime.cosyvoice_native(opts.tts, opts.runtime or None):
         from folivox import config
         from folivox.tts.native import NativeCosyVoiceEngine
 
@@ -593,7 +593,7 @@ def _engine_options(opts: RenderOptions) -> dict:
     if opts.tts == "cosyvoice3":
         return {"model_dir": opts.model_dir, "device": opts.device, "threads": opts.threads, "llm": opts.llm}
     if is_fish(opts.tts):
-        return {"build": opts.tts_build, "device": opts.device}
+        return {"build": opts.tts_build, "device": opts.device, "runtime": opts.runtime or None}
     return {"device": opts.device}
 
 
@@ -675,7 +675,7 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
         cloud = is_cloud(opts.tts)
         from folivox.tts import runtime as tts_runtime
 
-        if tts_runtime.resolve(opts.tts, opts.runtime or None) == "native":
+        if tts_runtime.cosyvoice_native(opts.tts, opts.runtime or None):
             tts_runtime.require_ready()
         if is_fish(opts.tts):
             from folivox.tts import fish_check
@@ -731,7 +731,7 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
             if engine is not None:
                 sample_rate = engine.sample_rate
             else:
-                if opts.tts == "cosyvoice3" and tts_runtime.resolve(opts.tts, opts.runtime or None) != "native" \
+                if opts.tts == "cosyvoice3" and not tts_runtime.cosyvoice_native(opts.tts, opts.runtime or None) \
                         and weights.needs_download(opts.model_dir, opts.llm):
                     events.stage("download", "Preparing the model download (first run)")
                 else:

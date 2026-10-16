@@ -24,6 +24,32 @@ folivox engines remove drama3-mlx-4bit
 In the studio: **4 · Reading engine** → pick the Fish engine → *Read and accept the licence…* →
 *Download and install*.
 
+## Native builds (audio.cpp, any platform, experimental)
+
+The MLX builds above run on Apple Silicon only. The same two engines also have **native GGUF builds** that run on the
+[audio.cpp](native-runtime.md) engine (Metal, CUDA or Vulkan, so also Windows and Linux). They are never picked
+automatically: choose them with the inference switch (`--runtime native`, or *Advanced settings → Inference runtime*)
+or name the build.
+
+| Build | Download | Notes |
+|---|---|---|
+| `s2pro-native-q8` | 6.3 GB | S2 Pro, Q8_0, official audio.cpp GGUF package |
+| `s2pro-native-bf16` | 10.2 GB | S2 Pro, bf16: slower and larger, closest to the original |
+| `drama3-native-q2` / `q3` / `q4` | 17.1 / 20.3 / 24.6 GB | Drama 3 GGUF from `Jmica/Drama-3-GGUF` (a personal repository: the files are checked against the pinned sha256) |
+
+```bash
+folivox engines install s2pro-native-q8       # also downloads the audio.cpp engine (asks for the licence first)
+folivox render book.epub --tts fish-s2 --runtime native --voice my-voice.wav
+```
+
+Same licences and notices as the MLX builds (S2 Pro: Research License, personal use only; Drama 3: Fish Community
+License). The engine and the model run in a separate `audiocpp_server` process like the other native models.
+**Drama 3 needs a server you build yourself**: audio.cpp releases do not contain it, only the unofficial branch
+[JarodMica/audio.cpp `drama-3-native`](https://github.com/JarodMica/audio.cpp/blob/drama-3-native/docs/models/fish_drama3.md)
+does. Build `audiocpp_server` from it and set `FOLIVOX_NATIVE_SERVER` to the file; the install refuses without it.
+Memory figures for native builds are estimates. None of the native Fish builds has been tested by the Folivox
+project yet (status `untested`); see [Native runtime](native-runtime.md) for what is verified.
+
 ## Licences, and what they mean for your audiobooks
 
 | Build | Licence | Selling the audiobooks |

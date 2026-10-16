@@ -31,7 +31,6 @@ from folivox.tts.base import SynthTimeout, TTSEngine, synth_timeout
 from folivox.tts.native_setup import NativeError
 from folivox.tts.voice import Voice
 
-MODEL_ID = "cosyvoice3"
 IDLE_SECONDS = float(os.environ.get("FOLIVOX_NATIVE_IDLE", "300"))
 LOAD_TIMEOUT = 900.0  # first start: compiles GPU kernels and reads the weights
 WEIGHT_TYPES = {"native": "native", "f32": "F32", "f16": "F16", "bf16": "BF16", "q8_0": "Q8_0"}
@@ -46,8 +45,9 @@ class Spec:
     server: Path
     model: Path
     backend: str
-    weight_type: str
+    weight_type: str = "native"
     threads: int | None = None
+    family: str = "cosyvoice3"  # audio.cpp model family: cosyvoice3 | fish_audio | fish_drama3
 
 
 def server_command(server: Path) -> list[str]:
@@ -71,6 +71,10 @@ class Server:
         self.timer: threading.Timer | None = None
         self.lock = threading.Lock()  # one request at a time: the server serialises them anyway
 
+    def session_options(self) -> dict:
+        """CosyVoice converts its weights to ``weight_type`` while loading; the Fish models run as published."""
+        return {"cosyvoice3.weight_type": self.spec.weight_type} if self.spec.family == "cosyvoice3" else {}
+
     # -- life cycle
     def start(self) -> None:
         sp = self.spec
@@ -78,8 +82,8 @@ class Server:
         self._tmp = Path(tempfile.mkdtemp(prefix="folivox-native-"))
         cfg = {"host": "127.0.0.1", "port": self.port, "backend": sp.backend, "lazy_load": False,
                "max_loaded_models": 1,
-               "models": [{"id": MODEL_ID, "family": "cosyvoice3", "path": str(sp.model), "task": "clon",
-                           "mode": "offline", "session_options": {"cosyvoice3.weight_type": sp.weight_type}}]}
+               "models": [{"id": sp.family, "family": sp.family, "path": str(sp.model), "task": "clon",
+                           "mode": "offline", "session_options": self.session_options()}]}
         cfg_path = self._tmp / "server.json"
         cfg_path.write_text(json.dumps(cfg), encoding="utf-8")
         log = native_setup.log_file()
@@ -146,8 +150,10 @@ class Server:
 
     # -- requests
     def speech(self, text: str, ref_wav: Path, ref_text: str, seed: int, timeout: float) -> tuple[np.ndarray, int]:
-        body = {"model": MODEL_ID, "input": text, "voice_ref": str(ref_wav), "reference_text": ref_text,
-                "seed": int(seed), "response_format": "wav", "options": {"template_name": "zero_shot"}}
+        body = {"model": self.spec.family, "input": text, "voice_ref": str(ref_wav), "reference_text": ref_text,
+                "seed": int(seed), "response_format": "wav"}
+        if self.spec.family == "cosyvoice3":
+            body["options"] = {"template_name": "zero_shot"}
         req = urllib.request.Request(f"http://127.0.0.1:{self.port}/v1/audio/speech",
                                      json.dumps(body, ensure_ascii=False).encode("utf-8"),
                                      {"Content-Type": "application/json"})

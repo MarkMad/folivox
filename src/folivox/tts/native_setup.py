@@ -282,9 +282,10 @@ class Plan:
     lines: list[str]
 
 
-def plan(weights: str = "q8_0", backend: str = "auto") -> Plan:
-    """What an install would download now (items already installed are left out). Asks nothing, downloads nothing."""
-    if weights not in WEIGHT_CHOICES:
+def plan(weights: str | None = "q8_0", backend: str = "auto") -> Plan:
+    """What an install would download now (items already installed are left out). Asks nothing, downloads nothing.
+    ``weights=None`` plans the engine only (the Fish models bring their own GGUF files)."""
+    if weights is not None and weights not in WEIGHT_CHOICES:
         raise NativeError(f"weights must be one of {', '.join(WEIGHT_CHOICES)}")
     lines, total = [], 0
     b = None
@@ -301,7 +302,7 @@ def plan(weights: str = "q8_0", backend: str = "auto") -> Plan:
             total += b.size
             lines.append(f"engine audio.cpp {load().release} ({b.backend}): {b.size / 1e6:.0f} MB from GitHub")
     w = None
-    if model_path(weights) is None:
+    if weights is not None and model_path(weights) is None:
         w = load().weights[weights]
         total += w.size
         lines.append(f"CosyVoice 3 model ({weights}): {w.size / 1e9:.1f} GB from huggingface.co/{w.repo}")
@@ -464,3 +465,20 @@ def disk_problem(need: int, where: Path | None = None) -> str | None:
     if free < need * 1.15:
         return f"Not enough disk space: {need / 1e9:.1f} GB needed, {free / 1e9:.1f} GB free on {probe}"
     return None
+
+
+def ensure_engine(backend: str = "auto", progress: Progress | None = None,
+                  log: Callable[[str], None] = print) -> Path:
+    """The ``audiocpp_server`` executable, downloading the pinned release first when it is missing."""
+    srv = server_path(backend)
+    if srv is not None:
+        return srv
+    p = plan(None, backend)
+    problem = disk_problem(p.todo_bytes)
+    if problem:
+        raise NativeError(problem)
+    install(p, progress, log)
+    srv = server_path(backend)
+    if srv is None:
+        raise NativeError("The native engine could not be installed")
+    return srv

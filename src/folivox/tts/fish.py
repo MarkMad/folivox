@@ -127,13 +127,20 @@ class FishEngine(TTSEngine):
     languages = ("ru", "en", "zh", "ja", "ko", "de", "es", "fr", "it")
     sample_rate = 44100
 
-    def __init__(self, build: str | None = None, device: str = "auto", **_ignored: Any):
-        self.build = builds.build_for(self.name, build)
+    def __init__(self, build: str | None = None, device: str = "auto", runtime: str | None = None,
+                 **_ignored: Any):
+        from folivox.tts import runtime as tts_runtime
+
+        self.build = builds.build_for(self.name, build, runtime=tts_runtime.resolve(self.name, runtime))
+        self.native = self.build.backend == "native"
+        if self.native:
+            self.device = "native"
         licences.require(self.build)
         if not fish_setup.is_ready(self.build):
             raise FileNotFoundError(f"{self.build.title} is not installed. Install it first (it downloads "
                                     f"{self.build.size_gb:.1f} GB): folivox engines install {self.build.id}")
         self._worker: _Worker | None = None
+        self._server = None  # native builds: the shared audio.cpp server
         self._refs: dict[str, Path] = {}
         self._tmp = tempfile.TemporaryDirectory(prefix="folivox-fish-")
         self.peak_gb = 0.0
@@ -143,6 +150,8 @@ class FishEngine(TTSEngine):
     # -- life cycle
     def start(self, voice: Voice) -> None:
         """Load the model and warm it up with the book's own voice (the first call is slow: kernels compile)."""
+        if self.native:
+            return self._start_native(voice)
         if self._worker is not None:
             return
         python = fish_setup.venv_python(self.build.runtime)
@@ -155,7 +164,33 @@ class FishEngine(TTSEngine):
         self.sample_rate = int(rep["sample_rate"])
         self.load_seconds = time.time() - t0
 
+    def _start_native(self, voice: Voice) -> None:
+        """The audio.cpp server loads the GGUF and stays up for the whole render (and a few idle minutes after)."""
+        if self._server is not None:
+            return
+        from folivox.tts import native, native_setup
+
+        family = "fish_drama3" if self.build.kind == "drama3" else "fish_audio"
+        server = native_setup.server_path()
+        if server is None:
+            raise FishError("The native engine is not installed: run  folivox runtime install  "
+                            f"(or folivox engines install {self.build.id})")
+        backend = native_setup.server_backend()
+        self.device = f"native:{backend}"
+        gguf = builds.weights_dir(self.build) / self.build.files[0]["path"]
+        t0 = time.time()
+        try:
+            self._server = native.acquire(native.Spec(server, gguf, backend, family=family))
+        except native_setup.NativeError as e:
+            raise FishError(str(e)) from e
+        self.load_seconds = time.time() - t0
+
     def close(self) -> None:
+        if self._server is not None:
+            from folivox.tts import native
+
+            native.release(self._server)
+            self._server = None
         if self._worker is not None:
             self._worker.close()
             self._worker = None
@@ -178,6 +213,8 @@ class FishEngine(TTSEngine):
     def synthesize_audio(self, text: str, voice: Voice, seed: int, speed: float) -> tuple[np.ndarray, float]:
         # Reading speed is not a parameter of these models; the pipeline warns once.
         self.start(voice)
+        if self.native:
+            return self._synth_native(text, voice, seed)
         assert self._worker is not None
         self._calls += 1
         out = Path(self._tmp.name) / f"out-{self._calls}.npy"
@@ -188,6 +225,30 @@ class FishEngine(TTSEngine):
         out.unlink(missing_ok=True)
         self.peak_gb = max(self.peak_gb, float(rep.get("peak_gb", 0.0)))
         return audio, float(rep["seconds"])
+
+
+    def _synth_native(self, text: str, voice: Voice, seed: int) -> tuple[np.ndarray, float]:
+        from folivox.tts import native
+        from folivox.tts.native_setup import NativeError
+
+        assert self._server is not None
+        ref = self._reference(voice)
+        t0 = time.time()
+        for attempt in (0, 1):
+            try:
+                audio, sr = self._server.speech(text, ref, voice.transcript, seed, synth_timeout(len(text)))
+                break
+            except native.ServerGone:
+                if attempt:
+                    raise FishError("The native engine stopped twice in a row; see its log in `folivox doctor`.") \
+                        from None
+                with self._server.lock:
+                    if not self._server.alive():
+                        self._server.start()
+            except NativeError as e:
+                raise FishError(str(e)) from e
+        self.sample_rate = sr
+        return audio, time.time() - t0
 
 
 class FishS2Engine(FishEngine):

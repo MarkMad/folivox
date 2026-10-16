@@ -3,7 +3,8 @@
  "comment": "Fish Audio builds offered by Folivox. Only entries listed here can be installed: repo, pinned revision, file sizes and sha256 of the large files. A build enters this file only after a run on the standard test fragment (see tools/fish_catalog.py).",
  "trusted_orgs": [
   "mlx-community",
-  "fishaudio"
+  "fishaudio",
+  "audio-cpp"
  ],
  "licences": {
   "fish-research": {
@@ -57,6 +58,17 @@
     "scipy==1.18.1"
    ],
    "note": "fork stickerdaniel/mlx-audio pinned at commit 478f318 (adds fish_drama3 and a vendored Qwen3.5; reviewed: no network, subprocess or pickle). Replace with mainline mlx-audio once Blaizzy/mlx-audio#1018 is merged."
+  },
+  "audiocpp-native": {
+   "backend": "native",
+   "python": "",
+   "platforms": [
+    "darwin-arm64",
+    "windows-x86_64",
+    "linux-x86_64"
+   ],
+   "packages": [],
+   "note": "prebuilt audio.cpp server (C++/GGML, Apache-2.0), downloaded by folivox runtime; no Python environment"
   }
  },
  "builds": [
@@ -390,6 +402,231 @@
      "path": "tokenizer_config.json",
      "size": 860832,
      "sha256": null
+    }
+   ]
+  },
+  {
+   "id": "s2pro-native-q8",
+   "engine": "fish-s2",
+   "title": "Fish Audio S2 Pro, native GGUF Q8",
+   "backend": "native",
+   "kind": "s2",
+   "platforms": [
+    "darwin-arm64",
+    "windows-x86_64",
+    "linux-x86_64"
+   ],
+   "repo": "audio-cpp/audio.cpp-gguf",
+   "runtime": "audiocpp-native",
+   "licence": "fish-research",
+   "quant": "Q8_0",
+   "rank": 60,
+   "status": "untested",
+   "memory_gb": {
+    "weights": 6.3,
+    "peak": 10,
+    "min_total": 16
+   },
+   "languages": [
+    "ru",
+    "en",
+    "de",
+    "fr",
+    "es",
+    "it",
+    "zh",
+    "ja",
+    "ko"
+   ],
+   "tested_on": [],
+   "notes": "Weights are under the Fish Audio Research License: personal and research use only, no commercial use. Runs on the audio.cpp native runtime (GGUF); memory figures are estimates, not measurements.",
+   "revision": "f861648c0c1f4da9f18e9a0ce5e217b0679bb2f5",
+   "size_bytes": 6317911232,
+   "files": [
+    {
+     "path": "Fish-Audio-S2-Pro-GGUF/fish-audio-s2-pro-q8_0.gguf",
+     "size": 6317911232,
+     "sha256": "4ffc169447b7a26df8bf49e8637adb4000bfa763a22c018b6c03968564259d0b"
+    }
+   ]
+  },
+  {
+   "id": "s2pro-native-bf16",
+   "engine": "fish-s2",
+   "title": "Fish Audio S2 Pro, native GGUF bf16",
+   "backend": "native",
+   "kind": "s2",
+   "platforms": [
+    "darwin-arm64",
+    "windows-x86_64",
+    "linux-x86_64"
+   ],
+   "repo": "audio-cpp/audio.cpp-gguf",
+   "runtime": "audiocpp-native",
+   "licence": "fish-research",
+   "quant": "bf16",
+   "rank": 55,
+   "status": "untested",
+   "memory_gb": {
+    "weights": 10.2,
+    "peak": 14,
+    "min_total": 24
+   },
+   "languages": [
+    "ru",
+    "en",
+    "de",
+    "fr",
+    "es",
+    "it",
+    "zh",
+    "ja",
+    "ko"
+   ],
+   "tested_on": [],
+   "notes": "Weights are under the Fish Audio Research License: personal and research use only, no commercial use. Runs on the audio.cpp native runtime (GGUF); memory figures are estimates, not measurements.",
+   "revision": "f861648c0c1f4da9f18e9a0ce5e217b0679bb2f5",
+   "size_bytes": 10229278080,
+   "files": [
+    {
+     "path": "Fish-Audio-S2-Pro-GGUF/fish-audio-s2-pro-bf16.gguf",
+     "size": 10229278080,
+     "sha256": "781fdece3ff837838c48f7d5a7b37e37c4d661a6416416ad57fe92fed47d96ff"
+    }
+   ]
+  },
+  {
+   "id": "drama3-native-q2",
+   "engine": "fish-drama3",
+   "title": "Fish Audio Drama 3, native GGUF Q2_K experts",
+   "backend": "native",
+   "kind": "drama3",
+   "platforms": [
+    "darwin-arm64",
+    "windows-x86_64",
+    "linux-x86_64"
+   ],
+   "repo": "Jmica/Drama-3-GGUF",
+   "runtime": "audiocpp-native",
+   "licence": "fish-community",
+   "quant": "Q2_K experts, Q8_0 backbone",
+   "rank": 50,
+   "status": "untested",
+   "memory_gb": {
+    "weights": 17.1,
+    "peak": 22,
+    "min_total": 28
+   },
+   "languages": [
+    "ru",
+    "en",
+    "de",
+    "fr",
+    "es",
+    "it",
+    "zh",
+    "ja",
+    "ko"
+   ],
+   "tested_on": [],
+   "notes": "Fish Community License. Needs your own build of the unofficial JarodMica/audio.cpp branch drama-3-native (no release binaries exist): set FOLIVOX_NATIVE_SERVER to its audiocpp_server. Memory figures are estimates, not measurements.",
+   "revision": "17a5b40c5dc2c2be986f5371a7e650108b828e29",
+   "size_bytes": 17053639872,
+   "files": [
+    {
+     "path": "drama-3-backbone-8bit-experts-Q2_K.gguf",
+     "size": 17053639872,
+     "sha256": "041be86fbb53bf4002d59bf7d5f0c99c321e0b21f5aa3b53fec380eec6f892d3"
+    }
+   ]
+  },
+  {
+   "id": "drama3-native-q3",
+   "engine": "fish-drama3",
+   "title": "Fish Audio Drama 3, native GGUF Q3_K_S experts",
+   "backend": "native",
+   "kind": "drama3",
+   "platforms": [
+    "darwin-arm64",
+    "windows-x86_64",
+    "linux-x86_64"
+   ],
+   "repo": "Jmica/Drama-3-GGUF",
+   "runtime": "audiocpp-native",
+   "licence": "fish-community",
+   "quant": "Q3_K_S experts, Q8_0 backbone",
+   "rank": 52,
+   "status": "untested",
+   "memory_gb": {
+    "weights": 20.3,
+    "peak": 25,
+    "min_total": 32
+   },
+   "languages": [
+    "ru",
+    "en",
+    "de",
+    "fr",
+    "es",
+    "it",
+    "zh",
+    "ja",
+    "ko"
+   ],
+   "tested_on": [],
+   "notes": "Fish Community License. Needs your own build of the unofficial JarodMica/audio.cpp branch drama-3-native (no release binaries exist): set FOLIVOX_NATIVE_SERVER to its audiocpp_server. Memory figures are estimates, not measurements.",
+   "revision": "17a5b40c5dc2c2be986f5371a7e650108b828e29",
+   "size_bytes": 20325196992,
+   "files": [
+    {
+     "path": "drama-3-backbone-8bit-experts-Q3_K_S.gguf",
+     "size": 20325196992,
+     "sha256": "b946a8c9806deba559590b98e37ffc9e0957109263e111513734fa93284db16b"
+    }
+   ]
+  },
+  {
+   "id": "drama3-native-q4",
+   "engine": "fish-drama3",
+   "title": "Fish Audio Drama 3, native GGUF Q4_K_S experts",
+   "backend": "native",
+   "kind": "drama3",
+   "platforms": [
+    "darwin-arm64",
+    "windows-x86_64",
+    "linux-x86_64"
+   ],
+   "repo": "Jmica/Drama-3-GGUF",
+   "runtime": "audiocpp-native",
+   "licence": "fish-community",
+   "quant": "Q4_K_S experts, Q8_0 backbone",
+   "rank": 54,
+   "status": "untested",
+   "memory_gb": {
+    "weights": 24.6,
+    "peak": 29,
+    "min_total": 36
+   },
+   "languages": [
+    "ru",
+    "en",
+    "de",
+    "fr",
+    "es",
+    "it",
+    "zh",
+    "ja",
+    "ko"
+   ],
+   "tested_on": [],
+   "notes": "Fish Community License. Needs your own build of the unofficial JarodMica/audio.cpp branch drama-3-native (no release binaries exist): set FOLIVOX_NATIVE_SERVER to its audiocpp_server. Memory figures are estimates, not measurements.",
+   "revision": "17a5b40c5dc2c2be986f5371a7e650108b828e29",
+   "size_bytes": 24596497888,
+   "files": [
+    {
+     "path": "drama-3-backbone-8bit-experts-Q4_K_S.gguf",
+     "size": 24596497888,
+     "sha256": "05af716baf78e7c20863b9ccebb3ebdeca9607dd3ea7d0b72c35079e675b212b"
     }
    ]
   }

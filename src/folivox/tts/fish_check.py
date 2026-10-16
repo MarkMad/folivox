@@ -29,7 +29,9 @@ def bundled_voices_allowed() -> bool:
 def check(opts, events) -> builds.Build:
     """Raise a clear error when the engine cannot be used; report warnings through ``events``."""
     try:
-        build = builds.build_for(opts.tts, opts.tts_build)
+        from folivox.tts import runtime
+
+        build = builds.build_for(opts.tts, opts.tts_build, runtime=runtime.resolve(opts.tts, opts.runtime or None))
     except builds.CatalogError as e:
         raise ProviderError(str(e)) from None
     licences.require(build)

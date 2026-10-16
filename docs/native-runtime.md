@@ -72,6 +72,14 @@ AMD HIP on Windows (community builds in a fork; not pinned by Folivox), Intel Ma
 **Your own build.** `FOLIVOX_NATIVE_SERVER=/path/to/audiocpp_server` and `FOLIVOX_NATIVE_MODEL=/path/to/cosyvoice3.gguf`
 are used instead of the installed files (a CUDA or HIP build from source, for example); `folivox runtime` shows them.
 
+## Fish Audio models (S2 Pro, Drama 3)
+
+`--runtime native` also selects the native GGUF builds of the Fish engines (`s2pro-native-q8`, `drama3-native-q*`;
+see [Fish Audio engines](fish-engines.md#native-builds-audiocpp-any-platform-experimental)). Without the switch
+Fish keeps using its MLX builds on Apple Silicon. S2 Pro uses the stock audio.cpp release; Drama 3 exists only in the
+unofficial `JarodMica/audio.cpp` branch `drama-3-native`, so it runs only on an `audiocpp_server` that you built from
+it and pointed `FOLIVOX_NATIVE_SERVER` at.
+
 ## Licences
 
 audio.cpp is Apache-2.0 (the engine only; the downloaded release carries its LICENSE). Weights keep their own licence:

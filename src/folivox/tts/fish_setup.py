@@ -34,12 +34,28 @@ def venv_python(rt_id: str) -> Path:
 
 
 def _runtime_ready(rt: builds.Runtime) -> bool:
+    if rt.backend == "native":  # no Python environment: the audio.cpp server executable is the runtime
+        from folivox.tts import native_setup
+
+        return native_setup.server_path() is not None
     marker = builds.runtime_dir(rt.id) / "runtime.json"
     try:
         return venv_python(rt.id).is_file() and json.loads(marker.read_text(encoding="utf-8"))["packages"] == \
             list(rt.packages)
     except (OSError, ValueError, KeyError):
         return False
+
+
+OWN_SERVER_HELP = ("Drama 3 is not part of any audio.cpp release: build the audiocpp_server of the unofficial branch "
+                   "JarodMica/audio.cpp (drama-3-native, see its docs/models/fish_drama3.md) and set "
+                   "FOLIVOX_NATIVE_SERVER to that file.")
+
+
+def needs_own_server(b: Build) -> bool:
+    """Native Drama 3 runs only on a build you made yourself (no release binaries exist)."""
+    from folivox.tts import native_setup
+
+    return b.backend == "native" and b.kind == "drama3" and not os.environ.get(native_setup.SERVER_ENV)
 
 
 def is_ready(b: Build) -> bool:
@@ -49,6 +65,8 @@ def is_ready(b: Build) -> bool:
     except (OSError, ValueError):
         return False
     if info.get("revision") != b.revision or not _runtime_ready(cat.runtimes[b.runtime]):
+        return False
+    if needs_own_server(b):
         return False
     wd = builds.weights_dir(b)
     try:
@@ -99,7 +117,16 @@ def _run(cmd: list[str], what: str, log: Callable[[str], None]) -> None:
 
 
 def ensure_runtime(rt: builds.Runtime, log: Callable[[str], None] = print) -> Path:
-    """Create the private environment and install the pinned packages (a few minutes the first time)."""
+    """Create the private environment and install the pinned packages (a few minutes the first time).
+    The native runtime downloads the pinned audio.cpp release instead; a missing server of your own build
+    (FOLIVOX_NATIVE_SERVER) is an error, not something to download."""
+    if rt.backend == "native":
+        from folivox.tts import native_setup
+
+        try:
+            return native_setup.ensure_engine(log=log)
+        except native_setup.NativeError as e:
+            raise InstallError(str(e)) from e
     if _runtime_ready(rt):
         return venv_python(rt.id)
     root = builds.runtime_dir(rt.id)
@@ -147,6 +174,8 @@ def install(b: Build, progress: Progress | None = None, log: Callable[[str], Non
     problem = free_disk_ok(b, builds.engines_root())
     if problem:
         raise InstallError(problem)
+    if needs_own_server(b):
+        raise InstallError(OWN_SERVER_HELP)
     ensure_runtime(cat.runtimes[b.runtime], log)
     wd = builds.weights_dir(b)
     wd.mkdir(parents=True, exist_ok=True)

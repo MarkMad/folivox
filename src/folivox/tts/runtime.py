@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from folivox import config
 
-NATIVE_ENGINES = ("cosyvoice3",)
+NATIVE_ENGINES = ("cosyvoice3", "fish-s2", "fish-drama3")  # Fish: native GGUF builds, chosen by build_for
 
 
 def resolve(engine: str, requested: str | None = None) -> str:
@@ -20,9 +20,16 @@ def resolve(engine: str, requested: str | None = None) -> str:
         return "pytorch"
     if mode == "native":
         return "native"
+    if engine != "cosyvoice3":  # no Fish build is the default natively yet: name it or choose `native`
+        return "pytorch"
     from folivox.tts import native_setup
 
     return "native" if native_setup.status(config.native_options()["weights"]).auto else "pytorch"
+
+
+def cosyvoice_native(engine: str, requested: str | None = None) -> bool:
+    """True when CosyVoice 3 runs natively (Fish engines pick native *builds* instead)."""
+    return engine == "cosyvoice3" and resolve(engine, requested) == "native"
 
 
 def supports_native(engine: str) -> bool:

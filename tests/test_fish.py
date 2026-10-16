@@ -44,7 +44,7 @@ def test_bundled_catalog_is_valid_and_pinned():
     assert {b.engine for b in cat.builds} == {"fish-s2", "fish-drama3"}
     for b in cat.builds:
         assert len(b.revision) == 40
-        assert all(f["path"].endswith((".safetensors", ".json", ".md", ".jinja", "LICENSE", "NOTICE",
+        assert all(f["path"].endswith((".safetensors", ".gguf", ".json", ".md", ".jinja", "LICENSE", "NOTICE",
                                        ".gitattributes")) for f in b.files)
         assert sum(f["size"] for f in b.files) == b.size_bytes
         assert cat.licences[b.licence].text_sha256

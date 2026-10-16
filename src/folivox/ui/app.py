@@ -749,7 +749,9 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         from folivox.tts import fish_check, fish_setup, licences
 
         try:
-            b = fb.build_for(tts, build_id)
+            from folivox.tts import runtime as tts_runtime
+
+            b = fb.build_for(tts, build_id, runtime=tts_runtime.resolve(tts, None))
         except fb.CatalogError as e:
             raise ApiError(str(e)) from None
         if not licences.is_accepted(fb.load().licences[b.licence]):

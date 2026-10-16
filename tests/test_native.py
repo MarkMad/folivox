@@ -185,7 +185,9 @@ def test_resolve_keeps_pytorch_unless_asked(tmp_path, monkeypatch):
     assert runtime.resolve("cosyvoice3") == "pytorch"  # auto, nothing recorded as checked
     assert runtime.resolve("cosyvoice3", "native") == "native"
     assert runtime.resolve("cosyvoice3", "pytorch") == "pytorch"
-    assert runtime.resolve("fish-s2", "native") == "pytorch"  # no native implementation: the switch is ignored
+    assert runtime.resolve("fish-s2", "native") == "native"  # Fish: picks the native GGUF builds
+    assert runtime.resolve("fish-s2") == "pytorch"  # never automatically
+    assert runtime.resolve("elevenlabs", "native") == "pytorch"  # a cloud engine has nothing to switch
     b, a, fetch = fake_release(monkeypatch, tmp_path)
     ns.install(ns.Plan(b, None, a.size, []), None, lambda m: None, fetch=fetch)
     monkeypatch.setenv(ns.MODEL_ENV, str(FAKE))
@@ -358,3 +360,75 @@ def test_doctor_and_uninstall_know_the_runtime(tmp_path, monkeypatch):
     (data / "native" / "bin" / "f").write_bytes(b"x" * 5)
     monkeypatch.setattr(uninstall, "data_dir", lambda: data)
     assert any("Native runtime" in i.label for i in uninstall.plan())
+
+
+# -- Fish models on the native runtime ------------------------------------------------------------------------------
+
+def test_native_fish_builds_are_in_the_catalog():
+    from folivox.tts import builds
+
+    cat = builds.load()
+    nat = [b for b in cat.builds if b.backend == "native"]
+    assert {b.id for b in nat} == {"s2pro-native-q8", "s2pro-native-bf16", "drama3-native-q2", "drama3-native-q3",
+                                   "drama3-native-q4"}
+    for b in nat:
+        assert b.status == "untested" and b.files[0]["path"].endswith(".gguf") and len(b.files[0]["sha256"]) == 64
+        assert b.size_bytes == b.files[0]["size"] and set(b.platforms) >= {"darwin-arm64", "windows-x86_64"}
+    assert builds.is_trusted_org("audio-cpp/audio.cpp-gguf", cat)
+    assert not builds.is_trusted_org("Jmica/Drama-3-GGUF", cat)
+
+
+def test_build_choice_native_only_when_asked():
+    from folivox.tts import builds
+
+    win = builds.Hardware("windows", "x86_64", 64.0, 40.0)
+    mac = builds.Hardware("darwin", "arm64", 64.0, 50.0)
+    assert builds.build_for("fish-s2", None, mac).backend == "mlx"  # the default stays MLX
+    assert builds.build_for("fish-s2", None, mac, runtime="native").id == "s2pro-native-q8"
+    assert builds.build_for("fish-drama3", None, mac, runtime="native").id == "drama3-native-q4"
+    assert builds.build_for("fish-s2", None, win, runtime="native").id == "s2pro-native-q8"
+    with pytest.raises(builds.CatalogError):  # nothing tested for Windows without the native runtime
+        builds.build_for("fish-s2", None, win)
+    small = builds.Hardware("darwin", "arm64", 16.0, 9.0)
+    with pytest.raises(builds.CatalogError):
+        builds.build_for("fish-drama3", None, small, runtime="native")
+
+
+def test_native_drama_needs_your_own_build(tmp_path, monkeypatch):
+    from folivox.tts import builds, fish_setup, licences
+
+    b = builds.load().build("drama3-native-q2")
+    assert fish_setup.needs_own_server(b) and not fish_setup.needs_own_server(builds.load().build("s2pro-native-q8"))
+    monkeypatch.setattr(builds, "engines_root", lambda: tmp_path / "engines")
+    monkeypatch.setattr(licences, "require", lambda b: None)
+    monkeypatch.setattr(fish_setup, "free_disk_ok", lambda b, w: None)
+    with pytest.raises(fish_setup.InstallError, match="JarodMica"):
+        fish_setup.install(b)
+    monkeypatch.setenv(ns.SERVER_ENV, str(FAKE))
+    assert not fish_setup.needs_own_server(b)
+
+
+def test_native_fish_engine_round_trip(fake_engine, tmp_path, monkeypatch):
+    from folivox.tts import builds, fish, fish_setup, licences
+
+    voice, requests = fake_engine
+    monkeypatch.setattr(builds, "detect_hardware", lambda: builds.Hardware("darwin", "arm64", 64.0, 50.0))
+    monkeypatch.setattr(fish_setup, "is_ready", lambda b: True)
+    monkeypatch.setattr(licences, "require", lambda b: None)
+    monkeypatch.setattr(fish, "to_reference_wav", lambda src, dst: Path(src))
+    monkeypatch.setattr(builds, "weights_dir", lambda b: tmp_path / "w")
+    eng = fish.FishS2Engine(build="auto", runtime="native")
+    try:
+        assert eng.native and eng.build.id == "s2pro-native-q8"
+        s = eng.synthesize("Это Fish.", voice, seed=3)
+        assert len(s.audio) > 0 and eng.sample_rate == 24000 and eng.device.startswith("native:")
+        r = requests()[0]
+        assert r["model"] == "fish_audio" and r["seed"] == 3 and "options" not in r
+    finally:
+        eng.close()
+    drama = fish.FishDrama3Engine(build="drama3-native-q2")
+    try:
+        drama.synthesize("Сцена.", voice, seed=1)
+        assert requests()[-1]["model"] == "fish_drama3"
+    finally:
+        drama.close()
