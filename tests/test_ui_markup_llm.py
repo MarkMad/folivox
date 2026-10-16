@@ -203,3 +203,19 @@ def test_estimate_names_the_chapters_whose_text_changed(client):
     d["chapters"]["0"]["sig"] = "another-text"  # as if the first chapter had been edited since it was marked
     mp.write_text(json.dumps(d), encoding="utf-8")
     assert client.get(f"/api/books/{bid}/llm/estimate").json()["stale_chapters"] == [0]
+
+
+def test_preview_and_best_modes(client):
+    bid = upload(client)
+    est = client.get(f"/api/books/{bid}/llm/estimate").json()["modes"]
+    assert est["preview"]["analyse"] >= 1 and est["best"]["annotate"] >= 1 and est["best"]["extra"] >= 12
+    assert client.post(f"/api/books/{bid}/llm/start", json={"task": "preview"}).status_code == 202
+    st = wait(client, bid)
+    assert st["state"] == "done" and "flagged" in st["stats"]
+    assert client.get(f"/api/books/{bid}/characters").json()["sampled"] is False  # a small book fits in the sample
+    assert client.post(f"/api/books/{bid}/llm/start", json={"task": "best", "chapters": [1, 2]}).status_code == 202
+    st = wait(client, bid)
+    assert st["state"] == "done" and "settled" in st["stats"] and "to_check" in st["stats"]
+    assert client.get(f"/api/books/{bid}/characters").json()["sampled"] is False
+    m = client.get(f"/api/books/{bid}/markup").json()
+    assert all(c["done"] for c in m["chapters"].values())

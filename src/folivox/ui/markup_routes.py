@@ -30,6 +30,10 @@ class Task:
                 "message": self.message, "stats": self.stats}
 
 
+PREVIEW_ANALYSE = 6  # windows read for a preview of the characters
+PREVIEW_MARK = 3  # windows marked for a preview
+
+
 class Pull:
     """The one model download at a time; the page polls ``GET /api/llm/pull``."""
 
@@ -182,12 +186,13 @@ def routes(api_error, state, services: dict) -> list[Route]:
         entry = state.book(bid)
         depth = int(request.query_params.get("depth", 2))
         chapter = request.query_params.get("chapter")
+        picked = {int(x) - 1 for x in request.query_params.get("chapters", "").split(",") if x.strip().isdigit()}
         chapters = entry["book"].chapters(depth)
         bp = files(bid)[0]
         bible = ml.Bible.load(bp) if bp.is_file() else ml.Bible()
         every = ml.windows(chapters, ml.WINDOW_CHARS, only_speech=False)
         speech = [w for w in ml.windows(chapters, ml.WINDOW_CHARS, only_speech=True)
-                  if not chapter or w.chapter == int(chapter) - 1]
+                  if (not chapter or w.chapter == int(chapter) - 1) and (not picked or w.chapter in picked)]
         left = max(bible.total_windows - bible.done_windows, 0) if bible.total_windows else len(every)
         every_speech = ml.windows(chapters, ml.WINDOW_CHARS, only_speech=True)
         stale: list[int] = []  # chapters whose text is not the text that was marked (their markup is ignored)
@@ -200,8 +205,14 @@ def routes(api_error, state, services: dict) -> list[Route]:
                          if i >= len(book_chs) or (cm.sig and cm.sig != mk.chapter_sig(book_chs[i]))]
             except (mk.MarkupError, OSError, ValueError):
                 stale = []
+        paragraphs = sum(len(w.blocks) for w in speech)
+        modes = {"preview": {"analyse": min(PREVIEW_ANALYSE, len(every)),
+                             "annotate": min(PREVIEW_MARK, len(every_speech))},
+                 "best": {"analyse": len(every) if bible.sampled else left, "annotate": len(speech),
+                          # the second look: unsure characters, doubtful places
+                          "extra": 12 + round(0.07 * paragraphs)}}
         return JSONResponse({"analyse_windows": left, "annotate_windows": len(speech), "window_chars": ml.WINDOW_CHARS,
-                             "chars": sum(len(w.text()) for w in every),
+                             "modes": modes, "chars": sum(len(w.text()) for w in every),
                              "speech_chapters": sorted({w.chapter for w in every_speech}), "stale_chapters": stale})
 
     async def status(request: Request):
@@ -217,8 +228,8 @@ def routes(api_error, state, services: dict) -> list[Route]:
         entry = state.book(bid)
         body = await request.json()
         what = body.get("task")
-        if what not in ("analyse", "auto", "prompts"):
-            raise api_error("task must be analyse, auto or prompts")
+        if what not in ("analyse", "auto", "prompts", "preview", "best"):
+            raise api_error("task must be analyse, auto, prompts, preview or best")
         t = task_of(bid)
         if t.state == "running":
             raise api_error("The language model is already working on this book", 409)
@@ -268,9 +279,53 @@ def routes(api_error, state, services: dict) -> list[Route]:
             except Exception as e:  # noqa: BLE001
                 t.state, t.message = "error", str(e)
 
+        def work_mode() -> None:
+            """The two ways the page offers: a preview (a sample, minutes) or the best that can be done (every
+            chapter chosen, the whole book read, the characters looked at again, doubtful places asked about again)."""
+            cache = ml.Cache(cp)
+            runner = ml.Runner(llm, model, cache)
+            try:
+                bible = ml.Bible.load(bp) if bp.is_file() else ml.Bible()
+                markup = mk.Markup.load(mp) if mp.is_file() else mk.Markup(depth=depth)
+
+                def save_b(b) -> None:
+                    b.save(bp)
+
+                def save_m(m, b) -> None:
+                    mk.stamp(m, chapters)
+                    m.save(mp)
+                    b.save(bp)
+
+                preview = what == "preview"
+                bible = ml.analyse(chapters, book.lang, runner, bible, save=save_b, progress=progress,
+                                   max_windows=PREVIEW_ANALYSE if preview else None, cancelled=t.cancel.is_set)
+                if not preview and not t.cancel.is_set():
+                    ml.consolidate(chapters, book.lang, bible, runner, save=save_b, progress=progress,
+                                   cancelled=t.cancel.is_set)
+                if not t.cancel.is_set():
+                    markup, stats = ml.annotate(chapters, book.lang, bible, runner, markup,
+                                                chapter_filter=None if preview else chapter_filter, save=save_m,
+                                                progress=progress, cancelled=t.cancel.is_set, depth=depth,
+                                                max_windows=PREVIEW_MARK if preview else None)
+                    t.stats = dict(stats.__dict__)
+                    if not preview and not t.cancel.is_set():
+                        settled, left = ml.second_opinion(chapters, book.lang, bible, runner, markup, save=save_m,
+                                                          progress=progress, cancelled=t.cancel.is_set)
+                        t.stats.update(settled=settled, to_check=left)
+                    mk.stamp(markup, chapters)
+                    markup.save(mp)
+                    bible.save(bp)
+                t.state = "cancelled" if t.cancel.is_set() else "done"
+            except Exception as e:  # noqa: BLE001 — shown to the user; progress is saved
+                t.state, t.message = "error", str(e)
+            finally:
+                cache.close()
+
         def work() -> None:
             if what == "prompts":
                 return work_prompts()
+            if what in ("preview", "best"):
+                return work_mode()
             cache = ml.Cache(cp)
             runner = ml.Runner(llm, model, cache)
             try:
