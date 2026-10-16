@@ -633,7 +633,7 @@ character and by whom: "who" maps a part number to the id of its speaker. Leave 
 including attributions such as "said Anna". A character's speech often continues after the attribution: give that
 later part too. Resolve pronouns and "he said" from the context. If a speaker is not in the list, leave that part
 out and add the speaker to "new_characters"; if you learn something about a listed speaker (a new alias, the real
-gender) put it in "updates".
+gender) put it in "updates".{lang_rule}
 
 Example. A paragraph cut into parts:
   1| "Come in,"
@@ -642,12 +642,62 @@ Example. A paragraph cut into parts:
 If Ben is speaker 2 the answer for it is {{"b": 7, "who": {{"1": 2, "3": 2}}}}.
 
 Reply with this JSON:
-{{"blocks": [{{"b": <paragraph number>, "who": {{"<part number>": <speaker id>}}}}],
+{{"blocks": [{{"b": <paragraph number>, "who": {{"<part number>": <speaker id>}}{lang_json}}}],
  "new_characters": [{{"name": str, "aliases": [str], "gender": "f" | "m" | "n" | "?", "unnamed": bool}}],
  "updates": [{{"name": str, "aliases": [str], "gender": "f" | "m" | "n" | "?"}}]}}
 
 Paragraphs:
 {text}"""
+
+# Added to the prompt only for a book that has more than one language (the same JSON, one more optional key).
+PARTS_LANG_RULE = """
+The book is in {lang} but also contains {others}. If a part is written in a language other than {lang} (a phrase or
+a sentence in another language, not a name or a single borrowed word), add "lang": it maps that part number to the
+ISO 639-1 code of its language, for example {{"2": "{example}"}}. Say nothing about parts in {lang}, and mark such a
+part even when it is narration."""
+PARTS_LANG_JSON = ', "lang": {{"<part number>": "<ISO 639-1 code>"}}'
+OTHER_LANG_SHARE = 0.02  # a language with at least this share of the book is worth asking the model about
+
+
+def other_languages(chapters: list, lang: str) -> list[str]:
+    """Languages besides ``lang`` that make up at least 2% of the book's letters (empty for a one-language book)."""
+    from folivox.lang.detect import shares
+
+    text = "\n".join(b.text for ch in chapters for b in ch.blocks)
+    return [k for k, v in shares(text).items() if k != lang and v >= OTHER_LANG_SHARE]
+
+
+def parts_prompt(lang: str, others: list[str] | tuple[str, ...] = (), **fields) -> str:
+    """PARTS_PROMPT for a book in ``lang``; ``others`` (more languages in the book) adds the language question."""
+    rule = json_part = ""
+    if others:
+        names = [LANG_NAMES.get(o, o) for o in others]
+        rule = PARTS_LANG_RULE.format(lang=LANG_NAMES.get(lang, lang), others=", ".join(names),
+                                      example="en" if lang != "en" else others[0])
+        json_part = PARTS_LANG_JSON
+    return PARTS_PROMPT.format(lang=LANG_NAMES.get(lang, lang), lang_rule=rule, lang_json=json_part, **fields)
+
+
+def part_languages(text: str, parts: list[tuple[int, int]], claimed: object, book_lang: str) -> list[str]:
+    """The language of each part from the model's ``{"part number": "code"}``: only codes on the allow-list that
+    differ from the book's and fit the part's letters; anything else is ignored (the book language reads it)."""
+    from folivox.lang.codes import valid
+    from folivox.lang.runs import plausible
+
+    out = [""] * len(parts)
+    if not isinstance(claimed, dict):
+        return out
+    for k, v in claimed.items():
+        try:
+            i = int(k) - 1
+        except (TypeError, ValueError):
+            continue
+        code = valid(v)
+        if 0 <= i < len(parts) and code and code != valid(book_lang) and plausible(text[parts[i][0]:parts[i][1]], code,
+                                                                                    book_lang):
+            out[i] = code
+    return out
+
 
 _DASHES = "—–"
 _QUOTES = "«»„“”\""
@@ -703,16 +753,19 @@ def part_speakers(b: int, text: str, who: object) -> tuple[list[tuple[int, int]]
     return parts, [ids.get(i, 0) for i in range(1, len(parts) + 1)]
 
 
-def spans_from_ids(b: int, text: str, parts: list[tuple[int, int]], ids: list[int]) -> list[mk.Span]:
-    """One span per run of parts with the same speaker (the narrator has none)."""
+def spans_from_ids(b: int, text: str, parts: list[tuple[int, int]], ids: list[int],
+                   langs: list[str] | None = None) -> list[mk.Span]:
+    """One span per run of parts with the same speaker and language (the narrator reading in the book's language
+    has none)."""
     spans: list[mk.Span] = []
-    for (s, e), sp in zip(parts, ids, strict=False):
-        if not sp:
+    for n, ((s, e), sp) in enumerate(zip(parts, ids, strict=False)):
+        lg = langs[n] if langs else ""
+        if not sp and not lg:
             continue
-        if spans and spans[-1].speaker == sp and not text[spans[-1].end:s].strip():
-            spans[-1] = mk.Span(b, spans[-1].start, e, sp)
+        if spans and spans[-1].speaker == sp and spans[-1].lang == lg and not text[spans[-1].end:s].strip():
+            spans[-1] = mk.Span(b, spans[-1].start, e, sp, (), lg)
         else:
-            spans.append(mk.Span(b, s, e, sp))
+            spans.append(mk.Span(b, s, e, sp, (), lg))
     return spans
 
 
@@ -843,6 +896,7 @@ def second_opinion(chapters: list, lang: str, bible: Bible, runner: Runner, mark
     answer is kept only if the rule check accepts it; otherwise the first one stays and the place stays on the list.
     Returns (settled, still doubtful)."""
     todo = [(ci, dict(r)) for ci, cm in sorted(markup.chapters.items()) for r in cm.review]
+    others = other_languages(chapters, lang) if todo else []
     settled = 0
     by_name = {c.id: c.name for c in bible.characters if c.id}
     for i, (ci, r) in enumerate(todo):
@@ -863,9 +917,8 @@ def second_opinion(chapters: list, lang: str, bible: Bible, runner: Runner, mark
                           for j in range(b + 1, min(len(ch.blocks), b + 3))) or "(none)"
         relevant = relevant_for(bible, text + " " + before, [])
         note = PARTS_NOTE.format(b=b, why=_why(r), before=before, after=after)
-        prompt = PARTS_PROMPT.format(
-            lang=LANG_NAMES.get(lang, lang), hints=QUOTE_HINTS, person=bible.narration or "third",
-            speakers=_speakers_json(bible, relevant), recent=note, text=parts_text([(b, text)]))
+        prompt = parts_prompt(lang, others, hints=QUOTE_HINTS, person=bible.narration or "third",
+                              speakers=_speakers_json(bible, relevant), recent=note, text=parts_text([(b, text)]))
 
         def check(d: dict) -> dict:
             if not isinstance(d.get("blocks"), list):
@@ -881,7 +934,8 @@ def second_opinion(chapters: list, lang: str, bible: Bible, runner: Runner, mark
         valid = {c.id for c in bible.characters if c.id} | {0}
         if any(x not in valid for x in ids) or check_paragraph(text, parts, ids, bible, lang):
             continue
-        cm.spans = [x for x in cm.spans if x.block != b] + spans_from_ids(b, text, parts, ids)
+        cm.spans = [x for x in cm.spans if x.block != b] + spans_from_ids(
+            b, text, parts, ids, part_languages(text, parts, item.get("lang"), lang) if others else None)
         cm.spans.sort(key=lambda x: (x.block, x.start))
         cm.review = [x for x in cm.review if x.get("b") != b]
         settled += 1
@@ -897,7 +951,7 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
              save: Callable[[mk.Markup, Bible], None] | None = None, progress: Progress | None = None,
              cancelled: Callable[[], bool] = lambda: False, window_chars: int = WINDOW_CHARS,
              depth: int = 2, method: str | None = None,
-             max_windows: int | None = None) -> tuple[mk.Markup, AnnotateStats]:
+             max_windows: int | None = None, other_langs: list[str] | None = None) -> tuple[mk.Markup, AnnotateStats]:
     """Mark who speaks in every paragraph with speech. Existing spans in the paragraphs processed are replaced.
 
     ``method``: "parts" (the default: the paragraph is cut here and the model only says which parts each character
@@ -916,6 +970,7 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
         wins = [wins[int(i * step)] for i in range(max_windows)]
     tags_known = mk.known_tags() if expression_tags else set()
     tag_list = _tag_list() if expression_tags else ""
+    others = other_languages(chapters, lang) if by_parts and other_langs is None else list(other_langs or ())
     recent_names: list[str] = []
     recent_ctx: list[str] = []
 
@@ -939,9 +994,8 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
         if recent_ctx:
             recent = "Context, the previous paragraphs and who spoke them:\n" + "\n".join(recent_ctx[-4:]) + "\n"
         if by_parts:
-            prompt = PARTS_PROMPT.format(lang=LANG_NAMES.get(lang, lang), hints=QUOTE_HINTS,
-                                         person=bible.narration or "third", speakers=_speakers_json(bible, relevant),
-                                         recent=recent, text=parts_text(w.blocks))
+            prompt = parts_prompt(lang, others, hints=QUOTE_HINTS, person=bible.narration or "third",
+                                  speakers=_speakers_json(bible, relevant), recent=recent, text=parts_text(w.blocks))
         else:
             prompt = ANNOTATE_PROMPT.format(
                 lang=LANG_NAMES.get(lang, lang), hints=QUOTE_HINTS, person=bible.narration or "third",
@@ -995,7 +1049,8 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
             try:
                 if by_parts:
                     parts, ids_ = part_speakers(b, original, item.get("who"))
-                    spans, marks = spans_from_ids(b, original, parts, ids_), []
+                    langs_ = part_languages(original, parts, item.get("lang"), lang) if others else None
+                    spans, marks = spans_from_ids(b, original, parts, ids_, langs_), []
                     flags = check_paragraph(original, parts, ids_, bible, lang)
                 else:
                     spans, marks = mk.parse_block(line, original, loose=True)
@@ -1011,8 +1066,8 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
                     continue
                 tags = tuple(t for t in s.tags if t in tags_known)
                 stats.dropped_tags += len(s.tags) - len(tags)
-                if s.speaker or tags:
-                    good_spans.append(mk.Span(b, s.start, s.end, s.speaker, tags))
+                if s.speaker or tags or s.lang:
+                    good_spans.append(mk.Span(b, s.start, s.end, s.speaker, tags, s.lang))
             good_marks = []
             for m in marks:
                 if m.tag in tags_known:

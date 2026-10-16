@@ -16,8 +16,8 @@ _SETS = {k: set(v.split()) for k, v in STOPWORDS.items()}
 _ACCENTS = {"de": "ßäöü", "fr": "éèêëàâçîïôùûœ", "es": "ñ¿¡áíóú", "it": "ìòùà"}
 
 
-def latin_lang(text: str, default: str = "en") -> str:
-    """Which Latin-script language a short text is (en/de/fr/es/it), ``default`` when nothing says."""
+def language_scores(text: str) -> dict[str, int]:
+    """Function-word and accent hits per Latin-script language (en/de/fr/es/it)."""
     words = re.findall(r"[^\W\d_]+", text.lower())
     scores = {lang: sum(w in s for w in words) for lang, s in _SETS.items()}
     low = text.lower()
@@ -25,6 +25,12 @@ def latin_lang(text: str, default: str = "en") -> str:
         scores[lang] += sum(low.count(c) for c in chars)
     if scores.get("de") and "ß" in low:
         scores["de"] += 2
+    return scores
+
+
+def latin_lang(text: str, default: str = "en") -> str:
+    """Which Latin-script language a short text is (en/de/fr/es/it), ``default`` when nothing says."""
+    scores = language_scores(text)
     best = max(scores, key=lambda k: (scores[k], k == default))
     return best if scores[best] > scores.get(default, 0) or (scores[best] and best == default) else default
 

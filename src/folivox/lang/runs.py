@@ -120,3 +120,24 @@ def _same_family(a: str, b: str) -> bool:
     cjk = {"han", "kana"}
     return a == b or (a in cjk and b in cjk)
 
+
+
+def plausible(part: str, claimed: str, book_lang: str) -> bool:
+    """Could ``part`` be in ``claimed``? A claim of a language of another script needs letters of that script; a
+    Latin language claimed for Latin text is refused when function words clearly say the book's language."""
+    claimed, book = normalize_code(claimed), normalize_code(book_lang)
+    scripts = {script_of(c) for c in part if c.isalpha()} - {""}
+    if not scripts:
+        return False
+    want = native_scripts(claimed)
+    if claimed in ("zh", "ja", "ko") or want != {"lat"}:
+        return bool(scripts & want)
+    if "lat" not in scripts:
+        return False
+    if native_scripts(book) == {"lat"}:
+        from folivox.lang.detect import language_scores
+
+        scores = language_scores(part)
+        if scores.get(book, 0) >= 2 and scores.get(book, 0) > scores.get(claimed, 0):
+            return False
+    return True
