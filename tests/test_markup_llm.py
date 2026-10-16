@@ -50,6 +50,16 @@ class FakeLLM(LLM):
             return json.dumps({"narration_person": "third", "characters": chars}, ensure_ascii=False)
         speakers = json.loads(re.search(r"\n(\[\{.*\}\])\n", prompt).group(1))
         ids = {s["name"]: s["id"] for s in speakers}
+        if "numbered parts" in system:  # the "parts" method: which parts does a character say?
+            out = []
+            for m in re.finditer(r"\[B(\d+)\]\n((?:  \d+\| .*\n?)+)", prompt):
+                parts = re.findall(r"  (\d+)\| (.*)", m.group(2))
+                full = " ".join(t for _, t in parts)
+                who = next((n for n in CAST if n in full), "Анна" if "она" in full else None)
+                if not parts[0][1].startswith("—") or who is None or who not in ids:
+                    continue
+                out.append({"b": int(m.group(1)), "who": {"1": 9 if self.mode == "unknown_speaker" else ids[who]}})
+            return json.dumps({"blocks": out, "new_characters": [], "updates": []}, ensure_ascii=False)
         out = []
         for b, t in blocks:
             if not t.startswith("—"):
@@ -171,7 +181,7 @@ def test_annotate_marks_speech_and_leaves_the_text_alone():
 
 
 def test_annotate_never_accepts_changed_text_or_unknown_speakers():
-    markup, stats, _ = annotate(FakeLLM("rewrite"))
+    markup, stats, _ = annotate(FakeLLM("rewrite"), method="text")
     assert not [s for s in markup.chapters[0].spans if s.block == 2]  # the rewritten paragraph stays narrator
     assert stats.fell_back == 1 and stats.marked == 2
     markup, stats, _ = annotate(FakeLLM("unknown_speaker"))
@@ -185,7 +195,7 @@ def test_expression_tags_are_validated_against_the_database():
     used = {t for c in markup.chapters.values() for s in c.spans for t in s.tags}
     used |= {m.tag for c in markup.chapters.values() for m in c.marks}
     assert used == {"sighs"} and stats.dropped_tags >= 1
-    off, stats2, _ = annotate(FakeLLM("tags"), expression_tags=False)
+    off, stats2, _ = annotate(FakeLLM("tags"), expression_tags=False, method="text")
     assert not any(s.tags for c in off.chapters.values() for s in c.spans) and not any(
         c.marks for c in off.chapters.values())
 
@@ -319,3 +329,19 @@ def test_spanish_dialogue_dash_without_space_counts_as_speech():
     assert SPEECH_MARKS.search("—¿Vas a alguna parte? —preguntó Daniel.")
     assert SPEECH_MARKS.search("— Ты куда? — спросил он.")
     assert not SPEECH_MARKS.search("Plain narration without any speech.")
+
+
+def test_split_parts_and_spans_from_parts():
+    from folivox import markup as mk
+    from folivox.markup_llm import spans_from_parts, split_parts
+
+    t = "—Perdone —graznó el anciano—, busco al señor Harrow."
+    assert [t[a:b] for a, b in split_parts(t)] == ["—Perdone", "—graznó el anciano", "—, busco al señor Harrow."]
+    t2 = '"To Mum\'s," Clara said. "I promised to help her."'
+    assert [t2[a:b] for a, b in split_parts(t2)] == ['"To Mum\'s,"', "Clara said.", '"I promised to help her."']
+    assert [(s.start, s.end, s.speaker) for s in spans_from_parts(1, t, {"1": 4, "3": 4})] == [(0, 8, 4), (27, 52, 4)]
+    assert spans_from_parts(1, t, [4, 0, 4]) == spans_from_parts(1, t, {"1": 4, "3": 4})
+    assert spans_from_parts(1, t, {"9": 4}) == []  # a part that does not exist is ignored
+    for bad in ("x", [1], {"a": 1}):
+        with pytest.raises(mk.MarkupError):
+            spans_from_parts(1, t, bad)

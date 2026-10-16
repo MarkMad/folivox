@@ -92,23 +92,22 @@ the result.
 A small test on an Apple-silicon Mac with 36 GB (made-up texts of 20 paragraphs, 15 with speech, the same story in
 English, Russian, German and Spanish; counted: paragraphs whose quoted speech went to the right character):
 
-| Model (Ollama) | English | Russian | German | Spanish | Time per text |
-|---|---|---|---|---|---|
-| `gemma4:31b-it-qat` | 15/15 | 15/15 | 15/15 | 3/15 | 4-5 min |
-| `Qwen3.8-27B` (unsloth GGUF, UD-Q6_K, 22 GB) | 15/15 | 15/15 | not run | 15/15 | 4-5 min |
-| `gemma4:12b-it-qat` | 15/15 | 15/15 | 3/15 | 12/15 | 1.2-1.6 min |
-| Ministral-3-3B-Instruct-2512 (Q4_K_M) | 0/15 | 9/15 | 11/15 | 11/15 | 0.5 min |
-| tiny-aya-global 3.3B (Q4_K_M) | 0/15 | 0/15 | 7/15 | 0/15 | 0.4 min |
-| LFM2.5-2.6B (Q4_K_M) | 0/15 | 0/15 | 5/15 | 0/15 | 2-3 min |
-| EuroLLM-9B-Instruct-2512 (Q4_K_M) | 0/15 | 4/15 | 0/15 | 0/15 | 1-2 min |
+| Model (Ollama) | Method | English | Russian | German | Spanish | Time per text |
+|---|---|---|---|---|---|---|
+| `gemma4:31b-it-qat` | repeat text | 15/15 | 15/15 | 15/15 | 3/15 | 4-5 min |
+| `gemma4:31b-it-qat` | **parts** | not run | 15/15 | 15/15 | 15/15 | 2.2-3 min |
+| `Qwen3.8-27B` (unsloth GGUF, UD-Q6_K) | repeat text | 15/15 | 15/15 | not run | 15/15 | 4-5 min |
+| `gemma4:12b-it-qat` | repeat text | 15/15 | 15/15 | 3/15 | 12/15 | 1.2-1.6 min |
+| `gemma4:12b-it-qat` | **parts** | 15/15 | 15/15 | 15/15 | 14/15 | 0.8-1.2 min |
 
-One run each, so read it as a rough picture. What it shows: only the large models (27-31B) were right on the
-languages they got; the 12B model is good on English and Russian and shaky on German; the 3B models and the
-small language-specific ones (Cohere tiny-aya, Liquid LFM2.5, EuroLLM) return the text unmarked or rewritten and
-are not usable. The score is not only about the model: Spanish dialogue puts a dash that both closes the speech
-and opens the attribution («—Perdone —graznó el anciano—, busco…»), and even the 31B model then rewrote the
-punctuation, so the check "removing the marks gives the book's paragraph" refused 12 of 15 paragraphs. Asking the
-model for *where* each speaker's words start, instead of repeating the whole paragraph, would be sturdier.
+One run each, so read it as a rough picture. The "parts" method (the default now) is both more accurate and faster,
+and it is what lets the 12B model handle German and Spanish. The first version, which asked for a list with one
+speaker per part, did badly with 12B (7/15 on English): it miscounted the parts and forgot that a speech continues
+after the attribution; asking for a map of part number to speaker, with one example, fixed that.
+
+Models that were tried with the repeat-the-text method and dropped: Ministral-3-3B (0-11/15), Cohere tiny-aya-global
+3.3B (0-7/15), Liquid LFM2.5-2.6B (0-5/15), EuroLLM-9B (0-4/15), and the two smallest Gemma 4 builds (below). They
+were not retried with the parts method, which may suit small models better.
 
 The two smallest Gemma 4 builds (`e4b` 6 GB, `e2b` 4 GB) were tried and **dropped from the list**: they are about ten
 times faster, but unstable. `e2b` worked only on English (10/15) and returned unmarked text for Russian, German
@@ -126,8 +125,11 @@ unnamed speakers ("old guard"), thoughts and letters are covered by the prompt; 
 conventions of all nine book languages. Up to 15 characters get an id of their own; the rarest share ids 14
 (men) and 15 (women).
 
-**Marking.** `auto` takes the paragraphs that contain speech and asks the model to repeat each one with
-`<|speaker:N|>` markers (and, with `--expression-tags`, `[tag]`s from the tag list, at most one per sentence).
+**Marking.** `auto` takes the paragraphs that contain speech. Folivox cuts each one into numbered parts (at dashes,
+quotes and sentence ends) and the model only answers *which parts which character says*; it never has to repeat
+the text, so punctuation it would "correct" (Spanish dialogue dashes) cannot ruin a paragraph. With
+`--expression-tags` the older method is used instead: the model repeats each paragraph with `<|speaker:N|>`
+markers and `[tag]`s from the tag list (at most one per sentence).
 The model gets the relevant bible entries and the last few marked paragraphs, so "he said" and pronouns resolve
 across chapters, and may add or correct entries as it reads. The answer is accepted for a paragraph only if
 removing the markers gives exactly the book's paragraph (whitespace differences are tolerated), the speaker

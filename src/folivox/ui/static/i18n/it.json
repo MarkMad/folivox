@@ -642,5 +642,7 @@
  "mk.redo.t": "Ripristina la modifica annullata",
  "mk.model.missing": "non installato",
  "mk.model.pull": "Questo modello non è ancora installato. Installalo con: ollama pull {m}",
- "mk.model.hint": "I modelli piccoli sono più veloci ma distinguono peggio chi parla: vanno bene per una prova rapida."
+ "mk.model.h31": "La qualità migliore, ma la più lenta.",
+ "mk.model.h26": "Vicina alla più grande e più veloce. Non l'abbiamo testata noi.",
+ "mk.model.h12": "Veloce e precisa nei nostri test (inglese, russo, tedesco, spagnolo). Un buon inizio."
 }

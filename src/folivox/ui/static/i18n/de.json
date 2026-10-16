@@ -642,5 +642,7 @@
  "mk.redo.t": "Rückgängig gemachte Änderung wiederherstellen",
  "mk.model.missing": "nicht installiert",
  "mk.model.pull": "Dieses Modell ist noch nicht installiert. Installieren Sie es mit: ollama pull {m}",
- "mk.model.hint": "Kleinere Modelle sind schneller, erkennen aber feine Sprecherwechsel schlechter: gut für einen schnellen Versuch."
+ "mk.model.h31": "Beste Qualität, aber am langsamsten.",
+ "mk.model.h26": "Nah an der größten und schneller. Wir haben sie selbst nicht getestet.",
+ "mk.model.h12": "Schnell und genau in unseren Tests (Englisch, Russisch, Deutsch, Spanisch). Ein guter Anfang."
 }

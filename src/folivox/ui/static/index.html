@@ -340,7 +340,7 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
         <div id="mk-llmmsg" class="mute" style="margin-top:6px"></div>
         <details id="mk-opts" class="mk-sub"><summary data-i18n="mk.options">Options</summary>
           <label class="f"><span data-i18n="mk.model">Model</span><select id="mk-model"></select></label>
-          <small class="mute" data-i18n="mk.model.hint">Smaller models are faster but miss subtle speakers: fine for a quick try.</small>
+          <div id="mk-modelhint" class="mute" style="font-size:12.5px;margin-top:4px"></div>
           <label class="consent" style="margin-top:6px"><input type="checkbox" id="mk-llmtags"><span data-i18n="mk.llmtags">Also place expression tags (off by default)</span></label>
           <div class="row" style="margin-top:8px"><button type="button" id="mk-analyse" class="chip" data-i18n="mk.analyse">Analyse characters</button></div>
         </details>
@@ -937,7 +937,7 @@ async function mkOpenEditor(fine) {
   mkTagList();
   $("#mk-ch").innerHTML = book.chapters.map((c, i) => `<option value="${i}">${esc(c.n + ". " + c.title)}</option>`).join("");
   $("#mk-step").hidden = true; $("#mk-chars").innerHTML = ""; $("#mk-llmmsg").textContent = "";
-  $("#mk-dlg").showModal(); mkLlmModels().then(mkEtaEditor); await mkLoadChapter(0); $("#mk-text").focus(); if (fine) $("#mk-speakers").scrollIntoView({ block: "start" });
+  $("#mk-dlg").showModal(); mkLlmModels().then(() => { mkModelHint(); mkEtaEditor(); }); await mkLoadChapter(0); $("#mk-text").focus(); if (fine) $("#mk-speakers").scrollIntoView({ block: "start" });
 }
 $("#mk-open").onclick = () => mkOpenEditor(false); $("#mk-open2").onclick = () => mkOpenEditor(false);
 function mkClose() { if (MK.dirty && !confirm(t("mk.unsaved"))) return; if (MK.audio) MK.audio.pause(); $("#mk-dlg").close(); loadMk(); }
@@ -1031,7 +1031,11 @@ async function mkEtaEditor() {
     $("#mk-eta-all").textContent = mkEtaText(model, all); $("#mk-eta-ch").textContent = mkEtaText(model, ch);
   } catch (e) { $("#mk-eta-all").textContent = $("#mk-eta-ch").textContent = ""; }
 }
-$("#mk-model").addEventListener("change", mkEtaEditor);
+function mkModelHint() {
+  const m = $("#mk-model").value, key = /31b/.test(m) ? "mk.model.h31" : /26b/.test(m) ? "mk.model.h26" : /12b/.test(m) ? "mk.model.h12" : "";
+  $("#mk-modelhint").textContent = key ? t(key) : "";
+}
+$("#mk-model").addEventListener("change", () => { mkModelHint(); mkEtaEditor(); });
 const mkStageText = (s) => s.state !== "running" ? "" : !s.total ? t("mk.run.start") : t(s.stage === "analyse" ? "mk.run.read" : "mk.run.mark", { d: s.done, n: s.total });
 // one run of the whole flow (characters, then speakers); ui = { busy(on), progress(pct, text), error(text) }
 async function mkAutoRun(task, o, ui) {

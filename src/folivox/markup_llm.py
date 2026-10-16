@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import sqlite3
 import unicodedata
@@ -463,6 +464,101 @@ Reply with this JSON:
 Paragraphs:
 {text}"""
 
+# The model never repeats the text in this method: the paragraph is cut into numbered parts here and the model
+# only says who says each part, so punctuation it would "correct" (Spanish dialogue dashes) cannot break a paragraph.
+PARTS_SYSTEM = ("You mark up books for multi-voice audiobooks. You are given paragraphs cut into numbered parts and "
+                "say who says each part. You answer with one JSON object and nothing else.")
+
+PARTS_PROMPT = """Book language: {lang}. {hints}
+Narration is {person}-person.
+
+Speakers (id; 0 is the narrator):
+{speakers}
+{recent}
+Every paragraph below is cut into numbered parts. For each paragraph say which parts are spoken (or thought) by a
+character and by whom: "who" maps a part number to the id of its speaker. Leave out the parts that are narration,
+including attributions such as "said Anna". A character's speech often continues after the attribution: give that
+later part too. Resolve pronouns and "he said" from the context. If a speaker is not in the list, leave that part
+out and add the speaker to "new_characters"; if you learn something about a listed speaker (a new alias, the real
+gender) put it in "updates".
+
+Example. A paragraph cut into parts:
+  1| "Come in,"
+  2| said Ben,
+  3| "it is cold."
+If Ben is speaker 2 the answer for it is {{"b": 7, "who": {{"1": 2, "3": 2}}}}.
+
+Reply with this JSON:
+{{"blocks": [{{"b": <paragraph number>, "who": {{"<part number>": <speaker id>}}}}],
+ "new_characters": [{{"name": str, "aliases": [str], "gender": "f" | "m" | "n" | "?", "unnamed": bool}}],
+ "updates": [{{"name": str, "aliases": [str], "gender": "f" | "m" | "n" | "?"}}]}}
+
+Paragraphs:
+{text}"""
+
+_DASHES = "—–"
+_QUOTES = "«»„“”\""
+
+
+def split_parts(text: str) -> list[tuple[int, int]]:
+    """Cut a paragraph where speech may start or stop: before dashes and opening quotes, after closing quotes and
+    after sentence ends. Returns (start, end) of the non-blank parts, in order."""
+    cuts = {0, len(text)}
+    for i, ch in enumerate(text):
+        if ch in _DASHES:
+            cuts.add(i)
+        elif ch in _QUOTES:  # a quote after a space (or at the start) opens, any other closes
+            opens = ch == "«" or ch == "„" or i == 0 or text[i - 1].isspace() or text[i - 1] in _DASHES
+            cuts.add(i if opens and ch not in "»" else i + 1)
+        elif ch in ".!?…" and i + 1 < len(text) and text[i + 1].isspace():
+            cuts.add(i + 1)
+    edges = sorted(cuts)
+    parts = []
+    for a, b in zip(edges, edges[1:]):
+        chunk = text[a:b]
+        if chunk.strip():
+            parts.append((a + len(chunk) - len(chunk.lstrip()), b - (len(chunk) - len(chunk.rstrip()))))
+    return parts
+
+
+def parts_text(blocks: list[tuple[int, str]]) -> str:
+    """The window as the model sees it: only paragraphs with speech, each cut into numbered parts."""
+    out = []
+    for b, text in blocks:
+        if not SPEECH_MARKS.search(text):
+            continue
+        out.append(f"[B{b}]")
+        out += [f"  {i}| {text[s:e]}" for i, (s, e) in enumerate(split_parts(text), 1)]
+    return "\n".join(out)
+
+
+def spans_from_parts(b: int, text: str, who: object) -> list[mk.Span]:
+    """Spans (one per run of parts with the same speaker) from the model's answer: ``{"part number": speaker id}``
+    (a list with one id per part is accepted too). Anything else is refused; part numbers that do not exist are
+    ignored."""
+    parts = split_parts(text)
+    if isinstance(who, list):
+        if len(who) != len(parts):
+            raise mk.MarkupError(f"B{b}: expected {len(parts)} speakers")
+        who = {str(i): x for i, x in enumerate(who, 1)}
+    if not isinstance(who, dict):
+        raise mk.MarkupError(f"B{b}: no speakers")
+    try:
+        ids = {int(k): int(v) for k, v in who.items()}
+    except (TypeError, ValueError):
+        raise mk.MarkupError(f"B{b}: speakers must be numbers") from None
+    spans: list[mk.Span] = []
+    for i, (s, e) in enumerate(parts, 1):
+        sp = ids.get(i, 0)
+        if not sp:
+            continue
+        if spans and spans[-1].speaker == sp and not text[spans[-1].end:s].strip():
+            spans[-1] = mk.Span(b, spans[-1].start, e, sp)
+        else:
+            spans.append(mk.Span(b, s, e, sp))
+    return spans
+
+
 EXPRESSION_RULES = """
 Also put an expression tag in square brackets, for example [sighs] or [whispering], at the exact spot where the
 text clearly asks for it (a sigh, a laugh, whispering, shouting, a long pause). Use only these tags:
@@ -501,8 +597,13 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
              expression_tags: bool = False, chapter_filter: set[int] | None = None,
              save: Callable[[mk.Markup, Bible], None] | None = None, progress: Progress | None = None,
              cancelled: Callable[[], bool] = lambda: False, window_chars: int = WINDOW_CHARS,
-             depth: int = 2) -> tuple[mk.Markup, AnnotateStats]:
-    """Mark who speaks in every paragraph with speech. Existing spans in the paragraphs processed are replaced."""
+             depth: int = 2, method: str | None = None) -> tuple[mk.Markup, AnnotateStats]:
+    """Mark who speaks in every paragraph with speech. Existing spans in the paragraphs processed are replaced.
+
+    ``method``: "parts" (the default: the paragraph is cut here and the model only says which parts each character
+    speaks; no expression tags) or "text" (the model repeats each paragraph with markers; used with expression tags)."""
+    method = method or os.environ.get("FOLIVOX_MARKUP_METHOD", "parts")
+    by_parts = method == "parts" and not expression_tags
     markup = markup or mk.Markup(depth=depth)
     markup.depth = depth
     bible.assign_ids()
@@ -532,10 +633,15 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
         recent = ""
         if recent_ctx:
             recent = "Context, the previous paragraphs and who spoke them:\n" + "\n".join(recent_ctx[-4:]) + "\n"
-        prompt = ANNOTATE_PROMPT.format(
-            lang=LANG_NAMES.get(lang, lang), hints=QUOTE_HINTS, person=bible.narration or "third",
-            speakers=_speakers_json(bible, relevant), recent=recent, text=text,
-            expression=EXPRESSION_RULES.format(tags=tag_list) if expression_tags else "")
+        if by_parts:
+            prompt = PARTS_PROMPT.format(lang=LANG_NAMES.get(lang, lang), hints=QUOTE_HINTS,
+                                         person=bible.narration or "third", speakers=_speakers_json(bible, relevant),
+                                         recent=recent, text=parts_text(w.blocks))
+        else:
+            prompt = ANNOTATE_PROMPT.format(
+                lang=LANG_NAMES.get(lang, lang), hints=QUOTE_HINTS, person=bible.narration or "third",
+                speakers=_speakers_json(bible, relevant), recent=recent, text=text,
+                expression=EXPRESSION_RULES.format(tags=tag_list) if expression_tags else "")
         originals = dict(w.blocks)
 
         def check(d: dict) -> dict:
@@ -544,7 +650,7 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
             return d
 
         try:
-            out = runner.ask(ANNOTATE_SYSTEM, prompt, check)
+            out = runner.ask(PARTS_SYSTEM if by_parts else ANNOTATE_SYSTEM, prompt, check)
         except ValueError:
             stats.failed_windows += 1
             stats.blocks += len(w.blocks)
@@ -572,7 +678,7 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
         for item in out["blocks"]:
             try:
                 b = int(str(item["b"]).lstrip("B"))
-                line = _fix_speaker_tags(str(item["text"]))
+                line = "" if by_parts else _fix_speaker_tags(str(item["text"]))
             except (KeyError, TypeError, ValueError):
                 continue
             original = originals.get(b)
@@ -581,7 +687,10 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
             seen.add(b)
             stats.blocks += 1
             try:
-                spans, marks = mk.parse_block(line, original, loose=True)
+                if by_parts:
+                    spans, marks = spans_from_parts(b, original, item.get("who")), []
+                else:
+                    spans, marks = mk.parse_block(line, original, loose=True)
             except mk.MarkupError:
                 stats.fell_back += 1
                 continue
