@@ -31,7 +31,7 @@ from pathlib import Path
 from folivox import markup as mk
 from folivox.lang import has_speech
 
-PROMPT_VERSION = "1"
+PROMPT_VERSION = "2"
 WINDOW_CHARS = 5000
 MIN_LINES_FOR_A_VOICE = 3  # a character who speaks less than this is not counted as needing a voice of their own
 MAX_RELEVANT = 25
@@ -83,6 +83,30 @@ class Character:
     unnamed: bool = False
     id: int = 0  # speaker id in the markup (0 = not assigned)
     voice_prompts: dict = field(default_factory=dict)  # voice-design descriptions: simple / standard / detailed
+    votes: dict = field(default_factory=dict)  # {"gender": {"f": 3, "m": 1}, "age": {...}}: what each window said
+
+    def vote(self, what: str, value: str, weight: int = 1) -> None:
+        """Count what a window (or a closer look) said about the gender or age; the answer is the majority, so one
+        wrong first impression does not stick. A person's own correction is a heavy vote."""
+        if not value or value == "?":
+            return
+        v = self.votes.setdefault(what, {})
+        if not v and getattr(self, what):  # a book analysed before votes existed: its answer counts once
+            v[getattr(self, what)] = 1
+        v[value] = v.get(value, 0) + weight
+        best = max(v.values())
+        if v.get(getattr(self, what), 0) < best:  # keep the current answer on a tie
+            setattr(self, what, next(k for k, n in v.items() if n == best))
+
+    def unsure(self) -> list[str]:
+        """Which of gender and age are still a guess: unknown, a single vote, or nearly tied."""
+        out = []
+        for what in ("gender", "age"):
+            v = sorted(self.votes.get(what, {}).values(), reverse=True)
+            known = getattr(self, what)
+            if not known or sum(v) < 2 or (len(v) > 1 and v[0] - v[1] < 2):
+                out.append(what)
+        return out
 
     def names(self) -> list[str]:
         return [self.name, *self.aliases]
@@ -128,13 +152,10 @@ class Bible:
         for a in [name, *aliases]:
             if not c.matches(a):
                 c.aliases.append(a)
-        if gender and not c.gender:
-            c.gender = gender
+        c.vote("gender", gender)
         if str(entry.get("role") or "") == "main":
             c.role = "main"
-        age = str(entry.get("age") or "").strip()[:30]
-        if age and age != "?" and not c.age:
-            c.age = age
+        c.vote("age", str(entry.get("age") or "").strip()[:30])
         traits = str(entry.get("traits") or "").strip()[:200]
         if traits and traits.lower() not in c.traits.lower():
             c.traits = (c.traits + "; " + traits).strip("; ")[:300]
@@ -362,8 +383,8 @@ Excerpt:
 
 
 def _known(bible: Bible, relevant: list[Character]) -> str:
-    rows = [{"name": c.name, "aliases": c.aliases[:6], "gender": c.gender or "?", "role": c.role}
-            for c in relevant]
+    rows = [{"name": c.name, "aliases": c.aliases[:6], "gender": c.gender or "?", "age": c.age or "?",
+             "role": c.role, "speaks": c.traits[:50]} for c in relevant]
     return json.dumps(rows, ensure_ascii=False) if rows else "(none yet)"
 
 
@@ -434,6 +455,128 @@ def analyse(chapters: list, lang: str, runner: Runner, bible: Bible | None = Non
     bible.assign_ids()
     if save:
         save(bible)
+    return bible
+
+
+# -- consolidate: a second look at the characters once the whole book has been read -------------------------------
+
+MERGE_PROMPT = """Book language: {lang}.
+These are the characters found in a book, with the names and nicknames each was met under:
+{rows}
+
+Some may be the same person under different names (a nickname, a patronymic, a title, a diminutive). List the
+groups of names that are one person. Do not join two different people, even relatives with the same surname.
+
+Reply with this JSON: {{"same": [["name", "name"], ...]}}  (an empty list when there are none)"""
+
+LOOK_PROMPT = """Book language: {lang}.
+Character: "{name}" (also: {aliases}). Known so far: gender {gender}, age {age}, speaks: {traits}.
+
+Passages from different places of the book that mention or quote this character:
+{snippets}
+
+Decide from the passages (pronouns, endings of verbs and adjectives, forms of address, who is addressed as a
+child, a parent, a grandfather and so on). Use "?" where the passages really do not tell.
+
+Reply with this JSON: {{"gender": "f" | "m" | "n" | "?", "age": "child" | "young" | "adult" | "old" | "?",
+ "traits": "how this character speaks, 6 words at most"}}"""
+
+CONSOLIDATE_SYSTEM = ("You know the whole book well and read it with care. "
+                      "You answer with one JSON object and nothing else.")
+
+
+def _same_list(d: dict) -> dict:
+    if not isinstance(d.get("same"), list):
+        raise ValueError("no list")
+    return d
+
+
+def merge_characters(bible: Bible, keep: Character, other: Character) -> None:
+    """Fold ``other`` into ``keep`` (the same person met under two names)."""
+    for a in other.names():
+        if not keep.matches(a):
+            keep.aliases.append(a)
+    for what in ("gender", "age"):
+        for value, n in other.votes.get(what, {}).items():
+            keep.vote(what, value, n)
+        if not keep.votes.get(what) and getattr(other, what):
+            keep.vote(what, getattr(other, what))
+    keep.lines += other.lines
+    keep.role = "main" if "main" in (keep.role, other.role) else keep.role
+    if other.traits and other.traits.lower() not in keep.traits.lower():
+        keep.traits = (keep.traits + "; " + other.traits).strip("; ")[:300]
+    keep.relations += [r for r in other.relations if r not in keep.relations][:12 - len(keep.relations)]
+    keep.first = min([x for x in (keep.first, other.first) if x >= 0], default=-1)
+    keep.id = keep.id or other.id
+    bible.characters = [c for c in bible.characters if c is not other]
+
+
+def _snippets(chapters: list, c: Character, n: int = 8, width: int = 320) -> list[str]:
+    """Up to ``n`` paragraphs that name the character, spread over the whole book."""
+    keys = [norm_name(x) for x in c.names() if len(norm_name(x)) >= 3]
+    hits = []
+    for ci, ch in enumerate(chapters):
+        for b in ch.blocks:
+            low = norm_name(b.text)
+            if any(k[: max(3, len(k) - 1)] in low for k in keys):
+                hits.append((ci, b.text))
+    if len(hits) > n:
+        step = len(hits) / n
+        hits = [hits[int(i * step)] for i in range(n)]
+    return [f"(chapter {ci + 1}) " + t[:width] for ci, t in hits]
+
+
+def consolidate(chapters: list, lang: str, bible: Bible, runner: Runner, *, max_look: int = 25,
+                save: Callable[[Bible], None] | None = None, progress: Progress | None = None,
+                cancelled: Callable[[], bool] = lambda: False) -> Bible:
+    """After the whole book is read: join the names that are one person, then look again, with passages from all
+    over the book, at every character whose gender or age is still a guess."""
+    names = [c for c in bible.characters if c.lines > 0 or c.role == "main"]
+    if len(names) >= 3 and not cancelled():
+        rows = json.dumps([{"name": c.name, "aliases": c.aliases[:5], "gender": c.gender or "?", "lines": c.lines}
+                           for c in names[:60]], ensure_ascii=False)
+        try:
+            out = runner.ask(CONSOLIDATE_SYSTEM, MERGE_PROMPT.format(lang=LANG_NAMES.get(lang, lang), rows=rows),
+                             _same_list)
+        except ValueError:
+            out = {"same": []}
+        for group in out["same"]:
+            found = [x for x in (bible.find(str(n)) for n in group if isinstance(n, str)) if x]
+            found = list({id(c): c for c in found}.values())
+            if len(found) < 2:
+                continue
+            keep = max(found, key=lambda c: c.lines)
+            for other in found:
+                if other is not keep and not (keep.gender and other.gender and keep.gender != other.gender):
+                    merge_characters(bible, keep, other)
+        bible.assign_ids()
+        if save:
+            save(bible)
+    todo = sorted((c for c in bible.characters if c.lines > 0 and c.unsure()), key=lambda c: -c.lines)[:max_look]
+    for i, c in enumerate(todo):
+        if cancelled():
+            break
+        snippets = _snippets(chapters, c)
+        if not snippets:
+            continue
+        prompt = LOOK_PROMPT.format(
+            lang=LANG_NAMES.get(lang, lang), name=c.name, aliases=", ".join(c.aliases[:5]) or "-",
+            gender=c.gender or "unknown", age=c.age or "unknown", traits=c.traits[:80] or "-",
+            snippets="\n".join(f"- {x}" for x in snippets))
+        try:
+            out = runner.ask(CONSOLIDATE_SYSTEM, prompt, lambda d: d)
+        except ValueError:
+            continue
+        g = str(out.get("gender") or "").strip().lower()[:1]
+        c.vote("gender", g if g in ("f", "m", "n") else "", 3)
+        c.vote("age", str(out.get("age") or "").strip()[:30], 3)
+        traits = str(out.get("traits") or "").strip()[:200]
+        if traits and traits.lower() not in c.traits.lower():
+            c.traits = (c.traits + "; " + traits).strip("; ")[:300]
+        if save:
+            save(bible)
+        if progress:
+            progress("consolidate", i + 1, len(todo), c.name)
     return bible
 
 

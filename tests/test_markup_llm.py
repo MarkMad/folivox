@@ -48,6 +48,11 @@ class FakeLLM(LLM):
                     chars.append({"name": name, "aliases": [], "gender": g, "role": "main", "lines": n,
                                   "traits": "calm"})
             return json.dumps({"narration_person": "third", "characters": chars}, ensure_ascii=False)
+        if system.startswith("You know the whole book"):  # the second look at the characters
+            if "groups of names" in prompt:
+                return json.dumps({"same": [["Анна", "Аня"]]}, ensure_ascii=False)
+            who = "m" if "Борис" in prompt else "?"
+            return json.dumps({"gender": who, "age": "adult", "traits": "slow"}, ensure_ascii=False)
         speakers = json.loads(re.search(r"\n(\[\{.*\}\])\n", prompt).group(1))
         ids = {s["name"]: s["id"] for s in speakers}
         if "numbered parts" in system:  # the "parts" method: which parts does a character say?
@@ -345,3 +350,34 @@ def test_split_parts_and_spans_from_parts():
     for bad in ("x", [1], {"a": 1}):
         with pytest.raises(mk.MarkupError):
             spans_from_parts(1, t, bad)
+
+
+def test_gender_and_age_are_the_majority_of_what_the_windows_said():
+    b = ml.Bible()
+    for g in ("f", "m", "m"):
+        b.merge({"name": "Саша", "gender": g, "age": "young", "lines": 1})
+    c = b.characters[0]
+    assert c.gender == "m" and c.age == "young" and c.votes["gender"] == {"f": 1, "m": 2}
+    assert c.unsure() == ["gender", "age"] or c.unsure() == ["gender"]  # 2 against 1 is still shaky for the gender
+    b.merge({"name": "Саша", "gender": "m", "lines": 1})
+    b.merge({"name": "Саша", "gender": "m", "age": "young", "lines": 1})
+    assert c.unsure() == []
+    again = ml.Bible.from_dict(b.to_dict()).characters[0]
+    assert again.votes == c.votes and again.gender == "m"
+
+
+def test_consolidate_joins_names_and_looks_again_at_the_unsure_ones():
+    b = ml.Bible()
+    b.merge({"name": "Анна", "gender": "f", "age": "adult", "lines": 3})
+    b.merge({"name": "Аня", "gender": "f", "lines": 1})
+    b.merge({"name": "Борис", "gender": "?", "lines": 2})
+    b.merge({"name": "Вера", "gender": "f", "age": "old", "lines": 2})
+    runner = ml.Runner(FakeLLM(), "fake-model", ml.Cache(None))
+    seen = []
+    ml.consolidate(CH, "ru", b, runner, progress=lambda st, d, n, m: seen.append((st, m)))
+    assert sorted(c.name for c in b.characters) == ["Анна", "Борис", "Вера"]
+    anna = next(c for c in b.characters if c.name == "Анна")
+    assert "Аня" in anna.aliases and anna.lines == 4
+    boris = next(c for c in b.characters if c.name == "Борис")
+    assert boris.gender == "m" and boris.age == "adult" and "slow" in boris.traits
+    assert ("consolidate", "Борис") in seen
