@@ -514,7 +514,7 @@ def split_parts(text: str) -> list[tuple[int, int]]:
             cuts.add(i + 1)
     edges = sorted(cuts)
     parts = []
-    for a, b in zip(edges, edges[1:]):
+    for a, b in zip(edges, edges[1:], strict=False):
         chunk = text[a:b]
         if chunk.strip():
             parts.append((a + len(chunk) - len(chunk.lstrip()), b - (len(chunk) - len(chunk.rstrip()))))
