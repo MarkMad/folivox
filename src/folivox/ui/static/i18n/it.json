@@ -643,6 +643,6 @@
  "mk.model.missing": "non installato",
  "mk.model.pull": "Questo modello non è ancora installato. Installalo con: ollama pull {m}",
  "mk.model.h31": "La qualità migliore, ma la più lenta.",
- "mk.model.h26": "Vicina alla più grande e più veloce. Non l'abbiamo testata noi.",
+ "mk.model.h26": "Vicina alla più grande e più veloce.",
  "mk.model.h12": "Veloce e precisa nei nostri test (inglese, russo, tedesco, spagnolo). Un buon inizio."
 }
