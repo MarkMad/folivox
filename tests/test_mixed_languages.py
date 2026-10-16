@@ -208,3 +208,23 @@ def test_plan_reads_the_engines_languages_and_warns_about_the_fallback(tmp_path,
     assert run(frozenset({"ru", "en"})) == (["", "", "en", ""], [])  # the chapter title comes first
     langs_, warnings = run(frozenset({"ru"}))
     assert langs_ == ["", "", "", ""] and len(warnings) == 1 and "English" in warnings[0] and "Russian" in warnings[0]
+
+
+def test_voice_accent_notes_name_the_voice_and_the_language(tmp_path):
+    from folivox import voices as catalog
+    from folivox.pipeline import RenderOptions, voice_accent_notes
+
+    ru_voice = catalog.find("russlib")
+    opts = RenderOptions(output=tmp_path / "o.m4b", voice_wav=ru_voice.path)
+    chunks = plan_chapter(chapter(RU), ChunkOptions(lang="ru", stress="none"))
+    j = Journal(tmp_path)
+    j.set_plan([("Глава", chunks)], "v", "s")
+    notes = voice_accent_notes(j, None, opts)
+    assert len(notes) == 1 and "English" in notes[0] and "Russian" in notes[0]
+    en_opts = RenderOptions(output=tmp_path / "o.m4b", voice_wav=catalog.find("en-ben-tucker").path)
+    assert voice_accent_notes(j, None, en_opts) == []  # an English voice reads the English fragments natively
+    j.close()
+    j2 = Journal(tmp_path / "plain")
+    j2.set_plan([("Глава", plan_chapter(chapter(RU_PLAIN), ChunkOptions(lang="ru", stress="none")))], "v", "s")
+    assert voice_accent_notes(j2, None, opts) == []
+    j2.close()

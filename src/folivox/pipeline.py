@@ -258,6 +258,27 @@ def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, event
 LOOKAHEAD = 2  # fragments whose LLM tokens are generated ahead of time
 
 
+def voice_accent_notes(journal: Journal, markup, opts: RenderOptions) -> list[str]:
+    """One note per voice of the catalog that reads fragments in a language other than its own: a cloned voice
+    speaks every language the engine knows, but keeps the accent of its sample."""
+    from folivox import voices as catalog
+
+    count: dict[tuple[int, str], int] = {}
+    for c in journal.chunks():
+        if c.lang:
+            count[(c.speaker, c.lang)] = count.get((c.speaker, c.lang), 0) + 1
+    main = next((v for v in catalog.all_voices() if opts.voice_wav and Path(v.path) == Path(opts.voice_wav)), None)
+    notes = []
+    for (sid, lang), n in sorted(count.items()):
+        sp = markup.speaker(sid) if markup is not None else None
+        entry = catalog.find(sp.voice) if sp and sp.voice else main
+        if entry is not None and entry.lang != lang:
+            who = f"{sp.name}: " if sid and sp else ""
+            notes.append(f"{who}{n} fragment(s) in {_language_name(lang)} are read by a {_language_name(entry.lang)} "
+                         f"voice ({entry.name}) and keep its accent; a {_language_name(lang)} voice reads them better")
+    return notes
+
+
 def _language_name(code: str) -> str:
     from folivox.markup_llm import LANG_NAMES
 
@@ -739,6 +760,9 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
 
                         raise ProviderError(f"Speaker {sid}: " + fish_check.BUNDLED_VOICES_NOTE)
         plan(book, opts, journal, voice.id, events, engine, markup, voices)
+        if not cloud:
+            for note in voice_accent_notes(journal, markup, opts):
+                events.warning(note)
         if journal.pending():
             from folivox.tts import weights
 

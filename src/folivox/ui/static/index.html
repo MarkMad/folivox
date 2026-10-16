@@ -1542,7 +1542,7 @@ $("#mk-vd-takes").addEventListener("click", async (ev) => {
   } catch (e) { vdMsg(e.message, true); }
 });
 $("#mk-vd-close").onclick = () => { $("#mk-vd").hidden = true; if (VD.audio) VD.audio.pause(); };
-const PAGE_API = 3;
+const PAGE_API = 4;
 async function checkServer() {
   try { const r = await api("/api/ping"); if (!(r.api >= PAGE_API)) $("#stale").hidden = false; }
   catch (e) { if (e.message === "Not Found") $("#stale").hidden = false; }  // a server too old to have /api/ping

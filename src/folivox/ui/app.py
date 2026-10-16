@@ -23,6 +23,7 @@ from starlette.routing import Route
 
 from folivox import config
 from folivox import voices as catalog
+from folivox.book import BlockKind
 from folivox.pipeline import QA_LEVELS, RenderOptions
 from folivox.text import pronounce as pronunciations
 from folivox.ui import fish_routes, markup_routes
@@ -31,7 +32,7 @@ from folivox.ui.jobs import JobManager, chapter_files
 STATIC = Path(__file__).parent / "static"
 # Bumped when the page starts using a route that servers started before the update do not have: the page asks
 # /api/ping and, if the server is older, tells the user to restart it.
-API_LEVEL = 3
+API_LEVEL = 4
 MAX_UPLOAD = 200 * 1024 * 1024
 PREVIEW_CHARS = 600
 
@@ -422,8 +423,50 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             clean.save(f)
         return JSONResponse(clean.to_dict())
 
+    lang_cache: dict[tuple, dict] = {}
+
+    async def book_languages(request: Request):
+        """The languages of the whole book (letter shares), what each speaker reads and the gaps of their voices.
+        ``?voice=<id>`` is the voice of the narrator (the book's main voice)."""
+        from folivox import markup as mk
+        from folivox.lang import usage
+        from folivox.lang.detect import shares
+
+        bid = request.path_params["book_id"]
+        entry = state.book(bid)
+        book = entry["book"]
+        depth = int(request.query_params.get("depth", 2))
+        f = markup_file(bid)
+        stamp = (bid, book.lang, depth, f.stat().st_mtime_ns if f.is_file() else 0)
+
+        def compute() -> dict:
+            if stamp not in lang_cache:
+                chapters = book.chapters(depth)
+                text = "\n".join(b.text for ch in chapters for b in ch.blocks)
+                try:
+                    m = mk.Markup.load(f) if f.is_file() else mk.Markup()
+                    m, _ = mk.bind(m, chapters)
+                except mk.MarkupError:
+                    m = mk.Markup()
+                lang_cache.clear()
+                lang_cache[stamp] = {"shares": shares(text), "used": usage.speaker_languages(chapters, m, book.lang),
+                                     "speakers": {s.id: s.voice for s in m.speakers}}
+            return lang_cache[stamp]
+
+        data = await asyncio.to_thread(compute)
+        narrator = request.query_params.get("voice", "")
+        out = {}
+        for sid, used in sorted(data["used"].items()):
+            ref = narrator if sid == 0 else data["speakers"].get(sid, "") or narrator
+            v = catalog.find(ref) if ref else None
+            voice_lang = v.lang if v else (book.lang if not ref else "")
+            out[str(sid)] = {"letters": dict(used), "voice": ref, "voice_lang": voice_lang,
+                             "gaps": usage.voice_gaps(used, voice_lang)}
+        return JSONResponse({"lang": book.lang, "shares": data["shares"], "speakers": out})
+
     async def chapter_text(request: Request):
-        """The paragraphs of one chapter, as the markup addresses them (block index, text)."""
+        """The paragraphs of one chapter, as the markup addresses them (block index, text, and the stretches in
+        another language that the script shows)."""
         bid = request.path_params["book_id"]
         entry = state.book(bid)
         depth = int(request.query_params.get("depth", 2))
@@ -432,7 +475,14 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         if not 0 <= n < len(chapters):
             raise ApiError("No such chapter", 404)
         ch = chapters[n]
-        blocks = [{"b": i, "kind": b.kind.value, "text": b.text} for i, b in enumerate(ch.blocks)]
+        from folivox.lang.runs import script_runs
+
+        blocks = []
+        for i, b in enumerate(ch.blocks):
+            item = {"b": i, "kind": b.kind.value, "text": b.text}
+            if b.kind != BlockKind.POEM and (runs := script_runs(b.text, entry["book"].lang)):
+                item["langs"] = [[r.start, r.end, r.lang] for r in runs]
+            blocks.append(item)
         return JSONResponse({"chapter": n, "title": ch.title, "headings": ch.headings, "blocks": blocks})
 
     async def expression_tags(request: Request):
@@ -1486,6 +1536,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/books/{book_id}/markup", put_markup, methods=["PUT"]),
         Route("/api/markup/tags", expression_tags),
         Route("/api/books/{book_id}/text", chapter_text),
+        Route("/api/books/{book_id}/languages", book_languages),
         Route("/api/books/{book_id}/pronounce", get_pronounce),
         Route("/api/books/{book_id}/pronounce", put_pronounce, methods=["PUT"]),
         Route("/api/books/{book_id}/pronounce/sample", pronounce_sample),
