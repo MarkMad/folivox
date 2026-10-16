@@ -208,7 +208,7 @@ def test_estimate_names_the_chapters_whose_text_changed(client):
 def test_preview_and_best_modes(client):
     bid = upload(client)
     est = client.get(f"/api/books/{bid}/llm/estimate").json()["modes"]
-    assert est["preview"]["analyse"] >= 1 and est["best"]["annotate"] >= 1 and est["best"]["extra"] >= 12
+    assert est["preview"]["analyse"] >= 1 and est["best"]["annotate"] >= 1 and est["best"]["extra"] >= 8
     assert client.post(f"/api/books/{bid}/llm/start", json={"task": "preview"}).status_code == 202
     st = wait(client, bid)
     assert st["state"] == "done" and "flagged" in st["stats"]

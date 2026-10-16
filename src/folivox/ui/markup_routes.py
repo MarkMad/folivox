@@ -219,9 +219,14 @@ def routes(api_error, state, services: dict) -> list[Route]:
         modes = {"preview": {"analyse": min(PREVIEW_ANALYSE, len(every)),
                              "annotate": min(PREVIEW_MARK, len(every_speech))},
                  "best": {"analyse": len(every) if bible.sampled else left, "annotate": len(speech),
-                          # the second look: unsure characters, doubtful places
-                          "extra": 12 + round(0.07 * paragraphs)}}
-        return JSONResponse({"analyse_windows": left, "annotate_windows": len(speech), "window_chars": ml.WINDOW_CHARS,
+                          # the second look: the merge and the unsure characters, then the doubtful places (measured:
+                          # about 1 in 100 paragraphs after the rule check was tuned)
+                          "extra": 8 + round(0.02 * paragraphs)}}
+        # the average window of each stage (a short book has short windows, and the page counts time by them)
+        read_chars = round(sum(len(w.text()) for w in every) / len(every)) if every else ml.WINDOW_CHARS
+        mark_chars = round(sum(len(w.text()) for w in speech) / len(speech)) if speech else ml.WINDOW_CHARS
+        return JSONResponse({"analyse_windows": left, "annotate_windows": len(speech), "window_chars": mark_chars,
+                             "read_chars": read_chars,
                              "modes": modes, "chars": sum(len(w.text()) for w in every),
                              "speech_chapters": sorted({w.chapter for w in every_speech}), "stale_chapters": stale})
 

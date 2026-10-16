@@ -1247,7 +1247,9 @@ $("#mk-rm").onclick = async () => {
   catch (e) { $("#mk-dlmsg").innerHTML = `<span class="err">${esc(e.message)}</span>`; return; }
   $("#mk-dlmsg").textContent = ""; await mkLlmModels(); $("#mk-model").value = model; mkModelButtons(); mkEtaEditor();
 };
-// time guesses: tokens per second by model size, until a real run teaches the page this computer's speed
+// time guesses: tokens per second by model size, until a real run teaches the page this computer's speed.
+// Measured on a 36 GB Mac (Russian prose, 5000-character windows): gemma4 12b reads a window in 40 s and marks one in 90 s,
+// 31b in 100 s and 240 s; a short second look (one paragraph, or one character) takes a quarter of a reading window.
 function mkTokRate(model) {
   const m = String(model).toLowerCase().match(/:(e?)(\d+)b/), n = m ? +m[2] : 0;
   if (!n) return 20; if (n <= 2) return 60; if (n <= 4) return 45; if (n <= 8) return 35; if (n <= 14) return 25;
@@ -1255,7 +1257,7 @@ function mkTokRate(model) {
 }
 const mkLearned = (model) => { try { return +localStorage.getItem("folivox.mkrate." + model) || 0; } catch (e) { return 0; } };
 function mkSecs(model, est) {  // seconds per window (analyse, annotate) and the total for a run
-  let m = (est.window_chars / 2.5 + 300) / mkTokRate(model), a = 650 / mkTokRate(model);
+  let m = (est.window_chars / 2.5 + 300) / mkTokRate(model), a = 1000 * (est.read_chars || 5000) / 5000 / mkTokRate(model);
   const l = mkLearned(model); if (l) { a *= l / m; m = l; }
   return { a, m, na: est.analyse_windows, nm: est.annotate_windows, total: est.analyse_windows * a + est.annotate_windows * m };
 }
@@ -1267,16 +1269,17 @@ function mkDur(sec) {
 const mkEstimate = (chapter, chapters) => api(`/api/books/${book.book_id}/llm/estimate?depth=${(MK.data && MK.data.depth) || +$("#depth").value || 2}${chapter ? "&chapter=" + chapter : ""}${chapters && chapters.length ? "&chapters=" + chapters.join(",") : ""}`);
 // seconds of a mode: the windows of every stage, in the model's measured (or guessed) speed
 function mkModeSecs(model, est, mode) {
-  const base = mkSecs(model, est), x = est.modes[mode];
-  return { a: base.a, m: base.m, na: x.analyse, nm: x.annotate, ne: x.extra || 0, total: x.analyse * base.a + x.annotate * base.m + (x.extra || 0) * base.a };
+  const base = mkSecs(model, est), x = est.modes[mode], ne = (x.extra || 0) / 4;  // a short call is a quarter of a reading window
+  return { a: base.a, m: base.m, na: x.analyse, nm: x.annotate, ne, total: (x.analyse + ne) * base.a + x.annotate * base.m };
 }
-const mkEtaText = (model, est) => t("mk.eta.approx", { t: mkDur(mkSecs(model, est).total) });
+const mkApprox = (sec) => sec < 60 ? t("mk.dur.under") : t("mk.eta.approx", { t: mkDur(sec) });  // "about under a minute" reads wrong
+const mkEtaText = (model, est) => mkApprox(mkSecs(model, est).total);
 async function mkEtaEditor() {
   if (!book || !$("#mk-dlg").open) return;
   try {
     const model = $("#mk-model").value, est = await mkEstimate(0, selected());
-    $("#mk-eta-best").textContent = t("mk.eta.approx", { t: mkDur(mkModeSecs(model, est, "best").total) });
-    $("#mk-eta-prev").textContent = t("mk.eta.approx", { t: mkDur(mkModeSecs(model, est, "preview").total) });
+    $("#mk-eta-best").textContent = mkApprox(mkModeSecs(model, est, "best").total);
+    $("#mk-eta-prev").textContent = mkApprox(mkModeSecs(model, est, "preview").total);
   } catch (e) { $("#mk-eta-best").textContent = $("#mk-eta-prev").textContent = ""; }
 }
 function mkModelHint() {
