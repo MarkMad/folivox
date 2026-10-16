@@ -623,7 +623,6 @@
  "mk.run.mark": "Marking who speaks… {d} of {n}",
  "mk.res.novoice": "needs a voice",
  "mk.res.choose": "Choose voices",
- "mk.nomodel": "No language model is installed yet. Install one with: ollama pull {m}",
  "mk.next.voices": "Next: give the characters their voices.",
  "mk.next.check": "Next: read through the text and fix anything that looks wrong.",
  "mk.next.read": "Check the text",
@@ -641,8 +640,15 @@
  "mk.undo.t": "Undo the last change",
  "mk.redo.t": "Redo the change you undid",
  "mk.model.missing": "not installed",
- "mk.model.pull": "This model is not installed yet. Install it with: ollama pull {m}",
  "mk.model.h31": "Best quality, but the slowest.",
  "mk.model.h26": "Close to the largest and faster.",
- "mk.model.h12": "Fast and accurate in our tests (English, Russian, German, Spanish). A good place to start."
+ "mk.model.h12": "Fast and accurate in our tests (English, Russian, German, Spanish). A good place to start.",
+ "mk.dl.btn": "Download ({gb} GB)",
+ "mk.dl.confirm": "Download {m} ({gb} GB)? It is downloaded once and stays on this computer.",
+ "mk.dl.progress": "Downloading… {d} of {n} GB",
+ "mk.dl.done": "Downloaded.",
+ "mk.dl.noollama": "Ollama is not running. Install it from ollama.com (or start it) and try again.",
+ "mk.dl.pre": "A language model ({gb} GB) will be downloaded first, once.",
+ "mk.rm.btn": "Remove from this computer",
+ "mk.rm.confirm": "Remove {m} from this computer? You can download it again later."
 }

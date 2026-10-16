@@ -623,7 +623,6 @@
  "mk.run.mark": "正在标记说话人… {d}/{n}",
  "mk.res.novoice": "需要声音",
  "mk.res.choose": "选择声音",
- "mk.nomodel": "尚未安装语言模型。请运行：ollama pull {m}",
  "mk.next.voices": "下一步：为角色选择声音。",
  "mk.next.check": "下一步：通读文本，修正看起来不对的地方。",
  "mk.next.read": "检查文本",
@@ -641,8 +640,15 @@
  "mk.undo.t": "撤销上一步修改",
  "mk.redo.t": "恢复刚撤销的修改",
  "mk.model.missing": "未安装",
- "mk.model.pull": "此模型尚未安装。请运行：ollama pull {m}",
  "mk.model.h31": "质量最好，但速度最慢。",
  "mk.model.h26": "接近最大的模型且更快。",
- "mk.model.h12": "在我们的测试中又快又准（英语、俄语、德语、西班牙语）。是个好的起点。"
+ "mk.model.h12": "在我们的测试中又快又准（英语、俄语、德语、西班牙语）。是个好的起点。",
+ "mk.dl.btn": "下载（{gb} GB）",
+ "mk.dl.confirm": "要下载 {m}（{gb} GB）吗？只需下载一次，模型会保存在这台电脑上。",
+ "mk.dl.progress": "正在下载… {d}/{n} GB",
+ "mk.dl.done": "已下载。",
+ "mk.dl.noollama": "Ollama 未运行。请从 ollama.com 安装（或启动）后重试。",
+ "mk.dl.pre": "会先下载一个语言模型（{gb} GB），只需一次。",
+ "mk.rm.btn": "从这台电脑删除",
+ "mk.rm.confirm": "要从这台电脑删除 {m} 吗？以后可以重新下载。"
 }

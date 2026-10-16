@@ -623,7 +623,6 @@
  "mk.run.mark": "Sprecher werden markiert … {d} von {n}",
  "mk.res.novoice": "braucht eine Stimme",
  "mk.res.choose": "Stimmen wählen",
- "mk.nomodel": "Es ist noch kein Sprachmodell installiert. Installieren Sie eines mit: ollama pull {m}",
  "mk.next.voices": "Als Nächstes: Stimmen für die Figuren wählen.",
  "mk.next.check": "Als Nächstes: Text durchsehen und Falsches korrigieren.",
  "mk.next.read": "Text prüfen",
@@ -641,8 +640,15 @@
  "mk.undo.t": "Letzte Änderung rückgängig machen",
  "mk.redo.t": "Rückgängig gemachte Änderung wiederherstellen",
  "mk.model.missing": "nicht installiert",
- "mk.model.pull": "Dieses Modell ist noch nicht installiert. Installieren Sie es mit: ollama pull {m}",
  "mk.model.h31": "Beste Qualität, aber am langsamsten.",
  "mk.model.h26": "Nah an der größten und schneller.",
- "mk.model.h12": "Schnell und genau in unseren Tests (Englisch, Russisch, Deutsch, Spanisch). Ein guter Anfang."
+ "mk.model.h12": "Schnell und genau in unseren Tests (Englisch, Russisch, Deutsch, Spanisch). Ein guter Anfang.",
+ "mk.dl.btn": "Herunterladen ({gb} GB)",
+ "mk.dl.confirm": "{m} ({gb} GB) herunterladen? Das geschieht einmal, das Modell bleibt auf diesem Computer.",
+ "mk.dl.progress": "Wird heruntergeladen … {d} von {n} GB",
+ "mk.dl.done": "Heruntergeladen.",
+ "mk.dl.noollama": "Ollama läuft nicht. Installieren Sie es von ollama.com (oder starten Sie es) und versuchen Sie es erneut.",
+ "mk.dl.pre": "Zuerst wird einmalig ein Sprachmodell ({gb} GB) heruntergeladen.",
+ "mk.rm.btn": "Von diesem Computer entfernen",
+ "mk.rm.confirm": "{m} von diesem Computer entfernen? Sie können es später erneut herunterladen."
 }

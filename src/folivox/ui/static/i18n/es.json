@@ -623,7 +623,6 @@
  "mk.run.mark": "Marcando quién habla… {d} de {n}",
  "mk.res.novoice": "necesita una voz",
  "mk.res.choose": "Elegir voces",
- "mk.nomodel": "Aún no hay ningún modelo de lenguaje instalado. Instale uno con: ollama pull {m}",
  "mk.next.voices": "Siguiente: elija las voces de los personajes.",
  "mk.next.check": "Siguiente: repase el texto y corrija lo que parezca mal.",
  "mk.next.read": "Revisar el texto",
@@ -641,8 +640,15 @@
  "mk.undo.t": "Deshacer el último cambio",
  "mk.redo.t": "Rehacer el cambio deshecho",
  "mk.model.missing": "no instalado",
- "mk.model.pull": "Este modelo aún no está instalado. Instálelo con: ollama pull {m}",
  "mk.model.h31": "La mejor calidad, pero la más lenta.",
  "mk.model.h26": "Cercana a la mayor y más rápida.",
- "mk.model.h12": "Rápida y precisa en nuestras pruebas (inglés, ruso, alemán, español). Un buen comienzo."
+ "mk.model.h12": "Rápida y precisa en nuestras pruebas (inglés, ruso, alemán, español). Un buen comienzo.",
+ "mk.dl.btn": "Descargar ({gb} GB)",
+ "mk.dl.confirm": "¿Descargar {m} ({gb} GB)? Se descarga una vez y se queda en este equipo.",
+ "mk.dl.progress": "Descargando… {d} de {n} GB",
+ "mk.dl.done": "Descargado.",
+ "mk.dl.noollama": "Ollama no está en marcha. Instálelo desde ollama.com (o inícielo) y vuelva a intentarlo.",
+ "mk.dl.pre": "Primero se descargará, una sola vez, un modelo de lenguaje ({gb} GB).",
+ "mk.rm.btn": "Quitar de este equipo",
+ "mk.rm.confirm": "¿Quitar {m} de este equipo? Podrá descargarlo de nuevo más tarde."
 }

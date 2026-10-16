@@ -341,6 +341,9 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
         <details id="mk-opts" class="mk-sub"><summary data-i18n="mk.options">Options</summary>
           <label class="f"><span data-i18n="mk.model">Model</span><select id="mk-model"></select></label>
           <div id="mk-modelhint" class="mute" style="font-size:12.5px;margin-top:4px"></div>
+          <div class="row" style="margin-top:6px"><button type="button" id="mk-dl" class="chip" hidden></button><button type="button" id="mk-rm" class="chip" hidden data-i18n="mk.rm.btn">Remove from this computer</button><button type="button" id="mk-dlstop" class="chip" hidden data-i18n="mk.stop">Stop</button></div>
+          <progress id="mk-dlprog" max="100" value="0" hidden style="width:100%;margin-top:6px"></progress>
+          <div id="mk-dlmsg" class="mute" style="font-size:12.5px;margin-top:4px"></div>
           <label class="consent" style="margin-top:6px"><input type="checkbox" id="mk-llmtags"><span data-i18n="mk.llmtags">Also place expression tags (off by default)</span></label>
           <div class="row" style="margin-top:8px"><button type="button" id="mk-analyse" class="chip" data-i18n="mk.analyse">Analyse characters</button></div>
         </details>
@@ -937,7 +940,7 @@ async function mkOpenEditor(fine) {
   mkTagList();
   $("#mk-ch").innerHTML = book.chapters.map((c, i) => `<option value="${i}">${esc(c.n + ". " + c.title)}</option>`).join("");
   $("#mk-step").hidden = true; $("#mk-chars").innerHTML = ""; $("#mk-llmmsg").textContent = "";
-  $("#mk-dlg").showModal(); mkLlmModels().then(() => { mkModelHint(); mkEtaEditor(); }); await mkLoadChapter(0); $("#mk-text").focus(); if (fine) $("#mk-speakers").scrollIntoView({ block: "start" });
+  $("#mk-dlg").showModal(); mkLlmModels().then(() => { mkModelHint(); mkModelButtons(); mkEtaEditor(); }); await mkLoadChapter(0); $("#mk-text").focus(); if (fine) $("#mk-speakers").scrollIntoView({ block: "start" });
 }
 $("#mk-open").onclick = () => mkOpenEditor(false); $("#mk-open2").onclick = () => mkOpenEditor(false);
 function mkClose() { if (MK.dirty && !confirm(t("mk.unsaved"))) return; if (MK.audio) MK.audio.pause(); $("#mk-dlg").close(); loadMk(); }
@@ -995,8 +998,54 @@ async function mkLlmModels() {
 async function mkPickModel() {
   const m = await api("/api/llm/models");
   const pick = m.configured || m.installed.find(x => x === m.recommended) || m.installed.find(x => x.startsWith("gemma4")) || m.installed.find(x => !x.includes("embed")) || "";
-  return { pick, rec: m.recommended };
+  return { pick, rec: m.recommended, m };
 }
+const mkGB = (b) => (b / 1e9).toFixed(1);
+const mkTier = (m, model) => (m.tiers || []).find(x => x.model === model);
+// download a listed model through Ollama; ui = { busy(on), progress(pct, text), error(text) }; true when it arrived
+async function mkPull(model, ui) {
+  try { await api("/api/llm/pull", { method: "POST", headers: JSONH, body: JSON.stringify({ model }) }); }
+  catch (e) { ui.error(e.message); return false; }
+  ui.busy(true); MK.running = true;
+  try {
+    for (;;) {
+      await new Promise(r => setTimeout(r, 1000));
+      let s; try { s = await api("/api/llm/pull"); } catch (e) { return false; }
+      const left = s.done > 0 && s.elapsed > 0 ? (s.total - s.done) / (s.done / s.elapsed) : null;
+      ui.progress(s.total ? Math.round(100 * s.done / s.total) : 0, t("mk.dl.progress", { d: mkGB(s.done), n: mkGB(s.total) }) + (left !== null && s.state === "running" ? " · " + t("mk.eta.left", { t: mkDur(left) }) : ""));
+      if (s.state === "running") continue;
+      if (s.state === "error") { ui.error(s.message); return false; }
+      return s.state === "done";
+    }
+  } finally { ui.busy(false); MK.running = false; }
+}
+// the person is asked once before anything big is downloaded
+function mkAskDownload(model, m) { const x = mkTier(m, model); return confirm(t("mk.dl.confirm", { m: model, gb: x ? x.download_gb : "?" })); }
+const mkCancelPull = () => api("/api/llm/pull/cancel", { method: "POST" });
+// editor: the buttons next to the model list
+function mkModelButtons() {
+  const m = MK.models, model = $("#mk-model").value, x = m && mkTier(m, model);
+  $("#mk-dl").hidden = !(x && !m.installed.includes(model)); $("#mk-rm").hidden = !(x && m.installed.includes(model));
+  if (x) $("#mk-dl").textContent = t("mk.dl.btn", { gb: x.download_gb });
+}
+async function mkEditorPull(model) {
+  const msg = $("#mk-dlmsg"); msg.textContent = "";
+  const ok = await mkPull(model, {
+    busy: (on) => { ["#mk-dl", "#mk-rm", "#mk-auto", "#mk-analyse"].forEach(b => $(b).disabled = on); $("#mk-dlprog").hidden = !on; $("#mk-dlstop").hidden = !on; },
+    progress: (pct, text) => { $("#mk-dlprog").value = pct; msg.textContent = text; },
+    error: (e) => { msg.innerHTML = `<span class="err">${esc(e)}</span>`; } });
+  await mkLlmModels(); $("#mk-model").value = model; mkModelButtons();
+  if (ok) msg.textContent = t("mk.dl.done");
+  return ok;
+}
+$("#mk-dl").onclick = async () => { const model = $("#mk-model").value; if (MK.models && mkAskDownload(model, MK.models)) { await mkEditorPull(model); mkEtaEditor(); } };
+$("#mk-dlstop").onclick = mkCancelPull;
+$("#mk-rm").onclick = async () => {
+  const model = $("#mk-model").value; if (!confirm(t("mk.rm.confirm", { m: model }))) return;
+  try { await api("/api/llm/models", { method: "DELETE", headers: JSONH, body: JSON.stringify({ model }) }); }
+  catch (e) { $("#mk-dlmsg").innerHTML = `<span class="err">${esc(e.message)}</span>`; return; }
+  $("#mk-dlmsg").textContent = ""; await mkLlmModels(); $("#mk-model").value = model; mkModelButtons(); mkEtaEditor();
+};
 // time guesses: tokens per second by model size, until a real run teaches the page this computer's speed
 function mkTokRate(model) {
   const m = String(model).toLowerCase().match(/:(e?)(\d+)b/), n = m ? +m[2] : 0;
@@ -1019,7 +1068,8 @@ const mkEtaText = (model, est) => t("mk.eta.approx", { t: mkDur(mkSecs(model, es
 async function mkEtaMain() {
   const el = $("#mk-eta"); if (!book || $("#mk-none").hidden) return;
   try {
-    const p = await mkPickModel(); if (!p.pick) { el.textContent = t("mk.nomodel", { m: p.rec || "gemma4:12b-it-qat" }); return; }
+    const p = await mkPickModel();
+    if (!p.pick) { const x = mkTier(p.m, p.rec); el.textContent = p.m.running ? t("mk.dl.pre", { gb: x ? x.download_gb : "?" }) : t("mk.dl.noollama"); return; }
     const sec = mkSecs(p.pick, await mkEstimate(0));
     el.textContent = t("mk.eta.before", { t: mkDur(sec.total) }) + (sec.total > 1200 ? " " + t("mk.eta.long") : "");
   } catch (e) { el.textContent = ""; }
@@ -1035,7 +1085,7 @@ function mkModelHint() {
   const m = $("#mk-model").value, key = /31b/.test(m) ? "mk.model.h31" : /26b/.test(m) ? "mk.model.h26" : /12b/.test(m) ? "mk.model.h12" : "";
   $("#mk-modelhint").textContent = key ? t(key) : "";
 }
-$("#mk-model").addEventListener("change", () => { mkModelHint(); mkEtaEditor(); });
+$("#mk-model").addEventListener("change", () => { mkModelHint(); mkModelButtons(); mkEtaEditor(); });
 const mkStageText = (s) => s.state !== "running" ? "" : !s.total ? t("mk.run.start") : t(s.stage === "analyse" ? "mk.run.read" : "mk.run.mark", { d: s.done, n: s.total });
 // one run of the whole flow (characters, then speakers); ui = { busy(on), progress(pct, text), error(text) }
 async function mkAutoRun(task, o, ui) {
@@ -1083,8 +1133,17 @@ async function mkCta() {
   const msg = $("#mk-mmsg"), res = $("#mk-mres"); res.innerHTML = ""; msg.textContent = "";
   if (!$("#mk-have").hidden && !confirm(t("mk.again.confirm"))) return;
   let pick; try { pick = await mkPickModel(); } catch (e) { pick = { pick: "", rec: "" }; }
-  if (!pick.pick) { msg.innerHTML = esc(t("mk.nomodel", { m: pick.rec || "gemma4:12b-it-qat" })); return; }
   const btns = ["#mk-cta", "#mk-again", "#mk-open", "#mk-open2"];
+  if (!pick.pick) {
+    if (!pick.m || !pick.m.running) { msg.textContent = t("mk.dl.noollama"); return; }
+    if (!mkAskDownload(pick.rec, pick.m)) return;
+    const ok = await mkPull(pick.rec, {
+      busy: (on) => { btns.forEach(b => $(b).disabled = on); $("#mk-mprog").hidden = !on; $("#mk-mstop").hidden = !on; $("#mk-mstop").onclick = on ? mkCancelPull : mkStopMain; },
+      progress: (pct, text) => { $("#mk-mprog").value = pct; msg.textContent = text; },
+      error: (m) => { msg.innerHTML = `<span class="err">${esc(m)}</span>`; } });
+    if (!ok) return;
+    pick.pick = pick.rec; msg.textContent = "";
+  }
   const s = await mkAutoRun("auto", { model: pick.pick }, {
     busy: (on) => { btns.forEach(b => $(b).disabled = on); $("#mk-mprog").hidden = !on; $("#mk-mstop").hidden = !on; },
     progress: (pct, text) => { $("#mk-mprog").value = pct; msg.textContent = text; },
@@ -1096,7 +1155,8 @@ async function mkCta() {
     + `<div class="row" style="margin-top:8px"><button type="button" class="primary" id="mk-res-open">${esc(t(v.missing.length ? "mk.res.choose" : "mk.review"))}</button></div>`;
 }
 $("#mk-cta").onclick = mkCta; $("#mk-again").onclick = mkCta;
-$("#mk-mstop").onclick = () => api(`/api/books/${book.book_id}/llm/cancel`, { method: "POST" });
+const mkStopMain = () => api(`/api/books/${book.book_id}/llm/cancel`, { method: "POST" });
+$("#mk-mstop").onclick = mkStopMain;
 $("#mk-mres").addEventListener("click", (ev) => { if (ev.target.closest("#mk-res-open")) mkOpenEditor(true); });
 // editor: the same flow, or the characters only
 async function mkLlm(task) {
@@ -1105,8 +1165,10 @@ async function mkLlm(task) {
   const hasMarkup = Object.values(MK.data.chapters).some(c => c.spans.length);
   if (task === "auto" && hasMarkup && !confirm(t("mk.again.confirm"))) return;
   let model = $("#mk-model").value;
-  if (model && MK.models && !MK.models.installed.includes(model)) { msg.textContent = t("mk.model.pull", { m: model }); return; }
-  if (!model) { try { const p = await mkPickModel(); model = p.pick; if (!model) { msg.textContent = t("mk.nomodel", { m: p.rec || "gemma4:12b-it-qat" }); return; } } catch (e) { /* let the server answer */ } }
+  if (model && MK.models && !MK.models.installed.includes(model)) {
+    if (!MK.models.running) { msg.textContent = t("mk.dl.noollama"); return; }
+    if (!mkAskDownload(model, MK.models) || !await mkEditorPull(model)) return;
+  }
   const btns = ["#mk-analyse", "#mk-auto"];
   const s = await mkAutoRun(task, { model, tags: $("#mk-llmtags").checked, chapters: task === "auto" && $("#mk-scope-ch").checked ? [MK.ch + 1] : undefined }, {
     busy: (on) => { btns.forEach(b => $(b).disabled = on); $("#mk-stop").hidden = !on; $("#mk-prog").hidden = !on; },

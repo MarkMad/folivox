@@ -155,6 +155,12 @@ works. The estimate counts the model calls the run needs (the server's `/llm/est
 the model's size; it is a rough guess. During a run the speed is measured and the estimate corrected, and the speed
 of the last run is remembered in the browser for that model. A long estimate suggests trying one chapter first.
 
+**Language models are downloaded from the studio.** If no model is installed, the button asks once (name and size), checks
+that Ollama is running and that the disk has room, downloads the recommended model with a progress bar, a time left
+and *Stop* (a stopped download resumes later), and goes on with the marking. In the editor, *Options* has a
+*Download* button for the model chosen in the list and *Remove from this computer* for an installed one. Only the
+models in the list can be downloaded or removed here; Ollama itself is installed by the person (ollama.com).
+
 Once the book has markup the box shows a one-line summary, **Review and fine-tune**, **Run again** and the switch
 *Use the markup when rendering*.
 
@@ -202,5 +208,5 @@ them. The same operations exist in the console (`folivox markup export` / `impor
 The studio keeps the markup per book (`GET/PUT /api/books/{id}/markup`, `GET /api/markup/tags`) and uses it in
 renders and previews (options `use_markup`, `expression_tags`). Automatic markup runs as a background task per
 book: `POST /api/books/{id}/llm/start` (`{"task": "analyse" | "auto", "model", "llm", "chapters",
-"expression_tags", "sample"}`), `GET .../llm/status`, `GET .../llm/estimate?chapter=N` (windows of a run), `POST .../llm/cancel`; the character list is
+"expression_tags", "sample"}`), `GET .../llm/status`, `GET .../llm/estimate?chapter=N` (windows of a run), `POST .../llm/cancel`; models: `POST /api/llm/pull` `{"model"}`, `GET /api/llm/pull` (progress), `POST /api/llm/pull/cancel`, `DELETE /api/llm/models` `{"model"}`; the character list is
 `GET/PUT /api/books/{id}/characters` and the model proposals `GET /api/llm/models`.
