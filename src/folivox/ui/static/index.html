@@ -197,6 +197,11 @@ h1 { padding-right:140px; }
 .mk-card .mk-res, .mk-chars .mk-res { margin-top:8px; }
 .mk-autocard { padding:12px; border:1px solid var(--accent); border-radius:12px; margin-bottom:12px; } .mk-autocard > .primary { width:100%; padding:10px 14px; font-size:15px; } .mk-autocard > .primary + .chip { margin-top:6px; }
 .mk-scope { margin-top:8px; } .mk-scope .consent { margin:2px 0; } #mk-fine h4:first-child { margin-top:12px; } .mk-top .ic { width:34px; padding:6px 0; text-align:center; font-size:16px; line-height:1; }
+.vmode { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.vm { display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border:1px solid var(--line); border-radius:12px; cursor:pointer; } .vm.on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+.vm b { display:block; font-size:15px; } .vm small { display:block; color:var(--mute); font-size:13px; line-height:1.4; margin-top:2px; } .vm input { margin-top:4px; } .vm:has(input:disabled) { opacity:.55; cursor:not-allowed; }
+.mk-card { padding:12px 14px; border:1px solid var(--line); border-radius:12px; margin-bottom:12px; } .mk-boxh { font-weight:600; margin-bottom:6px; }
+@media (max-width:700px) { .vmode { grid-template-columns:1fr; } }
 .mk-sub { margin-top:10px; } .mk-sub > summary { cursor:pointer; color:var(--mute); font-size:13px; } .mk-sub[open] > summary { margin-bottom:6px; }
 .mk-nextstep { padding:10px 12px; border:1px dashed var(--accent); border-radius:10px; margin-bottom:12px; } .mk-nextstep .row { margin-top:8px; }
 .mk-legend { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0; } .mk-legend .chip { font-size:12px; padding:2px 9px; border-left:5px solid var(--c); }
@@ -289,39 +294,6 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
     <div class="row" style="margin-top:8px"><button type="button" id="m-reset" class="chip" data-i18n="s1.m.reset">Reset to the book's own data</button><span id="m-msg" class="mute"></span></div>
     <small class="mute" data-i18n="s1.m.note">Saved automatically for this book. The series is written as the “Grouping” tag (“Name #2”), which most audiobook apps show as the series. Empty fields fall back to the book's data.</small>
   </details>
-  <details id="pron-box" class="pron-box" hidden><summary><span data-i18n="s1.pron.h">Pronunciations</span> <small class="mute" data-i18n="s1.pron.sub">names and invented words, read your way</small></summary>
-    <ul class="pron-help mute">
-      <li data-i18n-html="s1.pron.help">One entry per line: <code>word = how to read it</code>. Respell the word the way it sounds (<code>Kvothe = Quothe</code>). A <code>*</code> at the end keeps any ending (<code>Tolkien* = Tolkeen</code>). Lines starting with <code>#</code> are comments.</li>
-      <li data-i18n-html="s1.pron.forms">Enter each form of a word yourself (<code>Mirandel</code>, <code>Mirandels</code>): the stress can move between forms. Use <code>*</code> only for names whose stem does not change.</li>
-      <li data-i18n-html="s1.pron.stress">Stress: <code>+</code> before the stressed vowel (<code>Mir+andel</code>) or <code>'</code> right after it (<code>Mira'ndel</code>). Russian works the same way and also takes one capital letter. Check it by ear: the model does not always follow.</li>
-      <li data-i18n-html="s1.pron.phon">Local engine only: phonemes between slashes, then a respelling for online engines (<code>Kvothe = /K W OW1 TH/ | Quothe</code>). Online engines ignore stress marks and phonemes.</li>
-    </ul>
-    <label class="f" style="margin-top:10px"><textarea id="pron-text" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="# word = how to read it&#10;Mirandel = Mir+andel&#10;Kvothe = Quothe&#10;Tolkien* = Tolkeen" data-i18n-attr="placeholder:s1.pron.ph"></textarea></label>
-    <ul id="pron-warn" class="pron-warn" hidden></ul>
-    <div class="row" style="margin-top:8px"><span id="pron-count" class="mute"></span><span id="pron-msg" class="mute"></span></div>
-    <div class="pron-try">
-      <div class="row"><b data-i18n="s1.pron.try">Try it by ear</b><button type="button" id="pron-pick" class="chip" title="Finds sentences of the book that contain your words, in the order of your list" data-i18n="s1.pron.pick" data-i18n-attr="title:s1.pron.pick.t">Pick sentences from my book</button></div>
-      <textarea id="pron-sample" rows="3" maxlength="600" spellcheck="false" autocomplete="off" placeholder="Type a sentence with your words, or press “Pick sentences from my book”" data-i18n-attr="placeholder:s1.pron.sample.ph"></textarea>
-      <div class="row"><button type="button" id="pron-listen" class="chip" title="Reads the text above with your pronunciations applied" data-i18n="s1.pron.listen" data-i18n-attr="title:s1.pron.listen.t">▶ Listen</button><span id="pron-try-msg" class="mute"></span></div>
-      <small class="mute" data-i18n="s1.pron.try.note">This exact text is read with your pronunciations applied, using the voice and engine chosen below. It takes about half a minute and is not added to the audiobook (an online engine bills this small test).</small>
-    </div>
-    <small class="mute" data-i18n="s1.pron.note">Saved automatically for this book. Only the fragments with changed words are read again.</small>
-  </details>
-  <details id="mk-box" class="meta-box mk-card" hidden>
-    <summary><span data-i18n="mk.h">Different voices for characters</span> <small id="mk-sub" class="mute"></small></summary>
-    <div id="mk-none">
-      <p class="mute" style="margin:8px 0 6px" data-i18n="mk.cta.text">Give each character their own voice. The program finds the characters and who says what; you only check the result.</p>
-      <div class="row"><button type="button" id="mk-cta" class="primary" data-i18n="mk.cta">Voice the characters automatically</button><button type="button" id="mk-open2" class="chip" data-i18n="mk.adv">Advanced settings</button></div>
-      <div id="mk-eta" class="mute" style="margin-top:8px"></div>
-    </div>
-    <div id="mk-have" hidden>
-      <div class="row" style="margin-top:8px"><span id="mk-summary" class="mute grow"></span><button type="button" id="mk-open" class="primary" data-i18n="mk.review">Review and fine-tune</button><button type="button" id="mk-again" class="chip" data-i18n="mk.again">Run again</button></div>
-      <label class="consent" style="margin-top:8px"><input type="checkbox" id="mk-use" checked><span data-i18n="mk.use">Use the markup when rendering</span></label>
-    </div>
-    <div class="row" style="margin-top:8px"><progress id="mk-mprog" max="100" value="0" hidden class="grow"></progress><button type="button" id="mk-mstop" class="chip" hidden data-i18n="mk.stop">Stop</button></div>
-    <div id="mk-mmsg" class="mute" style="margin-top:6px"></div>
-    <div id="mk-mres" class="mk-res"></div>
-  </details>
 </section>
 
 <dialog id="mk-dlg" class="mk-dlg" aria-labelledby="mk-title">
@@ -395,36 +367,26 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
   <div class="chapters" style="margin-top:10px"><table id="chapters"></table></div>
 </section>
 
-<section id="s-engine" class="disabled"><h2 data-i18n="s3.h">3 · Reading engine</h2>
-  <div class="grid">
-    <label class="f"><span data-i18n="s3.who">Who reads the book</span><select id="o-tts"></select></label>
-    <label class="f eng-cloud" hidden><span data-i18n="s3.model">Model</span><select id="o-tts_model"></select></label>
-    <label class="f eng-cloud" hidden><span data-i18n="s3.cap">Spending cap, $ (optional)</span><input id="o-max_cost" type="number" min="0.5" step="0.5" placeholder="no cap" data-i18n-attr="placeholder:s3.cap.ph"></label>
+<section id="s-voice" class="disabled"><h2 data-i18n="s4.h">3 · Voice</h2>
+  <div class="vmode" role="radiogroup" aria-label="Voice mode" data-i18n-attr="aria-label:vm.aria">
+    <label class="vm on"><input type="radio" name="vmode" value="one" checked><span><b data-i18n="vm.one">One voice</b><small data-i18n="vm.one.sub">One voice reads the whole book. The simplest choice, right for most books.</small></span></label>
+    <label class="vm"><input type="radio" name="vmode" value="multi"><span><b data-i18n="vm.multi">Several voices</b><small data-i18n="vm.multi.sub">A narrator and a separate voice for each character, like a radio play.</small></span></label>
   </div>
-  <small class="mute" id="eng-blurb"></small>
-  <div id="eng-fish" class="costcard" hidden>
-    <label class="f"><span data-i18n="fish.build">Build</span><select id="o-tts_build"></select></label>
-    <div id="fish-info" class="mute" style="margin-top:8px"></div>
-    <div id="fish-warn" class="warn" style="margin-top:6px"></div>
-    <div class="row"><button type="button" id="fish-licence" class="primary" data-i18n="fish.licence.btn">Read and accept the licence…</button>
-      <button type="button" id="fish-install" class="primary" hidden></button><button type="button" id="fish-remove" hidden data-i18n="fish.remove">Remove</button>
-      <span id="fish-state" class="mute"></span></div>
-    <progress id="fish-progress" max="100" value="0" hidden></progress>
-    <small class="mute" id="fish-attrib" style="display:block;margin-top:8px"></small>
+  <div id="mk-box" class="mk-card" hidden>
+    <div class="mk-boxh" data-i18n="mk.h">Characters</div>
+    <div id="mk-none">
+      <p class="mute" style="margin:8px 0 6px" data-i18n="mk.cta.text">Give each character their own voice. The program finds the characters and who says what; you only check the result.</p>
+      <div class="row"><button type="button" id="mk-cta" class="primary" data-i18n="mk.cta">Voice the characters automatically</button><button type="button" id="mk-open2" class="chip" data-i18n="mk.adv">Advanced settings</button></div>
+      <div id="mk-eta" class="mute" style="margin-top:8px"></div>
+    </div>
+    <div id="mk-have" hidden>
+      <div class="row" style="margin-top:8px"><span id="mk-summary" class="mute grow"></span><button type="button" id="mk-open" class="primary" data-i18n="mk.review">Review and fine-tune</button><button type="button" id="mk-again" class="chip" data-i18n="mk.again">Run again</button></div>
+    </div>
+    <div class="row" style="margin-top:8px"><progress id="mk-mprog" max="100" value="0" hidden class="grow"></progress><button type="button" id="mk-mstop" class="chip" hidden data-i18n="mk.stop">Stop</button></div>
+    <div id="mk-mmsg" class="mute" style="margin-top:6px"></div>
+    <div id="mk-mres" class="mk-res"></div>
   </div>
-</section>
-<dialog id="fish-dlg" aria-labelledby="fish-dlg-h">
-  <h3 id="fish-dlg-h" style="margin:0 0 6px"></h3>
-  <div class="mute" data-i18n="fish.licence.intro">Fish Audio models are not part of Folivox. You download them from Hugging Face under the vendor's licence. The main points:</div>
-  <ul id="fish-points"></ul>
-  <small class="mute" data-i18n="fish.licence.disclaimer">This is a summary, not legal advice. The full text is what binds you.</small>
-  <div style="margin-top:10px"><button type="button" id="fish-showfull" data-i18n="fish.licence.full">Show the full licence text</button> <a id="fish-page" href="#" target="_blank" rel="noopener" data-i18n="fish.licence.page">Open it on the vendor's page</a></div>
-  <pre id="fish-full" hidden></pre>
-  <label class="consent" style="margin-top:12px"><input type="checkbox" id="fish-check"><span data-i18n="fish.licence.check">I have read the licence and accept it. I will only clone voices that are mine, synthetic, or of people who agreed.</span></label>
-  <div class="btns"><button type="button" id="fish-cancel" data-i18n="fish.licence.cancel">Cancel</button><button type="button" id="fish-accept" class="primary" disabled data-i18n="fish.licence.accept">Accept</button></div>
-</dialog>
-
-<section id="s-voice" class="disabled"><h2 data-i18n="s4.h">4 · Voice</h2>
+  <div id="vlabel" class="mk-boxh"></div>
   <div id="v-cloud" class="eng-cloud" hidden>
     <small class="mute" id="vc-title"></small>
     <div class="grid" style="margin-top:8px">
@@ -544,7 +506,55 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
     </div>
   </div>
   </div>
+  <details id="pron-box" class="pron-box" hidden><summary><span data-i18n="s1.pron.h">Pronunciations</span> <small class="mute" data-i18n="s1.pron.sub">names and invented words, read your way</small></summary>
+    <ul class="pron-help mute">
+      <li data-i18n-html="s1.pron.help">One entry per line: <code>word = how to read it</code>. Respell the word the way it sounds (<code>Kvothe = Quothe</code>). A <code>*</code> at the end keeps any ending (<code>Tolkien* = Tolkeen</code>). Lines starting with <code>#</code> are comments.</li>
+      <li data-i18n-html="s1.pron.forms">Enter each form of a word yourself (<code>Mirandel</code>, <code>Mirandels</code>): the stress can move between forms. Use <code>*</code> only for names whose stem does not change.</li>
+      <li data-i18n-html="s1.pron.stress">Stress: <code>+</code> before the stressed vowel (<code>Mir+andel</code>) or <code>'</code> right after it (<code>Mira'ndel</code>). Russian works the same way and also takes one capital letter. Check it by ear: the model does not always follow.</li>
+      <li data-i18n-html="s1.pron.phon">Local engine only: phonemes between slashes, then a respelling for online engines (<code>Kvothe = /K W OW1 TH/ | Quothe</code>). Online engines ignore stress marks and phonemes.</li>
+    </ul>
+    <label class="f" style="margin-top:10px"><textarea id="pron-text" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="# word = how to read it&#10;Mirandel = Mir+andel&#10;Kvothe = Quothe&#10;Tolkien* = Tolkeen" data-i18n-attr="placeholder:s1.pron.ph"></textarea></label>
+    <ul id="pron-warn" class="pron-warn" hidden></ul>
+    <div class="row" style="margin-top:8px"><span id="pron-count" class="mute"></span><span id="pron-msg" class="mute"></span></div>
+    <div class="pron-try">
+      <div class="row"><b data-i18n="s1.pron.try">Try it by ear</b><button type="button" id="pron-pick" class="chip" title="Finds sentences of the book that contain your words, in the order of your list" data-i18n="s1.pron.pick" data-i18n-attr="title:s1.pron.pick.t">Pick sentences from my book</button></div>
+      <textarea id="pron-sample" rows="3" maxlength="600" spellcheck="false" autocomplete="off" placeholder="Type a sentence with your words, or press “Pick sentences from my book”" data-i18n-attr="placeholder:s1.pron.sample.ph"></textarea>
+      <div class="row"><button type="button" id="pron-listen" class="chip" title="Reads the text above with your pronunciations applied" data-i18n="s1.pron.listen" data-i18n-attr="title:s1.pron.listen.t">▶ Listen</button><span id="pron-try-msg" class="mute"></span></div>
+      <small class="mute" data-i18n="s1.pron.try.note">This exact text is read with your pronunciations applied, using the voice and engine chosen below. It takes about half a minute and is not added to the audiobook (an online engine bills this small test).</small>
+    </div>
+    <small class="mute" data-i18n="s1.pron.note">Saved automatically for this book. Only the fragments with changed words are read again.</small>
+  </details>
 </section>
+
+<section id="s-engine" class="disabled"><h2 data-i18n="s3.h">4 · Reading engine</h2>
+  <div id="vm-cloud" class="mute" hidden style="margin:-4px 0 10px" data-i18n="vm.cloud">Several voices need a local engine (step 3): an online engine reads the whole book in one voice.</div>
+  <div class="grid">
+    <label class="f"><span data-i18n="s3.who">Who reads the book</span><select id="o-tts"></select></label>
+    <label class="f eng-cloud" hidden><span data-i18n="s3.model">Model</span><select id="o-tts_model"></select></label>
+    <label class="f eng-cloud" hidden><span data-i18n="s3.cap">Spending cap, $ (optional)</span><input id="o-max_cost" type="number" min="0.5" step="0.5" placeholder="no cap" data-i18n-attr="placeholder:s3.cap.ph"></label>
+  </div>
+  <small class="mute" id="eng-blurb"></small>
+  <div id="eng-fish" class="costcard" hidden>
+    <label class="f"><span data-i18n="fish.build">Build</span><select id="o-tts_build"></select></label>
+    <div id="fish-info" class="mute" style="margin-top:8px"></div>
+    <div id="fish-warn" class="warn" style="margin-top:6px"></div>
+    <div class="row"><button type="button" id="fish-licence" class="primary" data-i18n="fish.licence.btn">Read and accept the licence…</button>
+      <button type="button" id="fish-install" class="primary" hidden></button><button type="button" id="fish-remove" hidden data-i18n="fish.remove">Remove</button>
+      <span id="fish-state" class="mute"></span></div>
+    <progress id="fish-progress" max="100" value="0" hidden></progress>
+    <small class="mute" id="fish-attrib" style="display:block;margin-top:8px"></small>
+  </div>
+</section>
+<dialog id="fish-dlg" aria-labelledby="fish-dlg-h">
+  <h3 id="fish-dlg-h" style="margin:0 0 6px"></h3>
+  <div class="mute" data-i18n="fish.licence.intro">Fish Audio models are not part of Folivox. You download them from Hugging Face under the vendor's licence. The main points:</div>
+  <ul id="fish-points"></ul>
+  <small class="mute" data-i18n="fish.licence.disclaimer">This is a summary, not legal advice. The full text is what binds you.</small>
+  <div style="margin-top:10px"><button type="button" id="fish-showfull" data-i18n="fish.licence.full">Show the full licence text</button> <a id="fish-page" href="#" target="_blank" rel="noopener" data-i18n="fish.licence.page">Open it on the vendor's page</a></div>
+  <pre id="fish-full" hidden></pre>
+  <label class="consent" style="margin-top:12px"><input type="checkbox" id="fish-check"><span data-i18n="fish.licence.check">I have read the licence and accept it. I will only clone voices that are mine, synthetic, or of people who agreed.</span></label>
+  <div class="btns"><button type="button" id="fish-cancel" data-i18n="fish.licence.cancel">Cancel</button><button type="button" id="fish-accept" class="primary" disabled data-i18n="fish.licence.accept">Accept</button></div>
+</dialog>
 
 <section id="s-run" class="disabled"><h2 data-i18n="s5.h">5 · Render</h2>
   <div id="done-card" class="done-card" hidden>
@@ -770,13 +780,36 @@ function mkSummary() {
   const spans = Object.values(MK.data.chapters).reduce((n, c) => n + c.spans.length, 0);
   $("#mk-summary").textContent = spans ? t("mk.summary", { n: MK.data.speakers.length, m: spans }) : t("mk.none");
   $("#mk-none").hidden = spans > 0; $("#mk-have").hidden = !spans;
-  $("#mk-sub").textContent = spans ? $("#mk-summary").textContent : t("mk.sub");
   const e = $("#mk-empty"); if (e) e.hidden = spans > 0;
 }
+const mkHasSpans = () => !!MK.data && Object.values(MK.data.chapters).some(c => c.spans.length);
+// ---- voice mode: one voice for the whole book, or several (a narrator and the characters) ----------------------
+const vmodeKey = () => "folivox.vmode." + (book ? book.book_id : "");
+const vmode = () => { const c = document.querySelector('input[name="vmode"]:checked'); return c ? c.value : "one"; };
+function vmodeSync() {
+  const m = vmode() === "multi";
+  // online engines read the whole book in one voice: not offered while several voices are on
+  document.querySelectorAll("#o-tts option").forEach(o => { const e = ENG.list.find(x => x.name === o.value); o.disabled = m && !!e && !!e.cloud; });
+  $("#vm-cloud").hidden = !m;
+  if (m && ENG.list.length && ENG.cloud()) {
+    const local = ENG.list.find(e => e.name === "cosyvoice3" && !e.cloud) || ENG.list.find(e => !e.cloud);
+    if (local) { $("#o-tts").value = local.name; engChange(); return; }
+  }
+  $("#mk-box").hidden = !m; $("#vlabel").textContent = t(m ? "vm.narr" : "vm.voice");
+  document.querySelectorAll(".vm").forEach(l => l.classList.toggle("on", l.querySelector("input").checked));
+  if (m) mkEtaMain();
+}
+function vmodeSet(v) { const r = document.querySelector(`input[name="vmode"][value="${v}"]`); if (r) r.checked = true; vmodeSync(); }
+document.querySelectorAll('input[name="vmode"]').forEach(r => r.addEventListener("change", () => {
+  try { localStorage.setItem(vmodeKey(), vmode()); } catch (e) { /* private mode */ }
+  vmodeSync();
+}));
 async function loadMk() {
   if (!book) return; const id = book.book_id; MK.bookId = id;
-  try { const r = await api(`/api/books/${id}/markup`); if (MK.bookId !== id) return; MK.data = r; MK.dirty = false; MK.undo = []; MK.redo = []; $("#mk-box").hidden = false; mkSummary(); mkEtaMain(); }
-  catch (e) { $("#mk-box").hidden = true; }
+  try { const r = await api(`/api/books/${id}/markup`); if (MK.bookId !== id) return; MK.data = r; MK.dirty = false; MK.undo = []; MK.redo = []; mkSummary();
+    let v = ""; try { v = localStorage.getItem(vmodeKey()) || ""; } catch (e) { /* private mode */ }
+    vmodeSet(v || (mkHasSpans() ? "multi" : "one")); }
+  catch (e) { vmodeSet("one"); }
 }
 // segments of a block: the same cut rules as the server (folivox.markup.Markup.segments)
 function mkSegments(b, text) {
@@ -1687,12 +1720,13 @@ function options() {
   const v = (id) => $("#o-" + id).value;
   return { speed: +v("speed"), max_chars: +v("max_chars"), stress: v("stress"), takes: +v("takes"), qa: v("qa") === "1", qa_level: v("qa_level"),
            mp3: v("mp3") === "1", output_dir: v("output_dir"), device: v("device"), depth: +$("#depth").value || 2, ...engOptions(),
-           use_markup: $("#mk-use").checked, expression_tags: !(MK.data && MK.data.expression_tags === false) };
+           use_markup: vmode() === "multi", expression_tags: !(MK.data && MK.data.expression_tags === false) };
 }
 async function start(kind, sample) {
   const chapters = sample ? [1] : selected();
   if (!chapters.length) { $("#run-msg").textContent = t("run.nochap"); return; }
   $("#run-msg").textContent = "";
+  if (vmode() === "multi" && !mkHasSpans()) { $("#run-msg").innerHTML = `<span class="err">${esc(t("vm.nomarkup"))}</span>`; return; }
   if (ENG.cloud() && !$("#eng-ack").checked) { $("#run-msg").innerHTML = `<span class="err">${t("run.tick")}</span>`; return; }
   if (ENG.cloud() && ENG.cur().voice_modes.includes("clone") && $("#o-tts_mode").value === "clone" && !$("#eng-own").checked) { $("#run-msg").innerHTML = `<span class="err">${t("run.confirmown")}</span>`; return; }
   RUNSECS = sample ? 25 : kind === "preview" ? Math.min(book.chapters.find(c => c.n === chapters[0]).seconds, 600 * book.estimated_seconds / Math.max(1, book.chars)) : book.chapters.filter(c => chapters.includes(c.n)).reduce((a, c) => a + c.seconds, 0); PACE_ENGINE = ENG.cur() ? ENG.cur().name : "cosyvoice3";
@@ -1983,12 +2017,12 @@ function engOptions() {
 }
 // engine texts come from the server in English; the catalog has them per engine name ("engine.<name>.label|blurb|tag")
 const engText = (e, f) => { const k = "engine." + e.name + "." + f; return (k in CAT || k in CAT_EN) ? t(k) : (e[f] || ""); };
-const engTtsOptions = (list) => list.map(e => `<option value="${esc(e.name)}">${esc(engText(e, "label"))}${" — " + (e.cloud ? t("eng.paid") : t("eng.free"))}${e.tag ? " (" + esc(engText(e, "tag")) + ")" : ""}</option>`).join("");
+const engTtsOptions = (list) => list.map(e => `<option value="${esc(e.name)}"${e.cloud && vmode() === "multi" ? " disabled" : ""}>${esc(engText(e, "label"))}${" — " + (e.cloud ? t("eng.paid") : t("eng.free"))}${e.tag ? " (" + esc(engText(e, "tag")) + ")" : ""}</option>`).join("");
 const engBlurb = (e) => esc(engText(e, "blurb")) + (e.cloud ? ` <span class="warn">${esc(t("eng.paidper", { p: e.per_hour != null ? "$" + dec(e.per_hour, 2) : "?" }))}</span>` : "");
 const engModelOptions = (e) => `<option value="auto">${esc(t("eng.autonew"))}</option>` + e.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${e.prices[m.id] != null ? ` (≈ $${dec(e.prices[m.id], 2)}/${t("u.h")})` : ""}${m.note ? " — " + esc(m.note) : ""}</option>`).join("");
 function engRelabel() {  // after a UI language switch: same selections, new labels
   const e = ENG.cur(); if (!e) return; const keep = $("#o-tts").value;
-  $("#o-tts").innerHTML = engTtsOptions(ENG.list); $("#o-tts").value = keep;
+  $("#o-tts").innerHTML = engTtsOptions(ENG.list); $("#o-tts").value = keep; vmodeSync();
   $("#o-takes").parentElement.title = e.cloud ? t("eng.retakebilled") : ""; $("#eng-blurb").innerHTML = engBlurb(e);
   if (e.cloud) { const m = $("#o-tts_model").value; $("#o-tts_model").innerHTML = engModelOptions(e); $("#o-tts_model").value = m; engMode(); engSaved(); if (ENG.vlist) engRenderVoices(); else engVoices(); renderEst(); }
   runSummary();
@@ -2076,6 +2110,7 @@ function optionsVisibility() {
 }
 $("#o-qa").addEventListener("change", optionsVisibility);
 function engChange() {
+  vmodeSync();
   const e = ENG.cur(); if (!e) return; ENG.shown = e.name;
   try { localStorage.setItem("folivox.tts", e.name); } catch (x) {}
   document.querySelectorAll(".eng-cloud").forEach(el => el.hidden = !e.cloud);

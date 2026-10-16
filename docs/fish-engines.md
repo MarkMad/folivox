@@ -21,7 +21,7 @@ folivox render book.epub --tts fish-drama3 --voice my-voice.wav
 folivox engines remove drama3-mlx-4bit
 ```
 
-In the studio: **3 · Reading engine** → pick the Fish engine → *Read and accept the licence…* →
+In the studio: **4 · Reading engine** → pick the Fish engine → *Read and accept the licence…* →
 *Download and install*.
 
 ## Licences, and what they mean for your audiobooks

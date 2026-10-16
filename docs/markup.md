@@ -144,13 +144,21 @@ text, fix what the model got wrong, import it back, assign voices with `folivox 
 
 ## Studio: the markup editor
 
-Several voices are an **optional extra**: most books sound fine read by one voice. The box **Different voices for
-characters** in *1 · Book* is collapsed and says so. Open it for one button, **Voice the characters
-automatically**: it finds the characters, marks who speaks (with the installed model that fits this computer best) and shows
-how many voices the book needs and which character still needs a voice. If no language model is installed the box
-says so in one sentence and gives the command (`ollama pull <model>`). **Advanced settings** opens the editor.
+Several voices are an **optional extra**: most books sound fine read by one voice. Step *3 · Voice* starts with a
+choice of two cards, **One voice** (the default: one voice reads the whole book) and **Several voices** (a narrator
+and a separate voice for each character, like a radio play). The voice list below it then means the book's voice,
+or, with several voices on, the **narrator's voice** (everything the characters do not say). Pressing *Render* with
+several voices on but no characters marked yet says so instead of silently reading with one voice. The choice is
+remembered per book (a book that already has markup opens in *Several voices*); switching back to one voice keeps the
+markup. Because the voice is chosen before the engine, the engine list in step *4 · Reading engine* follows the
+mode: online engines read the whole book in one voice, so they are not offered (and a chosen online engine is
+replaced by a local one) while *Several voices* is on.
 
-**Time.** The box shows an estimate *before* you press the button and the progress line shows the time left while it
+With *Several voices* on, step 3 shows the **Characters** box with one button, **Voice the characters
+automatically**: it finds the characters, marks who speaks (with the installed model that fits this computer best) and
+shows how many voices the book needs and which character still needs a voice. **Advanced settings** opens the editor.
+
+**Time.** The Characters box shows an estimate *before* you press the button and the progress line shows the time left while it
 works. The estimate counts the model calls the run needs (the server's `/llm/estimate`) and turns them into time by
 the model's size; it is a rough guess. During a run the speed is measured and the estimate corrected, and the speed
 of the last run is remembered in the browser for that model. A long estimate suggests trying one chapter first.
@@ -161,8 +169,7 @@ and *Stop* (a stopped download resumes later), and goes on with the marking. In 
 *Download* button for the model chosen in the list and *Remove from this computer* for an installed one. Only the
 models in the list can be downloaded or removed here; Ollama itself is installed by the person (ollama.com).
 
-Once the book has markup the box shows a one-line summary, **Review and fine-tune**, **Run again** and the switch
-*Use the markup when rendering*.
+Once the book has markup the box shows a one-line summary, **Review and fine-tune** and **Run again**.
 
 In the editor the top of the right panel holds the one **Mark automatically** button with the choice *Whole book* /
 *Only this chapter* (each with its own estimate), a progress bar and a plain result. *Options* (collapsed) holds the
@@ -184,7 +191,7 @@ Below the button the manual tools are always visible:
   or category). A tag at the very start of a passage is a delivery tag of that passage. Click a tag in the text to
   remove it. *Use expression tags* is the per-book switch.
 - **Listen**: select a passage (up to 1500 characters, whole paragraphs are read) and press *Listen to the
-  selection*; it is read with the speakers' voices and tags using the engine chosen in *3 · Reading engine*
+  selection*; it is read with the speakers' voices and tags using the engine chosen in *4 · Reading engine*
   (a local one), without touching the audiobook.
 - **Automatic markup**: see above; progress is saved and the editor reloads the result so you can correct it.
 - **Voice ideas**: the *Voice ideas* button of a speaker writes three **English** voice descriptions from the

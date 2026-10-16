@@ -30,7 +30,7 @@ gets a banner telling the user to restart it. Bump `API_LEVEL` in `ui/app.py` wh
 
 ## Fish Audio engines (implemented)
 
-On Apple Silicon, *3 · Reading engine* also lists the optional Fish Audio engines. Choosing one shows a
+On Apple Silicon, *4 · Reading engine* also lists the optional Fish Audio engines. Choosing one shows a
 card with the build (automatic or a specific one), its download size and memory need, a warning when
 free memory is below the measured peak, and: *Read and accept the licence…* (a dialog with the main
 points, a button for the full text, a checkbox, then *Accept*; the accepted version is stored in
@@ -42,7 +42,7 @@ See [Fish Audio engines](fish-engines.md).
 
 ## Markup editor (implemented)
 
-*1 · Book* has a collapsed, optional box **Different voices for characters** whose main action is one button, *Voice the characters automatically*, with the estimated time shown before and during the run
+*3 · Voice* (before the engine) starts with a choice between *One voice* and *Several voices*; with several voices it shows the **Characters** box whose main action is one button, *Voice the characters automatically*, with the estimated time shown before and during the run
 (find the characters, mark who speaks, show how many voices are needed and who still needs one). The full-screen
 editor behind *Review and fine-tune* puts the same *Mark automatically* button at the top of its side panel, with
 the model and other choices under *Options*; the manual tools (speakers and voices, tag picker, listen to a passage,
