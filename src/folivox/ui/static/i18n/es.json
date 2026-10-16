@@ -500,8 +500,6 @@
  "rv.play": "Escuchar el fragmento",
  "fish.build": "Versión",
  "fish.auto": "Automática (la mejor instalada)",
- "fish.untested": "aún sin probar",
- "fish.untested.warn": "El proyecto Folivox aún no ha probado esta versión; el resultado puede ser malo.",
  "fish.noncommercial": "Solo uso personal y de investigación: no venda ni monetice audiolibros hechos con esta versión.",
  "fish.bundledvoice": "Las voces incluidas son de lectores reales, por eso los motores Fish no las usan. Elija su propia voz, una generada o la de alguien que lo haya autorizado.",
  "fish.size": "Descarga {gb} GB · hasta {peak} GB de memoria al leer · requiere un equipo con {ram} GB o más",

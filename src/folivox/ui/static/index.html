@@ -1989,11 +1989,11 @@ function fishCur() {  // the build the choice resolves to (the server applies th
 function fishRender() {
   const e = ENG.cur(), box = $("#eng-fish"); box.hidden = !(e && e.fish && FISH.st); if (box.hidden) return;
   const bs = FISH.st.builds.filter(b => b.engine === e.name), keep = $("#o-tts_build").value;
-  $("#o-tts_build").innerHTML = `<option value="auto">${esc(t("fish.auto"))}</option>` + bs.map(b => `<option value="${esc(b.id)}">${esc(b.title)}${b.verified ? "" : " — " + esc(t("fish.untested"))}</option>`).join("");
+  $("#o-tts_build").innerHTML = `<option value="auto">${esc(t("fish.auto"))}</option>` + bs.map(b => `<option value="${esc(b.id)}">${esc(b.title)}</option>`).join("");
   $("#o-tts_build").value = bs.some(b => b.id === keep) ? keep : "auto";
   const b = fishCur(); if (!b) { box.hidden = true; return; }
   $("#fish-info").textContent = t("fish.size", { gb: b.size_gb, peak: b.peak_gb, ram: b.min_total_gb });
-  const warn = [b.fit !== "ok" ? b.fit_message : "", !b.verified ? t("fish.untested.warn") : "", !b.commercial ? t("fish.noncommercial") : ""];
+  const warn = [b.fit !== "ok" ? b.fit_message : "", !b.commercial ? t("fish.noncommercial") : ""];
   const v = VOICES.find(x => x.id === voice);
   if (v && v.bundled && !FISH.st.bundled_voices_allowed) warn.push(t("fish.bundledvoice"));
   $("#fish-warn").textContent = warn.filter(Boolean).join(" ");

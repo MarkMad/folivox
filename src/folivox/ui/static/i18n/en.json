@@ -500,8 +500,6 @@
  "rv.play": "Play the fragment",
  "fish.build": "Build",
  "fish.auto": "Automatic (best installed)",
- "fish.untested": "not tested yet",
- "fish.untested.warn": "This build has not been tested by the Folivox project yet; the result may be poor.",
  "fish.noncommercial": "Personal and research use only: do not sell or monetise audiobooks made with this build.",
  "fish.bundledvoice": "The bundled voices are real readers, so Fish engines do not use them. Pick your own voice, a generated one, or a voice of someone who agreed.",
  "fish.size": "Download {gb} GB · up to {peak} GB of memory while reading · needs a computer with {ram} GB or more",

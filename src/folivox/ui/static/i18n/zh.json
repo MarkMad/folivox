@@ -500,8 +500,6 @@
  "rv.play": "播放片段",
  "fish.build": "版本",
  "fish.auto": "自动（已安装中最好的）",
- "fish.untested": "尚未测试",
- "fish.untested.warn": "Folivox 项目尚未测试此版本，效果可能不佳。",
  "fish.noncommercial": "仅限个人和研究用途：不得出售或变现用此版本制作的有声书。",
  "fish.bundledvoice": "内置声音来自真实朗读者，因此 Fish 引擎不使用它们。请选择您自己的声音、生成的声音或已获同意者的声音。",
  "fish.size": "下载 {gb} GB · 朗读时最多占用 {peak} GB 内存 · 需要 {ram} GB 或更多内存的电脑",

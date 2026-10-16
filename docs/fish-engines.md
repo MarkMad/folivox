@@ -4,7 +4,7 @@ Besides CosyVoice 3, Folivox can read with two optional local engines from [Fish
 
 | Engine | Builds | What it is |
 |---|---|---|
-| `fish-drama3` | `drama3-mlx-4bit` (23.8 GB download, up to ~33 GB of memory), `drama3-mlx-3bit` (about 19.8 GB, not tested yet) | Fish Audio Drama 3: the most capable local engine, built for several speakers in one scene |
+| `fish-drama3` | `drama3-mlx-4bit` (23.8 GB download, up to ~33 GB of memory), `drama3-mlx-3bit` (about 19.8 GB) | Fish Audio Drama 3: the most capable local engine, built for several speakers in one scene |
 | `fish-s2` | `s2pro-mlx-8bit` (6.7 GB download, up to ~18 GB of memory) | Fish Audio S2 Pro: natural single-voice reading |
 
 They are **not part of Folivox and are never shipped with it**. You download them from Hugging Face

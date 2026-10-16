@@ -500,8 +500,6 @@
  "rv.play": "Fragment abspielen",
  "fish.build": "Variante",
  "fish.auto": "Automatisch (beste installierte)",
- "fish.untested": "noch nicht getestet",
- "fish.untested.warn": "Diese Variante wurde vom Folivox-Projekt noch nicht getestet; das Ergebnis kann schlecht sein.",
  "fish.noncommercial": "Nur für private und Forschungszwecke: Mit dieser Variante erstellte Hörbücher dürfen nicht verkauft oder monetarisiert werden.",
  "fish.bundledvoice": "Die mitgelieferten Stimmen sind echte Sprecher, deshalb nutzen Fish-Engines sie nicht. Wählen Sie Ihre eigene, eine erzeugte oder die Stimme einer einwilligenden Person.",
  "fish.size": "Download {gb} GB · bis zu {peak} GB Speicher beim Lesen · Computer mit mindestens {ram} GB nötig",
