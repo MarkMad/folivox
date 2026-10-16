@@ -637,6 +637,7 @@
  "mk.dl.noollama": "Ollama no está en marcha. Instálelo desde ollama.com (o inícielo) y vuelva a intentarlo.",
  "mk.rm.btn": "Quitar de este equipo",
  "mk.rm.confirm": "¿Eliminar el modelo {m} de este ordenador? Se liberarán unos {gb} GB. El marcado automático no funcionará hasta volver a descargarlo; los libros ya marcados no cambian.",
+ "mk.rm.confirm.nosize": "¿Eliminar el modelo {m} de este ordenador? El marcado automático no funcionará con él hasta volver a descargarlo; los libros ya marcados no cambian.",
  "vm.aria": "Modo de voces",
  "vm.one": "Una voz",
  "vm.one.sub": "Una sola voz lee todo el libro. La opción más sencilla, adecuada para la mayoría de los libros.",

@@ -1254,7 +1254,7 @@ const mkCancelPull = () => api("/api/llm/pull/cancel", { method: "POST" });
 // editor: the buttons next to the model list
 function mkModelButtons() {
   const m = MK.models, model = $("#mk-model").value, x = m && mkTier(m, model);
-  $("#mk-dl").hidden = !(x && !m.installed.includes(model)); $("#mk-rm").hidden = !(x && m.installed.includes(model));
+  $("#mk-dl").hidden = !(x && !m.installed.includes(model)); $("#mk-rm").hidden = !(m && m.installed.includes(model));  // any installed model, also one that is not in our list
   if (x) $("#mk-dl").textContent = t("mk.dl.btn", { gb: x.download_gb });
 }
 async function mkEditorPull(model) {
@@ -1271,7 +1271,7 @@ $("#mk-dl").onclick = async () => { const model = $("#mk-model").value; if (MK.m
 $("#mk-dlstop").onclick = mkCancelPull;
 $("#mk-rm").onclick = async () => {
   const model = $("#mk-model").value, x = MK.models && mkTier(MK.models, model);
-  if (!confirm(t("mk.rm.confirm", { m: model, gb: x ? x.download_gb : "?" }))) return;
+  if (!confirm(x ? t("mk.rm.confirm", { m: model, gb: x.download_gb }) : t("mk.rm.confirm.nosize", { m: model }))) return;
   try { await api("/api/llm/models", { method: "DELETE", headers: JSONH, body: JSON.stringify({ model }) }); }
   catch (e) { $("#mk-dlmsg").innerHTML = `<span class="err">${esc(e.message)}</span>`; return; }
   $("#mk-dlmsg").textContent = ""; await mkLlmModels(); $("#mk-model").value = model; mkModelButtons(); mkEtaEditor();

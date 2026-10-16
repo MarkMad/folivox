@@ -637,6 +637,7 @@
  "mk.dl.noollama": "Ollama läuft nicht. Installieren Sie es von ollama.com (oder starten Sie es) und versuchen Sie es erneut.",
  "mk.rm.btn": "Von diesem Computer entfernen",
  "mk.rm.confirm": "Das Modell {m} von diesem Computer löschen? Das gibt etwa {gb} GB frei. Die automatische Markierung funktioniert erst wieder, wenn es erneut geladen ist; bereits markierte Bücher bleiben unverändert.",
+ "mk.rm.confirm.nosize": "Das Modell {m} von diesem Computer löschen? Die automatische Markierung funktioniert damit erst wieder, wenn es erneut geladen ist; bereits markierte Bücher bleiben unverändert.",
  "vm.aria": "Stimmenmodus",
  "vm.one": "Eine Stimme",
  "vm.one.sub": "Eine Stimme liest das ganze Buch. Die einfachste Wahl, richtig für die meisten Bücher.",

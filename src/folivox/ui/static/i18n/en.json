@@ -637,6 +637,7 @@
  "mk.dl.noollama": "Ollama is not running. Install it from ollama.com (or start it) and try again.",
  "mk.rm.btn": "Remove from this computer",
  "mk.rm.confirm": "Delete the model {m} from this computer? This frees about {gb} GB. Marking books automatically will not work until it is downloaded again; books that are already marked stay as they are.",
+ "mk.rm.confirm.nosize": "Delete the model {m} from this computer? Marking books automatically will not work with it until it is downloaded again; books that are already marked stay as they are.",
  "vm.aria": "Voice mode",
  "vm.one": "One voice",
  "vm.one.sub": "One voice reads the whole book. The simplest choice, right for most books.",

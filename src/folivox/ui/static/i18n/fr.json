@@ -637,6 +637,7 @@
  "mk.dl.noollama": "Ollama n'est pas lancé. Installez-le depuis ollama.com (ou démarrez-le) et réessayez.",
  "mk.rm.btn": "Supprimer de cet ordinateur",
  "mk.rm.confirm": "Supprimer le modèle {m} de cet ordinateur ? Cela libère environ {gb} Go. Le balisage automatique ne fonctionnera plus tant qu'il n'est pas retéléchargé ; les livres déjà balisés restent tels quels.",
+ "mk.rm.confirm.nosize": "Supprimer le modèle {m} de cet ordinateur ? Le balisage automatique ne fonctionnera pas avec lui tant qu'il n'est pas retéléchargé ; les livres déjà balisés restent tels quels.",
  "vm.aria": "Mode de voix",
  "vm.one": "Une voix",
  "vm.one.sub": "Une seule voix lit tout le livre. Le choix le plus simple, adapté à la plupart des livres.",
