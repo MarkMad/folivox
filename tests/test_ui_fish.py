@@ -74,7 +74,7 @@ def test_install_requires_licence_and_reports_progress(client, monkeypatch):
     assert post(client, "/api/engines/fish/install", build="nope").status_code == 404
     post(client, "/api/engines/fish/accept", licence="fish-research", confirm=True)
 
-    def fake_install(b, progress=None, log=print):
+    def fake_install(b, progress=None, log=print, phase=None):
         progress(b.title, 5, 10)
         log("working")
         time.sleep(0.2)
@@ -94,7 +94,7 @@ def test_install_requires_licence_and_reports_progress(client, monkeypatch):
 def test_install_failure_is_reported(client, monkeypatch):
     post(client, "/api/engines/fish/accept", licence="fish-research", confirm=True)
 
-    def broken(b, progress=None, log=print):
+    def broken(b, progress=None, log=print, phase=None):
         raise fish_setup.InstallError("disk full")
 
     monkeypatch.setattr(fish_setup, "install", broken)
