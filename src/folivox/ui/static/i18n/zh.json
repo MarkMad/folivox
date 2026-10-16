@@ -695,5 +695,9 @@
  "mk.a.young": "年轻",
  "mk.a.adult": "成年",
  "mk.a.old": "年长",
- "mk.unsure": "不确定，请核对。声音创意会用到它。"
+ "mk.unsure": "不确定，请核对。声音创意会用到它。",
+ "book.langs": "本书中的语言：{list}",
+ "mk.lang.title": "用{lang}朗读",
+ "lang.gap": "{voice}的语言是{own}：{langs}的文字将带着它的口音朗读。",
+ "v.inbook": "书中也有"
 }

@@ -695,5 +695,9 @@
  "mk.a.young": "젊음",
  "mk.a.adult": "성인",
  "mk.a.old": "노년",
- "mk.unsure": "확실하지 않음: 확인하세요. 목소리 아이디어에 쓰입니다."
+ "mk.unsure": "확실하지 않음: 확인하세요. 목소리 아이디어에 쓰입니다.",
+ "book.langs": "이 책의 언어: {list}",
+ "mk.lang.title": "{lang}(으)로 읽음",
+ "lang.gap": "{voice}은(는) {own} 목소리입니다. {langs} 텍스트는 그 억양으로 읽힙니다.",
+ "v.inbook": "책에도 있음"
 }

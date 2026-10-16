@@ -695,5 +695,9 @@
  "mk.a.young": "jeune",
  "mk.a.adult": "adulte",
  "mk.a.old": "âgé",
- "mk.unsure": "Pas sûr : à vérifier. Cela sert aux idées de voix."
+ "mk.unsure": "Pas sûr : à vérifier. Cela sert aux idées de voix.",
+ "book.langs": "Langues de ce livre : {list}",
+ "mk.lang.title": "Lu en {lang}",
+ "lang.gap": "{voice} parle {own} : le texte en {langs} sera lu avec cet accent.",
+ "v.inbook": "aussi dans le livre"
 }

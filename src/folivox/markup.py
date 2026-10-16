@@ -165,6 +165,17 @@ class Markup:
             out.append(Segment(text[a:b], span.speaker if span else 0, tuple(tags), lang))
         return out
 
+    def languages_only(self) -> Markup:
+        """A copy that keeps only the languages of the spans: one voice reads everything, but each fragment still
+        gets its language (a book read by one voice has no use for the speakers, yet the English parts need
+        to be read in English)."""
+        out = Markup(expression_tags=False, depth=self.depth)
+        for idx, c in self.chapters.items():
+            spans = [Span(s.block, s.start, s.end, 0, (), s.lang) for s in c.spans if s.lang]
+            if spans:
+                out.chapters[idx] = ChapterMarkup(c.title, c.sig, spans)
+        return out
+
     # -- editing helpers (used by the CLI, the LLM pass and the editor)
     def ensure_speaker(self, sid: int, name: str = "") -> Speaker:
         if not 0 <= sid < MAX_SPEAKERS:

@@ -695,5 +695,9 @@
  "mk.a.young": "jung",
  "mk.a.adult": "erwachsen",
  "mk.a.old": "älter",
- "mk.unsure": "Unsicher: bitte prüfen. Das wird für die Stimmideen verwendet."
+ "mk.unsure": "Unsicher: bitte prüfen. Das wird für die Stimmideen verwendet.",
+ "book.langs": "Sprachen in diesem Buch: {list}",
+ "mk.lang.title": "Wird auf {lang} gelesen",
+ "lang.gap": "{voice} spricht {own}: Text auf {langs} wird mit dessen Akzent gelesen.",
+ "v.inbook": "auch im Buch"
 }

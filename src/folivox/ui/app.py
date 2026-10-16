@@ -854,7 +854,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                       max_takes=int(o.get("takes") or (2 if cloud else 3)),
                       tts=tts, tts_build=tts_build, asr=asr, device=str(o.get("device", "auto")),
                       pronounce=(lexicon,) if lexicon.is_file() else (),
-                      markup=markup if markup.is_file() and o.get("use_markup", True) else None,
+                      markup=markup if markup.is_file() and o.get("use_markup", True)
+                      else language_markup(str(body.get("book_id", ""))),
                       expression_tags=bool(o.get("expression_tags", True)),
                       cover=custom_cover(str(body.get("book_id", ""))),
                       no_cover=cover_kind(str(body.get("book_id", "")), book) == "none",
@@ -869,6 +870,24 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         stem = Path(book_entry["path"]).stem
         return RenderOptions(output=out_dir / stem if mp3 else out_dir / f"{stem}.m4b", chapters=spec, mp3=mp3,
                              bitrate=str(o.get("bitrate", "64k")), **common)
+
+    def language_markup(book_id: str) -> Path | None:
+        """For a book read by one voice: the markup reduced to the languages of its fragments, or None."""
+        from folivox import markup as mk
+
+        f = markup_file(book_id)
+        if not f.is_file():
+            return None
+        try:
+            only = mk.Markup.load(f).languages_only()
+        except mk.MarkupError:
+            return None
+        if only.is_empty():
+            return None
+        out = state.data_dir / "markup-lang" / f"{Path(book_id).name}.json"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        only.save(out)
+        return out
 
     def sample_from_range(body: dict, entry: dict, kind: str, opts: RenderOptions):
         """A one-chapter book made of the chosen paragraphs, and its markup, for a preview."""
@@ -889,10 +908,12 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             raise ApiError(f"Pick 1–{SAMPLE_RANGE_LIMIT} characters of whole paragraphs to listen to")
         mf = markup_file(str(body.get("book_id", "")))
         opts.markup = None
-        if mf.is_file() and (body.get("options") or {}).get("use_markup", True):
+        if mf.is_file():
             try:
                 m = mk.Markup.load(mf)
-                if m.depth == depth:
+                if not (body.get("options") or {}).get("use_markup", True):
+                    m = m.languages_only()  # one voice: only the languages of the fragments stay
+                if m.depth == depth and not m.is_empty():
                     sliced = mk.slice_markup(m, n, first, last)
                     opts.markup = opts.output.parent / "passage.markup.json"
                     opts.output.parent.mkdir(parents=True, exist_ok=True)

@@ -64,3 +64,18 @@ def test_text_form_rejects_an_unknown_language():
     text = "@speaker 0 | Narrator | |\nB1.0  <|lang:xx|> " + TEXT + "\n"
     with pytest.raises(mk.MarkupError):
         mk.import_text(text, [CH])
+
+
+def test_languages_only_drops_speakers_and_tags_but_keeps_the_languages():
+    m = mk.Markup()
+    m.ensure_speaker(1, "A")
+    m.assign(0, 0, 0, 5, 1, ("whispering",))
+    m.assign(0, 0, A, B, 1, lang="en")
+    m.add_mark(0, 0, 3, "sighs")
+    mk.stamp(m, [CH])
+    only = m.languages_only()
+    assert [(s.start, s.end, s.speaker, s.tags, s.lang) for s in only.chapters[0].spans] == [(A, B, 0, (), "en")]
+    assert not only.chapters[0].marks and only.used_speakers() == {0}
+    plain = mk.Markup()
+    plain.assign(0, 0, 0, 5, 0, ("whispering",))
+    assert plain.languages_only().is_empty()

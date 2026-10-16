@@ -197,6 +197,8 @@ h1 { padding-right:140px; }
 .mk-b { margin:0 0 12px; position:relative; padding-left:42px; } .mk-b::before { content:attr(data-lbl); position:absolute; left:0; top:0; width:34px; text-align:right; font-size:10px; color:var(--mute); line-height:3.4; user-select:none; }
 .mk-b.ro { opacity:.55; user-select:none; font-style:italic; }
 .mkseg { background:var(--c, transparent); border-radius:4px; padding:2px 0; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
+.mkseg[data-lang]::after { content:attr(data-lang); font-size:9px; line-height:1; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--mute); border:1px solid var(--line); border-radius:4px; padding:0 3px; margin-left:3px; vertical-align:super; user-select:none; }
+.lang-gap { font-size:12.5px; color:var(--warn); margin-top:6px; } .mk-sp .lang-gap { grid-column:2 / 4; margin:0; }
 .mkchip { display:inline-block; font-size:11px; line-height:1.6; background:var(--accent); color:var(--accent-ink); border-radius:99px; padding:0 8px; margin:0 3px; cursor:pointer; user-select:none; -webkit-user-select:none; vertical-align:1px; }
 .mkchip:hover { text-decoration:line-through; }
 .mk-sp { display:grid; grid-template-columns:22px minmax(0,1fr) auto; gap:4px 8px; align-items:center; padding:6px 8px; border:1px solid var(--line); border-radius:8px; margin-bottom:6px; cursor:pointer; }
@@ -416,6 +418,7 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
     <button type="button" class="vact" id="add-card" aria-pressed="false"><span class="vact-i">+</span><span><b data-i18n="s4.add.h">Add your own voice</b><small data-i18n="s4.add.sub">upload a recording or record one</small></span></button>
   </div>
   <div class="mute" id="vcount" hidden style="margin-top:6px"><small></small></div>
+  <div class="lang-gap" id="vgap" hidden></div>
   <div id="addvoice" class="av" hidden>
     <div class="av-head"><b data-i18n="s4.add.h">Add your own voice</b><span class="mute" id="av-sub" data-i18n="s4.add.rules">6–15 s of clean speech: no music, no noise, an even calm pace</span>
       <button id="av-close" class="chip" style="margin-left:auto" data-i18n="btn.close">Close</button></div>
@@ -814,7 +817,7 @@ function mkState() {
 const mkVoiceName = (id) => { if (!id) return t("mk.st.narr"); const v = VOICES.find(x => x.id === id); return v ? v.name : id.split("/").pop(); };
 function mkSummary() {
   if (!MK.data) return;
-  const spans = Object.values(MK.data.chapters).reduce((n, c) => n + c.spans.length, 0);
+  const spans = Object.values(MK.data.chapters).reduce((n, c) => n + c.spans.filter(mkIsVoiced).length, 0);
   const e = $("#mk-empty"); if (e) e.hidden = spans > 0;
   const el = $("#mk-stat"), people = MK.data.speakers.filter(x => x.id > 0);
   if (!spans && !people.length) { el.innerHTML = `<div class="mute">${esc(t("mk.st.none"))}</div>`; return; }
@@ -837,7 +840,8 @@ function mkSummary() {
   el.innerHTML = rows.join("");
 }
 ["change", "click"].forEach(n => document.addEventListener(n, (ev) => { if (ev.target.closest && ev.target.closest("#chapters, #all, #none")) setTimeout(mkSummary, 0); }));
-const mkHasSpans = () => !!MK.data && Object.values(MK.data.chapters).some(c => c.spans.length);
+const mkIsVoiced = (x) => x.sp > 0 || (x.tags || []).length > 0;  // a span that only names a language is not multi-voice markup
+const mkHasSpans = () => !!MK.data && Object.values(MK.data.chapters).some(c => c.spans.some(mkIsVoiced));
 // ---- voice mode: one voice for the whole book, or several (a narrator and the characters) ----------------------
 const vmodeKey = () => "folivox.vmode." + (book ? book.book_id : "");
 const vmode = () => { const c = document.querySelector('input[name="vmode"]:checked'); return c ? c.value : "one"; };
@@ -870,15 +874,15 @@ async function loadMk() {
 }
 // segments of a block: the same cut rules as the server (folivox.markup.Markup.segments)
 function mkSegments(b, text) {
-  const c = mkCh(false);
-  if (!c) return [{ s: 0, e: text.length, sp: 0, tags: [], span: null, marks: [] }];
-  const spans = c.spans.filter(x => x.b === b && x.s >= 0 && x.s < x.e && x.e <= text.length).sort((a, z) => a.s - z.s);
-  const marks = c.marks.filter(m => m.b === b && m.at > 0 && m.at < text.length);
-  const cuts = [...new Set([0, text.length, ...spans.flatMap(x => [x.s, x.e]), ...marks.map(m => m.at)])].sort((a, z) => a - z);
+  const c = mkCh(false), blk = (MK.blocks || []).find(x => x.b === b), runs = (blk && blk.langs) || [];  // runs: other-script stretches found by the server
+  if (!c && !runs.length) return [{ s: 0, e: text.length, sp: 0, tags: [], span: null, marks: [], lang: "" }];
+  const spans = c ? c.spans.filter(x => x.b === b && x.s >= 0 && x.s < x.e && x.e <= text.length).sort((a, z) => a.s - z.s) : [];
+  const marks = c ? c.marks.filter(m => m.b === b && m.at > 0 && m.at < text.length) : [];
+  const cuts = [...new Set([0, text.length, ...spans.flatMap(x => [x.s, x.e]), ...marks.map(m => m.at), ...runs.flatMap(r => [r[0], r[1]])])].sort((a, z) => a - z);
   const out = [];
   for (let i = 0; i + 1 < cuts.length; i++) {
-    const a = cuts[i], z = cuts[i + 1], span = spans.find(x => x.s <= a && z <= x.e) || null;
-    out.push({ s: a, e: z, sp: span ? span.sp : 0, span: span && span.s === a ? span : null, marks: marks.filter(m => m.at === a) });
+    const a = cuts[i], z = cuts[i + 1], span = spans.find(x => x.s <= a && z <= x.e) || null, run = runs.find(r => r[0] <= a && z <= r[1]);
+    out.push({ s: a, e: z, sp: span ? span.sp : 0, span: span && span.s === a ? span : null, marks: marks.filter(m => m.at === a), lang: (span && span.lang) || (run ? run[2] : "") });
   }
   return out;
 }
@@ -890,7 +894,8 @@ function mkBlockHtml(blk) {
     for (const m of g.marks) parts.push(mkChip(m.tag, `data-mb="${blk.b}" data-mat="${m.at}"`));
     if (g.span) for (const tg of g.span.tags) parts.push(mkChip(tg, `data-sb="${blk.b}" data-ss="${g.span.s}"`));
     const sp = mkSpeaker(g.sp);
-    parts.push(`<span class="mkseg" data-s="${g.s}" data-sp="${g.sp}" style="--c:${mkColor(g.sp)}" title="${esc(sp ? sp.name : "")}">${esc(blk.text.slice(g.s, g.e))}</span>`);
+    const lg = g.lang && g.lang !== book.lang ? g.lang : "";  // a stretch read in another language than the book's: a small label
+    parts.push(`<span class="mkseg" data-s="${g.s}" data-sp="${g.sp}" ${lg ? `data-lang="${esc(lg)}"` : ""} style="--c:${mkColor(g.sp)}" title="${esc([sp ? sp.name : "", lg ? t("mk.lang.title", { lang: lname(lg) }) : ""].filter(Boolean).join(" · "))}">${esc(blk.text.slice(g.s, g.e))}</span>`);
   }
   const c = mkCh(false), chk = c && (c.review || []).some(r => r.b === blk.b);
   return `<div class="mk-b${chk ? " chk" : ""}" data-b="${blk.b}" data-lbl="${blk.b}">${parts.join("")}</div>`;
@@ -946,14 +951,15 @@ function mkRanges(sel) {
   return out;
 }
 // ---- editing ----------------------------------------------------------------------------------------------------
-function mkApply(b, s, e, sp, tags) {
+function mkApply(b, s, e, sp, tags, keepLang = true) {
   const c = mkCh(true), kept = [];
+  const host = keepLang ? c.spans.find(x => x.b === b && x.lang && x.s <= s && e <= x.e) : null, lang = host ? host.lang : "";  // a passage inside a foreign-language span stays in that language
   for (const x of c.spans) {
     if (x.b !== b || x.e <= s || x.s >= e) { kept.push(x); continue; }
     if (x.s < s) kept.push({ ...x, e: s });
-    if (x.e > e) kept.push({ b, s: e, e: x.e, sp: x.sp, tags: [] });
+    if (x.e > e) kept.push({ b, s: e, e: x.e, sp: x.sp, tags: [], ...(x.lang ? { lang: x.lang } : {}) });
   }
-  if (sp !== 0 || tags.length) kept.push({ b, s, e, sp, tags });
+  if (sp !== 0 || tags.length || lang) kept.push({ b, s, e, sp, tags, ...(lang ? { lang } : {}) });
   c.spans = kept.sort((p, q) => p.b - q.b || p.s - q.s);
 }
 function mkHint(msg, err) { $("#mk-hint").innerHTML = err ? `<span class="err">${esc(msg)}</span>` : esc(msg); }
@@ -968,7 +974,7 @@ function mkClear() {
   const rs = MK.sel ? mkRanges(MK.sel) : [];
   if (!rs.length) { mkHint(t("mk.needsel"), true); return; }
   mkSnap(); const c = mkCh(true);
-  rs.forEach(r => { mkApply(r.b, r.s, r.e, 0, []); c.marks = c.marks.filter(m => !(m.b === r.b && m.at >= r.s && m.at < r.e)); }); mkRender();
+  rs.forEach(r => { mkApply(r.b, r.s, r.e, 0, [], false); c.marks = c.marks.filter(m => !(m.b === r.b && m.at >= r.s && m.at < r.e)); }); mkRender();
 }
 function mkInsertTag(tag) {
   const sel = MK.sel; if (!sel) { mkHint(t("mk.needcaret"), true); return; }
@@ -998,8 +1004,8 @@ function mkUndo(redo) {
 }
 // ---- speakers ---------------------------------------------------------------------------------------------------
 function mkVoiceOptions(cur) {
-  const have = new Set(VOICES.map(v => v.id));
-  return `<option value="">${esc(t("mk.mainvoice"))}</option>` + VOICES.map(v => `<option value="${esc(v.id)}" ${v.id === cur ? "selected" : ""}>${esc(v.name)}${v.bundled ? " *" : ""}</option>`).join("")
+  const have = new Set(VOICES.map(v => v.id)), found = langsFound(), rank = (v) => { const i = found.indexOf(v.lang); return i < 0 ? found.length : i; };
+  return `<option value="">${esc(t("mk.mainvoice"))}</option>` + VOICES.map((v, i) => [v, i]).sort((a, z) => rank(a[0]) - rank(z[0]) || a[1] - z[1]).map(x => x[0]).map(v => `<option value="${esc(v.id)}" ${v.id === cur ? "selected" : ""}>${esc(v.name)}${v.bundled ? " *" : ""}</option>`).join("")
     + (cur && !have.has(cur) ? `<option value="${esc(cur)}" selected>${esc(cur)}</option>` : "");
 }
 // places the rule check or the second look could not settle: go through them one by one
@@ -1054,11 +1060,12 @@ document.addEventListener("change", (ev) => {
 });
 function mkSpeakers() {
   if (!MK.data) return; const used = {};
-  Object.values(MK.data.chapters).forEach(c => c.spans.forEach(s => { used[s.sp] = (used[s.sp] || 0) + 1; }));
+  Object.values(MK.data.chapters).forEach(c => c.spans.filter(mkIsVoiced).forEach(s => { used[s.sp] = (used[s.sp] || 0) + 1; }));
   $("#mk-speakers").innerHTML = MK.data.speakers.map(s => `<div class="mk-sp ${s.id === MK.cur ? "cur" : ""}" data-id="${s.id}">
     <span class="sw" style="background:${mkSwatch(s.id)}" title="${esc(t("mk.press", { n: s.id }))}">${s.id}</span>
     <input type="text" data-f="name" value="${esc(s.name)}" aria-label="${esc(t("mk.name"))}"><span class="mute">${used[s.id] || (s.id ? 0 : "")}</span>
     ${s.id && mkBibleChar(s.id) ? mkWhoRow(mkBibleChar(s.id)) : ""}
+    ${s.id ? langGapHtml(s.id) : ""}
     <div class="sub">${s.id ? `<select data-f="voice" aria-label="${esc(t("mk.voice"))}">${mkVoiceOptions(s.voice)}</select><button type="button" class="chip" data-vd="${s.id}" title="${esc(t("mk.vd.btn.title"))}">${esc(t("mk.vd.btn"))}</button><button type="button" class="chip" data-rm="${s.id}" title="${esc(t("mk.rmsp"))}">&#10005;</button>` : `<span class="mute">${esc(t("mk.narrator.note"))}</span>`}</div></div>`).join("");
   $("#mk-exprtags").checked = MK.data.expression_tags !== false;
   mkAssignBar();
@@ -1122,7 +1129,7 @@ async function mkSave() {
   try {
     const r = await api(`/api/books/${book.book_id}/markup`, { method: "PUT", headers: JSONH, body: sent });
     if (JSON.stringify(MK.data) !== sent) { MK.timer = setTimeout(mkSave, 300); return true; }  // edited meanwhile: the next save has it
-    MK.data = r; MK.dirty = false; mkRender(); $("#mk-state").textContent = t("saved"); return true;
+    MK.data = r; MK.dirty = false; mkRender(); $("#mk-state").textContent = t("saved"); loadLangs(); return true;
   } catch (e) { mkHint(e.message, true); $("#mk-state").innerHTML = `<span class="err">${esc(e.message)}</span>`; return false; }
 }
 $("#mk-undo").onclick = () => mkUndo(false); $("#mk-redo").onclick = () => mkUndo(true);
@@ -1407,14 +1414,14 @@ function mkResultPanel() {
 }
 const mkNeeded = () => mkVoiceList().sp.length + 1;  // the narrator and every marked character
 async function mkReadBack() {
-  MK.data = await api(`/api/books/${book.book_id}/markup`); MK.dirty = false; MK.undo = []; MK.redo = [];
+  MK.data = await api(`/api/books/${book.book_id}/markup`); MK.dirty = false; MK.undo = []; MK.redo = []; loadLangs();
   try { MK.bible = await api(`/api/books/${book.book_id}/characters`); } catch (e) { /* the list is optional */ }
 }
 // editor: the same flow, or the characters only
 async function mkLlm(task) {
   if (MK.running || !await mkSave()) return;
   const msg = $("#mk-llmmsg"); msg.textContent = ""; MK.result = false; $("#mk-chars").innerHTML = ""; $("#mk-step").hidden = true;
-  const hasMarkup = Object.values(MK.data.chapters).some(c => c.spans.length);
+  const hasMarkup = mkHasSpans();
   if (task !== "analyse" && hasMarkup && !confirm(t("mk.again.confirm"))) return;
   let model = $("#mk-model").value;
   if (model && MK.models && !MK.models.installed.includes(model)) {
@@ -1547,13 +1554,39 @@ async function checkServer() {
   try { const r = await api("/api/ping"); if (!(r.api >= PAGE_API)) $("#stale").hidden = false; }
   catch (e) { if (e.message === "Not Found") $("#stale").hidden = false; }  // a server too old to have /api/ping
 }
+// ---- the languages of the book: the shares, the voices' gaps (all computed by the server) ------------------------
+let LANGINFO = null, langTimer = 0;
+const lname = (c) => LANGS[c] || c.toUpperCase();
+function langsFound() {  // the languages of the book that matter (>= 2%), the book's own first, then by share
+  const sh = LANGINFO && book && LANGINFO.lang === book.lang ? Object.entries(LANGINFO.shares).filter(([, v]) => v >= 0.02).map(([c]) => c) : [];
+  return [book ? book.lang : "", ...sh.filter(c => !book || c !== book.lang)].filter(Boolean);
+}
+function loadLangs() {
+  clearTimeout(langTimer);
+  langTimer = setTimeout(async () => {
+    if (!book) return; const id = book.book_id;
+    try { const r = await api(`/api/books/${id}/languages?voice=${encodeURIComponent(voice || "")}&depth=${+$("#depth").value || 2}`); if (!book || book.book_id !== id) return; LANGINFO = r; }
+    catch (e) { LANGINFO = null; }
+    renderBookInfo(); if (typeof renderVoices === "function" && VOICES.length) renderVoices(); if (MK.data) mkSpeakers(); langGapNote();
+  }, 150);
+}
+function langGapText(id) {
+  const g = LANGINFO && LANGINFO.speakers[String(id)]; if (!g || !g.gaps.length) return "";
+  const v = g.voice ? VOICES.find(x => x.id === g.voice) : null;
+  return t("lang.gap", { voice: v ? v.name : (g.voice ? g.voice.split("/").pop() : t("v.auto")), own: lname(g.voice_lang), langs: g.gaps.map(lname).join(", ") });
+}
+const langGapHtml = (id) => langGapText(id) ? `<div class="lang-gap">${esc(langGapText(id))}</div>` : "";
+function langGapNote() { const el = $("#vgap"), tx = langGapText(0); el.hidden = !tx; el.textContent = tx; }
 function renderBookInfo() {
-  const b = book, chip = (x) => `<span class="bk-chip">${x}</span>`;
+  const b = book, chip = (x, title) => `<span class="bk-chip"${title ? ` title="${esc(title)}"` : ""}>${x}</span>`;
+  const sh = LANGINFO && LANGINFO.lang === b.lang ? Object.entries(LANGINFO.shares) : [];
+  const several = sh.length > 1 && sh[1][1] >= 0.02 ? sh.filter(([, v]) => v >= 0.02) : [];
   $("#s-book").classList.add("loaded");
   $("#book-info").innerHTML = `<div class="bk-title">${esc(b.title)}</div><div class="bk-author">${esc(b.author || t("book.noauthor"))}</div>`
-    + `<div class="bk-chips">${[chip(esc(b.lang_name)), chip(esc(b.format.toUpperCase())), b.year ? chip(esc(b.year)) : "", chip(t("book.chars", { n: num(b.chars) })), chip("≈ " + fmt(b.estimated_seconds))].join("")}</div>`;
+    + `<div class="bk-chips">${[chip(esc(b.lang_name)), several.length ? chip(esc(several.map(([c, v]) => c + " " + Math.max(1, Math.round(v * 100)) + "%").join(" · ")), t("book.langs", { list: several.map(([c]) => lname(c)).join(", ") })) : "", chip(esc(b.format.toUpperCase())), b.year ? chip(esc(b.year)) : "", chip(t("book.chars", { n: num(b.chars) })), chip("≈ " + fmt(b.estimated_seconds))].join("")}</div>`;
 }
 function setBook(b, keep, lang) {
+  if (!book || book.book_id !== b.book_id) LANGINFO = null;
   book = b; showCover(b.cover || "");
   renderBookInfo(); loadMeta(); loadPron(); loadMk(); loadRecent();
   $("#lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}" ${c === b.lang ? "selected" : ""}>${n}</option>`).join("");
@@ -1561,7 +1594,7 @@ function setBook(b, keep, lang) {
   renderChapters(keep);
   if (typeof ENG !== "undefined" && ENG.list.length) engChange(); else if (typeof optionsVisibility === "function") optionsVisibility();
   ["#s-chapters", "#s-engine", "#s-voice", "#s-run"].forEach(s => $(s).classList.remove("disabled"));
-  loadVoices();
+  loadVoices(); loadLangs();
 }
 function renderChapters(keep) {
   const tb = $("#chapters");
@@ -1580,7 +1613,7 @@ $("#all").onclick = () => { document.querySelectorAll("#chapters input").forEach
 $("#none").onclick = () => { document.querySelectorAll("#chapters input").forEach(i => i.checked = false); selInfo(); };
 async function reflow() {
   const r = await api(`/api/books/${book.book_id}/chapters?depth=${+$("#depth").value || 2}&lang=${$("#lang").value}`);
-  book = r; renderChapters(); loadVoices();
+  book = r; LANGINFO = null; renderChapters(); loadVoices(); loadLangs();
 }
 $("#depth").onchange = reflow; $("#lang").onchange = reflow;
 
@@ -1604,18 +1637,19 @@ function voiceMatches(v) {
 function renderVoices() {
   // language chips: the book's language first, then the rest by number of voices
   const counts = {}; VOICES.forEach(v => counts[v.lang] = (counts[v.lang] || 0) + 1);
-  const langs = Object.keys(counts).sort((a, b) => (b === book.lang) - (a === book.lang) || counts[b] - counts[a] || a.localeCompare(b));
+  const found = langsFound(), fr = (c) => { const i = found.indexOf(c); return i < 0 ? found.length : i; };  // the book's languages first, in order of their share
+  const langs = Object.keys(counts).sort((a, b) => fr(a) - fr(b) || counts[b] - counts[a] || a.localeCompare(b));
   $("#vlangs").innerHTML = [`<button class="chip ${vf.lang === "all" ? "on" : ""}" data-lang="all">${t("v.alllangs")}<small>${VOICES.length}</small></button>`]
-    .concat(langs.map(c => `<button class="chip ${vf.lang === c ? "on" : ""}" data-lang="${c}">${esc(LANGS[c] || c)}${c === book.lang ? " · " + t("v.book") : ""}<small>${counts[c]}</small></button>`)).join("");
+    .concat(langs.map(c => `<button class="chip ${vf.lang === c ? "on" : ""}" data-lang="${c}">${esc(LANGS[c] || c)}${c === book.lang ? " · " + t("v.book") : found.includes(c) ? " · " + t("v.inbook") : ""}<small>${counts[c]}</small></button>`)).join("");
   const genders = [...new Set(VOICES.map(v => v.gender).filter(Boolean))];
   $("#vgender").innerHTML = `<button class="chip ${vf.fav ? "on" : ""}" id="vfav">★ ${t("v.fav")}<small>${FAV.size}</small></button>` +
     (genders.length > 1 ? [["", t("v.any")], ...genders.map(g => [g, GENDER[g] || g])].map(([g, n]) => `<button class="chip ${vf.gender === g ? "on" : ""}" data-g="${g}">${n}</button>`).join("") : "");
-  const shown = VOICES.filter(voiceMatches).sort((a, b) => FAV.has(b.id) - FAV.has(a.id));  // favorites first, otherwise the catalog order
+  const shown = VOICES.filter(voiceMatches).map((v, i) => [v, i]).sort((a, b) => FAV.has(b[0].id) - FAV.has(a[0].id) || fr(a[0].lang) - fr(b[0].lang) || a[1] - b[1]).map(x => x[0]);  // favorites first, otherwise the catalog order
   const autoId = AUTO[book.lang] || AUTO[Object.keys(AUTO)[0]], autoV = VOICES.find(v => v.id === autoId);
   const showAuto = !vf.q.trim() && (vf.lang === "all" || vf.lang === book.lang) && !vf.gender && !vf.fav;
-  const card = (v, auto) => `<div class="vcard ${auto ? "auto" : ""} ${(auto ? voice === "" : voice === v.id) ? "sel" : ""} ${v.lang !== book.lang && !auto ? "off" : ""}" role="radio" tabindex="0" aria-checked="${auto ? voice === "" : voice === v.id}" data-id="${auto ? "" : esc(v.id)}">
+  const card = (v, auto) => `<div class="vcard ${auto ? "auto" : ""} ${(auto ? voice === "" : voice === v.id) ? "sel" : ""} ${!found.includes(v.lang) && !auto ? "off" : ""}" role="radio" tabindex="0" aria-checked="${auto ? voice === "" : voice === v.id}" data-id="${auto ? "" : esc(v.id)}">
     <button class="vplay" data-play="${esc(v.id)}" aria-label="${esc(t("v.playsample", { name: v.name }))}">▶</button>
-    <div style="min-width:0"><div class="vname"><span class="n">${auto ? t("v.auto") : esc(v.name)}</span>${auto ? "" : v.bundled ? "" : `<span class="vbadge mine">${t("v.mine")}</span>`}${!auto && v.lang !== book.lang ? `<span class="vbadge warn" title="${esc(t("v.accent"))}">${esc(v.lang)}</span>` : ""}</div>
+    <div style="min-width:0"><div class="vname"><span class="n">${auto ? t("v.auto") : esc(v.name)}</span>${auto ? "" : v.bundled ? "" : `<span class="vbadge mine">${t("v.mine")}</span>`}${!auto && v.lang !== book.lang ? `<span class="vbadge ${found.includes(v.lang) ? "" : "warn"}" title="${esc(found.includes(v.lang) ? t("v.inbook") : t("v.accent"))}">${esc(v.lang)}</span>` : ""}</div>
       <div class="vmeta">${auto ? t("v.bestmatch", { name: esc(v.name) }) : [esc(v.id), esc(LANGS[v.lang] || v.lang), GENDER[v.gender] || "", v.seconds ? v.seconds + " " + t("u.s") : "", esc(v.license)].filter(Boolean).join(" · ")}</div></div>
     <canvas class="vwave" data-wave="${esc(v.id)}"></canvas>
     <span class="vcheck">✓</span>
@@ -1637,7 +1671,7 @@ function drawWave(cv, progress) {
   g.clearRect(0, 0, W, H);
   v.peaks.forEach((p, i) => { const h = Math.max(2 * dpr, H * p / 100); g.fillStyle = i / n < progress ? on : off; g.fillRect(i * step, (H - h) / 2, bw, h); });
 }
-function pickVoice(id) { voice = id; renderVoices(); saveSession(); if (typeof runSummary === "function") runSummary(); if (typeof ENG !== "undefined" && ENG.list.length) fishRender(); }
+function pickVoice(id) { voice = id; loadLangs(); renderVoices(); saveSession(); if (typeof runSummary === "function") runSummary(); if (typeof ENG !== "undefined" && ENG.list.length) fishRender(); }
 function playVoice(id) {
   if (vplayer && vplayer.vid === id && !vplayer.paused) { vplayer.pause(); return; }
   if (vplayer) vplayer.pause();

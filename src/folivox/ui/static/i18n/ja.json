@@ -695,5 +695,9 @@
  "mk.a.young": "若者",
  "mk.a.adult": "大人",
  "mk.a.old": "高齢",
- "mk.unsure": "確信がありません。確認してください。声のアイデアに使われます。"
+ "mk.unsure": "確信がありません。確認してください。声のアイデアに使われます。",
+ "book.langs": "この本の言語：{list}",
+ "mk.lang.title": "{lang}で読み上げ",
+ "lang.gap": "{voice}の言語は{own}です。{langs}の文はその訛りで読み上げられます。",
+ "v.inbook": "本にも含まれる"
 }

@@ -695,5 +695,9 @@
  "mk.a.young": "joven",
  "mk.a.adult": "adulto",
  "mk.a.old": "mayor",
- "mk.unsure": "No estamos seguros: revíselo. Se usa para las ideas de voz."
+ "mk.unsure": "No estamos seguros: revíselo. Se usa para las ideas de voz.",
+ "book.langs": "Idiomas de este libro: {list}",
+ "mk.lang.title": "Se lee en {lang}",
+ "lang.gap": "{voice} habla {own}: el texto en {langs} se leerá con su acento.",
+ "v.inbook": "también en el libro"
 }
