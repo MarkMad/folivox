@@ -9,14 +9,18 @@ JSON (``BOOK.markup.json`` next to the book)::
     {"version": 1, "depth": 2, "expression_tags": true,
      "speakers": [{"id": 0, "name": "Narrator", "voice": ""}, {"id": 1, "name": "Anna", "voice": "my-voice"}],
      "chapters": {"0": {"title": "…", "sig": "…",
-                        "spans": [{"b": 3, "s": 0, "e": 18, "sp": 1, "tags": ["whispering"]}],
+                        "spans": [{"b": 3, "s": 0, "e": 18, "sp": 1, "tags": ["whispering"]},
+                                  {"b": 4, "s": 10, "e": 31, "sp": 0, "lang": "en"}],
                         "marks": [{"b": 3, "at": 40, "tag": "sighs"}]}}}
 
 Speaker 0 is the narrator and reads everything not covered by a span. A span may carry delivery tags (put in
-front of its text); a mark is an inline tag at an offset. Speaker ids are 0..15 (the range of Fish speaker tags).
+front of its text) and a language (ISO 639-1, only when it is not the book's language: ``"lang"`` is absent
+otherwise, so files made before languages existed read the same); a mark is an inline tag at an offset.
+Speaker ids are 0..15 (the range of Fish speaker tags).
 
 Text form (for hand editing, ``folivox markup export --format text``): one line per block, the block text with
-Fish-style ``<|speaker:N|>`` and ``[tag]`` inserted. Reading it back checks that removing the tags gives exactly
+Fish-style ``<|speaker:N|>``, ``<|lang:xx|>`` (``<|lang:-|>`` goes back to the book's language) and ``[tag]``
+inserted. Reading it back checks that removing the tags gives exactly
 the book's text, so editing cannot alter the book.
 """
 
@@ -32,6 +36,7 @@ from pathlib import Path
 MAX_SPEAKERS = 16
 VERSION = 1
 SPEAKER_TAG = re.compile(r"<\|speaker:(\d{1,2})\|>")
+LANG_TAG = re.compile(r"<\|lang:([A-Za-z]{2,3}|-)\|>")
 TAG = re.compile(r"\[([^\[\]\n<>|]{1,40})\]")
 TAGS_FILE = Path(__file__).with_name("tts") / "expression_tags.json"
 
@@ -57,6 +62,7 @@ class Span:
     end: int
     speaker: int
     tags: tuple[str, ...] = ()
+    lang: str = ""  # ISO 639-1; "" = the book's language
 
 
 @dataclass(frozen=True)
@@ -82,6 +88,7 @@ class Segment:
     text: str
     speaker: int
     tags: tuple[str, ...] = ()
+    lang: str = ""  # "" = the book's language
 
 
 def block_sig(texts: list[str]) -> str:
@@ -90,6 +97,13 @@ def block_sig(texts: list[str]) -> str:
         h.update(t.encode())
         h.update(b"\x00")
     return h.hexdigest()[:16]
+
+
+def valid_lang(code: object) -> str:
+    """A language code of a span: normalised, or ``""`` when it is not on the allow-list."""
+    from folivox.lang.codes import valid
+
+    return valid(code)
 
 
 def norm_tag(tag: str) -> str:
@@ -140,7 +154,7 @@ class Markup:
             if span and span.start == a:
                 tags += span.tags
             tags += [m.tag for m in marks if m.at == a]
-            out.append(Segment(text[a:b], span.speaker if span else 0, tuple(tags)))
+            out.append(Segment(text[a:b], span.speaker if span else 0, tuple(tags), span.lang if span else ""))
         return out
 
     # -- editing helpers (used by the CLI, the LLM pass and the editor)
@@ -159,8 +173,10 @@ class Markup:
         cm.title, cm.sig = title or cm.title, sig or cm.sig
         return cm
 
-    def assign(self, chapter: int, block: int, start: int, end: int, speaker: int, tags: tuple[str, ...] = ()) -> None:
-        """Give ``[start, end)`` of a block to a speaker, replacing whatever overlapped it."""
+    def assign(self, chapter: int, block: int, start: int, end: int, speaker: int, tags: tuple[str, ...] = (),
+               lang: str = "") -> None:
+        """Give ``[start, end)`` of a block to a speaker (and a language other than the book's), replacing
+        whatever overlapped it."""
         self.ensure_speaker(speaker)
         cm = self.chapter(chapter)
         kept: list[Span] = []
@@ -169,11 +185,12 @@ class Markup:
                 kept.append(s)
                 continue
             if s.start < start:
-                kept.append(Span(block, s.start, start, s.speaker, s.tags))
+                kept.append(Span(block, s.start, start, s.speaker, s.tags, s.lang))
             if s.end > end:
-                kept.append(Span(block, end, s.end, s.speaker, ()))
-        if speaker != 0 or tags:
-            kept.append(Span(block, start, end, speaker, tags))
+                kept.append(Span(block, end, s.end, s.speaker, (), s.lang))
+        lang = valid_lang(lang)
+        if speaker != 0 or tags or lang:
+            kept.append(Span(block, start, end, speaker, tags, lang))
         cm.spans = sorted(kept, key=lambda s: (s.block, s.start))
 
     def clear(self, chapter: int, block: int, start: int = 0, end: int = 1 << 30) -> None:
@@ -197,7 +214,8 @@ class Markup:
                               "aliases": s.aliases, "notes": s.notes} for s in self.speakers],
                 "chapters": {str(i): {"title": c.title, "sig": c.sig,
                                       "spans": [{"b": s.block, "s": s.start, "e": s.end, "sp": s.speaker,
-                                                 "tags": list(s.tags)} for s in c.spans],
+                                                 "tags": list(s.tags), **({"lang": s.lang} if s.lang else {})}
+                                                for s in c.spans],
                                       "marks": [{"b": m.block, "at": m.at, "tag": m.tag} for m in c.marks],
                                       "done": c.done, "review": c.review}
                              for i, c in sorted(self.chapters.items()) if c.spans or c.marks or c.done}}
@@ -220,7 +238,8 @@ class Markup:
                 m.chapters[int(k)] = ChapterMarkup(
                     str(c.get("title", "")), str(c.get("sig", "")),
                     [Span(int(s["b"]), int(s["s"]), int(s["e"]), int(s["sp"]),
-                          tuple(norm_tag(t) for t in s.get("tags", []))) for s in c.get("spans", [])],
+                          tuple(norm_tag(t) for t in s.get("tags", [])), valid_lang(s.get("lang", "")))
+                     for s in c.get("spans", [])],
                     [Mark(int(x["b"]), int(x["at"]), norm_tag(x["tag"])) for x in c.get("marks", [])],
                     bool(c.get("done", False)),
                     [{str(k): (int(v) if k == "b" else str(v)) for k, v in r.items()}
@@ -254,7 +273,7 @@ def slice_markup(markup: Markup, chapter: int, first: int, last: int) -> Markup:
     if cm is None:
         return out
     new = out.chapter(0)
-    new.spans = [Span(s.block - first, s.start, s.end, s.speaker, s.tags) for s in cm.spans
+    new.spans = [Span(s.block - first, s.start, s.end, s.speaker, s.tags, s.lang) for s in cm.spans
                  if first <= s.block <= last]
     new.marks = [Mark(m.block - first, m.at, m.tag) for m in cm.marks if first <= m.block <= last]
     return out
@@ -333,12 +352,19 @@ def unknown_tags(markup: Markup, model: str | None = None) -> set[str]:
 def block_to_text(markup: Markup, chapter: int, block: int, text: str) -> str:
     out: list[str] = []
     current = 0
+    current_lang = ""
     pos = 0
     for seg in markup.segments(chapter, block, text):
         head = []
+        ctrl = ""  # speaker and language switches are written together, with no space between them
         if seg.speaker != current:
-            head.append(f"<|speaker:{seg.speaker}|>")
+            ctrl += f"<|speaker:{seg.speaker}|>"
             current = seg.speaker
+        if seg.lang != current_lang:
+            ctrl += f"<|lang:{seg.lang or '-'}|>"
+            current_lang = seg.lang
+        if ctrl:
+            head.append(ctrl)
         head += [f"[{t}]" for t in seg.tags]
         if head:
             out.append(" ".join(head) + ("" if seg.text[:1] == " " else " "))
@@ -349,7 +375,8 @@ def block_to_text(markup: Markup, chapter: int, block: int, text: str) -> str:
 
 def export_text(markup: Markup, chapters: list) -> str:
     lines = ["# Folivox markup. Edit the speakers and tags; the book text itself must stay exactly as it is.",
-             "# <|speaker:N|> switches the speaker (until the next tag, within a block); [tag] is an expression tag.",
+             "# <|speaker:N|> switches the speaker (until the next tag, within a block); <|lang:xx|> the language",
+             "# (<|lang:-|> = the book's); [tag] is an expression tag.",
              "# Lines: B<chapter>.<block>  text      Speakers: @speaker N | name | voice | gender"]
     for s in markup.speakers:
         lines.append(f"@speaker {s.id} | {s.name} | {s.voice} | {s.gender}")
@@ -375,10 +402,18 @@ def _parse_block(line: str, original: str, loose: bool = False) -> tuple[list[Sp
 
     while i < len(line):
         m = SPEAKER_TAG.match(line, i)
+        lg = LANG_TAG.match(line, i)
         t = TAG.match(line, i)
         if m:
             events.append((p, "sp", int(m.group(1))))
             i = m.end()
+            i = skip_space()
+        elif lg:
+            code = "" if lg.group(1) == "-" else valid_lang(lg.group(1))
+            if lg.group(1) != "-" and not code:
+                raise MarkupError(f"unknown language {lg.group(1)!r}")
+            events.append((p, "lang", code))
+            i = lg.end()
             i = skip_space()
         elif t and not original.startswith(t.group(0), p):
             events.append((p, "tag", norm_tag(t.group(1))))
@@ -399,18 +434,22 @@ def _parse_block(line: str, original: str, loose: bool = False) -> tuple[list[Sp
         raise MarkupError("the text differs from the book")
     spans: list[Span] = []
     marks: list[Mark] = []
-    speaker, start, tags = 0, 0, []
+    speaker, start, tags, lang = 0, 0, [], ""
     for off, kind, value in events:
-        if kind == "sp":
-            if off > start and (speaker != 0 or tags):
-                spans.append(Span(-1, start, off, speaker, tuple(tags)))
-            speaker, start, tags = int(value), off, []  # type: ignore[arg-type]
+        if kind in ("sp", "lang"):
+            if off > start and (speaker != 0 or tags or lang):
+                spans.append(Span(-1, start, off, speaker, tuple(tags), lang))
+            if kind == "sp":
+                speaker = int(value)  # type: ignore[arg-type]
+            else:
+                lang = str(value)
+            start, tags = off, []
         elif off == start:
             tags.append(str(value))
         else:
             marks.append(Mark(-1, off, str(value)))
-    if len(original) > start and (speaker != 0 or tags):
-        spans.append(Span(-1, start, len(original), speaker, tuple(tags)))
+    if len(original) > start and (speaker != 0 or tags or lang):
+        spans.append(Span(-1, start, len(original), speaker, tuple(tags), lang))
     return spans, marks
 
 
@@ -457,7 +496,7 @@ def import_text(text: str, chapters: list, base: Markup | None = None) -> Markup
                 mk.ensure_speaker(s.speaker)
         if spans or marks:
             cm = mk.chapter(ci)
-            cm.spans += [Span(bi, s.start, s.end, s.speaker, s.tags) for s in spans]
+            cm.spans += [Span(bi, s.start, s.end, s.speaker, s.tags, s.lang) for s in spans]
             cm.marks += [Mark(bi, x.at, x.tag) for x in marks]
     if mk.speaker(0) is None:
         mk.speakers.insert(0, Speaker(0, "Narrator"))
