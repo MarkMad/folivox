@@ -184,7 +184,8 @@ h1 { padding-right:140px; }
 .mk-top { padding:10px 14px; border-bottom:1px solid var(--line); gap:8px; } .mk-top select { max-width:300px; }
 .mk-body { flex:1; display:grid; grid-template-columns:minmax(0,1fr) 360px; min-height:0; }
 .mk-main { display:flex; flex-direction:column; min-height:0; } .mk-main .mk-text { flex:1; min-height:0; }
-.mk-text { overflow:auto; padding:16px 22px 40px; font-size:16px; line-height:2; outline:none; }
+.mk-caret { position:absolute; width:2px; background:var(--accent); pointer-events:none; animation:mkblink 1s steps(2, start) infinite; } @keyframes mkblink { to { visibility:hidden; } }
+.mk-text { position:relative; overflow:auto; padding:16px 22px 40px; font-size:16px; line-height:2; outline:none; }
 .mk-side { overflow:auto; padding:12px 14px 30px; border-left:1px solid var(--line); font-size:13.5px; } .mk-side h4 { margin:16px 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--mute); } .mk-side h4:first-child { margin-top:0; }
 .mk-b { margin:0 0 12px; position:relative; padding-left:42px; } .mk-b::before { content:attr(data-lbl); position:absolute; left:0; top:0; width:34px; text-align:right; font-size:10px; color:var(--mute); line-height:3.4; user-select:none; }
 .mk-b.ro { opacity:.55; user-select:none; font-style:italic; }
@@ -911,7 +912,17 @@ function mkReadSelection() {
   const a = mkPos(r.startContainer, r.startOffset), z = mkPos(r.endContainer, r.endOffset);
   return a && z ? { a, z, collapsed: r.collapsed } : null;
 }
-document.addEventListener("selectionchange", () => { if ($("#mk-dlg").open) { const s = mkReadSelection(); if (s) { MK.sel = s; mkAssignBar(); } } });
+// the text is not an editable field, so the browser draws no caret: show where a tag would go
+function mkShowCaret() {
+  const pane = $("#mk-text"); pane.querySelectorAll(".mk-caret").forEach(e => e.remove());
+  const sel = getSelection(); if (!sel.rangeCount) return;
+  const r = sel.getRangeAt(0); if (!r.collapsed || !pane.contains(r.startContainer)) return;
+  const rect = r.getClientRects()[0]; if (!rect || !rect.height) return;
+  const box = pane.getBoundingClientRect(), c = document.createElement("div");
+  c.className = "mk-caret"; c.style.cssText = `left:${rect.left - box.left + pane.scrollLeft}px;top:${rect.top - box.top + pane.scrollTop}px;height:${rect.height}px`;
+  pane.appendChild(c);
+}
+document.addEventListener("selectionchange", () => { if ($("#mk-dlg").open) { const s = mkReadSelection(); if (s) { MK.sel = s; mkAssignBar(); mkShowCaret(); } } });
 function mkRanges(sel) {
   const out = [];
   for (const blk of MK.blocks) {
