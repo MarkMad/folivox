@@ -667,5 +667,6 @@
  "mk.assign.none": "To give a passage to a character: select the text above, then click who reads it.",
  "mk.assign.sel": "The selected text will be read by:",
  "mk.leng": "Engine for listening",
- "mk.listen.t": "Listen to the selection"
+ "mk.listen.t": "Listen to the selection",
+ "mk.assign.at": "This part is read by {name}. To change it, select the text and pick someone else."
 }

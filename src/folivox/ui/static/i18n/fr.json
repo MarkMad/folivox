@@ -667,5 +667,6 @@
  "mk.assign.none": "Pour donner un passage à un personnage : sélectionnez le texte ci-dessus, puis cliquez sur qui le lit.",
  "mk.assign.sel": "Le texte sélectionné sera lu par :",
  "mk.leng": "Moteur pour l'écoute",
- "mk.listen.t": "Écouter la sélection"
+ "mk.listen.t": "Écouter la sélection",
+ "mk.assign.at": "Cette partie est lue par {name}. Pour la changer, sélectionnez le texte et choisissez quelqu'un d'autre."
 }

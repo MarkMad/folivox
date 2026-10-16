@@ -667,5 +667,6 @@
  "mk.assign.none": "So geben Sie eine Passage einer Figur: Text oben markieren, dann anklicken, wer sie liest.",
  "mk.assign.sel": "Der markierte Text wird gelesen von:",
  "mk.leng": "Engine zum Anhören",
- "mk.listen.t": "Auswahl anhören"
+ "mk.listen.t": "Auswahl anhören",
+ "mk.assign.at": "Diesen Teil liest {name}. Zum Ändern den Text markieren und jemand anderen wählen."
 }

@@ -212,7 +212,7 @@ h1 { padding-right:140px; }
 .mk-nextstep { padding:10px 12px; border:1px dashed var(--accent); border-radius:10px; margin-bottom:12px; } .mk-nextstep .row { margin-top:8px; }
 .mk-assign { border-top:1px solid var(--line); padding:10px 22px 12px; display:flex; flex-wrap:wrap; gap:10px 20px; align-items:flex-end; } .mk-assign-l { flex:1 1 260px; min-width:0; } .mk-listenbox { display:flex; flex-direction:column; align-items:flex-end; gap:4px; max-width:100%; } .mk-listenbox select { max-width:150px; } #mk-listenmsg { font-size:12.5px; text-align:right; } #mk-assign-hint { font-size:13.5px; margin-bottom:6px; color:var(--mute); } .mk-assign.on #mk-assign-hint { color:inherit; font-weight:600; }
 .mk-achips { display:flex; flex-wrap:wrap; gap:6px; } .mk-achips .chip { font-size:13.5px; padding:4px 12px; border-left:6px solid var(--c); } .mk-assign:not(.on) .chip { opacity:.55; }
-.mk-achips kbd { font:inherit; font-size:11px; color:var(--mute); margin-right:5px; }
+.mk-achips .chip.cur { background:color-mix(in srgb, var(--c) 24%, transparent); border-color:var(--c); font-weight:600; opacity:1 !important; } .mk-achips kbd { font:inherit; font-size:11px; color:var(--mute); margin-right:5px; }
 .mk-empty { margin:16px 22px 0; padding:16px 18px; border:1px solid var(--accent); border-radius:12px; } .mk-empty p { margin:6px 0 12px; }
 .mk-res div { padding:2px 0; border-bottom:1px dashed var(--line); font-size:13.5px; }
 @media (max-width:760px) { .mk-top select { max-width:150px; } .mk-body { grid-template-rows:42% 58%; } }
@@ -999,12 +999,24 @@ function mkSpeakers() {
   mkResultPanel();
 }
 // the bar under the text: pick a passage, then say who reads it
+// who reads the place of the cursor, or the whole selection (null: nothing picked, or a mix of speakers)
+function mkWhoReads(sel) {
+  if (!sel) return null;
+  const rs = mkRanges(sel), probe = rs.length ? rs : [{ b: sel.a.b, s: sel.a.o, e: sel.a.o }], ids = new Set();
+  for (const r of probe) {
+    const blk = MK.blocks.find(x => x.b === r.b); if (!blk) continue;
+    for (const g of mkSegments(r.b, blk.text)) {
+      if (r.e > r.s ? (g.s < r.e && g.e > r.s) : (g.s <= r.s && r.s < g.e) || (r.s === blk.text.length && g.e === r.s)) ids.add(g.sp || 0);
+    }
+  }
+  return ids.size === 1 ? [...ids][0] : null;
+}
 function mkAssignBar() {
   if (!MK.data) return;
-  const has = !!MK.sel && mkRanges(MK.sel).length > 0;
+  const has = !!MK.sel && mkRanges(MK.sel).length > 0, who = mkWhoReads(MK.sel), sp = who === null ? null : mkSpeaker(who);
   $("#mk-assign").classList.toggle("on", has);
-  $("#mk-assign-hint").textContent = t(has ? "mk.assign.sel" : "mk.assign.none");
-  $("#mk-assign-chips").innerHTML = MK.data.speakers.map(x => `<button type="button" class="chip" data-as="${x.id}" style="--c:${mkSwatch(x.id)}"><kbd>${x.id}</kbd>${esc(x.name)}</button>`).join("");
+  $("#mk-assign-hint").textContent = has ? t("mk.assign.sel") : sp ? t("mk.assign.at", { name: sp.name }) : t("mk.assign.none");
+  $("#mk-assign-chips").innerHTML = MK.data.speakers.map(x => `<button type="button" class="chip${x.id === who ? " cur" : ""}" aria-pressed="${x.id === who}" data-as="${x.id}" style="--c:${mkSwatch(x.id)}"><kbd>${x.id}</kbd>${esc(x.name)}</button>`).join("");
 }
 $("#mk-assign-chips").addEventListener("click", (ev) => { const b = ev.target.closest("[data-as]"); if (b) mkAssign(+b.dataset.as); });
 $("#mk-speakers").addEventListener("mousedown", (ev) => { if (!ev.target.closest("input, select")) ev.preventDefault(); });
