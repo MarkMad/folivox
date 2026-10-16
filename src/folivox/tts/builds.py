@@ -209,7 +209,7 @@ def fit(b: Build, hw: Hardware) -> Fit:
                          f"(this one has {hw.total_gb:.0f} GB).")
     if hw.available_gb is not None and hw.available_gb < b.peak_gb:
         return Fit("tight", f"{b.title} needs up to {b.peak_gb:.0f} GB while it works and only "
-                            f"{hw.available_gb:.0f} GB is free now: close your browser and other heavy "
+                            f"{hw.available_gb:.0f} GB is free now: close other heavy "
                             "applications, otherwise the computer starts swapping and the render crawls or stalls.")
     return Fit("ok", "")
 
@@ -220,7 +220,7 @@ def memory_gate(b: Build, hw: Hardware) -> str | None:
         return None
     if hw.available_gb is not None and hw.available_gb < b.weights_gb:
         return (f"Only {hw.available_gb:.0f} GB of memory is free and {b.title} needs {b.weights_gb:.0f} GB just for "
-                f"its weights (up to {b.peak_gb:.0f} GB at the peak). Close heavy applications (browser, virtual "
+                f"its weights (up to {b.peak_gb:.0f} GB at the peak). Close heavy applications (virtual "
                 f"machines, containers) and try again, or set {IGNORE_MEMORY_ENV}=1 to start anyway.")
     return None
 
