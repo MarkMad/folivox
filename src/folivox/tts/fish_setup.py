@@ -138,7 +138,7 @@ def install(b: Build, progress: Progress | None = None, log: Callable[[str], Non
     """Download and verify a build. Needs the licence accepted; safe to run again (it continues).
 
     Files already on this computer (see ``reuse``) are checked and linked or copied first; only the rest is
-    downloaded. ``phase(name, bytes)`` reports "found", "downloading" or "verifying" for the studio."""
+    downloaded. ``phase(name, bytes)`` reports "looking", "found", "downloading" or "verifying" for the studio."""
     licences.require(b)
     cat = builds.load()
     if not builds.is_trusted_org(b.repo, cat):
@@ -151,6 +151,8 @@ def install(b: Build, progress: Progress | None = None, log: Callable[[str], Non
     wd = builds.weights_dir(b)
     wd.mkdir(parents=True, exist_ok=True)
     names = [f["path"] for f in b.files]
+    if phase:
+        phase("looking", 0)
     nearby = reuse.found_bytes(b)
     if nearby:
         if phase:
@@ -164,7 +166,7 @@ def install(b: Build, progress: Progress | None = None, log: Callable[[str], Non
     names = [n for n in names if n not in have]
     if names:
         if phase:
-            phase("downloading", 0)
+            phase("downloading", nearby)
         _download(b, wd, names, progress, log)
     elif phase:
         phase("verifying", 0)

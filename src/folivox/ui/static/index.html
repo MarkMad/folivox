@@ -543,6 +543,7 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
     <div class="row"><button type="button" id="fish-licence" class="primary" data-i18n="fish.licence.btn">Read and accept the licence…</button>
       <button type="button" id="fish-install" class="primary" hidden></button><button type="button" id="fish-remove" hidden data-i18n="fish.remove">Remove</button>
       <span id="fish-state" class="mute"></span></div>
+    <small class="mute" id="fish-hint" data-i18n="fish.hint" style="display:block;margin-top:6px">Folivox first looks for these files on this computer (Hugging Face cache, LM Studio) and downloads only what is missing.</small>
     <progress id="fish-progress" max="100" value="0" hidden></progress>
     <small class="mute" id="fish-attrib" style="display:block;margin-top:8px"></small>
   </div>
@@ -2191,7 +2192,8 @@ async function fishPoll() {
   bar.hidden = i.state !== "running";
   if (i.total > 0 && i.done > 0) bar.value = Math.round(100 * i.done / i.total); else bar.removeAttribute("value");  // no value = honest "working"
   if (i.state === "running") {
-    $("#fish-state").textContent = i.phase === "found" ? t("fish.found", { gb: gb(i.found) })
+    $("#fish-state").textContent = i.phase === "looking" ? t("fish.looking") : i.phase === "found" ? t("fish.found", { gb: gb(i.found), of: gb(i.of) })
+      : i.phase === "downloading" && !i.found && !(i.done > 0) ? t("fish.notfound")
       : i.total >= 1e7 && i.done > 0 ? t("fish.installing", { name: i.name, done: gb(i.done), total: gb(i.total) })
       : i.phase === "downloading" ? t("fish.starting") : i.phase === "verifying" ? t("fish.verifying") : (i.message || t("fish.preparing"));
     FISH.timer = setTimeout(fishPoll, 1500); return;

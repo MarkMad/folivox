@@ -101,5 +101,5 @@ def test_install_downloads_only_what_was_not_found(tmp_path, monkeypatch):
     monkeypatch.setattr(fish_setup, "_download", fake_download)
     phases = []
     fish_setup.install(b, None, lambda m: None, phase=lambda n, s: phases.append(n))
-    assert asked == [["config.json"]] and phases == ["found", "downloading"]
+    assert asked == [["config.json"]] and phases == ["looking", "found", "downloading"]
     assert (builds.weights_dir(b) / "model.safetensors").read_bytes() == data
