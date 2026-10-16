@@ -548,7 +548,7 @@
  "mk.hint": "Seleccione texto a la izquierda y pulse quién lo lee en la barra bajo el texto (o pulse el número).",
  "mk.add": "+ Añadir hablante",
  "mk.clear": "Borrar la selección",
- "mk.listen": "▶ Escuchar la selección",
+ "mk.listen": "▶ Escuchar",
  "mk.tags": "Etiquetas de expresión",
  "mk.tags.on": "Usar etiquetas de expresión (motores Fish)",
  "mk.tags.search": "Buscar etiquetas",
@@ -665,5 +665,7 @@
  "rb.rm.confirm": "¿Quitar «{name}» de la lista? Se borra la copia subida a este equipo (su archivo original no se toca).",
  "rb.rm.markup": "En «{name}» hay {n} personajes configurados. Quitarla elimina todo eso para siempre: el marcado, la lista de personajes, las pronunciaciones, los datos del libro y las respuestas guardadas del modelo. No se puede deshacer. Sus audiolibros terminados y sus voces no se tocan.\n\n¿Quitarla de todos modos?",
  "mk.assign.none": "Para dar un pasaje a un personaje: seleccione el texto de arriba y pulse quién lo lee.",
- "mk.assign.sel": "El texto seleccionado lo leerá:"
+ "mk.assign.sel": "El texto seleccionado lo leerá:",
+ "mk.leng": "Motor para escuchar",
+ "mk.listen.t": "Escuchar la selección"
 }

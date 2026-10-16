@@ -548,7 +548,7 @@
  "mk.hint": "Select text on the left, then click who reads it in the bar under the text (or press the number).",
  "mk.add": "+ Add speaker",
  "mk.clear": "Clear selection",
- "mk.listen": "▶ Listen to the selection",
+ "mk.listen": "▶ Listen",
  "mk.tags": "Expression tags",
  "mk.tags.on": "Use expression tags (Fish engines)",
  "mk.tags.search": "Search tags",
@@ -665,5 +665,7 @@
  "rb.rm.confirm": "Remove “{name}” from the list? The copy uploaded to this computer is deleted (your original file is not touched).",
  "rb.rm.markup": "“{name}” has {n} characters set up. Removing it deletes all of that for good: the markup, the character list, the pronunciations, the book's details and the saved model replies. This cannot be undone. Your finished audiobooks and your voices are not touched.\n\nRemove it anyway?",
  "mk.assign.none": "To give a passage to a character: select the text above, then click who reads it.",
- "mk.assign.sel": "The selected text will be read by:"
+ "mk.assign.sel": "The selected text will be read by:",
+ "mk.leng": "Engine for listening",
+ "mk.listen.t": "Listen to the selection"
 }

@@ -548,7 +548,7 @@
  "mk.hint": "Sélectionnez du texte à gauche, puis cliquez sur qui le lit dans la barre sous le texte (ou tapez le numéro).",
  "mk.add": "+ Ajouter un locuteur",
  "mk.clear": "Effacer la sélection",
- "mk.listen": "▶ Écouter la sélection",
+ "mk.listen": "▶ Écouter",
  "mk.tags": "Balises d'expression",
  "mk.tags.on": "Utiliser les balises d'expression (moteurs Fish)",
  "mk.tags.search": "Chercher une balise",
@@ -665,5 +665,7 @@
  "rb.rm.confirm": "Retirer « {name} » de la liste ? La copie importée sur cet ordinateur est supprimée (votre fichier d'origine n'est pas touché).",
  "rb.rm.markup": "Dans « {name} », {n} personnages sont configurés. La retirer supprime tout cela définitivement : le balisage, la liste des personnages, les prononciations, les données du livre et les réponses enregistrées du modèle. C'est irréversible. Vos livres audio terminés et vos voix ne sont pas touchés.\n\nLa retirer quand même ?",
  "mk.assign.none": "Pour donner un passage à un personnage : sélectionnez le texte ci-dessus, puis cliquez sur qui le lit.",
- "mk.assign.sel": "Le texte sélectionné sera lu par :"
+ "mk.assign.sel": "Le texte sélectionné sera lu par :",
+ "mk.leng": "Moteur pour l'écoute",
+ "mk.listen.t": "Écouter la sélection"
 }

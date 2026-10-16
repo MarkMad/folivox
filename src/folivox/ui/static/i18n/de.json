@@ -548,7 +548,7 @@
  "mk.hint": "Text links markieren, dann in der Leiste unter dem Text anklicken, wer liest (oder die Nummer drücken).",
  "mk.add": "+ Sprecher hinzufügen",
  "mk.clear": "Auswahl zurücksetzen",
- "mk.listen": "▶ Auswahl anhören",
+ "mk.listen": "▶ Anhören",
  "mk.tags": "Ausdruckstags",
  "mk.tags.on": "Ausdruckstags verwenden (Fish-Engines)",
  "mk.tags.search": "Tags suchen",
@@ -665,5 +665,7 @@
  "rb.rm.confirm": "„{name}“ aus der Liste entfernen? Die auf diesen Computer hochgeladene Kopie wird gelöscht (Ihre Originaldatei bleibt unberührt).",
  "rb.rm.markup": "In „{name}“ sind {n} Figuren eingerichtet. Beim Entfernen geht das alles endgültig verloren: die Markierung, die Figurenliste, die Aussprache, die Buchdaten und die gespeicherten Modellantworten. Das lässt sich nicht rückgängig machen. Fertige Hörbücher und Ihre Stimmen bleiben unberührt.\n\nTrotzdem entfernen?",
  "mk.assign.none": "So geben Sie eine Passage einer Figur: Text oben markieren, dann anklicken, wer sie liest.",
- "mk.assign.sel": "Der markierte Text wird gelesen von:"
+ "mk.assign.sel": "Der markierte Text wird gelesen von:",
+ "mk.leng": "Engine zum Anhören",
+ "mk.listen.t": "Auswahl anhören"
 }

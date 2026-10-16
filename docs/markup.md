@@ -194,9 +194,10 @@ Below the button the manual tools are always visible:
 - **Expression tags** (a nested disclosure): put the cursor where the effect should happen and click a tag in the list (search by name
   or category). A tag at the very start of a passage is a delivery tag of that passage. Click a tag in the text to
   remove it. *Use expression tags* is the per-book switch.
-- **Listen**: select a passage (up to 1500 characters, whole paragraphs are read) and press *Listen to the
-  selection*; it is read with the speakers' voices and tags using the engine chosen in *4 · Reading engine*
-  (a local one), without touching the audiobook.
+- **Listen**: select a passage (up to 1500 characters, whole paragraphs are read) and press *Listen* in the bar under
+  the text, to the right of the speaker chips. It is read with the speakers' voices and tags without touching the
+  audiobook. The list next to the button chooses the **engine** to listen with (the local ones; it starts with the
+  engine of step 4), so a passage can be tried with, say, CosyVoice 3 and Fish S2 Pro in turn.
 - **Automatic markup**: see above; progress is saved and the editor reloads the result so you can correct it.
 - **Voice ideas**: the *Voice ideas* button of a speaker writes three **English** voice descriptions from the
   character list (simple, standard, detailed: the simple one works with any voice-design model, the detailed one

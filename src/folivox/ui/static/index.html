@@ -210,7 +210,7 @@ h1 { padding-right:140px; }
 .rb.cur { border-color:var(--accent); cursor:default; } .rb span { min-width:0; overflow-wrap:anywhere; } .rb small { color:var(--mute); white-space:nowrap; }
 .mk-sub { margin-top:10px; } .mk-sub > summary { cursor:pointer; color:var(--mute); font-size:13px; } .mk-sub[open] > summary { margin-bottom:6px; }
 .mk-nextstep { padding:10px 12px; border:1px dashed var(--accent); border-radius:10px; margin-bottom:12px; } .mk-nextstep .row { margin-top:8px; }
-.mk-assign { border-top:1px solid var(--line); padding:10px 22px 12px; } #mk-assign-hint { font-size:13.5px; margin-bottom:6px; color:var(--mute); } .mk-assign.on #mk-assign-hint { color:inherit; font-weight:600; }
+.mk-assign { border-top:1px solid var(--line); padding:10px 22px 12px; display:flex; flex-wrap:wrap; gap:10px 20px; align-items:flex-end; } .mk-assign-l { flex:1 1 260px; min-width:0; } .mk-listenbox { display:flex; flex-direction:column; align-items:flex-end; gap:4px; max-width:100%; } .mk-listenbox select { max-width:150px; } #mk-listenmsg { font-size:12.5px; text-align:right; } #mk-assign-hint { font-size:13.5px; margin-bottom:6px; color:var(--mute); } .mk-assign.on #mk-assign-hint { color:inherit; font-weight:600; }
 .mk-achips { display:flex; flex-wrap:wrap; gap:6px; } .mk-achips .chip { font-size:13.5px; padding:4px 12px; border-left:6px solid var(--c); } .mk-assign:not(.on) .chip { opacity:.55; }
 .mk-achips kbd { font:inherit; font-size:11px; color:var(--mute); margin-right:5px; }
 .mk-empty { margin:16px 22px 0; padding:16px 18px; border:1px solid var(--accent); border-radius:12px; } .mk-empty p { margin:6px 0 12px; }
@@ -317,7 +317,8 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
   <div class="mk-body">
     <div class="mk-main"><div id="mk-empty" class="mk-empty" hidden><b data-i18n="mk.empty.h">Nothing is marked yet</b><p data-i18n="mk.empty.p">Press “Mark automatically” in the panel: the program finds the characters and gives each their lines.</p></div>
     <div id="mk-text" class="mk-text" tabindex="0"></div>
-    <div id="mk-assign" class="mk-assign"><div id="mk-assign-hint"></div><div id="mk-assign-chips" class="mk-achips"></div></div></div>
+    <div id="mk-assign" class="mk-assign"><div class="mk-assign-l"><div id="mk-assign-hint"></div><div id="mk-assign-chips" class="mk-achips"></div></div>
+      <div class="mk-listenbox"><div class="row"><select id="mk-leng" aria-label="Engine for listening" title="Engine for listening" data-i18n-attr="aria-label:mk.leng;title:mk.leng"></select><button type="button" id="mk-listen" class="primary" title="Listen to the selection" data-i18n="mk.listen" data-i18n-attr="title:mk.listen.t">&#9654; Listen</button></div><div id="mk-listenmsg" class="mute"></div></div></div></div>
     <aside class="mk-side">
       <div class="mk-autocard">
         <button type="button" id="mk-auto" class="primary" data-i18n="mk.auto.btn">Mark automatically</button>
@@ -357,7 +358,6 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
         <h4 data-i18n="mk.vd.takes">Takes: listen and choose</h4>
         <div id="mk-vd-takes"></div>
       </div>
-        <div class="row" style="margin-top:10px"><button type="button" id="mk-listen" class="primary" data-i18n="mk.listen">&#9654; Listen to the selection</button><span id="mk-listenmsg" class="mute"></span></div>
         <details class="mk-sub" id="mk-tagbox"><summary data-i18n="mk.tags">Expression tags</summary>
           <label class="consent"><input type="checkbox" id="mk-exprtags" checked><span data-i18n="mk.tags.on">Use expression tags (Fish engines)</span></label>
           <input type="search" id="mk-tagq" style="width:100%;margin-top:6px" placeholder="Search tags" data-i18n-attr="placeholder:mk.tags.search">
@@ -1054,7 +1054,7 @@ async function mkOpenEditor(fine) {
   if (!MK.tags) { try { MK.tags = await api("/api/markup/tags"); } catch (e) { MK.tags = { tags: [] }; } }
   mkTagList();
   $("#mk-ch").innerHTML = book.chapters.map((c, i) => `<option value="${i}">${esc(c.n + ". " + c.title)}</option>`).join("");
-  MK.result = false; $("#mk-step").hidden = true; $("#mk-chars").innerHTML = ""; $("#mk-llmmsg").textContent = "";
+  mkListenEngines(); MK.result = false; $("#mk-step").hidden = true; $("#mk-chars").innerHTML = ""; $("#mk-llmmsg").textContent = "";
   $("#mk-dlg").showModal(); mkLlmModels().then(() => { mkModelHint(); mkModelButtons(); mkEtaEditor(); }); await mkLoadChapter(0); $("#mk-text").focus(); if (fine) $("#mk-speakers").scrollIntoView({ block: "start" });
 }
 $("#mk-open2").onclick = () => mkOpenEditor(false);
@@ -1071,9 +1071,23 @@ $("#mk-dlg").addEventListener("keydown", (ev) => {
   else if (!typing && !mod && /^[0-9]$/.test(ev.key) && mkSpeaker(+ev.key)) { ev.preventDefault(); mkAssign(+ev.key); }
 });
 // ---- listen to the selection with the current voices ---------------------------------------------------------------
+// the engines a passage can be tried with (local ones: an online engine reads the whole book in one voice)
+function mkListenEngines() {
+  const sel = $("#mk-leng"), keep = sel.value || (ENG.cur() && !ENG.cloud() ? ENG.cur().name : "");
+  const list = ENG.list.filter(e => !e.cloud);
+  sel.innerHTML = list.map(e => `<option value="${esc(e.name)}">${esc(engText(e, "label"))}</option>`).join("");
+  sel.value = list.some(e => e.name === keep) ? keep : (list[0] ? list[0].name : "");
+}
+function mkListenOptions() {
+  const eng = $("#mk-leng").value, o = options();
+  if (!eng || (ENG.cur() && eng === ENG.cur().name)) return o;
+  for (const k of ["tts_model", "tts_style", "max_cost", "tts_mode", "tts_voice", "tts_description", "own_voice", "keep_voice"]) delete o[k];
+  const e = ENG.list.find(x => x.name === eng);
+  return { ...o, tts: eng, ...(e && e.fish ? { tts_build: "auto" } : {}) };
+}
 $("#mk-listen").onclick = async () => {
   const msg = $("#mk-listenmsg"), rs = MK.sel ? mkRanges(MK.sel) : [];
-  if (ENG.cloud()) { msg.textContent = t("mk.listen.local"); return; }
+  if (!$("#mk-leng").value) { msg.textContent = t("mk.listen.local"); return; }
   if (!rs.length && MK.sel) rs.push({ b: MK.sel.a.b });
   if (!rs.length) { msg.textContent = t("mk.needsel"); return; }
   const from = rs[0].b, to = rs[rs.length - 1].b, chars = MK.blocks.filter(b => b.b >= from && b.b <= to).reduce((n, b) => n + b.text.length, 0);
@@ -1081,7 +1095,7 @@ $("#mk-listen").onclick = async () => {
   if (!await mkSave()) return;
   msg.textContent = t("mk.listening"); $("#mk-listen").disabled = true;
   try {
-    const j = await api("/api/jobs", { method: "POST", headers: JSONH, body: JSON.stringify({ kind: "preview", book_id: book.book_id, voice, chapters: [1], options: options(),
+    const j = await api("/api/jobs", { method: "POST", headers: JSONH, body: JSON.stringify({ kind: "preview", book_id: book.book_id, voice, chapters: [1], options: mkListenOptions(),
       sample_range: { chapter: MK.ch, block_from: from, block_to: to, depth: MK.data.depth || 2 } }) });
     for (;;) {
       await new Promise(r => setTimeout(r, 1000));
