@@ -46,7 +46,7 @@ def wait(client, bid):
 
 def test_models_route_lists_gemma_tiers(client):
     m = client.get("/api/llm/models").json()
-    assert m["recommended"].startswith("gemma4:") and len(m["tiers"]) == 5
+    assert m["recommended"].startswith("gemma4:") and len(m["tiers"]) == 3
 
 
 def test_analyse_then_auto_then_edit_characters(client):
