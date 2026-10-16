@@ -102,6 +102,7 @@ h1 { padding-right:140px; }
 .vbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px; } .vbar input { flex:1; min-width:220px; }
 .chips { display:flex; gap:6px; flex-wrap:wrap; } #vlangs { margin-bottom:10px; }
 .chip { font-size:12.5px; padding:3px 11px; border-radius:99px; border:1px solid var(--line); background:transparent; color:var(--mute); cursor:pointer; }
+.bootfail { display:flex; gap:14px; align-items:flex-start; max-width:640px; margin:20px auto 0; padding:16px 18px; background:var(--card); border:1px solid var(--err); border-left-width:5px; border-radius:12px; color:var(--err); box-shadow:0 2px 10px rgba(0,0,0,.06); } .bootfail svg { flex:none; margin-top:2px; } .bootfail b { display:block; font-size:16px; color:var(--ink); } .bootfail p { margin:4px 0 6px; color:var(--ink); line-height:1.5; } .bootfail code { background:color-mix(in srgb, var(--ink) 8%, transparent); padding:1px 6px; border-radius:6px; } .bootfail small { color:var(--mute); }
 .mk-modelrow { display:flex; gap:8px; align-items:stretch; } .mk-modelrow select { flex:1; min-width:0; } .ic-del { flex:none; width:34px; display:grid; place-items:center; border:1px solid var(--err); border-radius:8px; background:transparent; color:var(--err); cursor:pointer; padding:0; } .ic-del:hover { background:color-mix(in srgb, var(--err) 12%, transparent); } .ic-del[hidden] { display:none; } .ic-del:disabled { opacity:.45; cursor:default; }
 #mk-listen.stop { background:transparent; color:var(--ink); border:1px solid var(--ink); } #mk-listenprog { width:100%; height:6px; margin-top:6px; }
 .chip:hover { color:var(--ink); } .chip.danger { color:var(--err); border-color:var(--err); } .chip.danger:hover { color:var(--err); background:color-mix(in srgb, var(--err) 10%, transparent); } .chip.on { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); } .chip small { opacity:.7; margin-left:3px; }
@@ -2789,7 +2790,9 @@ function refreshUi() {
 (async () => {
   CAT_EN = await loadCatalog("en"); await setUiLang(pickUiLang(), false); engLoad();
   try { checkServer(); await loadSettings(); loadKeys().catch(() => {}); await restoreSession(); loadRecent(); await reconcile(); setInterval(reconcile, 4000); uiReady = true; }
-  catch (e) { document.body.insertAdjacentHTML("afterbegin", `<p class="err" style="padding:16px">${t("boot.fail", { msg: esc(e.message) })}</p>`); }
+  catch (e) {
+    document.body.insertAdjacentHTML("afterbegin", `<div class="bootfail" role="alert"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><div><b>${t("boot.title")}</b><p>${t("boot.hint")}</p><small>${esc(e.message)}</small></div></div>`);
+  }
 })();
 </script>
 </body>
