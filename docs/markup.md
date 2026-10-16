@@ -135,8 +135,8 @@ version of the rules raised 13 (5 of them false). A paragraph that fails, that t
 the **review list** in the markup file; `second_opinion` asks about each of them again with six paragraphs before and
 two after and keeps the new answer only if the rule check accepts it. Whatever is left is for the person.
 
-**Two ways to run it in the studio.** *Quick preview* reads a spread sample of the book (a few windows) and marks a
-few windows, to show how it works in minutes. *Best quality* does everything above for the chapters chosen in step 2:
+**Two ways to run it in the studio.** *Try on a sample* reads a spread sample of the book (a few windows) and marks a
+few windows, to show how it works in minutes. *Mark the whole book* does everything above for the chapters chosen in step 2:
 the whole book is read, the characters are looked at again, the doubtful places are asked about again; it can take
 hours, is saved as it goes and carries on where it stopped. In the console: `folivox markup auto BOOK --best`.
 
@@ -178,8 +178,8 @@ the editor. A chapter counts as processed once the automatic marking (or an edit
 
 **Time, measured** (36 GB Mac, Russian prose, 5000-character windows, the estimate within 2% of the real run): reading a
 window takes about 40 s with gemma4 12b and 100 s with 31b; marking a window 90 s and 240 s; a short second look
-(one character or one doubtful paragraph) 6-9 s and 12-27 s. Two chapters (59k characters) in *Best quality*: 19 min
-with 12b, 47 min with 31b; *Quick preview* of a whole novel: 7 min with 12b, about 20 min with 31b.
+(one character or one doubtful paragraph) 6-9 s and 12-27 s. Two chapters (59k characters) in *Mark the whole book*: 19 min
+with 12b, 47 min with 31b; *Try on a sample* of a whole novel: 7 min with 12b, about 20 min with 31b.
 
 **Time.** The editor shows an estimate *before* you press the button and the progress line shows the time left while it
 works. The estimate counts the model calls the run needs (the server's `/llm/estimate`) and turns them into time by
@@ -193,7 +193,7 @@ and *Stop* (a stopped download resumes later), and goes on with the marking. *Op
 models in the list can be downloaded or removed here; Ollama itself is installed by the person (ollama.com).
 
 
-In the editor the top of the right panel has two buttons, **Best quality** and **Quick preview** (each with its
+In the editor the top of the right panel has two buttons, **Mark the whole book** and **Try on a sample** (each with its
 estimated time), a progress bar with the time left and a plain result. *Options* (collapsed) holds the model (the
 largest installed one is chosen by itself), the model download, and *Analyse characters* alone. After a run the panel
 lists the characters, offers the next step (*Choose voices*), and, when the rule check or the second look left some,
