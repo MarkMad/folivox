@@ -661,5 +661,8 @@
  "rb.chars": "{n} Figuren",
  "rb.now": "jetzt geöffnet",
  "rb.opening": "Buch wird geöffnet …",
- "mk.st.stale": "Der Text der Kapitel {list} hat sich seit der Markierung geändert: Ihre Markierung wird ignoriert, der Erzähler liest sie."
+ "mk.st.stale": "Der Text der Kapitel {list} hat sich seit der Markierung geändert: Ihre Markierung wird ignoriert, der Erzähler liest sie.",
+ "rb.rm": "Aus der Liste entfernen",
+ "rb.rm.confirm": "„{name}“ aus der Liste entfernen? Die auf diesen Computer hochgeladene Kopie wird gelöscht (Ihre Originaldatei bleibt unberührt).",
+ "rb.rm.markup": "In „{name}“ sind {n} Figuren eingerichtet. Beim Entfernen geht das alles endgültig verloren: die Markierung, die Figurenliste, die Aussprache, die Buchdaten und die gespeicherten Modellantworten. Das lässt sich nicht rückgängig machen. Fertige Hörbücher und Ihre Stimmen bleiben unberührt.\n\nTrotzdem entfernen?"
 }

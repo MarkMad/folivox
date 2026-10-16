@@ -152,4 +152,7 @@ under **Recent books** (the one used last first, with the number of characters s
 uploading it again (`GET /api/books`, `POST /api/books/{id}/open`). If the text of a chapter changed since it was
 marked (another edition), the Characters box in step 3 says which chapters are affected: their markup is ignored and
 the narrator reads them (`stale_chapters` in `GET /api/books/{id}/llm/estimate`). Books uploaded by an older version
-keep working under their old ids.
+keep working under their old ids. A ✕ on a row (not on the open book) removes the book from the list and deletes the
+uploaded copy with its markup, characters, pronunciations, details and cached model replies (`DELETE /api/books/{id}`);
+finished audiobooks and the person's voices are not touched. A book that has characters set up gets a stronger
+confirmation that says the work cannot be recovered.

@@ -203,9 +203,10 @@ h1 { padding-right:140px; }
 .mk-card { padding:12px 14px; border:1px solid var(--line); border-radius:12px; margin-bottom:12px; } .mk-boxh { font-weight:600; margin-bottom:6px; } .mk-stat { margin-top:8px; font-size:14px; line-height:1.5; } .mk-stat > div { margin-top:2px; }
 .mk-vcs { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; } .mk-vc { font-size:12.5px; padding:2px 10px; border:1px solid var(--line); border-left:5px solid var(--c); border-radius:99px; }
 @media (max-width:700px) { .vmode { grid-template-columns:1fr; } }
-.rb-list { display:grid; gap:6px; margin-top:8px; max-height:280px; overflow:auto; }
-.rb { display:flex; gap:10px; align-items:baseline; justify-content:space-between; text-align:left; padding:8px 12px; border:1px solid var(--line); border-radius:10px; background:none; cursor:pointer; font:inherit; color:inherit; }
-.rb.cur { border-color:var(--accent); cursor:default; } .rb span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .rb small { color:var(--mute); white-space:nowrap; }
+.rb-list { display:grid; grid-template-columns:minmax(0,1fr); gap:6px; margin-top:8px; max-height:280px; overflow-y:auto; overflow-x:hidden; }
+.rbrow { display:flex; gap:6px; } .rbrow .rb { flex:1; min-width:0; } .rb-x { border:1px solid var(--line); border-radius:10px; background:none; color:var(--mute); cursor:pointer; padding:0 10px; } .rb-x:hover { color:#b3261e; border-color:#b3261e; }
+.rb { display:flex; gap:10px; align-items:baseline; justify-content:space-between; text-align:left; line-height:1.35; padding:8px 12px; border:1px solid var(--line); border-radius:10px; background:none; cursor:pointer; font:inherit; color:inherit; }
+.rb.cur { border-color:var(--accent); cursor:default; } .rb span { min-width:0; overflow-wrap:anywhere; } .rb small { color:var(--mute); white-space:nowrap; }
 .mk-sub { margin-top:10px; } .mk-sub > summary { cursor:pointer; color:var(--mute); font-size:13px; } .mk-sub[open] > summary { margin-bottom:6px; }
 .mk-nextstep { padding:10px 12px; border:1px dashed var(--accent); border-radius:10px; margin-bottom:12px; } .mk-nextstep .row { margin-top:8px; }
 .mk-legend { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0; } .mk-legend .chip { font-size:12px; padding:2px 9px; border-left:5px solid var(--c); }
@@ -689,9 +690,18 @@ async function loadRecent() {
   const box = $("#recent"), cur = book ? book.book_id : "";
   box.hidden = !r.books.length || (r.books.length === 1 && r.books[0].book_id === cur);
   $("#recent-n").textContent = r.books.length ? `(${r.books.length})` : "";
-  $("#recent-list").innerHTML = r.books.map(b => `<button type="button" class="rb ${b.book_id === cur ? "cur" : ""}" data-id="${esc(b.book_id)}"><span><b>${esc(b.title || b.name)}</b>${b.author ? " · " + esc(b.author) : ""}</span><small>${b.book_id === cur ? esc(t("rb.now")) : b.markup.spans ? esc(t("rb.chars", { n: b.markup.characters })) : ""}</small></button>`).join("");
+  MK.recent = Object.fromEntries(r.books.map(b => [b.book_id, b]));
+  $("#recent-list").innerHTML = r.books.map(b => `<div class="rbrow"><button type="button" class="rb ${b.book_id === cur ? "cur" : ""}" data-id="${esc(b.book_id)}"><span><b>${esc(b.title || b.name)}</b>${b.author ? " · " + esc(b.author) : ""}</span><small>${b.book_id === cur ? esc(t("rb.now")) : b.markup.spans ? esc(t("rb.chars", { n: b.markup.characters })) : ""}</small></button>${b.book_id === cur ? "" : `<button type="button" class="rb-x" data-rm="${esc(b.book_id)}" aria-label="${esc(t("rb.rm"))}" title="${esc(t("rb.rm"))}">&#10005;</button>`}</div>`).join("");
 }
 $("#recent-list").addEventListener("click", async (ev) => {
+  const x = ev.target.closest(".rb-x");
+  if (x) {
+    const b = MK.recent[x.dataset.rm]; if (!b) return; const name = b.title || b.name;
+    // a book with markup gets a stronger warning: that work cannot be recovered
+    if (!confirm(b.markup.spans ? t("rb.rm.markup", { name, n: b.markup.characters }) : t("rb.rm.confirm", { name }))) return;
+    try { await api(`/api/books/${x.dataset.rm}`, { method: "DELETE" }); } catch (e) { $("#book-info").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+    loadRecent(); return;
+  }
   const b = ev.target.closest(".rb"); if (!b || b.classList.contains("cur")) return;
   uploads++; $("#book-info").textContent = t("rb.opening");
   try { setBook(await api(`/api/books/${b.dataset.id}/open`, { method: "POST" })); }

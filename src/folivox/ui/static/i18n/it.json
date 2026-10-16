@@ -661,5 +661,8 @@
  "rb.chars": "{n} personaggi",
  "rb.now": "aperto ora",
  "rb.opening": "Apertura del libro…",
- "mk.st.stale": "Il testo dei capitoli {list} è cambiato dopo la marcatura: la loro marcatura viene ignorata e li legge il narratore."
+ "mk.st.stale": "Il testo dei capitoli {list} è cambiato dopo la marcatura: la loro marcatura viene ignorata e li legge il narratore.",
+ "rb.rm": "Rimuovi dall'elenco",
+ "rb.rm.confirm": "Rimuovere «{name}» dall'elenco? La copia caricata su questo computer viene eliminata (il file originale non viene toccato).",
+ "rb.rm.markup": "In «{name}» sono impostati {n} personaggi. Rimuoverlo cancella tutto per sempre: la marcatura, l'elenco dei personaggi, le pronunce, i dati del libro e le risposte salvate del modello. Non si può annullare. Gli audiolibri finiti e le tue voci non vengono toccati.\n\nRimuovere comunque?"
 }

@@ -506,3 +506,23 @@ def test_the_same_file_is_the_same_book_and_the_library_lists_it(tmp_path):
     assert back["book_id"] == first and c.get("/api/session").json() == {"book_id": first}
     assert [b["book_id"] for b in c.get("/api/books").json()["books"]][0] == first
     assert c.post("/api/books/nope/open").status_code == 404
+
+
+def test_a_book_can_be_removed_with_what_the_studio_keeps_for_it(tmp_path):
+    app = create_app(token=TOKEN, port=8765, data_dir=tmp_path / "ui", render=fake_render)
+    c = TestClient(app, base_url="http://127.0.0.1:8765", headers={"X-Folivox-Token": TOKEN})
+    keep = upload(c)["book_id"]
+    gone = upload(c, BOOK + b"\n\nAnother paragraph.")["book_id"]
+    ui = tmp_path / "ui"
+    for sub, name in (("markup", f"{gone}.json"), ("characters", f"{gone}.json"), ("pronounce", f"{gone}.txt")):
+        (ui / sub).mkdir(exist_ok=True)
+        (ui / sub / name).write_text('{"speakers": [{"id": 1}], "chapters": {"0": {"spans": [{}]}}}', encoding="utf-8")
+    (ui / "markup" / f"{keep}.json").write_text("{}", encoding="utf-8")
+    r = c.delete(f"/api/books/{gone}")
+    assert r.json() == {"removed": gone, "had_markup": True}
+    assert not (ui / "uploads" / gone).exists() and not (ui / "markup" / f"{gone}.json").exists()
+    assert not (ui / "characters" / f"{gone}.json").exists() and not (ui / "pronounce" / f"{gone}.txt").exists()
+    assert (ui / "markup" / f"{keep}.json").exists() and (ui / "uploads" / keep).is_dir()  # the other book is untouched
+    assert [b["book_id"] for b in c.get("/api/books").json()["books"]] == [keep]
+    assert c.get("/api/session").json() == {"book_id": keep}  # the session pointed at the removed book
+    assert c.delete(f"/api/books/{gone}").status_code == 404

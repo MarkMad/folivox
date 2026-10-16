@@ -233,6 +233,34 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         write_session({"book_id": bid})
         return JSONResponse(_book_summary(bid, entry["book"], cover=cover_kind(bid, entry["book"])))
 
+    async def remove_book(request: Request):
+        """Forget a book: the uploaded copy and everything the studio keeps for it (markup, characters, pronunciations,
+        details, cover choice, cached model replies). Finished audiobooks and the person's voices are not touched."""
+        bid = Path(request.path_params["book_id"]).name
+        cur = state.manager.current
+        if cur is not None and cur.state == "running" and cur.book_id == bid:
+            raise ApiError("A job is running for this book", 409)
+        folder = state.data_dir / "uploads" / bid
+        if not folder.is_dir():
+            raise ApiError("Unknown book", 404)
+        had = markup_state(bid)
+        shutil.rmtree(folder, ignore_errors=True)
+        for sub, pattern in (("markup", f"{bid}.json"), ("characters", f"{bid}.json"), ("meta", f"{bid}.json"),
+                             ("pronounce", f"{bid}.txt"), ("llm-cache", f"{bid}.sqlite*"), ("covers", f"{bid}.*")):
+            d = state.data_dir / sub
+            for f in (d.glob(pattern) if d.is_dir() else []):
+                f.unlink(missing_ok=True)
+        state.books.pop(bid, None)
+        lib = library_read()
+        if lib.pop(bid, None) is not None:
+            library_file().write_text(json.dumps(lib, ensure_ascii=False), encoding="utf-8")
+        try:
+            if json.loads(state.session_file.read_text(encoding="utf-8")).get("book_id") == bid:
+                state.session_file.unlink(missing_ok=True)
+        except (OSError, ValueError, AttributeError):
+            pass
+        return JSONResponse({"removed": bid, "had_markup": bool(had["spans"])})
+
     async def upload_book(request: Request):
         from folivox.readers import UnsupportedFormat, read_book
 
@@ -1449,6 +1477,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/books", upload_book, methods=["POST"]),
         Route("/api/books", list_books),
         Route("/api/books/{book_id}/open", open_book, methods=["POST"]),
+        Route("/api/books/{book_id}", remove_book, methods=["DELETE"]),
         Route("/api/books/text", paste_text, methods=["POST"]),
         Route("/api/books/{book_id}/chapters", book_chapters),
         Route("/api/books/{book_id}/meta", get_meta),

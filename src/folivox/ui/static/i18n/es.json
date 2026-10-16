@@ -661,5 +661,8 @@
  "rb.chars": "{n} personajes",
  "rb.now": "abierto ahora",
  "rb.opening": "Abriendo el libro…",
- "mk.st.stale": "El texto de los capítulos {list} ha cambiado desde que se marcaron: su marcado se ignora y los lee el narrador."
+ "mk.st.stale": "El texto de los capítulos {list} ha cambiado desde que se marcaron: su marcado se ignora y los lee el narrador.",
+ "rb.rm": "Quitar de la lista",
+ "rb.rm.confirm": "¿Quitar «{name}» de la lista? Se borra la copia subida a este equipo (su archivo original no se toca).",
+ "rb.rm.markup": "En «{name}» hay {n} personajes configurados. Quitarla elimina todo eso para siempre: el marcado, la lista de personajes, las pronunciaciones, los datos del libro y las respuestas guardadas del modelo. No se puede deshacer. Sus audiolibros terminados y sus voces no se tocan.\n\n¿Quitarla de todos modos?"
 }

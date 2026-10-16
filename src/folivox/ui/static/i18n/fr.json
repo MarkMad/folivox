@@ -661,5 +661,8 @@
  "rb.chars": "{n} personnages",
  "rb.now": "ouvert",
  "rb.opening": "Ouverture du livre…",
- "mk.st.stale": "Le texte des chapitres {list} a changé depuis le balisage : leur balisage est ignoré et le narrateur les lit."
+ "mk.st.stale": "Le texte des chapitres {list} a changé depuis le balisage : leur balisage est ignoré et le narrateur les lit.",
+ "rb.rm": "Retirer de la liste",
+ "rb.rm.confirm": "Retirer « {name} » de la liste ? La copie importée sur cet ordinateur est supprimée (votre fichier d'origine n'est pas touché).",
+ "rb.rm.markup": "Dans « {name} », {n} personnages sont configurés. La retirer supprime tout cela définitivement : le balisage, la liste des personnages, les prononciations, les données du livre et les réponses enregistrées du modèle. C'est irréversible. Vos livres audio terminés et vos voix ne sont pas touchés.\n\nLa retirer quand même ?"
 }

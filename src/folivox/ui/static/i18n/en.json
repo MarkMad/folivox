@@ -661,5 +661,8 @@
  "rb.chars": "{n} characters",
  "rb.now": "open now",
  "rb.opening": "Opening the book…",
- "mk.st.stale": "The text of chapters {list} has changed since they were marked: their markup is ignored and the narrator reads them."
+ "mk.st.stale": "The text of chapters {list} has changed since they were marked: their markup is ignored and the narrator reads them.",
+ "rb.rm": "Remove from the list",
+ "rb.rm.confirm": "Remove “{name}” from the list? The copy uploaded to this computer is deleted (your original file is not touched).",
+ "rb.rm.markup": "“{name}” has {n} characters set up. Removing it deletes all of that for good: the markup, the character list, the pronunciations, the book's details and the saved model replies. This cannot be undone. Your finished audiobooks and your voices are not touched.\n\nRemove it anyway?"
 }
