@@ -102,6 +102,7 @@ h1 { padding-right:140px; }
 .vbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px; } .vbar input { flex:1; min-width:220px; }
 .chips { display:flex; gap:6px; flex-wrap:wrap; } #vlangs { margin-bottom:10px; }
 .chip { font-size:12.5px; padding:3px 11px; border-radius:99px; border:1px solid var(--line); background:transparent; color:var(--mute); cursor:pointer; }
+#mk-listen.stop { background:transparent; color:var(--ink); border:1px solid var(--ink); } #mk-listenprog { width:100%; height:6px; margin-top:6px; }
 .chip:hover { color:var(--ink); } .chip.danger { color:var(--err); border-color:var(--err); } .chip.danger:hover { color:var(--err); background:color-mix(in srgb, var(--err) 10%, transparent); } .chip.on { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); } .chip small { opacity:.7; margin-left:3px; }
 .vgrid { display:flex; flex-direction:column; gap:6px; max-height:440px; overflow:auto; padding:3px; margin:-3px; }
 .vcard { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,170px) 18px 28px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; transition:border-color .2s, box-shadow .2s, background .2s; }
@@ -321,7 +322,7 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
     <div class="mk-main"><div id="mk-empty" class="mk-empty" hidden><b data-i18n="mk.empty.h">Nothing is marked yet</b><p data-i18n="mk.empty.p">Press “Mark the whole book” in the panel (or “Try on a sample”): the program finds the characters and gives each their lines.</p></div>
     <div id="mk-text" class="mk-text" tabindex="0"></div>
     <div id="mk-assign" class="mk-assign"><div class="mk-assign-l"><div id="mk-assign-hint"></div><div id="mk-assign-chips" class="mk-achips"></div></div>
-      <div class="mk-listenbox"><div class="row"><select id="mk-leng" aria-label="Engine for listening" title="Engine for listening" data-i18n-attr="aria-label:mk.leng;title:mk.leng"></select><button type="button" id="mk-listen" class="primary" title="Listen to the selection" data-i18n="mk.listen" data-i18n-attr="title:mk.listen.t">&#9654; Listen</button></div><div id="mk-listenmsg" class="mute"></div></div></div></div>
+      <div class="mk-listenbox"><div class="row"><select id="mk-leng" aria-label="Engine for listening" title="Engine for listening" data-i18n-attr="aria-label:mk.leng;title:mk.leng"></select><button type="button" id="mk-listen" class="primary" title="Listen to the selection" data-i18n="mk.listen" data-i18n-attr="title:mk.listen.t">&#9654; Listen</button></div><progress id="mk-listenprog" max="100" hidden></progress><div id="mk-listenmsg" class="mute"></div></div></div></div>
     <aside class="mk-side">
       <div class="mk-autocard">
         <button type="button" id="mk-best" class="primary"><span data-i18n="mk.best.btn">Mark the whole book</span> <small id="mk-eta-best"></small></button>
@@ -1155,28 +1156,55 @@ function mkListenOptions() {
   const e = ENG.list.find(x => x.name === eng);
   return { ...o, tts: eng, ...(e && e.fish ? { tts_build: "auto" } : {}) };
 }
+// the Listen button is also the Stop button while a sample is rendering or playing
+const MK_LISTEN = { job: null, stop: false };
+function mkListenState(on) {
+  const b = $("#mk-listen"); b.textContent = on ? t("mk.listen.stop") : t("mk.listen"); b.title = t(on ? "mk.listen.stop.t" : "mk.listen.t");
+  b.classList.toggle("stop", on); if (!on) $("#mk-listenprog").hidden = true;
+}
+function mkListenStop() {
+  MK_LISTEN.stop = true;
+  if (MK.audio) MK.audio.pause();
+  if (MK_LISTEN.job) api(`/api/jobs/${MK_LISTEN.job}/cancel`, { method: "POST" }).catch(() => {});
+}
 $("#mk-listen").onclick = async () => {
   const msg = $("#mk-listenmsg"), rs = MK.sel ? mkRanges(MK.sel) : [];
+  if ($("#mk-listen").classList.contains("stop")) { mkListenStop(); return; }
   if (!$("#mk-leng").value) { msg.textContent = t("mk.listen.local"); return; }
   if (!rs.length && MK.sel) rs.push({ b: MK.sel.a.b });
   if (!rs.length) { msg.textContent = t("mk.needsel"); return; }
   const from = rs[0].b, to = rs[rs.length - 1].b, chars = MK.blocks.filter(b => b.b >= from && b.b <= to).reduce((n, b) => n + b.text.length, 0);
   if (chars > MK_LISTEN_MAX) { msg.textContent = t("mk.listen.toolong", { n: MK_LISTEN_MAX }); return; }
   if (!await mkSave()) return;
-  msg.textContent = t("mk.listening"); $("#mk-listen").disabled = true;
+  MK_LISTEN.stop = false; MK_LISTEN.job = null; mkListenState(true);
+  const prog = $("#mk-listenprog"), t0 = Date.now(); prog.hidden = false; prog.removeAttribute("value"); msg.textContent = t("mk.listening", { s: 0 });
   try {
     const j = await api("/api/jobs", { method: "POST", headers: JSONH, body: JSON.stringify({ kind: "preview", book_id: book.book_id, voice, chapters: [1], options: mkListenOptions(),
       sample_range: { chapter: MK.ch, block_from: from, block_to: to, depth: MK.data.depth || 2 } }) });
+    MK_LISTEN.job = j.id;
     for (;;) {
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 700));
       const s = await api(`/api/jobs/${j.id}`);
-      if (s.state === "running") continue;
-      if (s.state === "done") { if (MK.audio) MK.audio.pause(); MK.audio = new Audio(tok(`/api/jobs/${j.id}/chapters/1`)); await MK.audio.play(); msg.textContent = t("mk.playing"); }
-      else msg.innerHTML = `<span class="err">${esc(s.error || t("mk.listen.failed"))}</span>`;
+      if (MK_LISTEN.stop) { msg.textContent = t("mk.listen.cancelled"); break; }
+      if (s.state === "running") {
+        const sec = Math.round((Date.now() - t0) / 1000);
+        if (s.total_chars && s.done_chars) { prog.value = Math.min(99, Math.round(100 * s.done_chars / s.total_chars)); msg.textContent = t("mk.listening.pct", { s: sec, p: prog.value }); }
+        else { prog.removeAttribute("value"); msg.textContent = t("mk.listening", { s: sec }); }
+        continue;
+      }
+      if (s.state === "done") {
+        prog.hidden = true;
+        if (MK.audio) MK.audio.pause();
+        const a = MK.audio = new Audio(tok(`/api/jobs/${j.id}/chapters/1`));
+        a.onended = () => { msg.textContent = ""; mkListenState(false); };
+        await a.play(); msg.textContent = t("mk.playing"); mkListenState(true); MK_LISTEN.job = null;
+        return;  // the button stays a Stop button until the sample ends
+      }
+      msg.textContent = s.state === "cancelled" ? t("mk.listen.cancelled") : ""; if (s.state !== "cancelled") msg.innerHTML = `<span class="err">${esc(s.error || t("mk.listen.failed"))}</span>`;
       break;
     }
   } catch (e) { msg.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
-  finally { $("#mk-listen").disabled = false; }
+  mkListenState(false);
 };
 // ---- automatic markup (language model) ----------------------------------------------------------------------------------
 async function mkLlmModels() {
