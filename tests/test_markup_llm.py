@@ -418,3 +418,26 @@ def test_check_paragraph_reads_pronouns_and_attributions():
     t2 = "— Ты куда? — спросила Анна."
     assert check_paragraph(t2, split_parts(t2), [anna, 0], b, "ru") == []
     assert check_paragraph(t2, split_parts(t2), [boris, 0], b, "ru")[0]["code"] == "attribution"
+
+
+def test_second_opinion_settles_a_doubtful_place_with_a_better_answer():
+    markup, stats, bible = annotate(FakeLLM("swap"))
+    flagged = sum(len(c.review) for c in markup.chapters.values())
+    assert flagged >= 2
+    runner = ml.Runner(FakeLLM(), "fake-model", ml.Cache(None))  # a model that gets it right this time
+    settled, left = ml.second_opinion(CH, "ru", bible, runner, markup)
+    assert settled == flagged and left == 0
+    anna = bible.find("Анна").id
+    spans = [(s.block, s.speaker) for s in markup.chapters[0].spans]
+    assert (1, anna) in spans  # "— Ты куда? — спросила Анна" belongs to Анна again
+
+
+def test_a_preview_reads_a_sample_and_a_full_run_starts_over():
+    b = ml.Bible()
+    runner = ml.Runner(FakeLLM(), "fake-model", ml.Cache(None))
+    ml.analyse(CH, "ru", runner, b, max_windows=1)
+    assert b.sampled and b.total_windows == 1
+    ml.analyse(CH, "ru", runner, b)  # the full reading after the preview does not think it is already done
+    assert not b.sampled and b.done_windows == b.total_windows >= 2
+    markup, _ = ml.annotate(CH, "ru", b, runner, max_windows=1)
+    assert not any(c.done for c in markup.chapters.values())  # a sample does not mark a chapter as processed

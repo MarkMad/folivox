@@ -130,6 +130,7 @@ class Bible:
     model: str = ""
     done_windows: int = 0
     total_windows: int = 0
+    sampled: bool = False  # only a spread sample of the book was read (a preview), not every window
 
     def find(self, name: str, gender: str = "") -> Character | None:
         name = (name or "").strip()
@@ -196,12 +197,14 @@ class Bible:
     def to_dict(self) -> dict:
         return {"version": 1, "lang": self.lang, "narration": self.narration, "model": self.model,
                 "done_windows": self.done_windows, "total_windows": self.total_windows,
-                "voices_needed": self.voices_needed(), "characters": [c.__dict__ for c in self.characters]}
+                "sampled": self.sampled, "voices_needed": self.voices_needed(),
+                "characters": [c.__dict__ for c in self.characters]}
 
     @classmethod
     def from_dict(cls, d: dict) -> Bible:
         b = cls(str(d.get("lang", "")), str(d.get("narration", "")), model=str(d.get("model", "")),
-                done_windows=int(d.get("done_windows", 0)), total_windows=int(d.get("total_windows", 0)))
+                done_windows=int(d.get("done_windows", 0)), total_windows=int(d.get("total_windows", 0)),
+                sampled=bool(d.get("sampled", False)))
         for c in d.get("characters", []):
             known = {k: c[k] for k in Character.__dataclass_fields__ if k in c}
             if known.get("name"):
@@ -411,9 +414,13 @@ def analyse(chapters: list, lang: str, runner: Runner, bible: Bible | None = Non
     bible = bible or Bible()
     bible.lang, bible.model = lang, runner.model
     wins = windows(chapters, window_chars, only_speech=False)
+    if bible.sampled and not max_windows:  # a full reading after a preview starts over (the characters are kept)
+        bible.done_windows = bible.total_windows = 0
+    bible.sampled = False
     if max_windows and len(wins) > max_windows:  # spread a sample over the whole book
         step = len(wins) / max_windows
         wins = [wins[int(i * step)] for i in range(max_windows)]
+        bible.sampled = True
     bible.total_windows = len(wins)
     recent: list[str] = []
     narr: dict[str, int] = {}
@@ -792,11 +799,89 @@ def _tag_list() -> str:
     return ", ".join(f"[{t}]" for t in names[:30])
 
 
+PARTS_NOTE = """
+Look again, carefully. A first reading of paragraph B{b} gave doubtful speakers: {why}. Use the context above and
+below (who is talking to whom, who answers whom) and answer for that paragraph only.
+
+The paragraphs just before it, with their speakers:
+{before}
+The paragraphs just after it:
+{after}
+"""
+
+
+def _why(r: dict) -> str:
+    code = r.get("code")
+    if code == "attribution":
+        return f"the narration names {r.get('named')} but the speech went to {r.get('marked')}"
+    if code == "gender":
+        who = "woman" if r.get("says") == "f" else "man"
+        return f"the narration points at a {who} but the speech went to {r.get('marked')}"
+    return "the first reading did not give a usable answer"
+
+
+def second_opinion(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk.Markup, *,
+                   save: Callable[[mk.Markup, Bible], None] | None = None, progress: Progress | None = None,
+                   cancelled: Callable[[], bool] = lambda: False) -> tuple[int, int]:
+    """Ask again, with a few paragraphs of context on both sides, about every place the rule check doubted. A new
+    answer is kept only if the rule check accepts it; otherwise the first one stays and the place stays on the list.
+    Returns (settled, still doubtful)."""
+    todo = [(ci, dict(r)) for ci, cm in sorted(markup.chapters.items()) for r in cm.review]
+    settled = 0
+    by_name = {c.id: c.name for c in bible.characters if c.id}
+    for i, (ci, r) in enumerate(todo):
+        if cancelled():
+            break
+        ch, cm = chapters[ci], markup.chapters[ci]
+        b = int(r["b"])
+        if not 0 <= b < len(ch.blocks):
+            continue
+        text = ch.blocks[b].text
+
+        def spoke(j: int, cm=cm, ch=ch) -> str:
+            who = [by_name.get(x.speaker, "?") for x in cm.spans if x.block == j and x.speaker]
+            return f"[B{j}] {ch.blocks[j].text[:220]}" + (f"  -> {', '.join(dict.fromkeys(who))}" if who else "")
+
+        before = "\n".join(spoke(j) for j in range(max(0, b - 6), b)) or "(none)"
+        after = "\n".join(f"[B{j}] {ch.blocks[j].text[:220]}"
+                          for j in range(b + 1, min(len(ch.blocks), b + 3))) or "(none)"
+        relevant = relevant_for(bible, text + " " + before, [])
+        note = PARTS_NOTE.format(b=b, why=_why(r), before=before, after=after)
+        prompt = PARTS_PROMPT.format(
+            lang=LANG_NAMES.get(lang, lang), hints=QUOTE_HINTS, person=bible.narration or "third",
+            speakers=_speakers_json(bible, relevant), recent=note, text=parts_text([(b, text)]))
+
+        def check(d: dict) -> dict:
+            if not isinstance(d.get("blocks"), list):
+                raise ValueError("no blocks list")
+            return d
+
+        try:
+            out = runner.ask(PARTS_SYSTEM, prompt, check)
+            item = next(x for x in out["blocks"] if int(str(x.get("b")).lstrip("B")) == b)
+            parts, ids = part_speakers(b, text, item.get("who"))
+        except (ValueError, StopIteration, KeyError, TypeError, mk.MarkupError):
+            continue
+        valid = {c.id for c in bible.characters if c.id} | {0}
+        if any(x not in valid for x in ids) or check_paragraph(text, parts, ids, bible, lang):
+            continue
+        cm.spans = [x for x in cm.spans if x.block != b] + spans_from_ids(b, text, parts, ids)
+        cm.spans.sort(key=lambda x: (x.block, x.start))
+        cm.review = [x for x in cm.review if x.get("b") != b]
+        settled += 1
+        if save:
+            save(markup, bible)
+        if progress:
+            progress("review", i + 1, len(todo), f"{settled} settled")
+    return settled, sum(len(c.review) for c in markup.chapters.values())
+
+
 def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk.Markup | None = None, *,
              expression_tags: bool = False, chapter_filter: set[int] | None = None,
              save: Callable[[mk.Markup, Bible], None] | None = None, progress: Progress | None = None,
              cancelled: Callable[[], bool] = lambda: False, window_chars: int = WINDOW_CHARS,
-             depth: int = 2, method: str | None = None) -> tuple[mk.Markup, AnnotateStats]:
+             depth: int = 2, method: str | None = None,
+             max_windows: int | None = None) -> tuple[mk.Markup, AnnotateStats]:
     """Mark who speaks in every paragraph with speech. Existing spans in the paragraphs processed are replaced.
 
     ``method``: "parts" (the default: the paragraph is cut here and the model only says which parts each character
@@ -809,6 +894,10 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
     stats = AnnotateStats()
     wins = [w for w in windows(chapters, window_chars, only_speech=True)
             if chapter_filter is None or w.chapter in chapter_filter]
+    sampled = bool(max_windows and len(wins) > max_windows)
+    if sampled:  # a preview: windows spread over the book
+        step = len(wins) / max_windows
+        wins = [wins[int(i * step)] for i in range(max_windows)]
     tags_known = mk.known_tags() if expression_tags else set()
     tag_list = _tag_list() if expression_tags else ""
     recent_names: list[str] = []
@@ -929,7 +1018,7 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
             if b in missing and SPEECH_MARKS.search(t):
                 cm.review = [r for r in cm.review if r.get("b") != b] + [{"b": b, "code": "skipped"}]
                 stats.flagged += 1
-        if last_window[w.chapter] == n:
+        if last_window[w.chapter] == n and not sampled:
             cm.done = True  # every window of this chapter has been through the model
         cm.spans.sort(key=lambda s: (s.block, s.start))
         cm.marks.sort(key=lambda m: (m.block, m.at))
