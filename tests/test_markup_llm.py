@@ -61,6 +61,8 @@ class FakeLLM(LLM):
                 parts = re.findall(r"  (\d+)\| (.*)", m.group(2))
                 full = " ".join(t for _, t in parts)
                 who = next((n for n in CAST if n in full), "Анна" if "она" in full else None)
+                if self.mode == "swap" and who in CAST:  # the model gives the speech to the other character
+                    who = "Борис" if who == "Анна" else "Анна"
                 if not parts[0][1].startswith("—") or who is None or who not in ids:
                     continue
                 out.append({"b": int(m.group(1)), "who": {"1": 9 if self.mode == "unknown_speaker" else ids[who]}})
@@ -381,3 +383,38 @@ def test_consolidate_joins_names_and_looks_again_at_the_unsure_ones():
     boris = next(c for c in b.characters if c.name == "Борис")
     assert boris.gender == "m" and boris.age == "adult" and "slow" in boris.traits
     assert ("consolidate", "Борис") in seen
+
+
+def test_a_good_run_marks_every_chapter_done_and_flags_nothing():
+    markup, stats, _ = annotate()
+    assert all(c.done for c in markup.chapters.values()) and len(markup.chapters) == 2
+    assert stats.flagged == 0 and all(not c.review for c in markup.chapters.values())
+
+
+def test_the_rule_check_flags_a_speaker_that_contradicts_the_attribution():
+    markup, stats, bible = annotate(FakeLLM("swap"))
+    assert stats.flagged >= 2
+    codes = [(r["code"], r.get("named"), r.get("marked")) for c in markup.chapters.values() for r in c.review]
+    assert ("attribution", "Анна", "Борис") in codes  # "— спросила Анна" but the speech went to Борис
+    again = mk.Markup.from_dict(markup.to_dict())  # the review list and the done flags are part of the file
+    assert [c.review for c in again.chapters.values()] == [c.review for c in markup.chapters.values()]
+    assert all(c.done for c in again.chapters.values())
+
+
+def test_check_paragraph_reads_pronouns_and_attributions():
+    from folivox.markup_llm import check_paragraph, split_parts
+
+    b = ml.Bible()
+    for _ in range(3):
+        b.merge({"name": "Анна", "gender": "f", "age": "adult", "lines": 2})
+        b.merge({"name": "Борис", "gender": "m", "age": "adult", "lines": 2})
+    b.assign_ids()
+    anna, boris = b.find("Анна").id, b.find("Борис").id
+    t = "— Домой, — ответил он."
+    parts = split_parts(t)
+    assert check_paragraph(t, parts, [boris, 0], b, "ru") == []
+    wrong = check_paragraph(t, parts, [anna, 0], b, "ru")
+    assert wrong and wrong[0]["code"] == "gender"
+    t2 = "— Ты куда? — спросила Анна."
+    assert check_paragraph(t2, split_parts(t2), [anna, 0], b, "ru") == []
+    assert check_paragraph(t2, split_parts(t2), [boris, 0], b, "ru")[0]["code"] == "attribution"

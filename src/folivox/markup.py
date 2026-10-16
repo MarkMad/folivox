@@ -72,6 +72,8 @@ class ChapterMarkup:
     sig: str = ""
     spans: list[Span] = field(default_factory=list)
     marks: list[Mark] = field(default_factory=list)
+    done: bool = False  # the automatic marking went through this chapter (even if it found no speech)
+    review: list[dict] = field(default_factory=list)  # places to check: {"b": block, "code": why, ...details}
 
 
 @dataclass(frozen=True)
@@ -118,7 +120,7 @@ class Markup:
         return {0} | {sp.speaker for c in self.chapters.values() for sp in c.spans}
 
     def is_empty(self) -> bool:
-        return not any(c.spans or c.marks for c in self.chapters.values())
+        return not any(c.spans or c.marks or c.done for c in self.chapters.values())
 
     def segments(self, chapter: int, block: int, text: str) -> list[Segment]:
         """The block split by speaker and inline tags. Concatenating the segment texts gives ``text`` exactly."""
@@ -196,8 +198,9 @@ class Markup:
                 "chapters": {str(i): {"title": c.title, "sig": c.sig,
                                       "spans": [{"b": s.block, "s": s.start, "e": s.end, "sp": s.speaker,
                                                  "tags": list(s.tags)} for s in c.spans],
-                                      "marks": [{"b": m.block, "at": m.at, "tag": m.tag} for m in c.marks]}
-                             for i, c in sorted(self.chapters.items()) if c.spans or c.marks}}
+                                      "marks": [{"b": m.block, "at": m.at, "tag": m.tag} for m in c.marks],
+                                      "done": c.done, "review": c.review}
+                             for i, c in sorted(self.chapters.items()) if c.spans or c.marks or c.done}}
 
     @classmethod
     def from_dict(cls, d: dict) -> Markup:
@@ -218,7 +221,10 @@ class Markup:
                     str(c.get("title", "")), str(c.get("sig", "")),
                     [Span(int(s["b"]), int(s["s"]), int(s["e"]), int(s["sp"]),
                           tuple(norm_tag(t) for t in s.get("tags", []))) for s in c.get("spans", [])],
-                    [Mark(int(x["b"]), int(x["at"]), norm_tag(x["tag"])) for x in c.get("marks", [])])
+                    [Mark(int(x["b"]), int(x["at"]), norm_tag(x["tag"])) for x in c.get("marks", [])],
+                    bool(c.get("done", False)),
+                    [{str(k): (int(v) if k == "b" else str(v)) for k, v in r.items()}
+                     for r in c.get("review", []) if isinstance(r, dict) and "b" in r])
             return m
         except (KeyError, TypeError, ValueError) as e:
             if isinstance(e, MarkupError):
@@ -288,7 +294,7 @@ def bind(markup: Markup, chapters: list) -> tuple[Markup, list[str]]:
             problems.append(f"Markup for chapter {idx + 1} ({ch.title}) ignored: the text no longer matches "
                             "the text it was made for")
             continue
-        clean = ChapterMarkup(ch.title, chapter_sig(ch))
+        clean = ChapterMarkup(ch.title, chapter_sig(ch), done=cm.done)
         last_end: dict[int, int] = {}
         for s in sorted(cm.spans, key=lambda s: (s.block, s.start)):
             ok = 0 <= s.block < len(ch.blocks) and 0 <= s.start < s.end <= len(ch.blocks[s.block].text)
@@ -303,6 +309,7 @@ def bind(markup: Markup, chapters: list) -> tuple[Markup, list[str]]:
                 clean.marks.append(m)
             else:
                 problems.append(f"Chapter {idx + 1}, block {m.block}: the tag [{m.tag}] was dropped (bad position)")
+        clean.review = [r for r in cm.review if 0 <= r.get("b", -1) < len(ch.blocks)]
         out.chapters[idx] = clean
     return out, problems
 

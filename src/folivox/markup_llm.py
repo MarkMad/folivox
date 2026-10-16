@@ -30,6 +30,7 @@ from pathlib import Path
 
 from folivox import markup as mk
 from folivox.lang import has_speech
+from folivox.lang.attribution import PRONOUNS, RU_SAID
 
 PROMPT_VERSION = "2"
 WINDOW_CHARS = 5000
@@ -675,8 +676,8 @@ def parts_text(blocks: list[tuple[int, str]]) -> str:
     return "\n".join(out)
 
 
-def spans_from_parts(b: int, text: str, who: object) -> list[mk.Span]:
-    """Spans (one per run of parts with the same speaker) from the model's answer: ``{"part number": speaker id}``
+def part_speakers(b: int, text: str, who: object) -> tuple[list[tuple[int, int]], list[int]]:
+    """The parts of a paragraph and the speaker id of each, from the model's answer ``{"part number": speaker id}``
     (a list with one id per part is accepted too). Anything else is refused; part numbers that do not exist are
     ignored."""
     parts = split_parts(text)
@@ -690,9 +691,13 @@ def spans_from_parts(b: int, text: str, who: object) -> list[mk.Span]:
         ids = {int(k): int(v) for k, v in who.items()}
     except (TypeError, ValueError):
         raise mk.MarkupError(f"B{b}: speakers must be numbers") from None
+    return parts, [ids.get(i, 0) for i in range(1, len(parts) + 1)]
+
+
+def spans_from_ids(b: int, text: str, parts: list[tuple[int, int]], ids: list[int]) -> list[mk.Span]:
+    """One span per run of parts with the same speaker (the narrator has none)."""
     spans: list[mk.Span] = []
-    for i, (s, e) in enumerate(parts, 1):
-        sp = ids.get(i, 0)
+    for (s, e), sp in zip(parts, ids, strict=False):
         if not sp:
             continue
         if spans and spans[-1].speaker == sp and not text[spans[-1].end:s].strip():
@@ -700,6 +705,56 @@ def spans_from_parts(b: int, text: str, who: object) -> list[mk.Span]:
         else:
             spans.append(mk.Span(b, s, e, sp))
     return spans
+
+
+def spans_from_parts(b: int, text: str, who: object) -> list[mk.Span]:
+    parts, ids = part_speakers(b, text, who)
+    return spans_from_ids(b, text, parts, ids)
+
+
+# -- the rule check: does what the model marked agree with what the text itself says? ---------------------------
+
+def _gender_hint(lang: str, narration: str) -> str:
+    """"f" or "m" when a piece of narration points at one person of one gender (a pronoun, a Russian speech verb)."""
+    seen = set()
+    m_set, f_set = PRONOUNS.get(lang, (set(), set()))
+    for w in re.findall(r"\w+", narration.lower()):
+        if w in m_set:
+            seen.add("m")
+        elif w in f_set:
+            seen.add("f")
+    if lang == "ru":
+        for m in RU_SAID.finditer(narration):
+            seen.add("f" if m.group(2) else "m")
+    return seen.pop() if len(seen) == 1 else ""
+
+
+def check_paragraph(text: str, parts: list[tuple[int, int]], ids: list[int], bible: Bible, lang: str) -> list[dict]:
+    """Doubts about one marked paragraph, as review entries. Two rules that read only the text: the name in an
+    attribution ("said Boris") must be the speaker of the speech it belongs to, and the pronoun or the verb
+    ending in it must not contradict the speaker's gender."""
+    by_id = {c.id: c for c in bible.characters if c.id}
+    out: list[dict] = []
+    for i, (s, e) in enumerate(parts):
+        if ids[i]:
+            continue
+        piece = text[s:e]
+        # the speech this narration belongs to: the nearest speech part before it, else the one after it
+        target = next((ids[j] for j in range(i - 1, -1, -1) if ids[j]), 0) or next((x for x in ids[i + 1:] if x), 0)
+        if not target or len(piece.split()) > 12 or not SPEECH_MARKS.search(text):
+            continue
+        named = {c.id for c in bible.characters if c.id and any(
+            same_name(w, n) for w in re.findall(r"\w+", piece) if len(w) >= 3 for n in c.names())}
+        if len(named) == 1 and target not in named:
+            x = by_id.get(next(iter(named)))
+            y = by_id.get(target)
+            out.append({"b": -1, "code": "attribution", "named": x.name if x else "", "marked": y.name if y else ""})
+            continue
+        hint = _gender_hint(lang, piece)
+        y = by_id.get(target)
+        if hint and y and y.gender in ("f", "m") and "gender" not in y.unsure() and y.gender != hint:
+            out.append({"b": -1, "code": "gender", "marked": y.name, "says": hint})
+    return out[:1]  # one note per paragraph is enough to send the person there
 
 
 EXPRESSION_RULES = """
@@ -718,6 +773,7 @@ class AnnotateStats:
     dropped_tags: int = 0
     failed_windows: int = 0
     new_characters: int = 0
+    flagged: int = 0  # paragraphs sent to the review list
 
 
 def _speakers_json(bible: Bible, relevant: list[Character]) -> str:
@@ -768,6 +824,7 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
                 sp.aliases = c.aliases[:8]
                 sp.notes = sp.notes or c.traits
 
+    last_window = {w.chapter: n for n, w in enumerate(wins)}
     for n, w in enumerate(wins):
         if cancelled():
             break
@@ -829,13 +886,18 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
                 continue
             seen.add(b)
             stats.blocks += 1
+            flags: list[dict] = []
             try:
                 if by_parts:
-                    spans, marks = spans_from_parts(b, original, item.get("who")), []
+                    parts, ids_ = part_speakers(b, original, item.get("who"))
+                    spans, marks = spans_from_ids(b, original, parts, ids_), []
+                    flags = check_paragraph(original, parts, ids_, bible, lang)
                 else:
                     spans, marks = mk.parse_block(line, original, loose=True)
             except mk.MarkupError:
                 stats.fell_back += 1
+                cm.review = [r for r in cm.review if r.get("b") != b] + [{"b": b, "code": "unparsed"}]
+                stats.flagged += 1
                 continue
             good_spans = []
             for s in spans:
@@ -852,6 +914,8 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
                     good_marks.append(mk.Mark(b, m.at, m.tag))
                 else:
                     stats.dropped_tags += 1
+            cm.review = [r for r in cm.review if r.get("b") != b] + [{**f, "b": b} for f in flags]
+            stats.flagged += bool(flags)
             cm.spans = [x for x in cm.spans if x.block != b] + good_spans
             cm.marks = [x for x in cm.marks if x.block != b] + good_marks
             if good_spans or good_marks:
@@ -861,6 +925,12 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
                 recent_ctx.append(f"{original[:140]} -> {', '.join(dict.fromkeys(names))}")
         missing = [b for b, _ in w.blocks if b not in seen]
         stats.blocks += len(missing)  # paragraphs the model skipped: the narrator reads them
+        for b, t in w.blocks:  # a paragraph with speech that the model left out is a place to look at
+            if b in missing and SPEECH_MARKS.search(t):
+                cm.review = [r for r in cm.review if r.get("b") != b] + [{"b": b, "code": "skipped"}]
+                stats.flagged += 1
+        if last_window[w.chapter] == n:
+            cm.done = True  # every window of this chapter has been through the model
         cm.spans.sort(key=lambda s: (s.block, s.start))
         cm.marks.sort(key=lambda m: (m.block, m.at))
         if save:
