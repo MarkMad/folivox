@@ -19,10 +19,12 @@ class Install:
         self.state, self.build, self.name = "idle", "", ""
         self.done = self.total = 0
         self.message = ""
+        self.phase, self.found, self.of = "", 0, 0  # looking | found | downloading | verifying | "" (environment)
 
     def snapshot(self) -> dict:
         return {"state": self.state, "build": self.build, "name": self.name, "done": self.done, "total": self.total,
-                "message": self.message}
+                "message": self.message, "phase": self.phase, "found": self.found,
+                "of": self.of}
 
 
 def build_info(b: builds.Build, hw: builds.Hardware, cat: builds.Catalog) -> dict:
@@ -99,14 +101,19 @@ def routes(api_error, install: Install) -> list[Route]:
                 raise api_error("An engine is already being installed", 409)
             install.state, install.build, install.name = "running", b.id, b.title
             install.done = install.total = 0
-            install.message = ""
+            install.message, install.phase, install.found, install.of = "", "", 0, b.size_bytes
 
         def progress(name: str, done: int, total: int) -> None:
             install.name, install.done, install.total = name, done, total
 
+        def phase(name: str, size: int) -> None:
+            install.phase, install.done, install.total = name, 0, 0
+            if name in ("found", "downloading"):
+                install.found = size
+
         def work() -> None:
             try:
-                fish_setup.install(b, progress, log=lambda m: setattr(install, "message", m))
+                fish_setup.install(b, progress, log=lambda m: setattr(install, "message", m), phase=phase)
                 install.state, install.message = "done", ""
             except Exception as e:  # noqa: BLE001 — shown to the user
                 install.state, install.message = "error", str(e)
