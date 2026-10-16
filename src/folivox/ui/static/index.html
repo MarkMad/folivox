@@ -2161,7 +2161,7 @@ function engRelabel() {  // after a UI language switch: same selections, new lab
 // -- Fish Audio engines (optional): choose a build, accept its licence, install
 const FISH = { st: null, timer: null };
 const FISH_POINTS = { "fish-research": ["research_only", "no_selling", "voices", "no_training", "attribution"], "fish-community": ["commercial", "no_hosting", "voices", "no_training", "attribution"] };
-async function fishRefresh() { try { FISH.st = await api("/api/engines/fish"); } catch (e) { FISH.st = null; } fishRender(); }
+async function fishRefresh() { try { FISH.st = await api("/api/engines/fish"); } catch (e) { FISH.st = null; } fishRender(); if (!FISH.probed) { FISH.probed = true; fishPoll(); } }  // pick up an install already running (started earlier or in another tab)
 function fishCur() {  // the build the choice resolves to (the server applies the same rule when it renders)
   const e = ENG.cur(); if (!e || !e.fish || !FISH.st) return null;
   const bs = FISH.st.builds.filter(b => b.engine === e.name), id = $("#o-tts_build").value;
@@ -2196,7 +2196,7 @@ async function fishPoll() {
       : i.phase === "downloading" && !i.found && !(i.done > 0) ? t("fish.notfound")
       : i.total >= 1e7 && i.done > 0 ? t("fish.installing", { name: i.name, done: gb(i.done), total: gb(i.total) })
       : i.phase === "downloading" ? t("fish.starting") : i.phase === "verifying" ? t("fish.verifying") : (i.message || t("fish.preparing"));
-    FISH.timer = setTimeout(fishPoll, 1500); return;
+    fishRender(); FISH.timer = setTimeout(fishPoll, 1500); return;
   }
   if (i.state === "error") { $("#fish-warn").textContent = i.message; }
   await fishRefresh();
@@ -2204,7 +2204,7 @@ async function fishPoll() {
 $("#fish-install").addEventListener("click", async () => {
   const b = fishCur(); if (!b) return;
   try { await api("/api/engines/fish/install", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ build: b.id }) }); $("#fish-install").hidden = true; fishPoll(); }
-  catch (e) { $("#fish-warn").textContent = e.message; }
+  catch (e) { $("#fish-warn").textContent = e.message; fishPoll(); }
 });
 $("#fish-remove").addEventListener("click", async () => {
   const b = fishCur(); if (!b || !confirm(t("fish.confirmrm", { name: b.title }))) return;

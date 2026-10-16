@@ -82,7 +82,7 @@ class _Worker:
             self.kill()
             raise SynthTimeout(f"The Fish worker did not answer in {timeout:.0f} s and was stopped. Progress is "
                                "saved: run the same command again to continue. If memory is tight (the computer "
-                               "swaps), close your browser and other heavy applications first.") from None
+                               "swaps), close other heavy applications first.") from None
         if rep is None:
             raise FishError(self._died())
         if not rep.get("ok"):
