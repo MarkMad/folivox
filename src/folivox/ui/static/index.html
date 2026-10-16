@@ -102,7 +102,7 @@ h1 { padding-right:140px; }
 .vbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px; } .vbar input { flex:1; min-width:220px; }
 .chips { display:flex; gap:6px; flex-wrap:wrap; } #vlangs { margin-bottom:10px; }
 .chip { font-size:12.5px; padding:3px 11px; border-radius:99px; border:1px solid var(--line); background:transparent; color:var(--mute); cursor:pointer; }
-.chip:hover { color:var(--ink); } .chip.on { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); } .chip small { opacity:.7; margin-left:3px; }
+.chip:hover { color:var(--ink); } .chip.danger { color:var(--err); border-color:var(--err); } .chip.danger:hover { color:var(--err); background:color-mix(in srgb, var(--err) 10%, transparent); } .chip.on { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); } .chip small { opacity:.7; margin-left:3px; }
 .vgrid { display:flex; flex-direction:column; gap:6px; max-height:440px; overflow:auto; padding:3px; margin:-3px; }
 .vcard { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,170px) 18px 28px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; transition:border-color .2s, box-shadow .2s, background .2s; }
 #vc-modes .chip { padding:8px 16px; font-size:14px; } #vc-modes .chip.hot:not(.on) { border-color:var(--accent); color:var(--accent); }
@@ -334,10 +334,9 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
         <details id="mk-opts" class="mk-sub"><summary data-i18n="mk.options">Options</summary>
           <label class="f"><span data-i18n="mk.model">Model</span><select id="mk-model"></select></label>
           <div id="mk-modelhint" class="mute" style="font-size:12.5px;margin-top:4px"></div>
-          <div class="row" style="margin-top:6px"><button type="button" id="mk-dl" class="chip" hidden></button><button type="button" id="mk-rm" class="chip" hidden data-i18n="mk.rm.btn">Remove from this computer</button><button type="button" id="mk-dlstop" class="chip" hidden data-i18n="mk.stop">Stop</button></div>
+          <div class="row" style="margin-top:6px"><button type="button" id="mk-dl" class="chip" hidden></button><button type="button" id="mk-rm" class="chip danger" hidden data-i18n="mk.rm.btn">Remove from this computer</button><button type="button" id="mk-dlstop" class="chip" hidden data-i18n="mk.stop">Stop</button></div>
           <progress id="mk-dlprog" max="100" value="0" hidden style="width:100%;margin-top:6px"></progress>
           <div id="mk-dlmsg" class="mute" style="font-size:12.5px;margin-top:4px"></div>
-          <div class="row" style="margin-top:8px"><button type="button" id="mk-analyse" class="chip" data-i18n="mk.analyse">Analyse characters</button></div>
         </details>
       </div>
       <div id="mk-step" class="mk-nextstep" hidden></div>
@@ -1232,7 +1231,7 @@ function mkModelButtons() {
 async function mkEditorPull(model) {
   const msg = $("#mk-dlmsg"); msg.textContent = "";
   const ok = await mkPull(model, {
-    busy: (on) => { ["#mk-dl", "#mk-rm", "#mk-best", "#mk-preview", "#mk-analyse"].forEach(b => $(b).disabled = on); $("#mk-dlprog").hidden = !on; $("#mk-dlstop").hidden = !on; },
+    busy: (on) => { ["#mk-dl", "#mk-rm", "#mk-best", "#mk-preview"].forEach(b => $(b).disabled = on); $("#mk-dlprog").hidden = !on; $("#mk-dlstop").hidden = !on; },
     progress: (pct, text) => { $("#mk-dlprog").value = pct; msg.textContent = text; },
     error: (e) => { msg.innerHTML = `<span class="err">${esc(e)}</span>`; } });
   await mkLlmModels(); $("#mk-model").value = model; mkModelButtons();
@@ -1354,13 +1353,12 @@ async function mkLlm(task) {
     if (!MK.models.running) { msg.textContent = t("mk.dl.noollama"); return; }
     if (!mkAskDownload(model, MK.models) || !await mkEditorPull(model)) return;
   }
-  const btns = ["#mk-analyse", "#mk-best", "#mk-preview"], chosen = selected();
+  const btns = ["#mk-best", "#mk-preview"], chosen = selected();
   const s = await mkAutoRun(task, { model, chapters: task === "best" && chosen.length ? chosen : undefined }, {
     busy: (on) => { btns.forEach(b => $(b).disabled = on); $("#mk-stop").hidden = !on; $("#mk-prog").hidden = !on; },
     progress: (pct, text) => { $("#mk-prog").value = pct; msg.textContent = text; },
     error: (m) => { msg.innerHTML = `<span class="err">${esc(m)}</span>`; } });
   if (!s) return;
-  if (task === "analyse") { await mkShowChars(); return; }
   await mkReadBack(); await mkLoadChapter(MK.ch);
   msg.textContent = task === "preview" ? t("mk.done.prev", { m: s.stats.marked || 0 }) : t("mk.done.best", { m: s.stats.marked || 0, c: s.stats.to_check || 0 });
   MK.result = true; mkResultPanel(); mkReviewPanel();
@@ -1370,22 +1368,7 @@ $("#mk-step").addEventListener("click", (ev) => {
   if (mkVoiceList().missing.length) { $("#mk-speakers").scrollIntoView({ block: "start" }); const f = $("#mk-speakers select"); if (f) f.focus(); }
   else $("#mk-text").focus();
 });
-async function mkShowChars() {
-  try { MK.bible = await api(`/api/books/${book.book_id}/characters`); } catch (e) { return; }
-  const cs = MK.bible.characters.filter(c => c.lines > 0).sort((a, b) => b.lines - a.lines);
-  if (!cs.length) { $("#mk-chars").innerHTML = ""; return; }
-  $("#mk-chars").innerHTML = `<b>${esc(t("mk.chars.voices", { n: MK.bible.voices_needed }))}</b>` + cs.map(c => `<div>${esc(c.name)}${c.aliases.length ? " (" + esc(c.aliases.slice(0, 3).join(", ")) + ")" : ""} - ${esc(c.gender || "?")}, ${c.lines}</div>`).join("")
-    + `<button type="button" class="chip" id="mk-usechars" style="margin-top:8px">${esc(t("mk.chars.use"))}</button>`;
-}
-$("#mk-chars").addEventListener("click", (ev) => {
-  if (!ev.target.closest("#mk-usechars") || !MK.bible) return; mkSnap();
-  MK.bible.characters.filter(c => c.id > 0 && c.lines > 0).forEach(c => {
-    let sp = mkSpeaker(c.id); if (!sp) { sp = { id: c.id, name: c.name, voice: "", gender: c.gender, aliases: c.aliases, notes: c.traits }; MK.data.speakers.push(sp); }
-    else if (/^Speaker \d+$/.test(sp.name)) sp.name = c.name;
-  });
-  MK.data.speakers.sort((a, b) => a.id - b.id); mkRender();
-});
-$("#mk-analyse").onclick = () => mkLlm("analyse"); $("#mk-best").onclick = () => mkLlm("best"); $("#mk-preview").onclick = () => mkLlm("preview");
+$("#mk-best").onclick = () => mkLlm("best"); $("#mk-preview").onclick = () => mkLlm("preview");
 $("#mk-stop").onclick = () => api(`/api/books/${book.book_id}/llm/cancel`, { method: "POST" });
 
 // ---- voice ideas: English voice-design prompts for a character, takes to listen to, you choose --------------------
