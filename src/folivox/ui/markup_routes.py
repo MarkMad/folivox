@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import shutil
 import threading
+import time
 from pathlib import Path
 
 from starlette.requests import Request
@@ -28,8 +30,23 @@ class Task:
                 "message": self.message, "stats": self.stats}
 
 
+class Pull:
+    """The one model download at a time; the page polls ``GET /api/llm/pull``."""
+
+    def __init__(self):
+        self.state, self.model = "idle", ""  # idle | running | done | error | cancelled
+        self.done = self.total = 0
+        self.message, self.started = "", 0.0
+        self.cancel = threading.Event()
+
+    def snapshot(self) -> dict:
+        return {"state": self.state, "model": self.model, "done": self.done, "total": self.total,
+                "message": self.message, "elapsed": round(time.time() - self.started, 1) if self.started else 0}
+
+
 def routes(api_error, state, services: dict) -> list[Route]:
     tasks: dict[str, Task] = {}
+    pull = Pull()
 
     def files(bid: str) -> tuple[Path, Path, Path]:
         name = Path(bid).name
@@ -44,9 +61,11 @@ def routes(api_error, state, services: dict) -> list[Route]:
         from folivox.llm import GEMMA_TIERS, Ollama, recommend_model
 
         ram = diag.ram_gb()
-        return JSONResponse({"ram_gb": ram, "recommended": recommend_model(ram),
+        ollama = Ollama()
+        return JSONResponse({"ram_gb": ram, "recommended": recommend_model(ram), "running": ollama.running(),
+                             "free_gb": round(shutil.disk_usage(Path.home()).free / 1e9, 1),
                              "configured": config.section("llm.ollama").get("model", ""),
-                             "installed": Ollama().installed(),
+                             "installed": ollama.installed(),
                              "tiers": [{"min_ram_gb": n, "model": t, "download_gb": g, "note": note}
                                        for n, t, g, note in GEMMA_TIERS]})
 
@@ -95,6 +114,67 @@ def routes(api_error, state, services: dict) -> list[Route]:
         return JSONResponse({"speaker": sid, "name": c.name if c else "", "gender": c.gender if c else "",
                              "prompts": prompts, "lang": entry["book"].lang,
                              "texts": cv.sample_texts(markup, chapters, sid, entry["book"].lang)})
+
+    async def pull_start(request: Request):
+        """Download one of the listed models through Ollama; only when the person asks for it."""
+        from folivox.llm import GEMMA_TIERS, Ollama, PullError
+
+        body = await request.json()
+        model = str(body.get("model") or "")
+        tier = next((x for x in GEMMA_TIERS if x[1] == model), None)
+        if tier is None:
+            raise api_error("Only the models in the list can be downloaded here")
+        if pull.state == "running":
+            raise api_error("A model is already being downloaded", 409)
+        ollama = Ollama(model)
+        fake = services.get("pull")
+        if not fake and not ollama.running():
+            raise api_error("Ollama is not running: install it from ollama.com or start it, then try again", 409)
+        free = shutil.disk_usage(Path.home()).free / 1e9
+        if free < tier[2] * 1.1 and model not in ollama.installed():
+            raise api_error(f"Not enough free disk space: {tier[2] * 1.1:.0f} GB needed, {free:.0f} GB free", 409)
+        pull.state, pull.model, pull.done, pull.total, pull.message = "running", model, 0, int(tier[2] * 1e9), ""
+        pull.started = time.time()
+        pull.cancel.clear()
+
+        def progress(done: int, total: int, status: str) -> None:
+            pull.done, pull.message = done, status
+            if total:
+                pull.total = total
+
+        def work() -> None:
+            try:
+                (fake or ollama.pull)(model, progress, pull.cancel.is_set)
+                pull.state = "cancelled" if pull.cancel.is_set() else "done"
+            except PullError as e:
+                pull.state, pull.message = "error", str(e)
+            except Exception as e:  # noqa: BLE001 — shown to the person
+                pull.state, pull.message = "error", str(e)
+
+        threading.Thread(target=work, daemon=True, name="folivox-model-pull").start()
+        return JSONResponse(pull.snapshot(), status_code=202)
+
+    async def delete_model(request: Request):
+        """Remove a downloaded model from Ollama (only the listed ones; the person asked for it with a button)."""
+        from folivox.llm import GEMMA_TIERS, Ollama, PullError
+
+        model = str((await request.json()).get("model") or "")
+        if not any(x[1] == model for x in GEMMA_TIERS):
+            raise api_error("Only the models in the list can be removed here")
+        if pull.state == "running" and pull.model == model:
+            raise api_error("This model is being downloaded", 409)
+        try:
+            (services.get("delete_model") or Ollama(model).delete)(model)
+        except PullError as e:
+            raise api_error(str(e), 409) from None
+        return JSONResponse({"removed": model})
+
+    async def pull_status(request: Request):
+        return JSONResponse(pull.snapshot())
+
+    async def pull_cancel(request: Request):
+        pull.cancel.set()
+        return JSONResponse(pull.snapshot())
 
     async def estimate(request: Request):
         """How many model calls an automatic run needs (the page turns them into time for the chosen model)."""
@@ -213,6 +293,10 @@ def routes(api_error, state, services: dict) -> list[Route]:
         return JSONResponse(t.snapshot(), status_code=202)
 
     return [Route("/api/llm/models", models),
+            Route("/api/llm/models", delete_model, methods=["DELETE"]),
+            Route("/api/llm/pull", pull_start, methods=["POST"]),
+            Route("/api/llm/pull", pull_status),
+            Route("/api/llm/pull/cancel", pull_cancel, methods=["POST"]),
             Route("/api/books/{book_id}/characters", get_characters),
             Route("/api/books/{book_id}/characters", put_characters, methods=["PUT"]),
             Route("/api/books/{book_id}/speakers/{speaker:int}/voice", voice_info),

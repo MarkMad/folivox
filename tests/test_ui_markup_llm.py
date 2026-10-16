@@ -21,9 +21,15 @@ BOOK = ("Глава 1\n\n" + "\n\n".join((P1, P2, P3, P4)) + "\n\nГлава 2\n
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("FOLIVOX_CONFIG", str(tmp_path / "config.toml"))
     config.load.cache_clear()
-    holder = {"llm": FakeLLM()}
+    holder = {"llm": FakeLLM(), "pulled": [], "removed": []}
+
+    def fake_pull(model, progress, cancelled):
+        holder["pulled"].append(model)
+        progress(5, 10, "pulling")
+        progress(10, 10, "success")
     app = create_app(token=TOKEN, port=8765, data_dir=tmp_path / "ui", render=lambda b, o, e: o.output,
-                     services={"llm": lambda name: holder["llm"]})
+                     services={"llm": lambda name: holder["llm"], "pull": fake_pull,
+                               "delete_model": holder["removed"].append})
     c = TestClient(app, base_url="http://127.0.0.1:8765", headers={"X-Folivox-Token": TOKEN})
     c.holder = holder
     yield c
@@ -159,3 +165,21 @@ def test_estimate_counts_the_windows_of_a_run(client):
     client.post(f"/api/books/{bid}/llm/start", json={"task": "analyse"})
     wait(client, bid)
     assert client.get(f"/api/books/{bid}/llm/estimate").json()["analyse_windows"] == 0
+
+
+
+def test_model_download_and_removal(client):
+    assert client.post("/api/llm/pull", json={"model": "evil/model"}).status_code == 400  # only the listed models
+    assert client.request("DELETE", "/api/llm/models", json={"model": "evil/model"}).status_code == 400
+    r = client.post("/api/llm/pull", json={"model": "gemma4:12b-it-qat"})
+    assert r.status_code == 202
+    for _ in range(100):
+        st = client.get("/api/llm/pull").json()
+        if st["state"] != "running":
+            break
+        time.sleep(0.05)
+    assert st["state"] == "done" and st["done"] == st["total"] == 10 and st["model"] == "gemma4:12b-it-qat"
+    assert client.holder["pulled"] == ["gemma4:12b-it-qat"]
+    gone = client.request("DELETE", "/api/llm/models", json={"model": "gemma4:12b-it-qat"})
+    assert gone.json() == {"removed": "gemma4:12b-it-qat"}
+    assert client.holder["removed"] == ["gemma4:12b-it-qat"]
