@@ -115,15 +115,27 @@ and Spanish (0/15); `e4b` handled all four languages (9-12/15) but the same Engl
 12/15 on the next run, and an unreliable result is worse than a slow one. A speaker tag with a missing bar
 (`<|speaker:1>`) is understood, and a paragraph that starts with a dialogue dash with no space after it (Spanish «—¿Vas?») counts as speech.
 
-**Character list ("bible").** `analyse` goes through the book in windows of about 5000 characters. For each
-window the model gets the characters found so far (those named in the window, those active in the last windows
-and the busiest) and reports who speaks, thinks or matters, with aliases, gender, age, speech traits,
-relations and the number of lines. Names are merged across cases and nicknames ("Анна", "Анну", "Аня"). It
-lists the characters in `BOOK.characters.json` with the number of **voices the book needs** (the narrator plus
-every character with at least three lines), so you can choose voices before rendering. First-person narration,
-unnamed speakers ("old guard"), thoughts and letters are covered by the prompt; the prompt names the dialogue
-conventions of all nine book languages. Up to 15 characters get an id of their own; the rarest share ids 14
-(men) and 15 (women).
+**Memory of the book ("bible").** `analyse` goes through the book in windows of about 5000 characters. For each
+window the model gets the characters found so far (name, nicknames, gender, age and manner of speech of those named
+in the window, active in the last windows or the busiest) and reports who speaks, thinks or matters. What it says
+about gender and age is a **vote**: the answer is the majority over the windows, so one wrong first impression does
+not stick, and a character whose gender or age is still a guess (one vote, or nearly tied) is marked as unsure. A
+correction made by hand in the studio counts as a heavy vote and is not outvoted later. Names are merged across
+cases and nicknames. `BOOK.characters.json` holds the list with the number of **voices the book needs**.
+
+**Looking again (the best quality).** When the whole book has been read, `consolidate` asks the model which of the
+names are one person and joins them, then looks again, with passages from all over the book (pronouns, forms of
+address, who is called a child or a grandfather), at every character whose gender or age is still unsure. This is
+what the voice ideas rely on. After the marking, a **rule check** reads only the text: the name in an attribution
+("said Boris") must be the speaker of that speech, and a pronoun (or the ending of a Russian speech verb) must not
+contradict the speaker's gender. A paragraph that fails, that the model skipped or that it answered unusably goes on
+the **review list** in the markup file; `second_opinion` asks about each of them again with six paragraphs before and
+two after and keeps the new answer only if the rule check accepts it. Whatever is left is for the person.
+
+**Two ways to run it in the studio.** *Quick preview* reads a spread sample of the book (a few windows) and marks a
+few windows, to show how it works in minutes. *Best quality* does everything above for the chapters chosen in step 2:
+the whole book is read, the characters are looked at again, the doubtful places are asked about again; it can take
+hours, is saved as it goes and carries on where it stopped. In the console: `folivox markup auto BOOK --best`.
 
 **Marking.** `auto` takes the paragraphs that contain speech. Folivox cuts each one into numbered parts (at dashes,
 quotes and sentence ends) and the model only answers *which parts which character says*; it never has to repeat
@@ -173,12 +185,17 @@ and *Stop* (a stopped download resumes later), and goes on with the marking. *Op
 models in the list can be downloaded or removed here; Ollama itself is installed by the person (ollama.com).
 
 
-In the editor the top of the right panel holds the one **Mark automatically** button with the choice *Whole book* /
-*Only this chapter* (each with its own estimate), a progress bar and a plain result. *Options* (collapsed) holds the
-model, *also place expression tags* and *Analyse characters* alone. After a run the panel lists the characters and
-offers the next step (*Choose voices*, or reading the text through when everyone has a voice). Coloured chips assign
-the selection to a speaker. Running again asks first, because passages you changed by hand may be replaced. The top
-bar has the chapter picker, undo and redo (the arrows) and a close cross; edits are saved by themselves.
+In the editor the top of the right panel has two buttons, **Best quality** and **Quick preview** (each with its
+estimated time), a progress bar with the time left and a plain result. *Options* (collapsed) holds the model (the
+largest installed one is chosen by itself), the model download, and *Analyse characters* alone. After a run the panel
+lists the characters, offers the next step (*Choose voices*), and, when the rule check or the second look left some,
+shows the **places to check**: the places are marked in the text with an orange bar, and the panel steps through them
+(*Show*, ‹ ›, *Looks fine*); a place leaves the list when you say it is fine or give that passage to a speaker
+yourself. Running again asks first, because passages you changed by hand may be replaced. The top bar has the chapter
+picker, undo and redo (the arrows) and a close cross; edits are saved by themselves.
+
+Each speaker's card has **gender** and **age** lists: they are what the automatic reading found (an amber frame means
+"not sure, please check"), you can change them, and the voice ideas use them.
 
 Below the button the manual tools are always visible:
 

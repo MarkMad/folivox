@@ -307,7 +307,10 @@ def markup_auto(book_path: Path = typer.Argument(...), depth: int = typer.Option
                 expression: bool = typer.Option(False, "--expression-tags/--no-expression-tags",
                                                 help="Also place expression tags like [sighs] (off by default)."),
                 file: Path = typer.Option(None, "--markup", help="Markup file (default: <book>.markup.json)."),
-                fresh: bool = typer.Option(False, "--fresh", help="Forget the saved model replies for this book.")):
+                fresh: bool = typer.Option(False, "--fresh", help="Forget the saved model replies for this book."),
+                best: bool = typer.Option(False, "--best", help="The best quality: look at the characters again once "
+                                          "the book is read and ask again about the places the rule check doubts "
+                                          "(can take hours; carries on where it stopped).")):
     from folivox import cli
     from folivox import markup as mk
     from folivox import markup_llm as ml
@@ -325,6 +328,9 @@ def markup_auto(book_path: Path = typer.Argument(...), depth: int = typer.Option
         if bible.done_windows < max(bible.total_windows, 1):
             console.print("Reading the book for its characters first…")
             bible = ml.analyse(chs, book.lang, runner, bible, save=lambda b: b.save(bp), progress=_progress())
+        if best:
+            console.print("Looking at the characters again…")
+            ml.consolidate(chs, book.lang, bible, runner, save=lambda b: b.save(bp), progress=_progress())
         markup = mk.Markup.load(mp) if mp.is_file() else mk.Markup(depth=depth)
 
         def save(m, b):
@@ -336,6 +342,11 @@ def markup_auto(book_path: Path = typer.Argument(...), depth: int = typer.Option
         markup, stats = ml.annotate(chs, book.lang, bible, runner, markup, expression_tags=expression,
                                     chapter_filter=_chapter_set(chapters, len(chs)), save=save,
                                     progress=_progress(), depth=depth)
+        if best:
+            console.print("Asking again about the doubtful places…")
+            settled, left = ml.second_opinion(chs, book.lang, bible, runner, markup, save=save, progress=_progress())
+            console.print(f"{settled} doubtful places settled, {left} left to check "
+                          "(they are on the review list in the studio).")
     except ml.LLMError as e:
         console.print(f"[red]{e}[/] Progress is saved: run the same command again to continue.")
         raise typer.Exit(1) from None
