@@ -656,5 +656,10 @@
  "mk.st.cov.ok": "All {t} chapters with dialogue are processed.",
  "mk.st.cov.part": "Chapters with dialogue: {d} of {t} processed. Not yet: {list}.",
  "mk.st.voices": "{k} of {n} characters have their own voice; the others use the narrator's voice.",
- "mk.st.narr": "narrator's voice"
+ "mk.st.narr": "narrator's voice",
+ "rb.h": "Recent books",
+ "rb.chars": "{n} characters",
+ "rb.now": "open now",
+ "rb.opening": "Opening the book…",
+ "mk.st.stale": "The text of chapters {list} has changed since they were marked: their markup is ignored and the narrator reads them."
 }

@@ -203,6 +203,9 @@ h1 { padding-right:140px; }
 .mk-card { padding:12px 14px; border:1px solid var(--line); border-radius:12px; margin-bottom:12px; } .mk-boxh { font-weight:600; margin-bottom:6px; } .mk-stat { margin-top:8px; font-size:14px; line-height:1.5; } .mk-stat > div { margin-top:2px; }
 .mk-vcs { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; } .mk-vc { font-size:12.5px; padding:2px 10px; border:1px solid var(--line); border-left:5px solid var(--c); border-radius:99px; }
 @media (max-width:700px) { .vmode { grid-template-columns:1fr; } }
+.rb-list { display:grid; gap:6px; margin-top:8px; max-height:280px; overflow:auto; }
+.rb { display:flex; gap:10px; align-items:baseline; justify-content:space-between; text-align:left; padding:8px 12px; border:1px solid var(--line); border-radius:10px; background:none; cursor:pointer; font:inherit; color:inherit; }
+.rb.cur { border-color:var(--accent); cursor:default; } .rb span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .rb small { color:var(--mute); white-space:nowrap; }
 .mk-sub { margin-top:10px; } .mk-sub > summary { cursor:pointer; color:var(--mute); font-size:13px; } .mk-sub[open] > summary { margin-bottom:6px; }
 .mk-nextstep { padding:10px 12px; border:1px dashed var(--accent); border-radius:10px; margin-bottom:12px; } .mk-nextstep .row { margin-top:8px; }
 .mk-legend { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0; } .mk-legend .chip { font-size:12px; padding:2px 9px; border-left:5px solid var(--c); }
@@ -273,6 +276,7 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
     <textarea id="paste-text" rows="8" placeholder="Paste an article or any text here" data-i18n-attr="placeholder:s1.paste.ph" style="width:100%"></textarea>
     <button type="button" id="paste-go" disabled data-i18n="s1.paste.go">Use this text</button>
   </div>
+  <details id="recent" class="meta-box" hidden><summary><span data-i18n="rb.h">Recent books</span> <small id="recent-n" class="mute"></small></summary><div id="recent-list" class="rb-list"></div></details>
   <div id="book-info" class="mute" style="margin-top:10px"></div>
   <div id="cover-box" class="cover-box" hidden>
     <div class="cover-thumb"><img id="cover-img" alt="Audiobook cover" data-i18n-attr="alt:s1.cover.alt" hidden><span id="cover-empty" class="mute">no cover</span></div>
@@ -679,6 +683,20 @@ async function upload(file) {
   try { setBook(await api("/api/books", { method: "POST", body: fd })); }
   catch (e) { $("#book-info").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 }
+// ---- earlier books: the same file is the same book, with its markup and settings ------------------------------
+async function loadRecent() {
+  let r; try { r = await api("/api/books"); } catch (e) { return; }
+  const box = $("#recent"), cur = book ? book.book_id : "";
+  box.hidden = !r.books.length || (r.books.length === 1 && r.books[0].book_id === cur);
+  $("#recent-n").textContent = r.books.length ? `(${r.books.length})` : "";
+  $("#recent-list").innerHTML = r.books.map(b => `<button type="button" class="rb ${b.book_id === cur ? "cur" : ""}" data-id="${esc(b.book_id)}"><span><b>${esc(b.title || b.name)}</b>${b.author ? " · " + esc(b.author) : ""}</span><small>${b.book_id === cur ? esc(t("rb.now")) : b.markup.spans ? esc(t("rb.chars", { n: b.markup.characters })) : ""}</small></button>`).join("");
+}
+$("#recent-list").addEventListener("click", async (ev) => {
+  const b = ev.target.closest(".rb"); if (!b || b.classList.contains("cur")) return;
+  uploads++; $("#book-info").textContent = t("rb.opening");
+  try { setBook(await api(`/api/books/${b.dataset.id}/open`, { method: "POST" })); }
+  catch (e) { $("#book-info").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+});
 $("#paste-toggle").onclick = (e) => { e.preventDefault(); e.stopPropagation(); const b = $("#paste-box"); b.hidden = !b.hidden; if (!b.hidden) $("#paste-text").focus(); };
 $("#paste-text").oninput = () => { $("#paste-go").disabled = !$("#paste-text").value.trim(); };
 $("#paste-go").onclick = async () => {
@@ -774,7 +792,7 @@ function mkSummary() {
   const e = $("#mk-empty"); if (e) e.hidden = spans > 0;
   const el = $("#mk-stat"), people = MK.data.speakers.filter(x => x.id > 0);
   if (!spans && !people.length) { el.innerHTML = `<div class="mute">${esc(t("mk.st.none"))}</div>`; return; }
-  const done = new Set(Object.keys(MK.data.chapters).map(Number)), speech = MK.speech || [];
+  const stale = new Set(MK.stale || []), done = new Set(Object.keys(MK.data.chapters).map(Number).filter(i => !stale.has(i))), speech = MK.speech || [];
   const missing = speech.filter(i => !done.has(i)), chosen = typeof selected === "function" ? new Set(selected()) : new Set();
   const rows = [`<div>${esc(t("mk.st.found", { n: people.length, m: spans }))}</div>`];
   if (speech.length) {
@@ -783,6 +801,7 @@ function mkSummary() {
     rows.push(missing.length ? `<div class="${warn ? "err" : "mute"}">${esc(t("mk.st.cov.part", { d: speech.length - missing.length, t: speech.length, list }))}</div>`
                              : `<div class="mute">${esc(t("mk.st.cov.ok", { t: speech.length }))}</div>`);
   }
+  if (stale.size) rows.push(`<div class="err">${esc(t("mk.st.stale", { list: [...stale].map(i => i + 1).join(", ") }))}</div>`);
   if (people.length) {
     const own = people.filter(x => x.voice).length;
     rows.push(`<div class="mute">${esc(t("mk.st.voices", { k: own, n: people.length }))}</div><div class="mk-vcs">`
@@ -816,7 +835,7 @@ document.querySelectorAll('input[name="vmode"]').forEach(r => r.addEventListener
 async function loadMk() {
   if (!book) return; const id = book.book_id; MK.bookId = id;
   try { const r = await api(`/api/books/${id}/markup`); if (MK.bookId !== id) return; MK.data = r; MK.dirty = false; MK.undo = []; MK.redo = [];
-    try { MK.speech = (await mkEstimate(0)).speech_chapters; } catch (e) { MK.speech = null; }
+    try { const est = await mkEstimate(0); MK.speech = est.speech_chapters; MK.stale = est.stale_chapters || []; } catch (e) { MK.speech = null; MK.stale = []; }
     mkSummary();
     let v = ""; try { v = localStorage.getItem(vmodeKey()) || ""; } catch (e) { /* private mode */ }
     vmodeSet(v || (mkHasSpans() ? "multi" : "one")); }
@@ -1337,7 +1356,7 @@ async function checkServer() {
 function renderBookInfo() { const b = book;$("#book-info").innerHTML = `<b style="color:var(--ink)">${esc(b.title)}</b> — ${esc(b.author || t("book.noauthor"))} · ${esc(b.lang_name)} · ${esc(b.format.toUpperCase())}${b.year ? " · " + esc(b.year) : ""} · ${t("book.chars", { n: num(b.chars) })} · ≈ ${fmt(b.estimated_seconds)}`; }
 function setBook(b, keep, lang) {
   book = b; showCover(b.cover || "");
-  renderBookInfo(); loadMeta(); loadPron(); loadMk();
+  renderBookInfo(); loadMeta(); loadPron(); loadMk(); loadRecent();
   $("#lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}" ${c === b.lang ? "selected" : ""}>${n}</option>`).join("");
   if (lang) $("#lang").value = lang;
   renderChapters(keep);
@@ -2613,7 +2632,7 @@ function refreshUi() {
 }
 (async () => {
   CAT_EN = await loadCatalog("en"); await setUiLang(pickUiLang(), false); engLoad();
-  try { checkServer(); await loadSettings(); loadKeys().catch(() => {}); await restoreSession(); await reconcile(); setInterval(reconcile, 4000); uiReady = true; }
+  try { checkServer(); await loadSettings(); loadKeys().catch(() => {}); await restoreSession(); loadRecent(); await reconcile(); setInterval(reconcile, 4000); uiReady = true; }
   catch (e) { document.body.insertAdjacentHTML("afterbegin", `<p class="err" style="padding:16px">${t("boot.fail", { msg: esc(e.message) })}</p>`); }
 })();
 </script>

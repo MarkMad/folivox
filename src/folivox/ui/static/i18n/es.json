@@ -656,5 +656,10 @@
  "mk.st.cov.ok": "Los {t} capítulos con diálogos están procesados.",
  "mk.st.cov.part": "Capítulos con diálogos: {d} de {t} procesados. Faltan: {list}.",
  "mk.st.voices": "{k} de {n} personajes tienen voz propia; los demás los lee el narrador.",
- "mk.st.narr": "voz del narrador"
+ "mk.st.narr": "voz del narrador",
+ "rb.h": "Libros recientes",
+ "rb.chars": "{n} personajes",
+ "rb.now": "abierto ahora",
+ "rb.opening": "Abriendo el libro…",
+ "mk.st.stale": "El texto de los capítulos {list} ha cambiado desde que se marcaron: su marcado se ignora y los lee el narrador."
 }

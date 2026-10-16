@@ -656,5 +656,10 @@
  "mk.st.cov.ok": "Alle {t} Kapitel mit Dialogen sind bearbeitet.",
  "mk.st.cov.part": "Kapitel mit Dialogen: {d} von {t} bearbeitet. Noch nicht: {list}.",
  "mk.st.voices": "{k} von {n} Figuren haben eine eigene Stimme, die übrigen liest der Erzähler.",
- "mk.st.narr": "Stimme des Erzählers"
+ "mk.st.narr": "Stimme des Erzählers",
+ "rb.h": "Zuletzt verwendete Bücher",
+ "rb.chars": "{n} Figuren",
+ "rb.now": "jetzt geöffnet",
+ "rb.opening": "Buch wird geöffnet …",
+ "mk.st.stale": "Der Text der Kapitel {list} hat sich seit der Markierung geändert: Ihre Markierung wird ignoriert, der Erzähler liest sie."
 }

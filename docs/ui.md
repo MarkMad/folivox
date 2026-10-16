@@ -143,3 +143,13 @@ browser (static HTML + small JS)  ⇄  HTTP + SSE  ⇄  folivox.ui (Starlette)  
 1. Starlette (recommended) vs. FastAPI vs. a heavier all-in-one toolkit (Gradio/NiceGUI)?
 2. Is the v0 scope above right, or should it start smaller (inspect + render progress only)?
 3. Should `folivox ui` open the browser automatically (default) or just print the URL?
+
+## Books come back
+
+A book's id comes from its **content**, so uploading the same file again (even under another name) is the same book:
+its markup, characters, pronunciations, cover and details are all still there. *1 · Book* lists the earlier books
+under **Recent books** (the one used last first, with the number of characters set up); a click opens one without
+uploading it again (`GET /api/books`, `POST /api/books/{id}/open`). If the text of a chapter changed since it was
+marked (another edition), the Characters box in step 3 says which chapters are affected: their markup is ignored and
+the narrator reads them (`stale_chapters` in `GET /api/books/{id}/llm/estimate`). Books uploaded by an older version
+keep working under their old ids.

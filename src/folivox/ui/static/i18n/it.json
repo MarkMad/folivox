@@ -656,5 +656,10 @@
  "mk.st.cov.ok": "Tutti i {t} capitoli con dialoghi sono elaborati.",
  "mk.st.cov.part": "Capitoli con dialoghi: {d} su {t} elaborati. Mancano: {list}.",
  "mk.st.voices": "{k} personaggi su {n} hanno una voce propria; gli altri li legge il narratore.",
- "mk.st.narr": "voce del narratore"
+ "mk.st.narr": "voce del narratore",
+ "rb.h": "Libri recenti",
+ "rb.chars": "{n} personaggi",
+ "rb.now": "aperto ora",
+ "rb.opening": "Apertura del libro…",
+ "mk.st.stale": "Il testo dei capitoli {list} è cambiato dopo la marcatura: la loro marcatura viene ignorata e li legge il narratore."
 }
