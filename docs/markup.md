@@ -92,9 +92,23 @@ the result.
 A small test on an Apple-silicon Mac with 36 GB (made-up texts of 20 paragraphs, 15 with speech, the same story in
 English, Russian, German and Spanish; counted: paragraphs whose quoted speech went to the right character):
 
-| Model | English | Russian | German | Spanish | Time per text |
+| Model (Ollama) | English | Russian | German | Spanish | Time per text |
 |---|---|---|---|---|---|
-| `gemma4:31b-it-qat` | 15/15 | 15/15 | not run | not run | 4-5 min (mostly loading and the character pass) |
+| `gemma4:31b-it-qat` | 15/15 | 15/15 | 15/15 | 3/15 | 4-5 min |
+| `Qwen3.8-27B` (unsloth GGUF, UD-Q6_K, 22 GB) | 15/15 | 15/15 | not run | 15/15 | 4-5 min |
+| `gemma4:12b-it-qat` | 15/15 | 15/15 | 3/15 | 12/15 | 1.2-1.6 min |
+| Ministral-3-3B-Instruct-2512 (Q4_K_M) | 0/15 | 9/15 | 11/15 | 11/15 | 0.5 min |
+| tiny-aya-global 3.3B (Q4_K_M) | 0/15 | 0/15 | 7/15 | 0/15 | 0.4 min |
+| LFM2.5-2.6B (Q4_K_M) | 0/15 | 0/15 | 5/15 | 0/15 | 2-3 min |
+| EuroLLM-9B-Instruct-2512 (Q4_K_M) | 0/15 | 4/15 | 0/15 | 0/15 | 1-2 min |
+
+One run each, so read it as a rough picture. What it shows: only the large models (27-31B) were right on the
+languages they got; the 12B model is good on English and Russian and shaky on German; the 3B models and the
+small language-specific ones (Cohere tiny-aya, Liquid LFM2.5, EuroLLM) return the text unmarked or rewritten and
+are not usable. The score is not only about the model: Spanish dialogue puts a dash that both closes the speech
+and opens the attribution («—Perdone —graznó el anciano—, busco…»), and even the 31B model then rewrote the
+punctuation, so the check "removing the marks gives the book's paragraph" refused 12 of 15 paragraphs. Asking the
+model for *where* each speaker's words start, instead of repeating the whole paragraph, would be sturdier.
 
 The two smallest Gemma 4 builds (`e4b` 6 GB, `e2b` 4 GB) were tried and **dropped from the list**: they are about ten
 times faster, but unstable. `e2b` worked only on English (10/15) and returned unmarked text for Russian, German
