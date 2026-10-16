@@ -1,0 +1,360 @@
+"""The optional native runtime (audio.cpp): catalog, build choice, safe install, runtime choice, the server engine."""
+
+import hashlib
+import io
+import json
+import shutil
+import sys
+import tarfile
+import wave
+import zipfile
+from pathlib import Path
+
+import numpy as np
+import pytest
+
+from folivox import config, uninstall
+from folivox.providers import ProviderError
+from folivox.tts import native, runtime
+from folivox.tts import native_setup as ns
+from folivox.tts.voice import Voice
+
+FAKE = Path(__file__).with_name("native_fakes.py")
+
+
+@pytest.fixture(autouse=True)
+def private(tmp_path, monkeypatch):
+    for k in ("FOLIVOX_RUNTIME", ns.SERVER_ENV, ns.MODEL_ENV):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("FOLIVOX_CONFIG", str(tmp_path / "config.toml"))
+    monkeypatch.setenv(ns.DIR_ENV, str(tmp_path / "native"))
+    config.load.cache_clear()
+    yield
+    native.shutdown_all()
+    config.load.cache_clear()
+
+
+def write_config(tmp_path, text):
+    (tmp_path / "config.toml").write_text(text, encoding="utf-8")
+    config.load.cache_clear()
+
+
+# -- catalog and build choice ------------------------------------------------------------------------------------
+
+def test_catalog_is_pinned():
+    cat = ns.load()
+    assert cat.release.startswith("v") and cat.download_base.endswith(f"/{cat.release}/")
+    assert cat.auto_ok == []  # nothing is the default until its quality gate is recorded
+    for b in cat.binaries:
+        assert b.assets and all(len(a.sha256) == 64 and a.size > 0 for a in b.assets)
+        assert all(a.name.startswith(f"audio-{cat.release}-") for a in b.assets)
+    for w in cat.weights.values():
+        assert len(w.revision) == 40 and len(w.sha256) == 64 and w.path.endswith(".gguf")
+
+
+@pytest.mark.parametrize("tag,gpu,expect", [
+    ("darwin-arm64", None, "macos-arm64-metal"),
+    ("win32-x64", (591, 8.9), "windows-x64-cuda13.3"),
+    ("win32-x64", (550, 8.9), "windows-x64-cuda12.4"),
+    ("win32-x64", (591, 6.1), "windows-x64-vulkan"),  # Pascal: older than the CUDA builds support
+    ("win32-x64", None, "windows-x64-vulkan"),
+    ("linux-x64", None, "ubuntu-x64-vulkan"),
+    ("darwin-x64", None, None),
+])
+def test_build_choice(tag, gpu, expect):
+    b = ns.pick_binary("auto", tag, nvidia=lambda: gpu)
+    assert (b.id if b else None) == expect
+
+
+def test_explicit_backend():
+    assert ns.pick_binary("vulkan", "win32-x64").id == "windows-x64-vulkan"
+    assert ns.pick_binary("metal", "win32-x64") is None
+
+
+# -- safe unpacking and install ----------------------------------------------------------------------------------
+
+def make_tar(path: Path, members: dict[str, bytes], links: dict[str, str] | None = None):
+    with tarfile.open(path, "w:gz") as t:
+        for name, data in members.items():
+            i = tarfile.TarInfo(name)
+            i.size = len(data)
+            t.addfile(i, io.BytesIO(data))
+        for name, target in (links or {}).items():
+            i = tarfile.TarInfo(name)
+            i.type, i.linkname = tarfile.SYMTYPE, target
+            t.addfile(i)
+
+
+def test_extract_skips_sources_and_refuses_escapes(tmp_path):
+    ok = tmp_path / "ok.tar.gz"
+    make_tar(ok, {"./audiocpp_server": b"x", "./src/big.cpp": b"y", "./model_specs/a.json": b"{}"})
+    ns.safe_extract(ok, tmp_path / "out")
+    assert (tmp_path / "out" / "audiocpp_server").exists() and not (tmp_path / "out" / "src").exists()
+    bad = tmp_path / "bad.tar.gz"
+    make_tar(bad, {"../evil": b"x"})
+    with pytest.raises(ns.NativeError):
+        ns.safe_extract(bad, tmp_path / "out2")
+    assert not (tmp_path / "evil").exists()
+    link = tmp_path / "link.tar.gz"
+    make_tar(link, {"a": b"x"}, {"b": "../../etc/passwd"})
+    with pytest.raises(ns.NativeError):
+        ns.safe_extract(link, tmp_path / "out3")
+    z = tmp_path / "bad.zip"
+    with zipfile.ZipFile(z, "w") as zf:
+        zf.writestr("../evil.txt", "x")
+    with pytest.raises(ns.NativeError):
+        ns.safe_extract(z, tmp_path / "out4")
+    assert not (tmp_path / "evil.txt").exists()
+
+
+def fake_release(monkeypatch, tmp_path, server_name=None):
+    """A one-asset catalog entry whose 'download' is built locally; returns the Binary."""
+    data = tmp_path / "asset.tar.gz"
+    make_tar(data, {f"./{server_name or ns.SERVER_NAME}": b"#!/bin/sh\n", "./model_specs/x.json": b"{}"})
+    a = ns.Asset("audio-v0-bin-test.tar.gz", data.stat().st_size, hashlib.sha256(data.read_bytes()).hexdigest())
+    b = ns.Binary("test-metal", "darwin-arm64", "metal", "untested", "", (a,))
+    monkeypatch.setattr(ns, "platform_tag", lambda: "darwin-arm64")
+    monkeypatch.setattr(ns, "candidates", lambda tag=None: [b])
+    monkeypatch.setattr(ns, "version_text", lambda srv: "audio.cpp 0\nbackends: cpu,metal\n")
+
+    def fetch(url, dest, asset, progress):
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(data, dest)
+    return b, a, fetch
+
+
+def test_install_verifies_and_registers_engine(tmp_path, monkeypatch):
+    b, a, fetch = fake_release(monkeypatch, tmp_path)
+    assert ns.server_path() is None and ns.status().problem
+    p = ns.Plan(b, None, a.size, [])
+    ns.install(p, None, lambda m: None, fetch=fetch)
+    assert ns.server_path() is not None and ns.server_path().name == ns.SERVER_NAME
+    assert ns.installed_binary()[0].id == "test-metal"
+    assert ns.remove() > 0 and ns.server_path() is None
+
+
+def test_download_checksum_mismatch_is_refused(tmp_path, monkeypatch):
+    class R(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(ns.urllib.request, "urlopen", lambda *a, **k: R(b"not what was pinned"))
+    asset = ns.Asset("x.zip", 19, "0" * 64)
+    with pytest.raises(ns.NativeError, match="checksum"):
+        ns._download("https://example.invalid/x.zip", tmp_path / "x.zip", asset, None)
+    assert not (tmp_path / "x.zip").exists()
+
+
+def test_engine_reporting_wrong_backend_is_not_installed(tmp_path, monkeypatch):
+    b, a, fetch = fake_release(monkeypatch, tmp_path)
+    monkeypatch.setattr(ns, "version_text", lambda srv: "backends: cpu")
+    with pytest.raises(ns.NativeError, match="metal"):
+        ns.install(ns.Plan(b, None, a.size, []), None, lambda m: None, fetch=fetch)
+    assert ns.installed_binary() is None
+
+
+def test_plan_lists_only_what_is_missing(tmp_path, monkeypatch):
+    fake_release(monkeypatch, tmp_path)
+    p = ns.plan("q8_0")
+    assert p.binary is not None and p.weights is not None and len(p.lines) == 2
+    assert p.todo_bytes == p.binary.size + ns.load().weights["q8_0"].size
+    with pytest.raises(ns.NativeError):
+        ns.plan("fp8")
+    monkeypatch.setenv(ns.SERVER_ENV, str(FAKE))
+    monkeypatch.setenv(ns.MODEL_ENV, str(FAKE))  # a build and a model of your own
+    assert ns.plan("q8_0").lines == []
+
+
+# -- which runtime ------------------------------------------------------------------------------------------------
+
+def test_runtime_precedence_and_validation(tmp_path, monkeypatch):
+    assert config.runtime() == "auto"
+    write_config(tmp_path, '[runtime]\ninference = "native"\n')
+    assert config.runtime() == "native"
+    monkeypatch.setenv("FOLIVOX_RUNTIME", "pytorch")
+    assert config.runtime() == "pytorch"
+    assert config.runtime("native") == "native"
+    with pytest.raises(ValueError):
+        config.runtime("gpu")
+
+
+def test_resolve_keeps_pytorch_unless_asked(tmp_path, monkeypatch):
+    assert runtime.resolve("cosyvoice3") == "pytorch"  # auto, nothing recorded as checked
+    assert runtime.resolve("cosyvoice3", "native") == "native"
+    assert runtime.resolve("cosyvoice3", "pytorch") == "pytorch"
+    assert runtime.resolve("fish-s2", "native") == "pytorch"  # no native implementation: the switch is ignored
+    b, a, fetch = fake_release(monkeypatch, tmp_path)
+    ns.install(ns.Plan(b, None, a.size, []), None, lambda m: None, fetch=fetch)
+    monkeypatch.setenv(ns.MODEL_ENV, str(FAKE))
+    assert runtime.resolve("cosyvoice3") == "pytorch"
+    monkeypatch.setattr(ns.load(), "auto_ok", ["darwin-arm64"])
+    assert runtime.resolve("cosyvoice3") == "native"
+
+
+def test_require_ready_explains(tmp_path):
+    with pytest.raises(ProviderError, match="folivox runtime install"):
+        runtime.require_ready()
+
+
+def test_take_key_differs_from_pytorch(tmp_path):
+    from folivox.pipeline import SYNTH_VERSION
+
+    s = runtime.take_settings(1.0)
+    assert SYNTH_VERSION not in s and s.startswith("cv3-native-") and ns.load().release in s
+    assert runtime.take_settings(1.0) != runtime.take_settings(0.9)
+    write_config(tmp_path, '[runtime.native]\nweight_type = "f32"\n')
+    assert runtime.take_settings(1.0) != s
+
+
+# -- the engine with a fake server ----------------------------------------------------------------------------------
+
+@pytest.fixture
+def fake_engine(tmp_path, monkeypatch):
+    srv, model = tmp_path / "audiocpp_server", tmp_path / "m.gguf"
+    srv.write_bytes(b"x")
+    model.write_bytes(b"x")
+    monkeypatch.setenv(ns.SERVER_ENV, str(srv))
+    monkeypatch.setenv(ns.MODEL_ENV, str(model))
+    monkeypatch.setattr(native, "server_command", lambda server: [sys.executable, str(FAKE)])
+    monkeypatch.setattr(native.Server, "log_tail", staticmethod(lambda n=600: ""))
+    monkeypatch.setenv("FAKE_LOG", str(tmp_path / "requests.jsonl"))
+    wav = tmp_path / "ref.wav"
+    with wave.open(str(wav), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(24000)
+        w.writeframes(b"\0\0" * 24000 * 6)
+    monkeypatch.setattr(native, "reference_wav", lambda voice: voice.wav)
+    voice = Voice(wav, "Привет, мир.", 6.0)
+
+    def requests():
+        p = tmp_path / "requests.jsonl"
+        return [json.loads(x) for x in p.read_text(encoding="utf-8").splitlines()] if p.exists() else []
+    return voice, requests
+
+
+def test_engine_synthesises_through_the_server(fake_engine):
+    voice, requests = fake_engine
+    eng = native.NativeCosyVoiceEngine(backend="auto", weights="q8_0", weight_type="f16")
+    try:
+        assert eng.device.startswith("native:")
+        prepared, _ = eng.prepare("Привет, мир! Это проверка.", voice, 7)
+        audio, secs = eng.finish(prepared, voice)
+        assert audio.dtype == np.float32 and eng.sample_rate == 24000
+        assert abs(len(audio) / 24000 - 26 * 0.05) < 0.01
+        r = requests()[0]
+        assert r["seed"] == 7 and r["reference_text"] == "Привет, мир." and r["voice_ref"] == str(voice.wav)
+        assert r["options"]["template_name"] == "zero_shot" and r["model"] == "cosyvoice3"
+    finally:
+        eng.close()
+
+
+def test_server_is_shared_and_kept_between_renders(fake_engine):
+    voice, requests = fake_engine
+    a = native.NativeCosyVoiceEngine()
+    a.synthesize("Один.", voice)
+    a.close()
+    b = native.NativeCosyVoiceEngine()  # within the idle time: the same process, no second model load
+    b.synthesize("Два.", voice)
+    b.close()
+    assert len({r["pid"] for r in requests()}) == 1
+    native.shutdown_all()
+    assert not a._server.alive()
+
+
+def test_crashed_server_is_restarted_once(fake_engine, tmp_path, monkeypatch):
+    voice, requests = fake_engine
+    monkeypatch.setenv("FAKE_MODE", "crash_once")
+    monkeypatch.setenv("FAKE_MARK", str(tmp_path / "crashed"))
+    eng = native.NativeCosyVoiceEngine()
+    try:
+        s = eng.synthesize("Сначала упадёт.", voice, seed=1)
+        assert len(s.audio) > 0
+        assert len({r["pid"] for r in requests()}) == 2
+    finally:
+        eng.close()
+
+
+def test_server_error_is_explained(fake_engine, monkeypatch):
+    voice, _ = fake_engine
+    monkeypatch.setenv("FAKE_MODE", "error")
+    eng = native.NativeCosyVoiceEngine()
+    try:
+        with pytest.raises(ns.NativeError, match="bad reference"):
+            eng.synthesize("Текст.", voice)
+    finally:
+        eng.close()
+
+
+def test_stuck_server_is_killed(fake_engine, monkeypatch):
+    from folivox.tts.base import SynthTimeout
+
+    voice, _ = fake_engine
+    monkeypatch.setenv("FAKE_MODE", "hang")
+    monkeypatch.setattr(native, "synth_timeout", lambda chars: 1.0)
+    eng = native.NativeCosyVoiceEngine()
+    try:
+        with pytest.raises(SynthTimeout):
+            eng.synthesize("Зависнет.", voice)
+        assert not eng._server.alive()
+    finally:
+        eng.close()
+
+
+def test_engine_without_install_says_what_to_do():
+    with pytest.raises(ns.NativeError, match="folivox runtime install"):
+        native.NativeCosyVoiceEngine()
+
+
+def test_bad_weight_type_is_refused(fake_engine):
+    with pytest.raises(ns.NativeError, match="weight_type"):
+        native.NativeCosyVoiceEngine(weight_type="int3")
+
+
+def test_load_engine_picks_native(fake_engine, tmp_path):
+    from folivox.pipeline import Events, RenderOptions, load_engine
+
+    eng = load_engine(RenderOptions(output=tmp_path / "o.m4b", runtime="native"), Events())
+    try:
+        assert isinstance(eng, native.NativeCosyVoiceEngine)
+    finally:
+        eng.close()
+
+
+def test_decode_wav_handles_stereo_and_rejects_garbage():
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(2)
+        w.setsampwidth(2)
+        w.setframerate(16000)
+        w.writeframes(np.array([[1000, 3000]] * 10, "<i2").tobytes())
+    x, sr = native.decode_wav(buf.getvalue())
+    assert sr == 16000 and x.shape == (10,) and abs(x[0] - 2000 / 32768) < 1e-6
+    with pytest.raises(ns.NativeError):
+        native.decode_wav(b"no audio here")
+
+
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg is not installed")
+def test_speed_change_shortens_audio():
+    x = np.sin(np.arange(24000 * 2) / 20).astype(np.float32)
+    y = native.change_speed(x, 24000, 2.0)
+    assert 0.45 < len(y) / len(x) < 0.55
+    assert native.change_speed(x, 24000, 1.0) is x
+
+
+# -- diagnostics and uninstall -------------------------------------------------------------------------------------
+
+def test_doctor_and_uninstall_know_the_runtime(tmp_path, monkeypatch):
+    from folivox import diag
+
+    n = diag.native_summary()
+    assert n["release"] == ns.load().release and "error" not in n
+    assert "Native:" in diag.render_report_text({**diag.report(), "native_runtime": n})
+    data = tmp_path / "data"
+    (data / "native" / "bin").mkdir(parents=True)
+    (data / "native" / "bin" / "f").write_bytes(b"x" * 5)
+    monkeypatch.setattr(uninstall, "data_dir", lambda: data)
+    assert any("Native runtime" in i.label for i in uninstall.plan())

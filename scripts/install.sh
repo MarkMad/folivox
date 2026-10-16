@@ -90,6 +90,8 @@ ok "folivox $(folivox --version 2>/dev/null || true)"
 # -- 5. models + guide ---------------------------------------------------------------------------
 step 5 "Models and first check"
 if [ "${FOLIVOX_SKIP_MODELS:-0}" = 1 ]; then folivox setup --skip-models; else folivox setup; fi
+# Optional native C++ runtime (audio.cpp): only on request, FOLIVOX_NATIVE=1 (otherwise `folivox setup` asked, or: folivox runtime install)
+if [ "${FOLIVOX_NATIVE:-0}" = 1 ]; then folivox runtime install --yes || warn "Native runtime not installed. Later: folivox runtime install"; fi
 # Optional Fish Audio engines (separate licences, 7-24 GB). Asked only of a person at a terminal, only where a tested build fits.
 FISH_BUILD="$(folivox engines best 2>/dev/null || true)"
 if [ -n "$FISH_BUILD" ] && [ "${FOLIVOX_NO_START:-0}" != 1 ] && [ -z "${CI:-}" ] && [ -t 1 ] && (: </dev/tty) 2>/dev/null; then

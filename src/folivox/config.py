@@ -8,6 +8,9 @@ Example::
     llm = "ollama"
     voicegen = "qwen3-voicedesign"
 
+    [runtime]                        # optional native C++ runtime (audio.cpp): auto | pytorch | native
+    inference = "auto"
+
     [llm.ollama]
     model = "gemma4:31b-it-qat"
 
@@ -73,6 +76,41 @@ def section(dotted: str) -> dict:
 def provider(kind: str, cli_value: str | None = None) -> str | None:
     """CLI option > ``FOLIVOX_<KIND>`` env var > ``[providers]`` in config > registry default (None)."""
     return cli_value or os.environ.get(f"FOLIVOX_{kind.upper()}") or load().get("providers", {}).get(kind)
+
+
+RUNTIMES = ("auto", "pytorch", "native")
+
+
+def runtime(cli_value: str | None = None) -> str:
+    """Inference runtime: CLI option > ``FOLIVOX_RUNTIME`` > ``[runtime] inference`` in config > ``auto``."""
+    value = (cli_value or os.environ.get("FOLIVOX_RUNTIME") or load().get("runtime", {}).get("inference")
+             or "auto").strip().lower()
+    if value not in RUNTIMES:
+        raise ValueError(f"Unknown inference runtime {value!r}; choose one of {', '.join(RUNTIMES)}")
+    return value
+
+
+def save_runtime(value: str) -> None:
+    """Write ``[runtime] inference`` to config.toml (a ``.bak`` copy is kept: comments are lost on rewrite)."""
+    import shutil
+
+    import tomli_w
+
+    if value not in RUNTIMES:
+        raise ValueError(f"Unknown inference runtime {value!r}; choose one of {', '.join(RUNTIMES)}")
+    path = config_path()
+    data = dict(load())
+    data["runtime"] = {**data.get("runtime", {}), "inference": value}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        shutil.copy2(path, path.with_suffix(path.suffix + ".bak"))
+    path.write_text(tomli_w.dumps(data), encoding="utf-8")
+    load.cache_clear()
+
+
+def native_options() -> dict:
+    """``[runtime.native]``: ``backend`` (auto|metal|cuda|vulkan), ``weights`` (q8_0|f32), ``weight_type``."""
+    return {"backend": "auto", "weights": "q8_0", "weight_type": "f16", **section("runtime.native")}
 
 
 KEYCHAIN_SERVICE = "folivox"

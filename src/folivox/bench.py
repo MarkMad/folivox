@@ -31,6 +31,10 @@ def available_devices() -> list[str]:
             out.append("mps")
     except ImportError:
         pass
+    from folivox.tts import native_setup
+
+    if native_setup.status().ready:
+        out.append("native")
     return out
 
 
@@ -41,7 +45,13 @@ def worker(device: str, voice_wav: str, voice_text: str | None, text: str) -> di
 
     voice = load_voice(voice_wav, voice_text)
     t0 = time.time()
-    engine = ENGINES.create("cosyvoice3", device=device)
+    if device == "native":  # the audio.cpp runtime (`folivox runtime install`); PyTorch is not imported
+        from folivox import config
+        from folivox.tts.native import NativeCosyVoiceEngine
+
+        engine = NativeCosyVoiceEngine(**config.native_options())
+    else:
+        engine = ENGINES.create("cosyvoice3", device=device)
     load_s = time.time() - t0
     t0 = time.time()
     engine.synthesize(text.split(".")[0] + ".", voice)  # the first call pays for kernel compilation and caches
@@ -51,6 +61,8 @@ def worker(device: str, voice_wav: str, voice_text: str | None, text: str) -> di
     res = {"device": device, "actual": engine.device, "load_s": load_s, "warmup_s": warm_s, "synth_s": r.seconds,
            "audio_s": audio_s, "chars": len(text), "chars_per_s": len(text) / r.seconds if r.seconds else 0,
            "rtf": r.seconds / audio_s if audio_s else 0, "peak_vram_gb": None}
+    if device == "native":
+        engine.close()
     if device.startswith("cuda"):
         import torch
 

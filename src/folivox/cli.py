@@ -27,8 +27,8 @@ app = typer.Typer(add_completion=False, no_args_is_help=False, invoke_without_co
                   rich_markup_mode="rich", epilog=MAIN_EPILOG, context_settings={"help_option_names": ["-h", "--help"]},
                   help="Turn e-books (FB2, EPUB, DOCX, PDF, TXT, or ZIP of one) into m4b audiobooks, locally.")
 console = Console()
-COMMANDS = {"render", "inspect", "names", "voices", "engines", "markup", "providers", "help", "ui", "doctor", "setup",
-            "update", "uninstall", "bench", "--help", "-h", "--version"}
+COMMANDS = {"render", "inspect", "names", "voices", "engines", "runtime", "markup", "providers", "help", "ui", "doctor",
+            "setup", "update", "uninstall", "bench", "--help", "-h", "--version"}
 
 # Option panels of `folivox render --help`
 P_INPUT, P_VOICE, P_TEXT, P_QA = "Input", "Voice", "Text", "Quality control"
@@ -373,8 +373,11 @@ def render(
     model_dir: Path | None = typer.Option(None, "--model-dir", envvar="FOLIVOX_MODEL_DIR",
                                           rich_help_panel=P_PROVIDERS, show_default="downloaded on first run",
                                           help="Folder with CosyVoice 3 weights."),
+    runtime: str | None = typer.Option(None, "--runtime", rich_help_panel=P_PERF, show_default="auto (PyTorch)",
+                                       help="Inference runtime for CosyVoice 3: auto, pytorch, or native "
+                                            "(C++, `folivox runtime install`)."),
     device: Device = typer.Option(Device.auto, "--device", rich_help_panel=P_PERF,
-                                  help="Compute device for synthesis."),
+                                  help="Compute device for PyTorch (the native runtime picks its own)."),
     threads: int | None = typer.Option(None, "--threads", rich_help_panel=P_PERF, show_default="PyTorch default",
                                        help="CPU threads for PyTorch."),
     output: Path | None = typer.Option(None, "--output", "-o", rich_help_panel=P_OUT,
@@ -407,6 +410,11 @@ def render(
     from folivox.pipeline import render as run_render
     from folivox.providers import ProviderError
     book = _load(book_path, lang)
+    try:
+        runtime_name = config.runtime(runtime)
+    except ValueError as e:
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(2) from None
     from folivox.tts import builds as fish_builds
 
     explicit_tts = config.provider("tts", tts)
@@ -459,8 +467,8 @@ def render(
                          model_dir=str(model_dir) if model_dir else None, qa=qa,
         qa_threshold=QA_LEVELS.get(qa_level, QA_LEVELS["standard"]),
                          max_takes=takes or (2 if cloud else 3), mp3=mp3,
-                         bitrate=bitrate, llm=llm.value, tts=tts_name, tts_build=tts_build, tts_model=tts_model,
-                         tts_voice=tts_voice,
+                         bitrate=bitrate, llm=llm.value, tts=tts_name, runtime=runtime_name, tts_build=tts_build,
+                         tts_model=tts_model, tts_voice=tts_voice,
                          tts_style=tts_style, tts_mode=tts_mode, tts_description=tts_describe, voice_ref=voice_ref,
                          max_cost=max_cost, keep_voice=keep_voice, tts_voice_name=voice_name,
                          asr=config.provider("asr", asr) or "auto", cover=cover_path,
@@ -608,10 +616,12 @@ def _resolve_voice(voice: str, voice_text: str | None, book_lang: str = "ru") ->
 
 from folivox.cli_engines import engines_app  # noqa: E402
 from folivox.cli_markup import markup_app  # noqa: E402
+from folivox.cli_runtime import runtime_app  # noqa: E402
 
 app.add_typer(markup_app, name="markup", rich_help_panel="Setup")
 
 app.add_typer(engines_app, name="engines", rich_help_panel="Setup")
+app.add_typer(runtime_app, name="runtime", rich_help_panel="Setup")
 
 voices_app = typer.Typer(help="Voice catalog: list, add, remove, design.", no_args_is_help=False,
                          invoke_without_command=True, rich_markup_mode="rich",
@@ -1099,8 +1109,36 @@ def setup(skip_models: bool = typer.Option(False, "--skip-models", help="Only ch
                           "where it stopped.")
             raise typer.Exit(1) from None
         events.close()
+        _offer_native()
     console.rule()
     console.print(GUIDE)
+
+
+def _offer_native() -> None:
+    """After the PyTorch models: one line about the optional native runtime, and an offer where it exists."""
+    from folivox.cli_runtime import describe
+    from folivox.tts import native_setup as ns
+
+    try:
+        st = ns.status()
+        if st.ready or st.binary is None:
+            return
+        console.rule("[bold]Native runtime (optional, can be much faster)")
+        for line in describe():
+            console.print(line, markup=False, highlight=False)
+        if not sys.stdin.isatty():
+            console.print("Install it later with: folivox runtime install")
+            return
+        if typer.confirm("Download it now? (PyTorch stays the default either way)", default=False):
+            from folivox.cli_runtime import runtime_install
+
+            runtime_install(weights="q8_0", backend="auto", yes=False)
+        else:
+            console.print("Later: folivox runtime install")
+    except typer.Exit:
+        pass
+    except Exception as e:  # noqa: BLE001 — an optional extra must not fail the setup
+        console.print(f"[yellow]Native runtime check skipped: {e}[/]")
 
 
 INSTALLER_URL = "https://raw.githubusercontent.com/vatavale/folivox/main/scripts/install.{ext}"
@@ -1217,8 +1255,9 @@ def doctor(bundle: Path | None = typer.Option(None, "--bundle", "-b", help="Writ
 @app.command(help="Measure synthesis speed (characters per second) on each device, to compare machines.",
              rich_help_panel="Other",
              epilog="[bold]Example[/]\n\n  [cyan]folivox bench[/]   or   [cyan]folivox bench --devices cpu,cuda[/]")
-def bench(devices: str = typer.Option("", "--devices", help="Comma-separated: cpu, cuda, mps (default: all found). "
-                                      "cuda is tried even if `auto` would skip it."),
+def bench(devices: str = typer.Option("", "--devices", help="Comma-separated: cpu, cuda, mps, native (default: all "
+                                      "found; native only when installed). cuda is tried even if "
+                                      "`auto` would skip it."),
           voice: str = typer.Option("", "--voice", "-v", show_default="by language", help="Voice for the test."),
           lang: str = typer.Option("ru", "--lang", help="Language of the test text (ru or en)."),
           timeout: int = typer.Option(1800, "--timeout", help="Seconds one device may take before it is given up.")):

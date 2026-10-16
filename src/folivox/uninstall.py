@@ -39,6 +39,7 @@ def plan(everything: bool = False) -> list[Item]:
 
     d = data_dir()
     cands: list[tuple[str, Path]] = [("Voice model (CosyVoice 3)", d / "models"),
+                                     ("Native runtime (audio.cpp engine and model)", d / "native"),
                                      ("Fish Audio engines (weights and environments)", d / "engines"),
                                      ("Fish Audio licence texts", d / "licences")]
     for repo in weights.owned_repos():

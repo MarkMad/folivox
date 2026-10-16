@@ -281,9 +281,29 @@ def report(work_dir: Path | None = None) -> dict:
 
     data["model_dir"] = {"path": str(weights.default_model_dir()), "complete": weights.is_complete(
         weights.default_model_dir())}
+    data["native_runtime"] = native_summary()
     if work_dir is not None:
         data["journal"] = journal_summary(work_dir)
     return json.loads(redact(json.dumps(data, ensure_ascii=False, default=str)))
+
+
+def native_summary() -> dict:
+    """State of the optional native runtime (audio.cpp) and the tail of its server log."""
+    try:
+        from folivox import config
+        from folivox.tts import native_setup as ns
+
+        st = ns.status(config.native_options()["weights"])
+        tail = ""
+        try:
+            tail = ns.log_file().read_text(encoding="utf-8", errors="replace")[-1500:]
+        except OSError:
+            pass
+        return {"requested": config.runtime(), "release": ns.load().release, "platform": st.platform,
+                "build": st.binary.id if st.binary else None, "server": str(st.server) if st.server else None,
+                "models": st.weights, "auto": st.auto, "problem": st.problem, "log_tail": tail}
+    except Exception as e:  # noqa: BLE001 — a diagnostic must never fail
+        return {"error": f"{type(e).__name__}: {e}"}
 
 
 def _free_mb(path: Path) -> int | None:
@@ -352,6 +372,13 @@ def render_report_text(data: dict) -> str:
     lines.append(f"Engines:  {data['selected_providers']}")
     m = data["model_dir"]
     lines.append(f"Model:    {m['path']} ({'complete' if m['complete'] else 'not downloaded or incomplete'})")
+    n = data.get("native_runtime") or {}
+    if n.get("error"):
+        lines.append(f"Native:   check failed ({n['error']})")
+    elif n:
+        lines.append(f"Native:   runtime {n['requested']}; audio.cpp {n['release']} "
+                     f"{'installed' if n['server'] else 'not installed'}"
+                     f"{' (' + n['problem'] + ')' if n['problem'] else ''}")
     lines.append(f"Disk:     {data['disk_free_mb']} MB free")
     lines.append(f"Log:      {data['log_file']}")
     if data.get("journal"):
