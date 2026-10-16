@@ -983,6 +983,7 @@ function mkSpeakers() {
     <div class="sub">${s.id ? `<select data-f="voice" aria-label="${esc(t("mk.voice"))}">${mkVoiceOptions(s.voice)}</select><button type="button" class="chip" data-vd="${s.id}" title="${esc(t("mk.vd.btn.title"))}">${esc(t("mk.vd.btn"))}</button><button type="button" class="chip" data-rm="${s.id}" title="${esc(t("mk.rmsp"))}">&#10005;</button>` : `<span class="mute">${esc(t("mk.narrator.note"))}</span>`}</div></div>`).join("");
   $("#mk-exprtags").checked = MK.data.expression_tags !== false;
   $("#mk-legend").innerHTML = MK.data.speakers.filter(s => s.id && used[s.id]).map(s => `<button type="button" class="chip" data-lg="${s.id}" style="--c:${mkSwatch(s.id)}" title="${esc(t("mk.press", { n: s.id }))}">${esc(s.name)}</button>`).join("");
+  mkResultPanel();
 }
 $("#mk-legend").addEventListener("click", (ev) => { const b = ev.target.closest("[data-lg]"); if (b) mkAssign(+b.dataset.lg); });
 $("#mk-speakers").addEventListener("mousedown", (ev) => { if (!ev.target.closest("input, select")) ev.preventDefault(); });
@@ -996,7 +997,7 @@ $("#mk-speakers").addEventListener("click", (ev) => {
 });
 $("#mk-speakers").addEventListener("change", (ev) => {
   const row = ev.target.closest(".mk-sp"), f = ev.target.dataset.f; if (!row || !f) return;
-  mkSnap(); mkSpeaker(+row.dataset.id)[f] = ev.target.value; MK.dirty = true; mkState(); if (f === "name") mkRender();
+  mkSnap(); mkSpeaker(+row.dataset.id)[f] = ev.target.value; MK.dirty = true; mkState(); mkResultPanel(); if (f === "name") mkRender();
 });
 $("#mk-addsp").onclick = () => {
   const id = [...Array(16).keys()].find(i => !mkSpeaker(i)); if (id === undefined) { mkHint(t("mk.max"), true); return; }
@@ -1032,7 +1033,7 @@ async function mkOpenEditor(fine) {
   if (!MK.tags) { try { MK.tags = await api("/api/markup/tags"); } catch (e) { MK.tags = { tags: [] }; } }
   mkTagList();
   $("#mk-ch").innerHTML = book.chapters.map((c, i) => `<option value="${i}">${esc(c.n + ". " + c.title)}</option>`).join("");
-  $("#mk-step").hidden = true; $("#mk-chars").innerHTML = ""; $("#mk-llmmsg").textContent = "";
+  MK.result = false; $("#mk-step").hidden = true; $("#mk-chars").innerHTML = ""; $("#mk-llmmsg").textContent = "";
   $("#mk-dlg").showModal(); mkLlmModels().then(() => { mkModelHint(); mkModelButtons(); mkEtaEditor(); }); await mkLoadChapter(0); $("#mk-text").focus(); if (fine) $("#mk-speakers").scrollIntoView({ block: "start" });
 }
 $("#mk-open2").onclick = () => mkOpenEditor(false);
@@ -1204,7 +1205,14 @@ async function mkAutoRun(task, o, ui) {
 function mkVoiceList() {
   const sp = MK.data.speakers.filter(x => x.id > 0 && MK.data.chapters && Object.values(MK.data.chapters).some(c => c.spans.some(z => z.sp === x.id)));
   const missing = sp.filter(x => !x.voice);
-  return { sp, missing, html: sp.map(x => `<div>${esc(x.name)} - ${x.voice ? esc(x.voice.split("/").pop()) : `<i>${esc(t("mk.res.novoice"))}</i>`}</div>`).join("") };
+  return { sp, missing, html: sp.map(x => `<div>${esc(x.name)} - ${x.voice ? esc(mkVoiceName(x.voice)) : `<i>${esc(t("mk.res.novoice"))}</i>`}</div>`).join("") };
+}
+function mkResultPanel() {
+  if (!MK.result || !MK.data) return;
+  const v = mkVoiceList();
+  $("#mk-chars").innerHTML = `<b>${esc(t("mk.chars.voices", { n: mkNeeded() }))}</b>` + `<div class="mk-res">${v.html}</div>`;
+  const nx = $("#mk-step"); nx.hidden = false;
+  nx.innerHTML = `<b>${esc(t(v.missing.length ? "mk.next.voices" : "mk.next.check"))}</b><div class="row"><button type="button" class="primary" id="mk-next-go">${esc(t(v.missing.length ? "mk.res.choose" : "mk.next.read"))}</button></div>`;
 }
 const mkNeeded = () => mkVoiceList().sp.length + 1;  // the narrator and every marked character
 async function mkReadBack() {
@@ -1214,7 +1222,7 @@ async function mkReadBack() {
 // editor: the same flow, or the characters only
 async function mkLlm(task) {
   if (MK.running || !await mkSave()) return;
-  const msg = $("#mk-llmmsg"); msg.textContent = ""; $("#mk-chars").innerHTML = ""; $("#mk-step").hidden = true;
+  const msg = $("#mk-llmmsg"); msg.textContent = ""; MK.result = false; $("#mk-chars").innerHTML = ""; $("#mk-step").hidden = true;
   const hasMarkup = Object.values(MK.data.chapters).some(c => c.spans.length);
   if (task === "auto" && hasMarkup && !confirm(t("mk.again.confirm"))) return;
   let model = $("#mk-model").value;
@@ -1231,10 +1239,7 @@ async function mkLlm(task) {
   if (task === "analyse") { await mkShowChars(); return; }
   await mkReadBack(); await mkLoadChapter(MK.ch);
   msg.textContent = t("mk.auto.done", { m: s.stats.marked || 0, f: s.stats.fell_back || 0 });
-  const v = mkVoiceList();
-  $("#mk-chars").innerHTML = `<b>${esc(t("mk.chars.voices", { n: mkNeeded() }))}</b>` + `<div class="mk-res">${v.html}</div>`;
-  const nx = $("#mk-step"); nx.hidden = false;
-  nx.innerHTML = `<b>${esc(t(v.missing.length ? "mk.next.voices" : "mk.next.check"))}</b><div class="row"><button type="button" class="primary" id="mk-next-go">${esc(t(v.missing.length ? "mk.res.choose" : "mk.next.read"))}</button></div>`;
+  MK.result = true; mkResultPanel();
 }
 $("#mk-step").addEventListener("click", (ev) => {
   if (!ev.target.closest("#mk-next-go")) return;
