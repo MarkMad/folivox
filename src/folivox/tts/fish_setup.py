@@ -46,16 +46,17 @@ def _runtime_ready(rt: builds.Runtime) -> bool:
         return False
 
 
-OWN_SERVER_HELP = ("Drama 3 is not part of any audio.cpp release: build the audiocpp_server of the unofficial branch "
-                   "JarodMica/audio.cpp (drama-3-native, see its docs/models/fish_drama3.md) and set "
-                   "FOLIVOX_NATIVE_SERVER to that file.")
+OWN_SERVER_HELP = ("Drama 3 is in the audio.cpp source (since 2026-10-16) but not in a release yet: it needs a server "
+                   "built from source. On Apple Silicon run  folivox runtime build drama3  (it compiles the pinned "
+                   "commit here); on other systems see  folivox runtime build-help  and set FOLIVOX_NATIVE_SERVER "
+                   "to the file you built.")
 
 
 def needs_own_server(b: Build) -> bool:
     """Native Drama 3 runs only on a build you made yourself (no release binaries exist)."""
     from folivox.tts import native_setup
 
-    return b.backend == "native" and b.kind == "drama3" and not os.environ.get(native_setup.SERVER_ENV)
+    return b.backend == "native" and b.kind == "drama3" and native_setup.own_server_for("fish_drama3") is None
 
 
 def is_ready(b: Build) -> bool:

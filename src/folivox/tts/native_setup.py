@@ -81,7 +81,9 @@ class Catalog:
     binaries: list[Binary]
     weights: dict[str, WeightFile] = field(default_factory=dict)  # by key (q8_0, f32)
     licence: dict = field(default_factory=dict)
-
+    measurements: list[dict] = field(default_factory=list)  # our own runs, see runtime.advice
+    sources: dict = field(default_factory=dict)  # where everything comes from and how to build it
+    recheck: dict = field(default_factory=dict)
 
 @lru_cache(maxsize=1)
 def load() -> Catalog:
@@ -91,7 +93,24 @@ def load() -> Catalog:
     w = raw["weights"]["cosyvoice3"]
     files = {k: WeightFile(k, w["repo"], w["revision"], f["path"], f["size"], f["sha256"])
              for k, f in w["files"].items()}
-    return Catalog(raw["release"], raw["download_base"], raw.get("auto_ok", []), bins, files, raw.get("licence", {}))
+    return Catalog(raw["release"], raw["download_base"], raw.get("auto_ok", []), bins, files, raw.get("licence", {}),
+                   raw.get("measurements", []), raw.get("sources", {}), raw.get("recheck", {}))
+
+
+def sources() -> dict:
+    return load().sources
+
+
+def own_server_for(family: str | None) -> Path | None:
+    """A server you built yourself or that Folivox built from a pinned fork, for the families a release lacks."""
+    if family != "fish_drama3":
+        return None
+    env = os.environ.get(SERVER_ENV)
+    if env and Path(env).expanduser().is_file():
+        return Path(env).expanduser()
+    from folivox.tts import native_build
+
+    return native_build.own_server("drama3")
 
 
 # ---- where things live ---------------------------------------------------------------------------------
@@ -446,7 +465,7 @@ def install_weights(w: WeightFile, progress: Progress | None, log: Callable[[str
 def remove(engine: bool = True, models: bool = True) -> int:
     """Delete the installed engine and/or model files. Returns bytes freed. Files the user brought are untouched."""
     freed = 0
-    for sub in (["bin", "downloads"] if engine else []) + (["models"] if models else []):
+    for sub in (["bin", "downloads", "own", "build"] if engine else []) + (["models"] if models else []):
         d = root() / sub
         if d.exists():
             freed += sum(f.stat().st_size for f in d.rglob("*") if f.is_file() and not f.is_symlink())

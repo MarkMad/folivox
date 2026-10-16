@@ -171,7 +171,7 @@ class FishEngine(TTSEngine):
         from folivox.tts import native, native_setup
 
         family = "fish_drama3" if self.build.kind == "drama3" else "fish_audio"
-        server = native_setup.server_path()
+        server = native_setup.own_server_for(family) or native_setup.server_path()
         if server is None:
             raise FishError("The native engine is not installed: run  folivox runtime install  "
                             f"(or folivox engines install {self.build.id})")

@@ -162,6 +162,27 @@ def load() -> Catalog:
     return parse(json.loads(CATALOG_FILE.read_text(encoding="utf-8")))
 
 
+def measured_rtf(b: Build) -> float | None:
+    """Real-time factor (synthesis time / audio time) of our own run of this build, if there is one."""
+    for t in b.tested_on:
+        if t.get("rtf"):
+            return float(t["rtf"])
+    return None
+
+
+def speed_note(b: Build, cat: Catalog | None = None) -> str:
+    """A native build that was measured slower than the MLX build of the same engine says so (our runs, same Mac)."""
+    if b.backend != "native":
+        return ""
+    mine = measured_rtf(b)
+    for other in (cat or load()).for_engine(b.engine):
+        theirs = measured_rtf(other)
+        if other.backend == "mlx" and mine and theirs and mine > theirs * 1.1:
+            return (f"In our test on Apple Silicon the MLX build was faster (real-time factor {theirs:g} against "
+                    f"{mine:g}); the native build is meant for computers without MLX.")
+    return ""
+
+
 def is_trusted_org(repo: str, cat: Catalog | None = None) -> bool:
     return repo.split("/")[0] in (cat or load()).trusted_orgs
 

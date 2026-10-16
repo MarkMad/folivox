@@ -396,6 +396,7 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
   <div id="eng-fish" class="costcard" hidden>
     <label class="f"><span data-i18n="fish.build">Build</span><select id="o-tts_build"></select></label>
     <div id="fish-info" class="mute" style="margin-top:8px"></div>
+    <div id="fish-measured" class="mute" style="margin-top:4px"></div>
     <div id="fish-warn" class="warn" style="margin-top:6px"></div>
     <div class="row"><button type="button" id="fish-licence" class="primary" data-i18n="fish.licence.btn">Read and accept the licence…</button>
       <button type="button" id="fish-install" class="primary" hidden></button><button type="button" id="fish-remove" hidden data-i18n="fish.remove">Remove</button>
@@ -409,9 +410,8 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
 <section id="s-voice" class="disabled"><h2 data-i18n="s4.h">3 · Voice</h2>
   <div class="vmode" role="radiogroup" aria-label="Voice mode" data-i18n-attr="aria-label:vm.aria">
     <label class="vm on"><input type="radio" name="vmode" value="one" checked><span><b data-i18n="vm.one">One voice</b><small data-i18n="vm.one.sub">One voice reads the whole book. The simplest choice, right for most books.</small></span></label>
-    <label class="vm"><input type="radio" name="vmode" value="multi"><span><b data-i18n="vm.multi">Several voices</b><small data-i18n="vm.multi.sub">A narrator and a separate voice for each character, like a radio play.</small></span></label>
+    <label class="vm"><input type="radio" name="vmode" value="multi"><span><b data-i18n="vm.multi">Several voices</b> <span class="vbadge" id="vm-unsup" hidden data-i18n="vm.unsup">not supported by engine</span><small data-i18n="vm.multi.sub">A narrator and a separate voice for each character, like a radio play.</small></span></label>
   </div>
-  <div id="vm-cloud" class="mute" hidden style="margin:-4px 0 12px" data-i18n="vm.cloud">“Several voices” is unavailable: online engines read the whole book in one voice. Choose a local engine in step 3 to use it.</div>
   <div id="mk-box" class="mk-card" hidden>
     <div class="row"><b class="mk-boxh grow" style="margin:0" data-i18n="mk.h">Characters</b><button type="button" id="mk-open2" class="primary" data-i18n="mk.adv">Characters and voices…</button></div>
     <div id="mk-stat" class="mk-stat"></div>
@@ -627,6 +627,7 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
       <button type="button" id="rt-install" class="primary" hidden></button><button type="button" id="rt-remove" hidden data-i18n="rt.remove">Remove</button></div>
     <progress id="rt-progress" max="100" value="0" hidden style="width:100%;height:8px;margin-top:8px"></progress>
     <p class="mute" style="margin:8px 0 0"><small id="rt-status"></small></p>
+    <p class="mute" style="margin:4px 0 0"><small id="rt-advice"></small></p>
     <p class="warn" style="margin:4px 0 0"><small id="rt-warn"></small></p>
   </div>
   <div id="s-engines" class="adv-block"><h3 data-i18n="adv.helpers">Helper programs</h3>
@@ -856,7 +857,7 @@ function vmodeSync() {
   const multi = document.querySelector('input[name="vmode"][value="multi"]');
   multi.disabled = cloud; multi.closest(".vm").classList.toggle("off", cloud);
   if (cloud && multi.checked) document.querySelector('input[name="vmode"][value="one"]').checked = true;
-  $("#vm-cloud").hidden = !cloud;
+  $("#vm-unsup").hidden = !cloud;
   const m = vmode() === "multi";
   $("#mk-box").hidden = !m; $("#vlabel").textContent = t(m ? "vm.narr" : "vm.voice");
   document.querySelectorAll(".vm").forEach(l => l.classList.toggle("on", l.querySelector("input").checked));
@@ -2240,6 +2241,10 @@ function fishRender() {
   $("#o-tts_build").value = bs.some(b => b.id === keep) ? keep : "auto";
   const b = fishCur(); if (!b) { box.hidden = true; return; }
   $("#fish-info").textContent = t("fish.size", { gb: b.size_gb, peak: b.peak_gb, ram: b.min_total_gb });
+  const m = (b.tested_on || [])[0], mlx = bs.find(x => x.engine === b.engine && !x.native && (x.tested_on || [])[0] && x.tested_on[0].rtf);
+  $("#fish-measured").textContent = [m ? t("fish.measured", { hw: m.hardware, date: m.date, rtf: m.rtf, cer: m.cer }) : t("fish.unmeasured", { cmd: "folivox bench --tts " + b.engine + (b.native ? " --runtime native" : "") }),
+    b.native && m && mlx && FISH.st.hardware.platform === "darwin-arm64" && m.rtf > mlx.tested_on[0].rtf * 1.1 ? t("fish.nativeslower", { mlx: mlx.tested_on[0].rtf, native: m.rtf }) : "",
+    b.native && b.kind === "drama3" ? t("fish.ownserver", { cmd: "folivox runtime build drama3" }) : ""].filter(Boolean).join(" ");
   const warn = [b.fit !== "ok" ? b.fit_message : "", !b.commercial ? t("fish.noncommercial") : ""];
   const v = VOICES.find(x => x.id === voice);
   if (v && v.bundled && !FISH.st.bundled_voices_allowed) warn.push(t("fish.bundledvoice"));
@@ -2774,6 +2779,9 @@ function rtRender() {
   $("#rt-status").textContent = !s.build && !s.server ? t("rt.st.nobuild", { platform: s.platform }) : s.installed ? t("rt.st.ready", { backend: (s.build && s.build.backend) || "custom" }) : t("rt.st.none");
   const warn = [s.build && !s.build.verified ? t("rt.st.untested", { platform: s.platform }) : "", s.selected === "native" && !s.installed ? t("rt.needinstall") : "", rtNative() ? t("rt.device") : ""];
   $("#rt-warn").textContent = warn.filter(Boolean).join(" ");
+  const a = s.advice;
+  $("#rt-advice").textContent = !a ? "" : [a.level === "try" ? t("rt.adv.try", { hw: a.hardware, date: a.date, lo: a.speedup[0], hi: a.speedup[1], qn: a.qa_native, qp: a.qa_pytorch }) : t("rt.adv.unknown", { platform: a.platform }),
+    a.stale ? t("rt.adv.stale", { days: a.age_days }) : "", t("rt.adv.measure", { cmd: a.bench })].filter(Boolean).join(" ");
   if (typeof optionsVisibility === "function") optionsVisibility();
 }
 async function rtPoll() {

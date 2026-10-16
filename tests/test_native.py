@@ -402,7 +402,7 @@ def test_native_drama_needs_your_own_build(tmp_path, monkeypatch):
     monkeypatch.setattr(builds, "engines_root", lambda: tmp_path / "engines")
     monkeypatch.setattr(licences, "require", lambda b: None)
     monkeypatch.setattr(fish_setup, "free_disk_ok", lambda b, w: None)
-    with pytest.raises(fish_setup.InstallError, match="JarodMica"):
+    with pytest.raises(fish_setup.InstallError, match="runtime build drama3"):
         fish_setup.install(b)
     monkeypatch.setenv(ns.SERVER_ENV, str(FAKE))
     assert not fish_setup.needs_own_server(b)
@@ -432,3 +432,92 @@ def test_native_fish_engine_round_trip(fake_engine, tmp_path, monkeypatch):
         assert requests()[-1]["model"] == "fish_drama3"
     finally:
         drama.close()
+
+
+# -- our own measurements drive the hints ---------------------------------------------------------------------------
+
+def test_advice_comes_from_the_recorded_measurements():
+    a = runtime.advice("darwin-arm64")
+    assert a["level"] == "try" and a["speedup"][0] > 1.5 and a["speedup"][0] <= a["speedup"][1]
+    assert a["native_rtf"][1] < a["pytorch_rtf"][0] and a["bench"].startswith("folivox bench")
+    assert a["recheck_days"] == 60 and a["age_days"] >= 0
+    b = runtime.advice("win32-x64")
+    assert b["level"] == "unmeasured" and b["platform"] == "win32-x64"  # nothing is claimed where nothing was run
+
+
+def test_advice_marks_old_measurements(monkeypatch):
+    import datetime as dt
+
+    cat = ns.load()
+    old = dict(cat.measurements[0], date=(dt.date.today() - dt.timedelta(days=90)).isoformat())
+    monkeypatch.setattr(cat, "measurements", [old])
+    assert runtime.advice("darwin-arm64")["stale"] is True
+
+
+def test_native_fish_slower_than_mlx_is_said_so():
+    from folivox.tts import builds
+
+    cat = builds.load()
+    assert "MLX build was faster" in builds.speed_note(cat.build("drama3-native-q2"), cat)
+    assert builds.speed_note(cat.build("drama3-mlx-4bit"), cat) == ""
+    assert builds.measured_rtf(cat.build("s2pro-native-q8")) == 2.52
+
+
+def test_sources_and_build_recipes_are_recorded():
+    src = ns.sources()
+    assert src["drama3"]["commit"] and len(src["drama3"]["commit"]) == 40 and src["drama3_fork"]["commit"]
+    assert {"macos", "linux-cuda", "linux-vulkan", "windows-cuda", "windows-vulkan", "amd-hip"} <= set(src["build"])
+    from folivox.tts import native_build
+
+    assert any("build_metal.sh" in x for x in native_build.platform_recipe("darwin-arm64"))
+    assert any("build_windows.ps1" in x for x in native_build.platform_recipe("win32-x64"))
+    assert any("CUDA_ARCHITECTURES" in x for x in native_build.platform_recipe("linux-x64"))
+    assert ns.load().recheck["after_days"] == 60
+
+
+def test_own_build_is_found_and_enables_drama(tmp_path, monkeypatch):
+    from folivox.tts import builds, fish_setup, native_build
+
+    monkeypatch.delenv(ns.SERVER_ENV, raising=False)
+    drama = builds.load().build("drama3-native-q2")
+    assert native_build.own_server() is None and fish_setup.needs_own_server(drama)
+    d = native_build.own_dir("drama3")
+    d.mkdir(parents=True)
+    (d / ns.SERVER_NAME).write_bytes(b"x")
+    (d / ns.READY).write_text('{"commit": "x"}')
+    assert native_build.own_server() == d / ns.SERVER_NAME
+    assert ns.own_server_for("fish_drama3") == d / ns.SERVER_NAME and ns.own_server_for("fish_audio") is None
+    assert not fish_setup.needs_own_server(drama)
+    assert ns.remove() >= 0 and native_build.own_server() is None
+
+
+def test_build_refuses_where_it_was_not_run(monkeypatch):
+    from folivox.tts import native_build
+
+    monkeypatch.setattr(ns, "platform_tag", lambda: "linux-x64")
+    assert "build-help" in native_build.can_build_here()
+    with pytest.raises(ns.NativeError):
+        native_build.build()
+
+
+def test_cli_build_help_and_status_say_where_things_come_from():
+    from typer.testing import CliRunner
+
+    from folivox.cli_runtime import runtime_app
+
+    r = CliRunner().invoke(runtime_app, ["build-help", "linux-cuda"])
+    assert r.exit_code == 0 and "CUDA" in r.output and "0xShug0/audio.cpp" in r.output
+    assert "Jmica/Drama-3-GGUF" in r.output
+    assert CliRunner().invoke(runtime_app, ["build-help", "beos"]).exit_code == 2
+    s = CliRunner().invoke(runtime_app, [])
+    assert s.exit_code == 0 and ("measure" in s.output.lower() or "faster" in s.output.lower())
+
+
+def test_bench_report_is_shareable_and_private():
+    from folivox import bench
+
+    rows = [{"device": "native", "actual": "native:metal", "rtf": 0.6, "chars_per_s": 20.0, "load_s": 14,
+             "warmup_s": 5}, {"device": "cuda", "error": "no kernel image"}]
+    text = bench.report_text(rows, "cosyvoice3", "ru")
+    assert "RTF 0.60" in text and "FAILED no kernel image" in text and "audio.cpp release" in text
+    assert "/Users/" not in text and "token" not in text.lower()

@@ -75,6 +75,8 @@ folivox runtime                          # installed? which build fits this comp
 folivox runtime install                  # download the audio.cpp engine + the CosyVoice 3 GGUF model (asks first)
 folivox runtime install --weights f32    # the 7 GB file (the cleanest source for fp16 precision)
 folivox runtime remove                   # delete them (PyTorch files are not touched)
+folivox runtime build-help               # where everything comes from; build steps for this computer (or a named one)
+folivox runtime build drama3             # Apple Silicon: compile the Drama 3 server from the pinned audio.cpp commit
 folivox render book.epub --runtime native
 ```
 
@@ -88,6 +90,7 @@ fallback rules and what is verified: [Native runtime](native-runtime.md).
 folivox bench                         # every device found: cpu, cuda, mps (and native, when installed)
 folivox bench --devices cpu,cuda      # only these (cuda is tried even if `auto` would skip a small GPU)
 folivox bench --lang en --voice me.wav --timeout 600
+folivox bench --tts fish-s2 --runtime native --voice me.wav   # a Fish engine; prints a report to share
 ```
 
 Synthesises one short fragment per device, each in its own process (a crash or an out-of-memory error ends only

@@ -438,7 +438,18 @@
     "ja",
     "ko"
    ],
-   "tested_on": [],
+   "tested_on": [
+    {
+     "hardware": "Apple M3 Pro, 36 GB",
+     "date": "2026-10-16",
+     "fragment": "ru-hard, 6 fragments, voice gemini-2, no retakes",
+     "rtf": 2.52,
+     "peak_gb": null,
+     "cer": "0.000-0.02 with Whisper (mean 0.004)",
+     "runtime": "audio.cpp v0.9.2, Metal",
+     "note": "model load 26 s; on this Mac the MLX build (rtf 2.3) is not slower, so the native build is for computers without MLX"
+    }
+   ],
    "notes": "Weights are under the Fish Audio Research License: personal and research use only, no commercial use. Runs on the audio.cpp native runtime (GGUF); memory figures are estimates, not measurements.",
    "revision": "f861648c0c1f4da9f18e9a0ce5e217b0679bb2f5",
    "size_bytes": 6317911232,
@@ -528,8 +539,19 @@
     "ja",
     "ko"
    ],
-   "tested_on": [],
-   "notes": "Fish Community License. Needs your own build of the unofficial JarodMica/audio.cpp branch drama-3-native (no release binaries exist): set FOLIVOX_NATIVE_SERVER to its audiocpp_server. Memory figures are estimates, not measurements.",
+   "tested_on": [
+    {
+     "hardware": "Apple M3 Pro, 36 GB",
+     "date": "2026-10-16",
+     "fragment": "ru-hard, 6 fragments, voice gemini-2, no retakes",
+     "rtf": 1.97,
+     "peak_gb": null,
+     "cer": "0.000-0.02 with Whisper (mean 0.003)",
+     "runtime": "audio.cpp main @2d832de9 (pinned in native_catalog.json), built by `folivox runtime build drama3`, Metal",
+     "note": "model load 70 s; same audio durations and quality score as the first fork build (RTF 2.11); the MLX build (rtf 1.0) is about twice as fast on this Mac. Free memory was 16 GB (below the 17 GB gate, run with FOLIVOX_IGNORE_MEMORY=1) and the swap filled; a quieter computer may be faster"
+    }
+   ],
+   "notes": "Fish Community License. Drama 3 is in the audio.cpp source since 2026-10-16 but not in a release: build the server once (`folivox runtime build drama3` on Apple Silicon, `folivox runtime build-help` elsewhere). Memory figures are estimates, not measurements.",
    "revision": "17a5b40c5dc2c2be986f5371a7e650108b828e29",
    "size_bytes": 17053639872,
    "files": [
@@ -574,7 +596,7 @@
     "ko"
    ],
    "tested_on": [],
-   "notes": "Fish Community License. Needs your own build of the unofficial JarodMica/audio.cpp branch drama-3-native (no release binaries exist): set FOLIVOX_NATIVE_SERVER to its audiocpp_server. Memory figures are estimates, not measurements.",
+   "notes": "Fish Community License. Drama 3 is in the audio.cpp source since 2026-10-16 but not in a release: build the server once (`folivox runtime build drama3` on Apple Silicon, `folivox runtime build-help` elsewhere). Memory figures are estimates, not measurements.",
    "revision": "17a5b40c5dc2c2be986f5371a7e650108b828e29",
    "size_bytes": 20325196992,
    "files": [
@@ -619,7 +641,7 @@
     "ko"
    ],
    "tested_on": [],
-   "notes": "Fish Community License. Needs your own build of the unofficial JarodMica/audio.cpp branch drama-3-native (no release binaries exist): set FOLIVOX_NATIVE_SERVER to its audiocpp_server. Memory figures are estimates, not measurements.",
+   "notes": "Fish Community License. Drama 3 is in the audio.cpp source since 2026-10-16 but not in a release: build the server once (`folivox runtime build drama3` on Apple Silicon, `folivox runtime build-help` elsewhere). Memory figures are estimates, not measurements.",
    "revision": "17a5b40c5dc2c2be986f5371a7e650108b828e29",
    "size_bytes": 24596497888,
    "files": [

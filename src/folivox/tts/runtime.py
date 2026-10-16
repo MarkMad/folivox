@@ -54,3 +54,33 @@ def take_settings(speed: float) -> str:
     opts = config.native_options()
     return (f"cv3-native-1|{native_setup.load().release}|{native.settings_tag(opts['weights'], opts['weight_type'])}"
             f"|speed={speed}")
+
+
+def advice(platform: str | None = None) -> dict:
+    """What our own measurements say about the native runtime on this platform (for the CLI and the studio).
+
+    ``level`` is ``"try"`` when a run on this platform found the native runtime clearly faster with a clean quality
+    check (it is then suggested, never switched on by itself), ``"unmeasured"`` when nothing was measured here. The
+    numbers come from ``measurements`` in ``native_catalog.json``; nothing is computed from guesses.
+    """
+    from folivox.tts import native_setup as ns
+
+    tag = platform or ns.platform_tag()
+    rows = [m for m in ns.load().measurements if m["platform"] == tag and m["engine"] == "cosyvoice3"]
+    if not rows:
+        return {"level": "unmeasured", "platform": tag, "bench": BENCH_COMMAND}
+    m = rows[0]
+    nat, base = m["native"]["rtf"], m["pytorch"]["rtf"]
+    import datetime as dt
+
+    age = (dt.date.today() - dt.date.fromisoformat(m["date"])).days
+    after = int(ns.load().recheck.get("after_days", 60))
+    return {"level": "try" if base[0] > nat[1] else "unmeasured", "platform": tag, "bench": BENCH_COMMAND,
+            "age_days": age, "stale": age > after, "recheck_days": after,
+            "hardware": m["hardware"], "date": m["date"], "fragment": m["fragment"],
+            "speedup": [round(base[0] / nat[1], 1), round(base[1] / nat[0], 1)],
+            "native_rtf": nat, "pytorch_rtf": base, "qa_native": m["native"]["qa_mean"],
+            "qa_pytorch": m["pytorch"]["qa_mean"], "note": m.get("note", "")}
+
+
+BENCH_COMMAND = "folivox bench --devices native,cpu"

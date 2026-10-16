@@ -52,6 +52,9 @@ def check(opts, events) -> builds.Build:
         events.warning(f.message)
     if build.status != "verified":
         events.warning(f"{build.title} has not been tested by the Folivox project yet; the result may be poor.")
+    note = builds.speed_note(build)
+    if note and hw.platform_tag == "darwin-arm64":
+        events.warning(note)
     lic = builds.load().licences[build.licence]
     if not lic.commercial:
         events.warning(f"{lic.name}: audiobooks made with {build.title} are for personal and research use only. "

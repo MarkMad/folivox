@@ -166,7 +166,7 @@ or, with several voices on, the **narrator's voice** (everything the characters 
 several voices on but no characters marked yet says so instead of silently reading with one voice. The choice is
 remembered per book (a book that already has markup opens in *Several voices*); switching back to one voice keeps the
 markup. The engine is chosen first, in step *3 · Reading engine*: online engines read the whole book in one voice,
-so with one of them chosen *Several voices* is greyed out (with a note saying why) and the mode switches back to
+so with one of them chosen *Several voices* is greyed out (marked *not supported by engine*) and the mode switches back to
 *One voice*.
 
 With *Several voices* on, step 4 shows the **Characters** box. It does not run anything: it shows the **state** and

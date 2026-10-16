@@ -647,7 +647,7 @@
  "vm.aria": "Stimmenmodus",
  "vm.one": "Eine Stimme",
  "vm.one.sub": "Eine Stimme liest das ganze Buch. Die einfachste Wahl, richtig für die meisten Bücher.",
- "vm.cloud": "„Mehrere Stimmen“ ist nicht verfügbar: Online-Engines lesen das ganze Buch mit einer Stimme. Wählen Sie in Schritt 3 eine lokale Engine.",
+ "vm.unsup": "von der Engine nicht unterstützt",
  "vm.multi": "Mehrere Stimmen",
  "vm.multi.sub": "Ein Erzähler und für jede Figur eine eigene Stimme, wie in einem Hörspiel.",
  "vm.narr": "Stimme des Erzählers (liest alles, was die Figuren nicht sprechen)",
@@ -713,5 +713,13 @@
  "rt.confirm": "{gb} GB laden ({what})? PyTorch bleibt installiert.",
  "rt.confirmrm": "Native Laufzeit und Modelldateien löschen? PyTorch bleibt unberührt.",
  "rt.device": "Die native Laufzeit wählt ihren Grafikprozessor selbst; die Einstellung „Gerät“ gilt hier nicht.",
- "rt.needinstall": "Installieren Sie zuerst die native Laufzeit."
+ "rt.needinstall": "Installieren Sie zuerst die native Laufzeit.",
+ "rt.adv.try": "In unserem Test auf {hw} ({date}) war die native Laufzeit {lo}–{hi}× schneller als PyTorch; die Qualitätsprüfung ergab {qn} gegenüber {qp} (0 ist perfekt). Das ist ein Vorschlag: Standard bleibt PyTorch.",
+ "rt.adv.unknown": "Auf {platform} noch nicht gemessen. Sie können es auf eigenes Risiko ausprobieren und selbst messen.",
+ "rt.adv.stale": "Das wurde vor {days} Tagen gemessen, und audio.cpp ändert sich schnell: bitte neu messen.",
+ "rt.adv.measure": "Auf diesem Computer messen: {cmd} (gibt einen Bericht zum Teilen aus).",
+ "fish.measured": "Unser Test auf {hw} ({date}): Tempo {rtf} (1 = Echtzeit, kleiner ist schneller), Qualitätsprüfung {cer}.",
+ "fish.unmeasured": "Vom Projekt noch nicht getestet: Nutzung auf eigenes Risiko. Messen mit {cmd}.",
+ "fish.nativeslower": "Auf Apple Silicon war in unserem Test die MLX-Version schneller (Tempo {mlx} gegenüber {native}); die native Version ist für Computer ohne MLX gedacht.",
+ "fish.ownserver": "Drama 3 braucht einen aus dem Quellcode gebauten Server (noch nicht in einem Release): {cmd} ausführen (Apple Silicon) oder die Build-Schritte in der Doku ansehen."
 }

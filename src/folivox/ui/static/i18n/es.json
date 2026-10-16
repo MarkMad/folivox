@@ -647,7 +647,7 @@
  "vm.aria": "Modo de voces",
  "vm.one": "Una voz",
  "vm.one.sub": "Una sola voz lee todo el libro. La opción más sencilla, adecuada para la mayoría de los libros.",
- "vm.cloud": "«Varias voces» no está disponible: los motores en línea leen todo el libro con una sola voz. Elige un motor local en el paso 3.",
+ "vm.unsup": "el motor no lo admite",
  "vm.multi": "Varias voces",
  "vm.multi.sub": "Un narrador y una voz distinta para cada personaje, como en una radionovela.",
  "vm.narr": "Voz del narrador (lee todo lo que no dicen los personajes)",
@@ -713,5 +713,13 @@
  "rt.confirm": "¿Descargar {gb} GB ({what})? PyTorch sigue instalado.",
  "rt.confirmrm": "¿Borrar el motor nativo y sus archivos de modelo? PyTorch no se ve afectado.",
  "rt.device": "El motor nativo elige su propio procesador gráfico, así que el ajuste «Dispositivo» no se usa.",
- "rt.needinstall": "Instale primero el motor nativo."
+ "rt.needinstall": "Instale primero el motor nativo.",
+ "rt.adv.try": "En nuestra prueba en {hw} ({date}) el motor nativo fue {lo}–{hi}× más rápido que PyTorch; el control de calidad dio {qn} frente a {qp} (0 es perfecto). Es una sugerencia: PyTorch sigue por defecto.",
+ "rt.adv.unknown": "Aún no se ha medido en {platform}. Puede probarlo bajo su propio riesgo y medirlo usted mismo.",
+ "rt.adv.stale": "Se midió hace {days} días y audio.cpp cambia rápido: mida de nuevo.",
+ "rt.adv.measure": "Medir en este equipo: {cmd} (imprime un informe que puede compartir).",
+ "fish.measured": "Nuestra prueba en {hw} ({date}): velocidad {rtf} (1 = tiempo real, menor es más rápido), control de calidad {cer}.",
+ "fish.unmeasured": "Aún no probado por el proyecto: úselo bajo su propio riesgo. Puede medirlo con {cmd}.",
+ "fish.nativeslower": "En Apple Silicon la versión MLX fue más rápida en nuestra prueba (velocidad {mlx} frente a {native}); la nativa es para equipos sin MLX.",
+ "fish.ownserver": "Drama 3 necesita un servidor compilado desde el código fuente (aún no está en una versión publicada): ejecute {cmd} (Apple Silicon) o vea los pasos en la documentación."
 }

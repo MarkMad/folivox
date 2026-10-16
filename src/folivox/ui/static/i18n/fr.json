@@ -647,7 +647,7 @@
  "vm.aria": "Mode de voix",
  "vm.one": "Une voix",
  "vm.one.sub": "Une seule voix lit tout le livre. Le choix le plus simple, adapté à la plupart des livres.",
- "vm.cloud": "« Plusieurs voix » est indisponible : les moteurs en ligne lisent tout le livre avec une seule voix. Choisissez un moteur local à l'étape 3.",
+ "vm.unsup": "non pris en charge par le moteur",
  "vm.multi": "Plusieurs voix",
  "vm.multi.sub": "Un narrateur et une voix distincte pour chaque personnage, comme dans une pièce radiophonique.",
  "vm.narr": "Voix du narrateur (lit tout ce que les personnages ne disent pas)",
@@ -713,5 +713,13 @@
  "rt.confirm": "Télécharger {gb} Go ({what}) ? PyTorch reste installé.",
  "rt.confirmrm": "Supprimer le moteur natif et ses fichiers de modèle ? PyTorch n’est pas touché.",
  "rt.device": "Le moteur natif choisit lui-même son processeur graphique ; le réglage « Appareil » n’est pas utilisé.",
- "rt.needinstall": "Installez d’abord le moteur natif."
+ "rt.needinstall": "Installez d’abord le moteur natif.",
+ "rt.adv.try": "Lors de notre test sur {hw} ({date}), le moteur natif était {lo}–{hi}× plus rapide que PyTorch ; le contrôle qualité a donné {qn} contre {qp} (0 = parfait). C’est une suggestion : PyTorch reste le choix par défaut.",
+ "rt.adv.unknown": "Pas encore mesuré sur {platform}. Vous pouvez l’essayer à vos risques et le mesurer vous-même.",
+ "rt.adv.stale": "Mesuré il y a {days} jours ; audio.cpp évolue vite : mesurez à nouveau.",
+ "rt.adv.measure": "Mesurer sur cet ordinateur : {cmd} (affiche un rapport à partager).",
+ "fish.measured": "Notre test sur {hw} ({date}) : vitesse {rtf} (1 = temps réel, plus petit = plus rapide), contrôle qualité {cer}.",
+ "fish.unmeasured": "Pas encore testé par le projet : à vos risques. Mesure possible avec {cmd}.",
+ "fish.nativeslower": "Sur Apple Silicon, la version MLX était plus rapide dans notre test (vitesse {mlx} contre {native}) ; la version native vise les ordinateurs sans MLX.",
+ "fish.ownserver": "Drama 3 nécessite un serveur compilé depuis les sources (pas encore dans une version publiée) : lancez {cmd} (Apple Silicon) ou suivez les étapes de la documentation."
 }

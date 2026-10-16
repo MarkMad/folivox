@@ -647,7 +647,7 @@
  "vm.aria": "声音模式",
  "vm.one": "单一声音",
  "vm.one.sub": "一种声音朗读全书。最简单的选择，适合大多数书。",
- "vm.cloud": "“多个声音”不可用：在线引擎用同一个声音朗读整本书。请在第 3 步选择本地引擎。",
+ "vm.unsup": "引擎不支持",
  "vm.multi": "多种声音",
  "vm.multi.sub": "一位旁白加每个角色各自的声音，像广播剧。",
  "vm.narr": "旁白的声音（朗读角色之外的所有内容）",
@@ -713,5 +713,13 @@
  "rt.confirm": "下载 {gb} GB（{what}）？PyTorch 会保留。",
  "rt.confirmrm": "删除原生引擎及其模型文件？不影响 PyTorch。",
  "rt.device": "原生引擎自行选择显卡，因此“设备”设置不起作用。",
- "rt.needinstall": "请先安装原生引擎。"
+ "rt.needinstall": "请先安装原生引擎。",
+ "rt.adv.try": "在我们于 {hw}（{date}）上的测试中，原生引擎比 PyTorch 快 {lo}–{hi} 倍；质量检查得分 {qn}，PyTorch 为 {qp}（0 为完美）。这只是建议：默认仍是 PyTorch。",
+ "rt.adv.unknown": "尚未在 {platform} 上测量。你可以自担风险尝试，并自行测量。",
+ "rt.adv.stale": "这是 {days} 天前测的，audio.cpp 变化很快：请重新测量。",
+ "rt.adv.measure": "在这台电脑上测量：{cmd}（会输出可分享的报告）。",
+ "fish.measured": "我们在 {hw}（{date}）上的测试：速度 {rtf}（1 为实时，越小越快），质量检查 {cer}。",
+ "fish.unmeasured": "项目尚未测试：请自担风险使用。可用 {cmd} 测量。",
+ "fish.nativeslower": "在 Apple Silicon 上，我们的测试中 MLX 版本更快（速度 {mlx} 对 {native}）；原生版本面向没有 MLX 的电脑。",
+ "fish.ownserver": "Drama 3 需要从源码编译的服务器（尚未包含在发行版中）：运行 {cmd}（Apple Silicon），或查看文档中的构建步骤。"
 }
