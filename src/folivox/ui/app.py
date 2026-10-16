@@ -25,13 +25,13 @@ from folivox import config
 from folivox import voices as catalog
 from folivox.pipeline import QA_LEVELS, RenderOptions
 from folivox.text import pronounce as pronunciations
-from folivox.ui import fish_routes, markup_routes
+from folivox.ui import fish_routes, markup_routes, runtime_routes
 from folivox.ui.jobs import JobManager, chapter_files
 
 STATIC = Path(__file__).parent / "static"
 # Bumped when the page starts using a route that servers started before the update do not have: the page asks
 # /api/ping and, if the server is older, tells the user to restart it.
-API_LEVEL = 3
+API_LEVEL = 4
 MAX_UPLOAD = 200 * 1024 * 1024
 PREVIEW_CHARS = 600
 
@@ -127,6 +127,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     """``services`` (tests): ``generator(name)``, ``llm(name)`` and ``asr(lang)`` factories replacing the real ones."""
     state = State(data_dir or Path(user_data_dir("folivox", appauthor=False)) / "ui", render)
     fish_install = fish_routes.Install()
+    native_install = fish_routes.Install()
     services = services or {}
     # what the cookie holds: derived from the token, so it survives restarts but the token itself never sits in it
     session = (hmac.new(token.encode(), b"folivox-ui-cookie", "sha256").hexdigest() if token
@@ -1530,6 +1531,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/keys/{name}", put_key, methods=["PUT"]),
         Route("/api/keys/{name}", delete_key, methods=["DELETE"]),
         *fish_routes.routes(ApiError, fish_install),
+        *runtime_routes.routes(ApiError, native_install),
         *markup_routes.routes(ApiError, state, services),
     ]
     app = Starlette(routes=routes, exception_handlers={ApiError: api_error, ValueError: bad_request,

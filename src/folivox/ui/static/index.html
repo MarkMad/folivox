@@ -614,6 +614,14 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
 </section>
 
 <details id="adv" class="advanced"><summary><b data-i18n="adv.h">Advanced settings</b> <small class="mute" data-i18n="adv.sub">helpers that run on this computer · API keys for online providers</small></summary>
+  <div id="s-runtime" class="adv-block"><h3 data-i18n="rt.h">Inference runtime</h3>
+    <p class="sec-sub" data-i18n="rt.sub">Which engine runs the CosyVoice 3 voice on this computer. PyTorch is the tested default. The native C++ engine (audio.cpp) is optional and can be much faster; it needs a one-time download and is used only where you choose it.</p>
+    <div class="row"><select id="rt-select" aria-label="Inference runtime"><option value="auto" data-i18n="rt.opt.auto">Automatic (PyTorch for now)</option><option value="pytorch" data-i18n="rt.opt.pytorch">PyTorch</option><option value="native" data-i18n="rt.opt.native">Native C++ (audio.cpp)</option></select>
+      <button type="button" id="rt-install" class="primary" hidden></button><button type="button" id="rt-remove" hidden data-i18n="rt.remove">Remove</button></div>
+    <progress id="rt-progress" max="100" value="0" hidden style="width:100%;height:8px;margin-top:8px"></progress>
+    <p class="mute" style="margin:8px 0 0"><small id="rt-status"></small></p>
+    <p class="warn" style="margin:4px 0 0"><small id="rt-warn"></small></p>
+  </div>
   <div id="s-engines" class="adv-block"><h3 data-i18n="adv.helpers">Helper programs</h3>
     <p class="sec-sub" data-i18n-html="adv.helpers.sub">Work behind the scenes and run <b>free on this computer</b>; a choice marked <span class="vbadge warn">cloud</span> sends data to an online service and costs money. Who reads the book is chosen in step 3.</p>
     <div id="settings" class="eng-list"></div>
@@ -2251,7 +2259,7 @@ async function engLoad() {
 function optionsVisibility() {
   const cloud = ENG.cloud(), qaOn = $("#o-qa").value === "1", ru = !book || book.lang === "ru";
   const row = (id, show) => { $("#" + id).parentElement.hidden = !show; };
-  row("o-speed", !cloud); row("o-max_chars", !cloud); row("o-device", !cloud);
+  row("o-speed", !cloud); row("o-max_chars", !cloud); row("o-device", !cloud && !(rtNative() && (ENG.cur() || {}).name === "cosyvoice3"));
   row("o-stress", !cloud && ru); row("o-takes", qaOn); row("o-qa_level", qaOn);
 }
 $("#o-qa").addEventListener("change", optionsVisibility);
@@ -2703,6 +2711,42 @@ $("#gp-add").onclick = async () => {
 };
 
 document.addEventListener("click", (ev) => { if (ev.target.closest("[data-open-adv]")) { ev.preventDefault(); $("#adv").open = true; $("#s-keys").scrollIntoView({ behavior: "smooth", block: "start" }); } });
+// ---- inference runtime ------------------------------------------------------------------------
+const RT = { st: null, timer: 0 };
+async function rtRefresh() { try { RT.st = await api("/api/runtime"); } catch (e) { RT.st = null; } rtRender(); }
+function rtNative() { return !!RT.st && (RT.st.selected === "native" || (RT.st.selected === "auto" && RT.st.auto)); }
+function rtRender() {
+  const s = RT.st, running = s && s.install.state === "running"; if (!s) return;
+  $("#rt-select").value = s.selected;
+  $("#rt-install").hidden = !s.todo.bytes || running;
+  $("#rt-install").textContent = t("rt.install", { gb: (s.todo.bytes / 1e9).toFixed(1) });
+  $("#rt-remove").hidden = !s.server || running;
+  $("#rt-status").textContent = !s.build && !s.server ? t("rt.st.nobuild", { platform: s.platform }) : s.installed ? t("rt.st.ready", { backend: (s.build && s.build.backend) || "custom" }) : t("rt.st.none");
+  const warn = [s.build && !s.build.verified ? t("rt.st.untested", { platform: s.platform }) : "", s.selected === "native" && !s.installed ? t("rt.needinstall") : "", rtNative() ? t("rt.device") : ""];
+  $("#rt-warn").textContent = warn.filter(Boolean).join(" ");
+  if (typeof optionsVisibility === "function") optionsVisibility();
+}
+async function rtPoll() {
+  clearTimeout(RT.timer);
+  let i; try { i = await api("/api/runtime/install"); } catch (e) { return; }
+  const bar = $("#rt-progress"); bar.hidden = i.state !== "running"; if (i.total) bar.value = Math.round(100 * i.done / i.total);
+  if (i.state === "running") { $("#rt-status").textContent = i.total ? t("rt.installing", { name: i.name, done: (i.done / 1e9).toFixed(1), total: (i.total / 1e9).toFixed(1) }) : (i.message || t("rt.preparing")); RT.timer = setTimeout(rtPoll, 1500); return; }
+  await rtRefresh(); if (i.state === "error") $("#rt-warn").textContent = i.message;
+}
+$("#rt-select").addEventListener("change", async () => {
+  try { RT.st = await api("/api/runtime", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inference: $("#rt-select").value }) }); rtRender(); }
+  catch (e) { $("#rt-warn").textContent = e.message; }
+});
+$("#rt-install").addEventListener("click", async () => {
+  const s = RT.st; if (!s || !confirm(t("rt.confirm", { gb: (s.todo.bytes / 1e9).toFixed(1), what: s.todo.lines.join("; ") }))) return;
+  try { await api("/api/runtime/install", { method: "POST" }); $("#rt-install").hidden = true; rtPoll(); }
+  catch (e) { $("#rt-warn").textContent = e.message; }
+});
+$("#rt-remove").addEventListener("click", async () => {
+  if (!confirm(t("rt.confirmrm"))) return;
+  try { RT.st = await api("/api/runtime/remove", { method: "POST" }); rtRender(); }
+  catch (e) { $("#rt-warn").textContent = e.message; }
+});
 // ---- settings ---------------------------------------------------------------------------------
 const ENGINES = new Proxy({}, { get: (_, k) => ["tts", "asr", "llm", "voicegen"].includes(k) ? [t(`kind.${k}.h`), t(`kind.${k}.s`)] : undefined });
 async function loadSettings() {
@@ -2788,7 +2832,7 @@ function refreshUi() {
 }
 (async () => {
   CAT_EN = await loadCatalog("en"); await setUiLang(pickUiLang(), false); engLoad();
-  try { checkServer(); await loadSettings(); loadKeys().catch(() => {}); await restoreSession(); loadRecent(); await reconcile(); setInterval(reconcile, 4000); uiReady = true; }
+  try { checkServer(); await loadSettings(); rtRefresh(); loadKeys().catch(() => {}); await restoreSession(); loadRecent(); await reconcile(); setInterval(reconcile, 4000); uiReady = true; }
   catch (e) { document.body.insertAdjacentHTML("afterbegin", `<p class="err" style="padding:16px">${t("boot.fail", { msg: esc(e.message) })}</p>`); }
 })();
 </script>

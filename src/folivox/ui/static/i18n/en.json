@@ -689,5 +689,22 @@
  "mk.a.young": "young",
  "mk.a.adult": "adult",
  "mk.a.old": "old",
- "mk.unsure": "Not sure: check this one. It is used for the voice ideas."
+ "mk.unsure": "Not sure: check this one. It is used for the voice ideas.",
+ "rt.h": "Inference runtime",
+ "rt.sub": "Which engine runs the CosyVoice 3 voice on this computer. PyTorch is the tested default. The native C++ engine (audio.cpp) is optional and can be much faster; it needs a one-time download and is used only where you choose it.",
+ "rt.opt.auto": "Automatic (PyTorch for now)",
+ "rt.opt.pytorch": "PyTorch",
+ "rt.opt.native": "Native C++ (audio.cpp)",
+ "rt.st.none": "Native engine: not installed.",
+ "rt.st.nobuild": "There is no prebuilt native engine for this computer ({platform}); PyTorch is used.",
+ "rt.st.ready": "Native engine installed ({backend}).",
+ "rt.st.untested": "This build has not been checked on {platform} yet: try it on a short preview first.",
+ "rt.install": "Download the native engine ({gb} GB)",
+ "rt.remove": "Remove",
+ "rt.installing": "Downloading {name}: {done} of {total} GB",
+ "rt.preparing": "Preparing…",
+ "rt.confirm": "Download {gb} GB ({what})? PyTorch stays installed.",
+ "rt.confirmrm": "Delete the native engine and its model files? PyTorch is not affected.",
+ "rt.device": "The native engine picks its own graphics processor, so the Device setting is not used.",
+ "rt.needinstall": "Install the native engine first."
 }
