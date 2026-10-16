@@ -1572,7 +1572,7 @@ function loadLangs() {
 }
 function langGapText(id) {
   const g = LANGINFO && LANGINFO.speakers[String(id)]; if (!g || !g.gaps.length) return "";
-  const v = g.voice ? VOICES.find(x => x.id === g.voice) : null;
+  const v = VOICES.find(x => x.id === (g.voice || AUTO[book.lang]));
   return t("lang.gap", { voice: v ? v.name : (g.voice ? g.voice.split("/").pop() : t("v.auto")), own: lname(g.voice_lang), langs: g.gaps.map(lname).join(", ") });
 }
 const langGapHtml = (id) => langGapText(id) ? `<div class="lang-gap">${esc(langGapText(id))}</div>` : "";

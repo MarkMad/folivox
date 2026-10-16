@@ -49,6 +49,17 @@ about the prompt — accent and rhythm included — so listen to the *cloned* na
 take. Describe the speaker as a **native** speaker of the language: preset voices of multilingual
 models carry their own accent into other languages.
 
+### Books with several languages
+
+A voice is cloned from a sample in one language and speaks every language of the engine, but it keeps the accent of
+its sample: a Russian voice reads English words with a Russian accent. When a book has more than one language
+(a Russian textbook with English phrases, see [Books with several languages](markup.md#books-with-several-languages)),
+the studio shows the shares of each language in the book card (`ru 92% · en 8%`), and warns under the voice list
+(and under a character in the markup editor) when the voice does not speak a language its text uses. The voice
+list puts the voices of the book's languages first. There is no setting: the warning is information, and the
+render log repeats it. Giving a character a voice of the other language (an English voice for the English lines'
+speaker) is done by the markup as usual. Not done yet: a second reference sample per language for one voice.
+
 ### Voices for the characters of a book
 
 After the characters are known (`folivox markup analyse`), `folivox markup voices book.epub` writes three English

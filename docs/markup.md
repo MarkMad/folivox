@@ -15,6 +15,9 @@ Books without markup are read exactly as before.
 - **Spans**: a range of characters inside a paragraph belongs to a speaker, optionally with delivery tags put
   in front of it. A paragraph can be split between narrator and characters («— Ты куда? — спросила соседка»).
 - **Marks**: an inline expression tag at an offset, where the effect should happen.
+- **Language**: a span may carry the language of its text (`"lang": "en"`, ISO 639-1) when that is not the book's
+  language; without it the fragment is in the book's language, so files made before this existed read the same.
+  See [Books with several languages](#books-with-several-languages).
 - The markup remembers a signature of each chapter's text. If you replace the book with another edition,
   chapters whose text changed are ignored (the narrator reads them) and `folivox markup check` says so.
 
@@ -28,6 +31,48 @@ cloud engine reads the whole book in one voice.
 
 With a Fish engine each speaker's voice must be your own recording, a generated voice, or the voice of someone
 who agreed: the bundled voices are not used (see [Fish Audio engines](fish-engines.md#voices-of-real-people)).
+
+## Books with several languages
+
+A Russian textbook with English phrases, a German novel with French dialogue: every fragment is read in its own
+language, with the same voice. The engines are multilingual and a cloned voice speaks every language of the
+engine, but a text mixing two languages read without a hint is pronounced with the wrong rules (English words
+spelled out or read with a Russian accent). So each fragment carries its language:
+
+- **By script, always on, no model**: Latin words and phrases inside Cyrillic text, Cyrillic inside Latin,
+  Han/kana/Hangul inside either are found by Unicode script. A run is whole words; the spaces, numbers and light
+  punctuation between its words belong to it, and punctuation attached to its last word goes with it («How are
+  you?»). Quotes, brackets and numbers at the edges stay with the surrounding text. Roman numerals,
+  abbreviations such as USB, web addresses and one- or two-letter words are left to the book's language. Latin
+  is told between English, German, French, Spanish and Italian by function words and accents (English when
+  nothing says). These are not stored in the markup file.
+- **Same script (English inside German, French inside English)** cannot be seen by script. When a book has
+  more than one language (a language with at least 2% of its letters, found over the whole book), the automatic
+  markup also asks the model for the language of each part it already looks at and stores it as `"lang"` in
+  the span. The answer is checked: the code must be on the allow-list of ISO 639-1 codes, differ from the book's
+  language, and fit the part's letters (a Latin language needs Latin letters; function words must not say the
+  book's own language). It costs no extra requests, and a one-language book gets exactly the old prompt. Only
+  paragraphs with speech are sent to the model, so a same-script phrase in plain narration is not marked.
+- **By hand**: the text form has `<|lang:xx|>` (`<|lang:-|>` goes back to the book's language), so
+  `folivox markup export --format text` / `import` round-trip languages; the studio editor shows a small
+  language label on every stretch that will be read in another language, found by script or marked.
+
+Each such fragment is planned with the text rules of its language (numbers, abbreviations, sentence splitting;
+Russian stress marks only for Russian), tells the engine its language, and is checked by speech recognition in
+that language. The language is part of the fragment's cache key (only when it is not the book's), so a book in
+one language keeps its cache. A word covered by your [pronunciation list](pronunciation.md) stays in the book's
+language, as the entry says how to read it there.
+
+| Engine | What the language does |
+|---|---|
+| CosyVoice 3, Fish Audio S2 Pro, Drama 3 | No language parameter: the model reads the language of the text. The fragment is planned and cut in its language and checked in it. |
+| ElevenLabs | Reads the language of the text. |
+| OpenAI, Gemini | No language parameter; the "native speaker, no English accent" note names the fragment's language. |
+| Cartesia | The fragment's language is sent in the request. |
+
+An engine that does not list a language (or a language Folivox has no text rules for) reads such fragments in
+the book's language, and the render log says how many. One-voice books use this too: the studio keeps the languages
+of the fragments even when the speakers are not used.
 
 ## Working with the markup in the console
 
@@ -248,4 +293,4 @@ The studio keeps the markup per book (`GET/PUT /api/books/{id}/markup`, `GET /ap
 renders and previews (options `use_markup`, `expression_tags`). Automatic markup runs as a background task per
 book: `POST /api/books/{id}/llm/start` (`{"task": "analyse" | "auto", "model", "llm", "chapters",
 "expression_tags", "sample"}`), `GET .../llm/status`, `GET .../llm/estimate?chapter=N` (windows of a run), `POST .../llm/cancel`; models: `POST /api/llm/pull` `{"model"}`, `GET /api/llm/pull` (progress), `POST /api/llm/pull/cancel`, `DELETE /api/llm/models` `{"model"}`; the character list is
-`GET/PUT /api/books/{id}/characters` and the model proposals `GET /api/llm/models`.
+`GET/PUT /api/books/{id}/characters` and the model proposals `GET /api/llm/models`. `GET /api/books/{id}/languages?voice=ID` gives the language shares of the whole book, the letters each speaker reads per language and the languages their voice does not speak; `GET /api/books/{id}/text` lists the stretches found by script in each paragraph (`langs`).
