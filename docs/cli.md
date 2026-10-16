@@ -68,10 +68,24 @@ folivox render book.epub --tts fish-drama3 --tts-build drama3-mlx-4bit --voice m
 `--tts-build auto` (default) uses the best installed build that fits. Details, licences and memory:
 [Fish Audio engines](fish-engines.md).
 
+## Native runtime (optional)
+
+```bash
+folivox runtime                          # installed? which build fits this computer? what does `auto` do here?
+folivox runtime install                  # download the audio.cpp engine + the CosyVoice 3 GGUF model (asks first)
+folivox runtime install --weights f32    # the 7 GB file (the cleanest source for fp16 precision)
+folivox runtime remove                   # delete them (PyTorch files are not touched)
+folivox render book.epub --runtime native
+```
+
+`--runtime auto|pytorch|native` (also `FOLIVOX_RUNTIME` and `[runtime] inference` in `config.toml`) chooses what runs
+CosyVoice 3. The default is `auto`, which is PyTorch until a platform is recorded as checked. Details, the
+fallback rules and what is verified: [Native runtime](native-runtime.md).
+
 ## Speed test
 
 ```bash
-folivox bench                         # every device found: cpu, cuda, mps
+folivox bench                         # every device found: cpu, cuda, mps (and native, when installed)
 folivox bench --devices cpu,cuda      # only these (cuda is tried even if `auto` would skip a small GPU)
 folivox bench --lang en --voice me.wav --timeout 600
 ```

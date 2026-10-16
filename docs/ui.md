@@ -40,6 +40,15 @@ Routes: `GET /api/engines/fish`, `GET /api/engines/fish/licence/{id}`, `POST …
 licence is not accepted, the build is not installed or the voice is a bundled one.
 See [Fish Audio engines](fish-engines.md).
 
+## Inference runtime (implemented)
+
+*Advanced settings → Inference runtime* holds the one general switch (Automatic / PyTorch / Native C++), the
+state of the optional native engine, *Download the native engine (N GB)* (a confirmation names what is downloaded;
+progress is shown) and *Remove*. The choice is written to `config.toml` (`[runtime] inference`) at once and applies to
+the next job. With the native runtime on, the *Device* option is hidden for CosyVoice 3 (the engine picks its
+GPU). Routes: `GET/PUT /api/runtime`, `GET/POST /api/runtime/install`, `POST /api/runtime/remove`.
+See [Native runtime](native-runtime.md).
+
 ## Markup editor (implemented)
 
 *3 · Voice* (before the engine) starts with a choice between *One voice* and *Several voices*; with several voices it shows the **Characters** box: the state of the characters (found, which chapters are processed, who has which voice) and one button that opens the editor
