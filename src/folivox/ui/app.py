@@ -1164,7 +1164,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         from folivox.voicegen.cloud import COMMERCIAL_NOTICE, cloud_providers
 
         hour = CHARS_PER_SECOND * 3600
-        out = [{"name": "cosyvoice3", "label": "On this computer (CosyVoice 3)", "local": True, "cloud": False,
+        out = [{"name": "cosyvoice3", "label": "CosyVoice 3 (0.5B)", "local": True, "cloud": False,
                 "blurb": "Free, private, works offline. Clones a voice from a short recording. Slower and "
                          "the quality depends on your hardware.", "models": [], "per_hour": 0}]
         for cls in cloud_providers().values():
