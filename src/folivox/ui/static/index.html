@@ -209,7 +209,9 @@ h1 { padding-right:140px; }
 .rb.cur { border-color:var(--accent); cursor:default; } .rb span { min-width:0; overflow-wrap:anywhere; } .rb small { color:var(--mute); white-space:nowrap; }
 .mk-sub { margin-top:10px; } .mk-sub > summary { cursor:pointer; color:var(--mute); font-size:13px; } .mk-sub[open] > summary { margin-bottom:6px; }
 .mk-nextstep { padding:10px 12px; border:1px dashed var(--accent); border-radius:10px; margin-bottom:12px; } .mk-nextstep .row { margin-top:8px; }
-.mk-legend { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0; } .mk-legend .chip { font-size:12px; padding:2px 9px; border-left:5px solid var(--c); }
+.mk-assign { border-top:1px solid var(--line); padding:10px 22px 12px; } #mk-assign-hint { font-size:13.5px; margin-bottom:6px; color:var(--mute); } .mk-assign.on #mk-assign-hint { color:inherit; font-weight:600; }
+.mk-achips { display:flex; flex-wrap:wrap; gap:6px; } .mk-achips .chip { font-size:13.5px; padding:4px 12px; border-left:6px solid var(--c); } .mk-assign:not(.on) .chip { opacity:.55; }
+.mk-achips kbd { font:inherit; font-size:11px; color:var(--mute); margin-right:5px; }
 .mk-empty { margin:16px 22px 0; padding:16px 18px; border:1px solid var(--accent); border-radius:12px; } .mk-empty p { margin:6px 0 12px; }
 .mk-res div { padding:2px 0; border-bottom:1px dashed var(--line); font-size:13.5px; }
 @media (max-width:760px) { .mk-top select { max-width:150px; } .mk-body { grid-template-rows:42% 58%; } }
@@ -313,7 +315,8 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
   </div>
   <div class="mk-body">
     <div class="mk-main"><div id="mk-empty" class="mk-empty" hidden><b data-i18n="mk.empty.h">Nothing is marked yet</b><p data-i18n="mk.empty.p">Press “Mark automatically” in the panel: the program finds the characters and gives each their lines.</p></div>
-    <div id="mk-text" class="mk-text" tabindex="0"></div></div>
+    <div id="mk-text" class="mk-text" tabindex="0"></div>
+    <div id="mk-assign" class="mk-assign"><div id="mk-assign-hint"></div><div id="mk-assign-chips" class="mk-achips"></div></div></div>
     <aside class="mk-side">
       <div class="mk-autocard">
         <button type="button" id="mk-auto" class="primary" data-i18n="mk.auto.btn">Mark automatically</button>
@@ -335,7 +338,6 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
       </div>
       <div id="mk-step" class="mk-nextstep" hidden></div>
       <div id="mk-chars" class="mk-chars"></div>
-      <div id="mk-legend" class="mk-legend"></div>
       <div id="mk-fine">
         <h4 data-i18n="mk.speakers">Speakers</h4>
         <div class="mute" id="mk-hint" data-i18n="mk.hint" style="margin-bottom:8px">Select text, then click a speaker (or press its number).</div>
@@ -909,7 +911,7 @@ function mkReadSelection() {
   const a = mkPos(r.startContainer, r.startOffset), z = mkPos(r.endContainer, r.endOffset);
   return a && z ? { a, z, collapsed: r.collapsed } : null;
 }
-document.addEventListener("selectionchange", () => { if ($("#mk-dlg").open) { const s = mkReadSelection(); if (s) MK.sel = s; } });
+document.addEventListener("selectionchange", () => { if ($("#mk-dlg").open) { const s = mkReadSelection(); if (s) { MK.sel = s; mkAssignBar(); } } });
 function mkRanges(sel) {
   const out = [];
   for (const blk of MK.blocks) {
@@ -982,10 +984,18 @@ function mkSpeakers() {
     <input type="text" data-f="name" value="${esc(s.name)}" aria-label="${esc(t("mk.name"))}"><span class="mute">${used[s.id] || (s.id ? 0 : "")}</span>
     <div class="sub">${s.id ? `<select data-f="voice" aria-label="${esc(t("mk.voice"))}">${mkVoiceOptions(s.voice)}</select><button type="button" class="chip" data-vd="${s.id}" title="${esc(t("mk.vd.btn.title"))}">${esc(t("mk.vd.btn"))}</button><button type="button" class="chip" data-rm="${s.id}" title="${esc(t("mk.rmsp"))}">&#10005;</button>` : `<span class="mute">${esc(t("mk.narrator.note"))}</span>`}</div></div>`).join("");
   $("#mk-exprtags").checked = MK.data.expression_tags !== false;
-  $("#mk-legend").innerHTML = MK.data.speakers.filter(s => s.id && used[s.id]).map(s => `<button type="button" class="chip" data-lg="${s.id}" style="--c:${mkSwatch(s.id)}" title="${esc(t("mk.press", { n: s.id }))}">${esc(s.name)}</button>`).join("");
+  mkAssignBar();
   mkResultPanel();
 }
-$("#mk-legend").addEventListener("click", (ev) => { const b = ev.target.closest("[data-lg]"); if (b) mkAssign(+b.dataset.lg); });
+// the bar under the text: pick a passage, then say who reads it
+function mkAssignBar() {
+  if (!MK.data) return;
+  const has = !!MK.sel && mkRanges(MK.sel).length > 0;
+  $("#mk-assign").classList.toggle("on", has);
+  $("#mk-assign-hint").textContent = t(has ? "mk.assign.sel" : "mk.assign.none");
+  $("#mk-assign-chips").innerHTML = MK.data.speakers.map(x => `<button type="button" class="chip" data-as="${x.id}" style="--c:${mkSwatch(x.id)}"><kbd>${x.id}</kbd>${esc(x.name)}</button>`).join("");
+}
+$("#mk-assign-chips").addEventListener("click", (ev) => { const b = ev.target.closest("[data-as]"); if (b) mkAssign(+b.dataset.as); });
 $("#mk-speakers").addEventListener("mousedown", (ev) => { if (!ev.target.closest("input, select")) ev.preventDefault(); });
 $("#mk-speakers").addEventListener("click", (ev) => {
   const vd = ev.target.closest("[data-vd]"); if (vd) { vdOpen(+vd.dataset.vd); return; }

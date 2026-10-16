@@ -184,8 +184,10 @@ Below the button the manual tools are always visible:
 
 - The **text** of the chapter is shown with every passage coloured by its speaker; the narrator's text has no
   colour. Pick the chapter in the list at the top (or with the arrows).
-- **Assign**: select text (it may span paragraphs) and click a speaker in the panel on the right, or press the
-  speaker's number key (0–9). *Clear selection* gives the selected text back to the narrator and removes its tags.
+- **Assign**: select text (it may span paragraphs); a bar under the text then says *The selected text will be read by:*
+  and shows a chip for every speaker (the narrator is 0): click one, or press its number key (0–9). The bar is always
+  there, dimmed until something is selected. *Clear selection* in the speaker panel gives the selected text back to
+  the narrator and removes its tags.
 - **Speakers**: rename, choose the **voice** of each (from the voice list; "main voice" = the book's voice),
   add (up to 16 in all) or remove a speaker (their passages return to the narrator). With a Fish engine the
   bundled voices are marked with `*` and are refused (see [Fish Audio engines](fish-engines.md#voices-of-real-people)).

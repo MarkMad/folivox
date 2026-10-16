@@ -545,7 +545,7 @@
  "mk.redo": "Redo",
  "mk.close": "Close",
  "mk.speakers": "Speakers",
- "mk.hint": "Select text, then click a speaker (or press its number).",
+ "mk.hint": "Select text on the left, then click who reads it in the bar under the text (or press the number).",
  "mk.add": "+ Add speaker",
  "mk.clear": "Clear selection",
  "mk.listen": "▶ Listen to the selection",
@@ -663,5 +663,7 @@
  "mk.st.stale": "The text of chapters {list} has changed since they were marked: their markup is ignored and the narrator reads them.",
  "rb.rm": "Remove from the list",
  "rb.rm.confirm": "Remove “{name}” from the list? The copy uploaded to this computer is deleted (your original file is not touched).",
- "rb.rm.markup": "“{name}” has {n} characters set up. Removing it deletes all of that for good: the markup, the character list, the pronunciations, the book's details and the saved model replies. This cannot be undone. Your finished audiobooks and your voices are not touched.\n\nRemove it anyway?"
+ "rb.rm.markup": "“{name}” has {n} characters set up. Removing it deletes all of that for good: the markup, the character list, the pronunciations, the book's details and the saved model replies. This cannot be undone. Your finished audiobooks and your voices are not touched.\n\nRemove it anyway?",
+ "mk.assign.none": "To give a passage to a character: select the text above, then click who reads it.",
+ "mk.assign.sel": "The selected text will be read by:"
 }

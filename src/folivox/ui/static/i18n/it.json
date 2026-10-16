@@ -545,7 +545,7 @@
  "mk.redo": "Ripeti",
  "mk.close": "Chiudi",
  "mk.speakers": "Voci parlanti",
- "mk.hint": "Seleziona del testo, poi fai clic su una voce (o premi il suo numero).",
+ "mk.hint": "Seleziona il testo a sinistra, poi clicca chi lo legge nella barra sotto il testo (o premi il numero).",
  "mk.add": "+ Aggiungi voce",
  "mk.clear": "Cancella la selezione",
  "mk.listen": "▶ Ascolta la selezione",
@@ -663,5 +663,7 @@
  "mk.st.stale": "Il testo dei capitoli {list} è cambiato dopo la marcatura: la loro marcatura viene ignorata e li legge il narratore.",
  "rb.rm": "Rimuovi dall'elenco",
  "rb.rm.confirm": "Rimuovere «{name}» dall'elenco? La copia caricata su questo computer viene eliminata (il file originale non viene toccato).",
- "rb.rm.markup": "In «{name}» sono impostati {n} personaggi. Rimuoverlo cancella tutto per sempre: la marcatura, l'elenco dei personaggi, le pronunce, i dati del libro e le risposte salvate del modello. Non si può annullare. Gli audiolibri finiti e le tue voci non vengono toccati.\n\nRimuovere comunque?"
+ "rb.rm.markup": "In «{name}» sono impostati {n} personaggi. Rimuoverlo cancella tutto per sempre: la marcatura, l'elenco dei personaggi, le pronunce, i dati del libro e le risposte salvate del modello. Non si può annullare. Gli audiolibri finiti e le tue voci non vengono toccati.\n\nRimuovere comunque?",
+ "mk.assign.none": "Per dare un passaggio a un personaggio: seleziona il testo sopra, poi clicca chi lo legge.",
+ "mk.assign.sel": "Il testo selezionato sarà letto da:"
 }

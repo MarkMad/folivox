@@ -545,7 +545,7 @@
  "mk.redo": "Rétablir",
  "mk.close": "Fermer",
  "mk.speakers": "Locuteurs",
- "mk.hint": "Sélectionnez du texte, puis cliquez sur un locuteur (ou tapez son numéro).",
+ "mk.hint": "Sélectionnez du texte à gauche, puis cliquez sur qui le lit dans la barre sous le texte (ou tapez le numéro).",
  "mk.add": "+ Ajouter un locuteur",
  "mk.clear": "Effacer la sélection",
  "mk.listen": "▶ Écouter la sélection",
@@ -663,5 +663,7 @@
  "mk.st.stale": "Le texte des chapitres {list} a changé depuis le balisage : leur balisage est ignoré et le narrateur les lit.",
  "rb.rm": "Retirer de la liste",
  "rb.rm.confirm": "Retirer « {name} » de la liste ? La copie importée sur cet ordinateur est supprimée (votre fichier d'origine n'est pas touché).",
- "rb.rm.markup": "Dans « {name} », {n} personnages sont configurés. La retirer supprime tout cela définitivement : le balisage, la liste des personnages, les prononciations, les données du livre et les réponses enregistrées du modèle. C'est irréversible. Vos livres audio terminés et vos voix ne sont pas touchés.\n\nLa retirer quand même ?"
+ "rb.rm.markup": "Dans « {name} », {n} personnages sont configurés. La retirer supprime tout cela définitivement : le balisage, la liste des personnages, les prononciations, les données du livre et les réponses enregistrées du modèle. C'est irréversible. Vos livres audio terminés et vos voix ne sont pas touchés.\n\nLa retirer quand même ?",
+ "mk.assign.none": "Pour donner un passage à un personnage : sélectionnez le texte ci-dessus, puis cliquez sur qui le lit.",
+ "mk.assign.sel": "Le texte sélectionné sera lu par :"
 }
