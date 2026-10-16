@@ -95,8 +95,8 @@ English, Russian, German and Spanish; counted: paragraphs whose quoted speech we
 | Model (Ollama) | Method | English | Russian | German | Spanish | Time per text |
 |---|---|---|---|---|---|---|
 | `gemma4:31b-it-qat` | repeat text | 15/15 | 15/15 | 15/15 | 3/15 | 4-5 min |
-| `gemma4:31b-it-qat` | **parts** | not run | 15/15 | 15/15 | 15/15 | 2.2-3 min |
-| `Qwen3.8-27B` (unsloth GGUF, UD-Q6_K) | repeat text | 15/15 | 15/15 | not run | 15/15 | 4-5 min |
+| `gemma4:31b-it-qat` | **parts** | - | 15/15 | 15/15 | 15/15 | 2.2-3 min |
+| `Qwen3.8-27B` (unsloth GGUF, UD-Q6_K) | repeat text | 15/15 | 15/15 | - | 15/15 | 4-5 min |
 | `gemma4:12b-it-qat` | repeat text | 15/15 | 15/15 | 3/15 | 12/15 | 1.2-1.6 min |
 | `gemma4:12b-it-qat` | **parts** | 15/15 | 15/15 | 15/15 | 14/15 | 0.8-1.2 min |
 
