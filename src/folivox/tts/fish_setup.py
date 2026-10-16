@@ -17,7 +17,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from folivox.tts import builds, licences
+from folivox.tts import builds, licences, reuse
 from folivox.tts.builds import Build
 
 READY = "ready.json"
@@ -133,10 +133,12 @@ def free_disk_ok(b: Build, where: Path) -> str | None:
     return None
 
 
-def install(b: Build, progress: Progress | None = None, log: Callable[[str], None] = print) -> None:
-    """Download and verify a build. Needs the licence accepted; safe to run again (it continues)."""
-    from folivox.tts import weights
+def install(b: Build, progress: Progress | None = None, log: Callable[[str], None] = print,
+            phase: Callable[[str, int], None] | None = None) -> None:
+    """Download and verify a build. Needs the licence accepted; safe to run again (it continues).
 
+    Files already on this computer (see ``reuse``) are checked and linked or copied first; only the rest is
+    downloaded. ``phase(name, bytes)`` reports "found", "downloading" or "verifying" for the studio."""
     licences.require(b)
     cat = builds.load()
     if not builds.is_trusted_org(b.repo, cat):
@@ -149,12 +151,23 @@ def install(b: Build, progress: Progress | None = None, log: Callable[[str], Non
     wd = builds.weights_dir(b)
     wd.mkdir(parents=True, exist_ok=True)
     names = [f["path"] for f in b.files]
-    from huggingface_hub import snapshot_download
-
-    log(f"Downloading {b.title} ({b.size_gb:.1f} GB) from huggingface.co/{b.repo} at revision {b.revision[:8]}…")
-    with weights.reporting(progress), weights._watch(b.title, wd, names):
-        weights.with_retries(lambda: snapshot_download(b.repo, revision=b.revision, local_dir=str(wd),
-                                                       allow_patterns=names), b.title)
+    nearby = reuse.found_bytes(b)
+    if nearby:
+        if phase:
+            phase("found", nearby)
+        log(f"Found {nearby / 1e9:.1f} GB of {b.title} on this computer; checking it.")
+        got = reuse.adopt(b, progress)
+        if got:
+            linked = sum(1 for v in got.values() if v == "linked")
+            log(f"Reused {len(got)} file(s): {linked} linked, {len(got) - linked} copied.")
+    have = {f["path"] for f in b.files if _file_ok(wd, f)}
+    names = [n for n in names if n not in have]
+    if names:
+        if phase:
+            phase("downloading", 0)
+        _download(b, wd, names, progress, log)
+    elif phase:
+        phase("verifying", 0)
     bad = verify_weights(b, progress)
     if bad:
         for name in bad:
@@ -164,6 +177,26 @@ def install(b: Build, progress: Progress | None = None, log: Callable[[str], Non
     (builds.build_dir(b) / READY).write_text(json.dumps({"revision": b.revision, "installed": time.time()}),
                                              encoding="utf-8")
     log(f"{b.title} is ready.")
+
+
+def _file_ok(wd: Path, f: dict) -> bool:
+    """A file with a pinned sha256 that is already in place and matches it (so it need not be downloaded)."""
+    p = wd / f["path"]
+    try:
+        return bool(f.get("sha256")) and p.stat().st_size == f["size"] and sha256_file(p) == f["sha256"]
+    except OSError:
+        return False
+
+
+def _download(b: Build, wd: Path, names: list[str], progress: Progress | None, log: Callable[[str], None]) -> None:
+    from huggingface_hub import snapshot_download
+
+    from folivox.tts import weights
+
+    log(f"Downloading {b.title} ({b.size_gb:.1f} GB) from huggingface.co/{b.repo} at revision {b.revision[:8]}…")
+    with weights.reporting(progress), weights._watch(b.title, wd, names):
+        weights.with_retries(lambda: snapshot_download(b.repo, revision=b.revision, local_dir=str(wd),
+                                                       allow_patterns=names), b.title)
 
 
 def remove(b: Build) -> int:
