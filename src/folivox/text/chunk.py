@@ -9,7 +9,8 @@ sentence < paragraph < heading / scene break < chapter.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from collections import Counter
+from dataclasses import dataclass, field, replace
 
 from folivox import lang as languages
 from folivox.book import Block, BlockKind, Chapter
@@ -40,6 +41,9 @@ class ChunkOptions:
     speak_headings: bool = True
     lexicon: Lexicon | None = None  # the book's custom pronunciations
     local_engine: bool = True  # False: an online engine, which cannot take stress marks or phonemes
+    mixed: bool = True  # find stretches of another script (Latin in Russian text, …) and read them in their language
+    speaks: frozenset[str] | None = None  # languages the engine can read (None: not checked)
+    fallbacks: Counter = field(default_factory=Counter)  # {language: fragments the engine cannot read in it}
 
 
 @dataclass
@@ -51,6 +55,7 @@ class Chunk:
     kind: str = "p"
     speaker: int = 0  # who reads it (0 = narrator); see folivox.markup
     markup: str = ""  # expression tags written in front of the text, e.g. "[sighs]" (part of the cache key)
+    lang: str = ""  # the fragment's language when it is not the book's ("" = the book's)
 
 
 @dataclass
@@ -147,6 +152,26 @@ def finalize(text: str, opts: ChunkOptions) -> tuple[str, str]:
     return tts, source
 
 
+def fragment_lang(seg, opts: ChunkOptions) -> str:
+    """The language a segment is read in when it is not the book's, else ``""``. A language the engine cannot
+    read, or one with no text rules here, stays with the book language (counted in ``opts.fallbacks``); so does
+    text a custom pronunciation covers (the entry says how to read it in the book's language)."""
+    lang = seg.lang
+    if not lang or lang == opts.lang:
+        return ""
+    try:
+        languages.get(lang)
+        known = True
+    except ValueError:
+        known = False
+    if not known or (opts.speaks is not None and lang not in opts.speaks):
+        opts.fallbacks[lang] += 1
+        return ""
+    if opts.lexicon and opts.lexicon.apply(seg.text, local=opts.local_engine) != seg.text:
+        return ""
+    return lang
+
+
 def _plan_segments(raw, segs, ctx, end_pause, opts, normalize, dialogue, p) -> None:
     """One block read by several speakers (or with tags): every segment is packed on its own, so a fragment
     never mixes two voices. Tags go in front of the first fragment of their segment."""
@@ -159,17 +184,19 @@ def _plan_segments(raw, segs, ctx, end_pause, opts, normalize, dialogue, p) -> N
     for seg in segs:
         if has_speech(seg.text):
             edge_trimmed = seg.text.strip().strip("—–―").strip()  # dialogue dashes at the edges are not read
-            pieces.append((seg, edge_trimmed, carry + tag_text(seg)))
+            pieces.append((seg, edge_trimmed, carry + tag_text(seg), fragment_lang(seg, opts)))
             carry = ""
         else:  # a segment without speech (a stray space): its tags go to the next one
             carry += tag_text(seg)
-    for k, (seg, text, tags) in enumerate(pieces):
-        parts = pack(sentences(dialogue(normalize(text)), opts.lang), opts.max_chars, opts.min_chars)
+    for k, (seg, text, tags, lang) in enumerate(pieces):
+        language = languages.get(lang or opts.lang)  # the text rules of the language the segment is read in
+        normalize, dialogue = language.normalize, language.dialogue
+        parts = pack(sentences(dialogue(normalize(text)), lang or opts.lang), opts.max_chars, opts.min_chars)
         nxt_speaker = pieces[k + 1][0].speaker if k + 1 < len(pieces) else None
         last_pause = end_pause if nxt_speaker is None else (p.dialogue if nxt_speaker != seg.speaker else p.sentence)
         for j, part in enumerate(parts):
             raw.append((dialogue(part), last_pause if j == len(parts) - 1 else p.sentence, "p", seg.speaker,
-                        tags if j == 0 else ""))
+                        tags if j == 0 else "", lang))
 
 
 def plan_chapter(chapter: Chapter, opts: ChunkOptions | None = None, ctx: MarkupContext | None = None) -> list[Chunk]:
@@ -177,45 +204,50 @@ def plan_chapter(chapter: Chapter, opts: ChunkOptions | None = None, ctx: Markup
     p = opts.pauses
     language = languages.get(opts.lang)
     normalize, dialogue = language.normalize, language.dialogue
-    raw: list[tuple[str, float, str, int, str]] = []  # (text, pause, kind, speaker, tags)
+    raw: list[tuple[str, float, str, int, str, str]] = []  # (text, pause, kind, speaker, tags, language)
 
     if opts.speak_headings:
         for h in chapter.headings:
             if has_speech(h):
-                raw.append((normalize(_heading_text(h)), p.heading, "heading", 0, ""))
+                raw.append((normalize(_heading_text(h)), p.heading, "heading", 0, "", ""))
 
     blocks = chapter.blocks
     for i, b in enumerate(blocks):
         if not has_speech(b.text):  # scene break «* * *»
             if raw:
-                text, pause, kind, spk, tg = raw[-1]
-                raw[-1] = (text, max(pause, p.scene), kind, spk, tg)
+                text, pause, kind, spk, tg, lg = raw[-1]
+                raw[-1] = (text, max(pause, p.scene), kind, spk, tg, lg)
             continue
         if b.kind == BlockKind.SUBTITLE:
-            raw.append((normalize(_heading_text(b.text)), p.heading, "heading", 0, ""))
+            raw.append((normalize(_heading_text(b.text)), p.heading, "heading", 0, "", ""))
             continue
         nxt = blocks[i + 1] if i + 1 < len(blocks) else None
         end_pause = p.dialogue if (_is_dialogue(b) and nxt is not None and _is_dialogue(nxt)) else p.paragraph
         if b.kind in (BlockKind.EPIGRAPH, BlockKind.AUTHOR) and not (nxt and nxt.kind in (
                 BlockKind.EPIGRAPH, BlockKind.AUTHOR)):
             end_pause = p.heading
-        segs = ctx.markup.segments(ctx.chapter, i, b.text) if ctx and b.kind != BlockKind.POEM else None
-        if segs and (len(segs) > 1 or segs[0].speaker or segs[0].tags):
-            _plan_segments(raw, segs, ctx, end_pause, opts, normalize, dialogue, p)
+        segs = None
+        if b.kind != BlockKind.POEM:
+            from folivox.markup import Markup
+
+            here = ctx or MarkupContext(Markup(), 0, False)  # no markup: only the script check can split a block
+            segs = here.markup.segments(here.chapter, i, b.text, opts.lang if opts.mixed else "")
+        if segs and (len(segs) > 1 or segs[0].speaker or segs[0].tags or segs[0].lang):
+            _plan_segments(raw, segs, here, end_pause, opts, normalize, dialogue, p)
             continue
         text = dialogue(normalize(_poem_text(b.text) if b.kind == BlockKind.POEM else b.text))
         parts = pack(sentences(text, opts.lang), opts.max_chars, opts.min_chars)
         for j, part in enumerate(parts):
-            raw.append((dialogue(part), end_pause if j == len(parts) - 1 else p.sentence, b.kind.value, 0, ""))
+            raw.append((dialogue(part), end_pause if j == len(parts) - 1 else p.sentence, b.kind.value, 0, "", ""))
 
     chunks: list[Chunk] = []
-    for text, pause, kind, speaker, tags in raw:
+    for text, pause, kind, speaker, tags, lang in raw:
         if not has_speech(text):
             continue
-        tts, source = finalize(text, opts)
+        tts, source = finalize(text, replace(opts, lang=lang) if lang else opts)
         if tags:
             tts = f"{tags} {tts}"
-        chunks.append(Chunk(len(chunks), tts, source, pause, kind, speaker, tags))
+        chunks.append(Chunk(len(chunks), tts, source, pause, kind, speaker, tags, lang))
     if chunks:
         chunks[-1].pause_after = p.chapter_end
     return chunks

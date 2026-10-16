@@ -187,6 +187,23 @@ def speaker_voices(markup, main_voice, asr, opts: RenderOptions, events: Events)
     return out
 
 
+def engine_languages(name: str, engine=None) -> frozenset[str] | None:
+    """The languages an engine can read (an instance knows its own; a local engine's class is read without loading
+    the model). ``None`` when unknown: nothing is filtered then."""
+    langs = getattr(engine, "languages", None)
+    if not langs:
+        import importlib
+
+        from folivox.tts import ENGINES
+
+        try:
+            module, _, attr = ENGINES.get(name).target.partition(":")
+            langs = getattr(getattr(importlib.import_module(module), attr), "languages", ())
+        except Exception:  # noqa: BLE001 — an unknown engine is checked when it is created
+            langs = ()
+    return frozenset(langs) or None
+
+
 def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, events: Events, engine=None,
          markup=None, voices: dict | None = None) -> list[str]:
     chapters = book.chapters(opts.depth)
@@ -201,7 +218,8 @@ def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, event
     max_chars = min(opts.max_chars, engine.max_chars) if cloud else opts.max_chars  # the provider's request limit
     copts = ChunkOptions(max_chars=max_chars, min_chars=min(opts.chunk.min_chars, max_chars), stress=stress,
                          lang=opts.lang or book.lang or "ru", pauses=opts.chunk.pauses,
-                         speak_headings=opts.chunk.speak_headings, local_engine=not cloud)
+                         speak_headings=opts.chunk.speak_headings, local_engine=not cloud, mixed=opts.chunk.mixed,
+                         speaks=engine_languages(opts.tts, engine))
     if opts.pronounce:
         copts.lexicon = Lexicon.load(opts.pronounce)
         for w in copts.lexicon.warnings:
@@ -228,6 +246,9 @@ def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, event
 
             b = builds.build_for(opts.tts, opts.tts_build)
             settings = f"{opts.tts}|{FISH_SYNTH_VERSION}|{b.id}@{b.revision[:12]}"
+    for code, n in sorted(copts.fallbacks.items(), key=lambda kv: -kv[1]):
+        events.warning(f"{n} fragment(s) in {_language_name(code)} will be read in {_language_name(copts.lang)}: "
+                       f"{opts.tts} cannot read {_language_name(code)} here")
     journal.set_plan(planned, voice_id, settings, {sid: v.id for sid, v in (voices or {}).items()})
     journal.set_meta(book_title=book.title, chapters_selected=[i + 1 for i in selected], settings=settings,
                      lang=copts.lang, qa_threshold=opts.qa_threshold if opts.qa else None)
@@ -235,6 +256,12 @@ def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, event
 
 
 LOOKAHEAD = 2  # fragments whose LLM tokens are generated ahead of time
+
+
+def _language_name(code: str) -> str:
+    from folivox.markup_llm import LANG_NAMES
+
+    return LANG_NAMES.get(code, code)
 
 
 def _seed(key: str, attempt: int) -> int:
@@ -329,13 +356,14 @@ SPLIT_PAUSE = 0.25  # seconds between the halves of a fragment split after faile
 
 
 def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: str, depth: int = 0,
-               events: Events | None = None, voice=None):
+               events: Events | None = None, voice=None, fragment_lang: str = ""):
     """Synthesise ``text`` up to ``opts.max_takes`` times, keep the best take by QA score.
 
     If every take fails QA and the fragment has several sentences, split it in two at a
     sentence boundary and render the halves separately: CosyVoice tends to drop the last
     sentence of long, list-like paragraphs, and shorter inputs fix that reliably.
-    Returns (score, audio, asr_text, per-attempt scores).
+    Returns (score, audio, asr_text, per-attempt scores). ``fragment_lang`` is the fragment's language when it is
+    not the book's: the engine is told, and the check uses that language (recogniser, canonical form, split).
     """
     from folivox.qa import score, threshold_for
     from folivox.text.chunk import sentences
@@ -344,7 +372,7 @@ def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: 
     events = events or Events()
     best = None
     attempts: list[float | None] = []
-    lang = opts.lang or "ru"
+    lang = fragment_lang or opts.lang or "ru"
     limit = threshold_for(source, opts.qa_threshold, lang)
     takes = max(1, opts.max_takes if asr else 1)
     if asr is not None and _mostly_foreign(source, lang):
@@ -354,6 +382,8 @@ def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: 
         if attempt:  # a retake of a cloud fragment is billed: stop cleanly instead of overspending
             _check_cap(prefetch.engine, len(text))
         extra = {"voice": voice} if voice is not None else {}  # a speaker with a voice of their own
+        if fragment_lang:
+            extra["lang"] = fragment_lang
         syn = prefetch.synthesize(key, text, _seed(key, attempt), speed=opts.speed, **extra)
         audio = postprocess(syn.audio, syn.sample_rate)
         dur = len(audio) / syn.sample_rate
@@ -361,7 +391,8 @@ def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: 
         if asr is not None:
             events.step("qa", attempt + 1, takes)
             try:
-                hyp = asr.transcribe(audio, syn.sample_rate) if dur > 0.05 else ""
+                spoken = {"language": fragment_lang} if fragment_lang else {}
+                hyp = asr.transcribe(audio, syn.sample_rate, **spoken) if dur > 0.05 else ""
                 sc = score(source, hyp, dur, lang)
             except Exception as e:  # noqa: BLE001 — a failed check must not lose an hour of synthesis
                 events.warning(f"Speech recognition failed for one fragment ({e}); keeping it unchecked")
@@ -387,7 +418,7 @@ def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: 
     halves = [" ".join(parts[:cut]), " ".join(parts[cut:])]
     # a half's check text is rebuilt from the model input: phoneme markup of custom pronunciations is dropped
     results = [_best_take(prefetch, asr, opts, f"{key}/{i}", h, _PHONEMES.sub("", strip_marks(h)), depth + 1, events,
-                          voice)
+                          voice, fragment_lang)
                for i, h in enumerate(halves)]
     sr = prefetch.engine.sample_rate
     audio = np.concatenate([results[0][1], np.zeros(int(sr * SPLIT_PAUSE), np.float32), results[1][1]])
@@ -442,10 +473,11 @@ def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions
                 raise Cancelled
             _check_cap(engine, len(chunk.text))
             for nxt in todo[pos: pos + 1 + max(LOOKAHEAD, engine.parallel)]:
-                prefetch.submit(nxt.key, nxt.text, _seed(nxt.key, 0), (voices or {}).get(nxt.speaker))
+                prefetch.submit(nxt.key, nxt.text, _seed(nxt.key, 0), (voices or {}).get(nxt.speaker), nxt.lang)
             events.chunk_started(chunk)
             sc, audio, hyp, attempts = _best_take(prefetch, asr, opts, chunk.key, chunk.text, chunk.source,
-                                                  events=events, voice=(voices or {}).get(chunk.speaker))
+                                                  events=events, voice=(voices or {}).get(chunk.speaker),
+                                                  fragment_lang=chunk.lang)
             sr = engine.sample_rate
             dur = len(audio) / sr
             save(journal.audio_path(chunk.key), audio, sr)

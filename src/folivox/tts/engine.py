@@ -90,8 +90,9 @@ class CosyVoiceEngine(TTSEngine):
         self._speakers[voice.id] = inp
         return voice.id
 
-    def generate_tokens(self, text: str, voice: Voice, seed: int = 0) -> tuple[list[int], float]:
-        """Stage 1 (LLM): text → speech tokens. Thread-safe w.r.t. :meth:`tokens_to_audio`."""
+    def generate_tokens(self, text: str, voice: Voice, seed: int = 0, lang: str = "") -> tuple[list[int], float]:
+        """Stage 1 (LLM): text → speech tokens. Thread-safe w.r.t. :meth:`tokens_to_audio`. The model has no
+        language parameter and reads the language of the text, so ``lang`` changes nothing here."""
         import torch
 
         spk = self.prepare_voice(voice)

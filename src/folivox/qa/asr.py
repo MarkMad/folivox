@@ -48,7 +48,9 @@ class ASR:
     def __init__(self, language: str = "ru"):
         self.language = language
 
-    def transcribe(self, audio: np.ndarray, sample_rate: int, prompt: str | None = None) -> str:
+    def transcribe(self, audio: np.ndarray, sample_rate: int, prompt: str | None = None,
+                   language: str | None = None) -> str:
+        """``language`` overrides the recogniser's own for one fragment (a stretch in another language)."""
         raise NotImplementedError
 
     def transcribe_file(self, path) -> str:
@@ -83,11 +85,11 @@ class MLXWhisper(ASR):
         except ImportError:
             pass
 
-    def transcribe(self, audio, sample_rate, prompt=None):
+    def transcribe(self, audio, sample_rate, prompt=None, language=None):
         import mlx_whisper
 
         r = mlx_whisper.transcribe(_resample(audio, sample_rate), path_or_hf_repo=self.model,
-                                   language=self.language, condition_on_previous_text=False,
+                                   language=language or self.language, condition_on_previous_text=False,
                                    initial_prompt=prompt, verbose=None)
         return r["text"].strip()
 
@@ -134,9 +136,10 @@ class FasterWhisper(ASR):
                                                          compute_type="float16" if device == "cuda" else "int8"),
                                     f"the speech-recognition model {self.model}")
 
-    def transcribe(self, audio, sample_rate, prompt=None):
-        segments, _ = self._fw.transcribe(_resample(audio, sample_rate), language=self.language, beam_size=1,
-                                          condition_on_previous_text=False, initial_prompt=prompt, vad_filter=False)
+    def transcribe(self, audio, sample_rate, prompt=None, language=None):
+        segments, _ = self._fw.transcribe(_resample(audio, sample_rate), language=language or self.language,
+                                          beam_size=1, condition_on_previous_text=False, initial_prompt=prompt,
+                                          vad_filter=False)
         return " ".join(s.text.strip() for s in segments).strip()
 
 
@@ -153,12 +156,12 @@ class OpenAIASR(ASR):
         self.model, self.base_url = model, base_url.rstrip("/")
         self.key = api_key(api_key_env, "openai ASR")
 
-    def transcribe(self, audio, sample_rate, prompt=None):
+    def transcribe(self, audio, sample_rate, prompt=None, language=None):
         import soundfile as sf
 
         buf = io.BytesIO()
         sf.write(buf, _resample(audio, sample_rate), 16000, format="WAV", subtype="PCM_16")
-        fields = {"model": self.model, "language": self.language, "response_format": "json"}
+        fields = {"model": self.model, "language": language or self.language, "response_format": "json"}
         if prompt:
             fields["prompt"] = prompt
         body, ctype = _multipart(fields, ("file", "audio.wav", buf.getvalue()))

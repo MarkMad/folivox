@@ -34,8 +34,10 @@ class TTSEngine:
     local: bool = True  # False → a paid cloud API (the text leaves the computer)
     parallel: int = 1  # fragments prepared at the same time
 
-    def prepare(self, text: str, voice: Voice, seed: int = 0) -> tuple[Any, float]:
-        """Stage 1, thread-safe w.r.t. :meth:`finish`. Returns (intermediate, seconds)."""
+    def prepare(self, text: str, voice: Voice, seed: int = 0, lang: str = "") -> tuple[Any, float]:
+        """Stage 1, thread-safe w.r.t. :meth:`finish`. Returns (intermediate, seconds). ``lang`` is the language of
+        a fragment that is not in the book's language; an engine with no language parameter ignores it (it reads
+        the language of the text)."""
         return (text, seed), 0.0
 
     def finish(self, prepared: Any, voice: Voice, speed: float = 1.0) -> tuple[np.ndarray, float]:
@@ -83,16 +85,18 @@ class Prefetcher:
         self.futures: dict[tuple[str, int], object] = {}
         self.hung = False
 
-    def submit(self, key: str, text: str, seed: int, voice: Voice | None = None):
+    def submit(self, key: str, text: str, seed: int, voice: Voice | None = None, lang: str = ""):
         k = (key, seed)
         if k not in self.futures:
-            self.futures[k] = self.pool.submit(self.engine.prepare, text, voice or self.voice, seed)
+            extra = {"lang": lang} if lang else {}  # only a fragment in another language than the book's
+            self.futures[k] = self.pool.submit(self.engine.prepare, text, voice or self.voice, seed, **extra)
         return self.futures[k]
 
-    def synthesize(self, key: str, text: str, seed: int, speed: float = 1.0, voice: Voice | None = None) -> Synthesis:
+    def synthesize(self, key: str, text: str, seed: int, speed: float = 1.0, voice: Voice | None = None,
+                   lang: str = "") -> Synthesis:
         limit = synth_timeout(len(text)) if getattr(self.engine, "local", True) else 0
         try:
-            tokens, t_llm = self.submit(key, text, seed, voice).result(timeout=limit or None)
+            tokens, t_llm = self.submit(key, text, seed, voice, lang).result(timeout=limit or None)
         except FutureTimeout:
             self.hung = True
             raise SynthTimeout(f"Synthesis of one fragment ({len(text)} characters) did not finish in "

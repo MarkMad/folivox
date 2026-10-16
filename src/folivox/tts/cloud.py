@@ -118,11 +118,26 @@ class CloudTTS(TTSEngine):
     # ---- synthesis --------------------------------------------------------------------------------
     def job(self, text: str, voice: CloudVoice, seed: int, lang: str = "") -> Job:
         return Job(text=text, lang=lang or self.lang, seed=seed, speaker=voice.speaker,
-                   description=voice.style)
+                   description=self.note_for(voice, lang))
 
     lang = "en"
 
-    def prepare(self, text, voice, seed=0):
+    def note_for(self, voice: CloudVoice, lang: str = "") -> str:
+        """The narration note of a fragment. OpenAI and Gemini have no language parameter, so the "no English
+        accent" note names the language the fragment is read in; the others take the language as a request field
+        (Cartesia) or from the text."""
+        if not lang or lang == self.lang or self.name not in DEFAULT_STYLE or self.model in NO_INSTRUCTIONS:
+            return voice.style
+        from folivox import lang as languages
+
+        note = voice.style
+        if self.lang != "en":
+            note = note.replace(ACCENT_NOTE.format(language=languages.get(self.lang).name), "").strip()
+        if lang != "en":
+            note = f"{ACCENT_NOTE.format(language=languages.get(lang).name)} {note}".strip()
+        return note
+
+    def prepare(self, text, voice, seed=0, lang=""):
         """The whole request happens here (in a worker thread); :meth:`finish` only decodes."""
         from folivox.voicegen.cloud import CloudError
 
@@ -137,7 +152,7 @@ class CloudTTS(TTSEngine):
         waited = 0.0
         while True:
             try:
-                wav = self.gen.synth(self.job(text, voice, seed))
+                wav = self.gen.synth(self.job(text, voice, seed, lang))
                 return wav, time.time() - t0
             except CloudError as e:
                 if e.kind in ("auth", "quota", "bad_request"):
