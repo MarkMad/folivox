@@ -200,7 +200,8 @@ h1 { padding-right:140px; }
 .vmode { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
 .vm { display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border:1px solid var(--line); border-radius:12px; cursor:pointer; } .vm.on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
 .vm b { display:block; font-size:15px; } .vm small { display:block; color:var(--mute); font-size:13px; line-height:1.4; margin-top:2px; } .vm input { margin-top:4px; } .vm:has(input:disabled) { opacity:.55; cursor:not-allowed; }
-.mk-card { padding:12px 14px; border:1px solid var(--line); border-radius:12px; margin-bottom:12px; } .mk-boxh { font-weight:600; margin-bottom:6px; }
+.mk-card { padding:12px 14px; border:1px solid var(--line); border-radius:12px; margin-bottom:12px; } .mk-boxh { font-weight:600; margin-bottom:6px; } .mk-stat { margin-top:8px; font-size:14px; line-height:1.5; } .mk-stat > div { margin-top:2px; }
+.mk-vcs { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; } .mk-vc { font-size:12.5px; padding:2px 10px; border:1px solid var(--line); border-left:5px solid var(--c); border-radius:99px; }
 @media (max-width:700px) { .vmode { grid-template-columns:1fr; } }
 .mk-sub { margin-top:10px; } .mk-sub > summary { cursor:pointer; color:var(--mute); font-size:13px; } .mk-sub[open] > summary { margin-bottom:6px; }
 .mk-nextstep { padding:10px 12px; border:1px dashed var(--accent); border-radius:10px; margin-bottom:12px; } .mk-nextstep .row { margin-top:8px; }
@@ -373,18 +374,8 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
     <label class="vm"><input type="radio" name="vmode" value="multi"><span><b data-i18n="vm.multi">Several voices</b><small data-i18n="vm.multi.sub">A narrator and a separate voice for each character, like a radio play.</small></span></label>
   </div>
   <div id="mk-box" class="mk-card" hidden>
-    <div class="mk-boxh" data-i18n="mk.h">Characters</div>
-    <div id="mk-none">
-      <p class="mute" style="margin:8px 0 6px" data-i18n="mk.cta.text">Give each character their own voice. The program finds the characters and who says what; you only check the result.</p>
-      <div class="row"><button type="button" id="mk-cta" class="primary" data-i18n="mk.cta">Voice the characters automatically</button><button type="button" id="mk-open2" class="chip" data-i18n="mk.adv">Advanced settings</button></div>
-      <div id="mk-eta" class="mute" style="margin-top:8px"></div>
-    </div>
-    <div id="mk-have" hidden>
-      <div class="row" style="margin-top:8px"><span id="mk-summary" class="mute grow"></span><button type="button" id="mk-open" class="primary" data-i18n="mk.review">Review and fine-tune</button><button type="button" id="mk-again" class="chip" data-i18n="mk.again">Run again</button></div>
-    </div>
-    <div class="row" style="margin-top:8px"><progress id="mk-mprog" max="100" value="0" hidden class="grow"></progress><button type="button" id="mk-mstop" class="chip" hidden data-i18n="mk.stop">Stop</button></div>
-    <div id="mk-mmsg" class="mute" style="margin-top:6px"></div>
-    <div id="mk-mres" class="mk-res"></div>
+    <div class="row"><b class="mk-boxh grow" style="margin:0" data-i18n="mk.h">Characters</b><button type="button" id="mk-open2" class="primary" data-i18n="mk.adv">Characters and voices…</button></div>
+    <div id="mk-stat" class="mk-stat"></div>
   </div>
   <div id="vlabel" class="mk-boxh"></div>
   <div id="v-cloud" class="eng-cloud" hidden>
@@ -775,13 +766,31 @@ function mkState() {
   $("#mk-state").textContent = MK.dirty ? t("mk.unsavedmark") : "";
   $("#mk-undo").disabled = !MK.undo.length; $("#mk-redo").disabled = !MK.redo.length;
 }
+// the state of the characters for the Voice step: what is found, which chapters are done, who has which voice
+const mkVoiceName = (id) => { if (!id) return t("mk.st.narr"); const v = VOICES.find(x => x.id === id); return v ? v.name : id.split("/").pop(); };
 function mkSummary() {
   if (!MK.data) return;
   const spans = Object.values(MK.data.chapters).reduce((n, c) => n + c.spans.length, 0);
-  $("#mk-summary").textContent = spans ? t("mk.summary", { n: MK.data.speakers.length, m: spans }) : t("mk.none");
-  $("#mk-none").hidden = spans > 0; $("#mk-have").hidden = !spans;
   const e = $("#mk-empty"); if (e) e.hidden = spans > 0;
+  const el = $("#mk-stat"), people = MK.data.speakers.filter(x => x.id > 0);
+  if (!spans && !people.length) { el.innerHTML = `<div class="mute">${esc(t("mk.st.none"))}</div>`; return; }
+  const done = new Set(Object.keys(MK.data.chapters).map(Number)), speech = MK.speech || [];
+  const missing = speech.filter(i => !done.has(i)), chosen = typeof selected === "function" ? new Set(selected()) : new Set();
+  const rows = [`<div>${esc(t("mk.st.found", { n: people.length, m: spans }))}</div>`];
+  if (speech.length) {
+    const list = missing.slice(0, 8).map(i => i + 1).join(", ") + (missing.length > 8 ? "…" : "");
+    const warn = missing.some(i => chosen.has(i + 1));
+    rows.push(missing.length ? `<div class="${warn ? "err" : "mute"}">${esc(t("mk.st.cov.part", { d: speech.length - missing.length, t: speech.length, list }))}</div>`
+                             : `<div class="mute">${esc(t("mk.st.cov.ok", { t: speech.length }))}</div>`);
+  }
+  if (people.length) {
+    const own = people.filter(x => x.voice).length;
+    rows.push(`<div class="mute">${esc(t("mk.st.voices", { k: own, n: people.length }))}</div><div class="mk-vcs">`
+      + people.map(x => `<span class="mk-vc" style="--c:${mkSwatch(x.id)}"><b>${esc(x.name)}</b> ${x.voice ? esc(mkVoiceName(x.voice)) : `<span class="mute">${esc(t("mk.st.narr"))}</span>`}</span>`).join("") + "</div>");
+  }
+  el.innerHTML = rows.join("");
 }
+["change", "click"].forEach(n => document.addEventListener(n, (ev) => { if (ev.target.closest && ev.target.closest("#chapters, #all, #none")) setTimeout(mkSummary, 0); }));
 const mkHasSpans = () => !!MK.data && Object.values(MK.data.chapters).some(c => c.spans.length);
 // ---- voice mode: one voice for the whole book, or several (a narrator and the characters) ----------------------
 const vmodeKey = () => "folivox.vmode." + (book ? book.book_id : "");
@@ -797,7 +806,7 @@ function vmodeSync() {
   }
   $("#mk-box").hidden = !m; $("#vlabel").textContent = t(m ? "vm.narr" : "vm.voice");
   document.querySelectorAll(".vm").forEach(l => l.classList.toggle("on", l.querySelector("input").checked));
-  if (m) mkEtaMain();
+  if (m) mkSummary();
 }
 function vmodeSet(v) { const r = document.querySelector(`input[name="vmode"][value="${v}"]`); if (r) r.checked = true; vmodeSync(); }
 document.querySelectorAll('input[name="vmode"]').forEach(r => r.addEventListener("change", () => {
@@ -806,7 +815,9 @@ document.querySelectorAll('input[name="vmode"]').forEach(r => r.addEventListener
 }));
 async function loadMk() {
   if (!book) return; const id = book.book_id; MK.bookId = id;
-  try { const r = await api(`/api/books/${id}/markup`); if (MK.bookId !== id) return; MK.data = r; MK.dirty = false; MK.undo = []; MK.redo = []; mkSummary();
+  try { const r = await api(`/api/books/${id}/markup`); if (MK.bookId !== id) return; MK.data = r; MK.dirty = false; MK.undo = []; MK.redo = [];
+    try { MK.speech = (await mkEstimate(0)).speech_chapters; } catch (e) { MK.speech = null; }
+    mkSummary();
     let v = ""; try { v = localStorage.getItem(vmodeKey()) || ""; } catch (e) { /* private mode */ }
     vmodeSet(v || (mkHasSpans() ? "multi" : "one")); }
   catch (e) { vmodeSet("one"); }
@@ -991,7 +1002,7 @@ async function mkOpenEditor(fine) {
   $("#mk-step").hidden = true; $("#mk-chars").innerHTML = ""; $("#mk-llmmsg").textContent = "";
   $("#mk-dlg").showModal(); mkLlmModels().then(() => { mkModelHint(); mkModelButtons(); mkEtaEditor(); }); await mkLoadChapter(0); $("#mk-text").focus(); if (fine) $("#mk-speakers").scrollIntoView({ block: "start" });
 }
-$("#mk-open").onclick = () => mkOpenEditor(false); $("#mk-open2").onclick = () => mkOpenEditor(false);
+$("#mk-open2").onclick = () => mkOpenEditor(false);
 function mkClose() { if (MK.dirty && !confirm(t("mk.unsaved"))) return; if (MK.audio) MK.audio.pause(); $("#mk-dlg").close(); loadMk(); }
 $("#mk-close").onclick = mkClose;
 $("#mk-dlg").addEventListener("cancel", (ev) => { ev.preventDefault(); mkClose(); });
@@ -1114,15 +1125,6 @@ function mkDur(sec) {
 }
 const mkEstimate = (chapter) => api(`/api/books/${book.book_id}/llm/estimate?depth=${(MK.data && MK.data.depth) || +$("#depth").value || 2}${chapter ? "&chapter=" + chapter : ""}`);
 const mkEtaText = (model, est) => t("mk.eta.approx", { t: mkDur(mkSecs(model, est).total) });
-async function mkEtaMain() {
-  const el = $("#mk-eta"); if (!book || $("#mk-none").hidden) return;
-  try {
-    const p = await mkPickModel();
-    if (!p.pick) { const x = mkTier(p.m, p.rec); el.textContent = p.m.running ? t("mk.dl.pre", { gb: x ? x.download_gb : "?" }) : t("mk.dl.noollama"); return; }
-    const sec = mkSecs(p.pick, await mkEstimate(0));
-    el.textContent = t("mk.eta.before", { t: mkDur(sec.total) }) + (sec.total > 1200 ? " " + t("mk.eta.long") : "");
-  } catch (e) { el.textContent = ""; }
-}
 async function mkEtaEditor() {
   if (!book || !$("#mk-dlg").open) return;
   try {
@@ -1176,37 +1178,6 @@ async function mkReadBack() {
   MK.data = await api(`/api/books/${book.book_id}/markup`); MK.dirty = false; MK.undo = []; MK.redo = [];
   try { MK.bible = await api(`/api/books/${book.book_id}/characters`); } catch (e) { /* the list is optional */ }
 }
-// main page: the whole flow with defaults
-async function mkCta() {
-  if (MK.running) return;
-  const msg = $("#mk-mmsg"), res = $("#mk-mres"); res.innerHTML = ""; msg.textContent = "";
-  if (!$("#mk-have").hidden && !confirm(t("mk.again.confirm"))) return;
-  let pick; try { pick = await mkPickModel(); } catch (e) { pick = { pick: "", rec: "" }; }
-  const btns = ["#mk-cta", "#mk-again", "#mk-open", "#mk-open2"];
-  if (!pick.pick) {
-    if (!pick.m || !pick.m.running) { msg.textContent = t("mk.dl.noollama"); return; }
-    if (!mkAskDownload(pick.rec, pick.m)) return;
-    const ok = await mkPull(pick.rec, {
-      busy: (on) => { btns.forEach(b => $(b).disabled = on); $("#mk-mprog").hidden = !on; $("#mk-mstop").hidden = !on; $("#mk-mstop").onclick = on ? mkCancelPull : mkStopMain; },
-      progress: (pct, text) => { $("#mk-mprog").value = pct; msg.textContent = text; },
-      error: (m) => { msg.innerHTML = `<span class="err">${esc(m)}</span>`; } });
-    if (!ok) return;
-    pick.pick = pick.rec; msg.textContent = "";
-  }
-  const s = await mkAutoRun("auto", { model: pick.pick }, {
-    busy: (on) => { btns.forEach(b => $(b).disabled = on); $("#mk-mprog").hidden = !on; $("#mk-mstop").hidden = !on; },
-    progress: (pct, text) => { $("#mk-mprog").value = pct; msg.textContent = text; },
-    error: (m) => { msg.innerHTML = `<span class="err">${esc(m)}</span>`; } });
-  if (!s) return;
-  await mkReadBack(); mkSummary(); msg.textContent = "";
-  const v = mkVoiceList();
-  res.innerHTML = `<b>${esc(t("mk.chars.voices", { n: mkNeeded() }))}</b>` + v.html
-    + `<div class="row" style="margin-top:8px"><button type="button" class="primary" id="mk-res-open">${esc(t(v.missing.length ? "mk.res.choose" : "mk.review"))}</button></div>`;
-}
-$("#mk-cta").onclick = mkCta; $("#mk-again").onclick = mkCta;
-const mkStopMain = () => api(`/api/books/${book.book_id}/llm/cancel`, { method: "POST" });
-$("#mk-mstop").onclick = mkStopMain;
-$("#mk-mres").addEventListener("click", (ev) => { if (ev.target.closest("#mk-res-open")) mkOpenEditor(true); });
 // editor: the same flow, or the characters only
 async function mkLlm(task) {
   if (MK.running || !await mkSave()) return;

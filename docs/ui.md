@@ -42,9 +42,9 @@ See [Fish Audio engines](fish-engines.md).
 
 ## Markup editor (implemented)
 
-*3 · Voice* (before the engine) starts with a choice between *One voice* and *Several voices*; with several voices it shows the **Characters** box whose main action is one button, *Voice the characters automatically*, with the estimated time shown before and during the run
+*3 · Voice* (before the engine) starts with a choice between *One voice* and *Several voices*; with several voices it shows the **Characters** box: the state of the characters (found, which chapters are processed, who has which voice) and one button that opens the editor
 (find the characters, mark who speaks, show how many voices are needed and who still needs one). The full-screen
-editor behind *Review and fine-tune* puts the same *Mark automatically* button at the top of its side panel, with
+editor puts the *Mark automatically* button, with the estimated time before and during the run, at the top of its side panel, with
 the model and other choices under *Options*; the manual tools (speakers and voices, tag picker, listen to a passage,
 voice ideas) sit below it, next to the chapter text with coloured speaker passages,
 undo/redo/save. Routes: `GET /api/books/{id}/text?chapter=N` (the paragraphs the markup addresses),

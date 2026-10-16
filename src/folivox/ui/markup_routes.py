@@ -189,8 +189,10 @@ def routes(api_error, state, services: dict) -> list[Route]:
         speech = [w for w in ml.windows(chapters, ml.WINDOW_CHARS, only_speech=True)
                   if not chapter or w.chapter == int(chapter) - 1]
         left = max(bible.total_windows - bible.done_windows, 0) if bible.total_windows else len(every)
+        every_speech = ml.windows(chapters, ml.WINDOW_CHARS, only_speech=True)
         return JSONResponse({"analyse_windows": left, "annotate_windows": len(speech), "window_chars": ml.WINDOW_CHARS,
-                             "chars": sum(len(w.text()) for w in every)})
+                             "chars": sum(len(w.text()) for w in every),
+                             "speech_chapters": sorted({w.chapter for w in every_speech})})
 
     async def status(request: Request):
         return JSONResponse(task_of(request.path_params["book_id"]).snapshot())

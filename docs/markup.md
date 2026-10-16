@@ -154,22 +154,24 @@ markup. Because the voice is chosen before the engine, the engine list in step *
 mode: online engines read the whole book in one voice, so they are not offered (and a chosen online engine is
 replaced by a local one) while *Several voices* is on.
 
-With *Several voices* on, step 3 shows the **Characters** box with one button, **Voice the characters
-automatically**: it finds the characters, marks who speaks (with the installed model that fits this computer best) and
-shows how many voices the book needs and which character still needs a voice. **Advanced settings** opens the editor.
+With *Several voices* on, step 3 shows the **Characters** box. It does not run anything: it shows the **state** and
+has one button, **Characters and voices…**, which opens the editor, where the automatic marking and every manual
+tool live. The state says what is found ("Found 3 characters, 12 marked passages"), which chapters with dialogue are
+processed and which are not (in red when an unprocessed chapter is among those chosen in step 2), and who has which
+voice (the characters without their own voice are read by the narrator). With nothing set up it says so and points to
+the editor. A chapter counts as processed once the automatic marking (or an edit) has touched it.
 
-**Time.** The Characters box shows an estimate *before* you press the button and the progress line shows the time left while it
+**Time.** The editor shows an estimate *before* you press the button and the progress line shows the time left while it
 works. The estimate counts the model calls the run needs (the server's `/llm/estimate`) and turns them into time by
 the model's size; it is a rough guess. During a run the speed is measured and the estimate corrected, and the speed
 of the last run is remembered in the browser for that model. A long estimate suggests trying one chapter first.
 
-**Language models are downloaded from the studio.** If no model is installed, the button asks once (name and size), checks
+**Language models are downloaded from the studio.** If the chosen model is not installed, the *Mark automatically* button asks once (name and size), checks
 that Ollama is running and that the disk has room, downloads the recommended model with a progress bar, a time left
-and *Stop* (a stopped download resumes later), and goes on with the marking. In the editor, *Options* has a
+and *Stop* (a stopped download resumes later), and goes on with the marking. *Options* in the editor also has a
 *Download* button for the model chosen in the list and *Remove from this computer* for an installed one. Only the
 models in the list can be downloaded or removed here; Ollama itself is installed by the person (ollama.com).
 
-Once the book has markup the box shows a one-line summary, **Review and fine-tune** and **Run again**.
 
 In the editor the top of the right panel holds the one **Mark automatically** button with the choice *Whole book* /
 *Only this chapter* (each with its own estimate), a progress bar and a plain result. *Options* (collapsed) holds the

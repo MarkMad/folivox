@@ -183,3 +183,8 @@ def test_model_download_and_removal(client):
     gone = client.request("DELETE", "/api/llm/models", json={"model": "gemma4:12b-it-qat"})
     assert gone.json() == {"removed": "gemma4:12b-it-qat"}
     assert client.holder["removed"] == ["gemma4:12b-it-qat"]
+
+
+def test_estimate_lists_the_chapters_with_dialogue(client):
+    bid = upload(client)
+    assert client.get(f"/api/books/{bid}/llm/estimate").json()["speech_chapters"] == [0, 1]
