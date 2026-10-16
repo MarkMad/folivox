@@ -1079,6 +1079,7 @@ function mkWhoReads(sel) {
 }
 function mkAssignBar() {
   if (!MK.data) return;
+  mkListenRefresh();
   const has = !!MK.sel && mkRanges(MK.sel).length > 0, who = mkWhoReads(MK.sel), sp = who === null ? null : mkSpeaker(who);
   $("#mk-assign").classList.toggle("on", has);
   $("#mk-assign-hint").textContent = has ? t("mk.assign.sel") : sp ? t("mk.assign.at", { name: sp.name }) : t("mk.assign.none");
@@ -1164,34 +1165,65 @@ function mkListenOptions() {
   const e = ENG.list.find(x => x.name === eng);
   return { ...o, tts: eng, ...(e && e.fish ? { tts_build: "auto" } : {}) };
 }
-// the Listen button is also the Stop button while a sample is rendering or playing
-const MK_LISTEN = { job: null, stop: false };
-function mkListenState(on) {
-  const b = $("#mk-listen"); b.textContent = on ? t("mk.listen.stop") : t("mk.listen"); b.title = t(on ? "mk.listen.stop.t" : "mk.listen.t");
-  b.classList.toggle("stop", on); if (!on) $("#mk-listenprog").hidden = true;
+// the Listen button is also the Stop button while a sample renders or plays; a rendered sample is kept, so the same
+// passage can be played again (and again) until the markup, the voices or the engine change
+const MK_LISTEN = { job: null, stop: false, busy: false, cache: new Map(), ranges: null };
+function mkListenLabel(mode) {  // "stop" | "again" | "listen"
+  const b = $("#mk-listen"), key = { stop: "mk.listen.stop", again: "mk.listen.again", listen: "mk.listen" }[mode];
+  b.textContent = t(key); b.title = t(mode === "stop" ? "mk.listen.stop.t" : mode === "again" ? "mk.listen.again.t" : "mk.listen.t");
+  b.classList.toggle("stop", mode === "stop"); if (mode !== "stop") $("#mk-listenprog").hidden = true;
+}
+// what the sample depends on: the passage, the spans and tags inside it, the voices and the engine settings
+function mkListenKey(from, to) {
+  const c = mkCh(false) || { spans: [], marks: [] }, inside = (x) => x.b >= from && x.b <= to;
+  return JSON.stringify([MK.ch, from, to, c.spans.filter(inside), (c.marks || []).filter(inside),
+    MK.data.speakers.map(x => [x.id, x.voice, x.gender]), mkListenOptions()]);
+}
+function mkListenRange() {
+  const rs = MK.sel ? mkRanges(MK.sel) : [];
+  if (!rs.length && MK.sel) rs.push({ b: MK.sel.a.b });
+  return rs.length ? [rs[0].b, rs[rs.length - 1].b] : null;
+}
+function mkListenRefresh() {  // "Play again" when the selected passage already has a sample
+  if (MK_LISTEN.busy || !MK.data || !$("#mk-dlg").open) return;
+  const r = mkListenRange(); let again = false;
+  try { again = !!r && MK_LISTEN.cache.has(mkListenKey(r[0], r[1])); } catch (e) { /* no voices yet */ }
+  mkListenLabel(again ? "again" : "listen");
 }
 function mkListenStop() {
   MK_LISTEN.stop = true;
   if (MK.audio) MK.audio.pause();
   if (MK_LISTEN.job) api(`/api/jobs/${MK_LISTEN.job}/cancel`, { method: "POST" }).catch(() => {});
 }
+function mkPlaySample(url) {  // plays from the start; the button is Stop until it ends
+  const msg = $("#mk-listenmsg");
+  if (MK.audio) MK.audio.pause();
+  const a = MK.audio = new Audio(url);
+  const done = () => { if (MK.audio === a) { MK_LISTEN.busy = false; msg.textContent = ""; mkListenRefresh(); } };
+  a.onended = done; a.onpause = () => { if (a.ended || a.currentTime === 0 || MK_LISTEN.stop) done(); };
+  MK_LISTEN.busy = true; mkListenLabel("stop"); msg.textContent = t("mk.playing");
+  return a.play().catch((e) => { MK_LISTEN.busy = false; msg.innerHTML = `<span class="err">${esc(e.message)}</span>`; mkListenRefresh(); });
+}
 $("#mk-listen").onclick = async () => {
-  const msg = $("#mk-listenmsg"), rs = MK.sel ? mkRanges(MK.sel) : [];
+  const msg = $("#mk-listenmsg");
   if ($("#mk-listen").classList.contains("stop")) { mkListenStop(); return; }
   if (!$("#mk-leng").value) { msg.textContent = t("mk.listen.local"); return; }
-  if (!rs.length && MK.sel) rs.push({ b: MK.sel.a.b });
-  if (!rs.length) { msg.textContent = t("mk.needsel"); return; }
-  const from = rs[0].b, to = rs[rs.length - 1].b, chars = MK.blocks.filter(b => b.b >= from && b.b <= to).reduce((n, b) => n + b.text.length, 0);
+  const r = mkListenRange();
+  if (!r) { msg.textContent = t("mk.needsel"); return; }
+  const [from, to] = r, chars = MK.blocks.filter(b => b.b >= from && b.b <= to).reduce((n, b) => n + b.text.length, 0);
   if (chars > MK_LISTEN_MAX) { msg.textContent = t("mk.listen.toolong", { n: MK_LISTEN_MAX }); return; }
   if (!await mkSave()) return;
-  MK_LISTEN.stop = false; MK_LISTEN.job = null; mkListenState(true);
+  const key = mkListenKey(from, to), hit = MK_LISTEN.cache.get(key);
+  MK_LISTEN.stop = false;
+  if (hit) { await mkPlaySample(hit); return; }  // already rendered: no new job
+  MK_LISTEN.job = null; MK_LISTEN.busy = true; mkListenLabel("stop");
   const prog = $("#mk-listenprog"), t0 = Date.now(); prog.hidden = false; prog.removeAttribute("value"); msg.textContent = t("mk.listening", { s: 0 });
   try {
     const j = await api("/api/jobs", { method: "POST", headers: JSONH, body: JSON.stringify({ kind: "preview", book_id: book.book_id, voice, chapters: [1], options: mkListenOptions(),
       sample_range: { chapter: MK.ch, block_from: from, block_to: to, depth: MK.data.depth || 2 } }) });
     MK_LISTEN.job = j.id;
     for (;;) {
-      await new Promise(r => setTimeout(r, 700));
+      await new Promise(res => setTimeout(res, 700));
       const s = await api(`/api/jobs/${j.id}`);
       if (MK_LISTEN.stop) { msg.textContent = t("mk.listen.cancelled"); break; }
       if (s.state === "running") {
@@ -1201,18 +1233,15 @@ $("#mk-listen").onclick = async () => {
         continue;
       }
       if (s.state === "done") {
-        prog.hidden = true;
-        if (MK.audio) MK.audio.pause();
-        const a = MK.audio = new Audio(tok(`/api/jobs/${j.id}/chapters/1`));
-        a.onended = () => { msg.textContent = ""; mkListenState(false); };
-        await a.play(); msg.textContent = t("mk.playing"); mkListenState(true); MK_LISTEN.job = null;
-        return;  // the button stays a Stop button until the sample ends
+        const url = tok(`/api/jobs/${j.id}/chapters/1`);
+        MK_LISTEN.cache.set(key, url); if (MK_LISTEN.cache.size > 6) MK_LISTEN.cache.delete(MK_LISTEN.cache.keys().next().value);
+        MK_LISTEN.job = null; prog.hidden = true; await mkPlaySample(url); return;
       }
       msg.textContent = s.state === "cancelled" ? t("mk.listen.cancelled") : ""; if (s.state !== "cancelled") msg.innerHTML = `<span class="err">${esc(s.error || t("mk.listen.failed"))}</span>`;
       break;
     }
   } catch (e) { msg.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
-  mkListenState(false);
+  MK_LISTEN.busy = false; mkListenRefresh();
 };
 // ---- automatic markup (language model) ----------------------------------------------------------------------------------
 async function mkLlmModels() {

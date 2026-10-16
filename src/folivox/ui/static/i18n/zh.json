@@ -579,6 +579,8 @@
  "mk.playing": "播放中。",
  "mk.listening.pct": "正在生成试听… {s} 秒，{p}%",
  "mk.listen.stop": "■ 停止",
+ "mk.listen.again": "▶ 再听一遍",
+ "mk.listen.again.t": "再次播放已生成的试听（不会重新生成）",
  "mk.listen.stop.t": "停止生成或播放",
  "mk.listen.cancelled": "已取消。",
  "mk.listen.failed": "无法生成试听。",

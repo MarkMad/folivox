@@ -579,6 +579,8 @@
  "mk.playing": "再生中。",
  "mk.listening.pct": "サンプルを作成中… {s} 秒、{p}%",
  "mk.listen.stop": "■ 停止",
+ "mk.listen.again": "▶ もう一度",
+ "mk.listen.again.t": "作成済みのサンプルをもう一度再生します（再作成はしません）",
  "mk.listen.stop.t": "生成または再生を止める",
  "mk.listen.cancelled": "キャンセルしました。",
  "mk.listen.failed": "サンプルを作成できませんでした。",

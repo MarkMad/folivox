@@ -579,6 +579,8 @@
  "mk.playing": "Reproduciendo.",
  "mk.listening.pct": "Preparando la muestra… {s} s, {p} %",
  "mk.listen.stop": "■ Detener",
+ "mk.listen.again": "▶ Otra vez",
+ "mk.listen.again.t": "Reproducir de nuevo la muestra ya preparada (no se vuelve a generar)",
  "mk.listen.stop.t": "Detener la preparación o la reproducción",
  "mk.listen.cancelled": "Cancelado.",
  "mk.listen.failed": "No se pudo generar la muestra.",

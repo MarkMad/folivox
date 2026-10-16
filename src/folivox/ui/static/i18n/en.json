@@ -579,6 +579,8 @@
  "mk.playing": "Playing.",
  "mk.listening.pct": "Rendering the sample… {s} s, {p}%",
  "mk.listen.stop": "■ Stop",
+ "mk.listen.again": "▶ Play again",
+ "mk.listen.again.t": "Play the rendered sample again (nothing is rendered again)",
  "mk.listen.stop.t": "Stop rendering or playing",
  "mk.listen.cancelled": "Cancelled.",
  "mk.listen.failed": "The sample could not be made.",

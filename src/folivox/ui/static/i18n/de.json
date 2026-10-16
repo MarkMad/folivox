@@ -579,6 +579,8 @@
  "mk.playing": "Wiedergabe.",
  "mk.listening.pct": "Beispiel wird erzeugt … {s} s, {p} %",
  "mk.listen.stop": "■ Stopp",
+ "mk.listen.again": "▶ Nochmal",
+ "mk.listen.again.t": "Das fertige Beispiel noch einmal abspielen (es wird nichts neu erzeugt)",
  "mk.listen.stop.t": "Erzeugung oder Wiedergabe stoppen",
  "mk.listen.cancelled": "Abgebrochen.",
  "mk.listen.failed": "Die Probe konnte nicht erzeugt werden.",

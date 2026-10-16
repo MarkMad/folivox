@@ -579,6 +579,8 @@
  "mk.playing": "In riproduzione.",
  "mk.listening.pct": "Preparo il brano… {s} s, {p}%",
  "mk.listen.stop": "■ Ferma",
+ "mk.listen.again": "▶ Riascolta",
+ "mk.listen.again.t": "Riascolta il brano già pronto (non viene rigenerato)",
  "mk.listen.stop.t": "Ferma la preparazione o la riproduzione",
  "mk.listen.cancelled": "Annullato.",
  "mk.listen.failed": "Non è stato possibile creare l'estratto.",
