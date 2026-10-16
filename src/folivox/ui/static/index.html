@@ -179,6 +179,37 @@ h1 { padding-right:140px; }
 .kstate.ok { color:var(--seg-done); } .kstate.none { color:var(--mute); }
 @media (max-width:700px) { .eng, .keyrow { grid-template-columns:1fr; } }
 .meta-box { margin-top:12px; padding:10px 14px; border:1px solid var(--line); border-radius:12px; } .meta-box summary { cursor:pointer; font-weight:600; } .meta-box summary small { font-weight:400; margin-left:6px; }
+
+.mk-dlg { width:min(1240px,96vw); height:92vh; padding:0; overflow:hidden; } .mk-dlg[open] { display:flex; flex-direction:column; }
+.mk-top { padding:10px 14px; border-bottom:1px solid var(--line); gap:8px; } .mk-top select { max-width:300px; }
+.mk-body { flex:1; display:grid; grid-template-columns:minmax(0,1fr) 360px; min-height:0; }
+.mk-main { display:flex; flex-direction:column; min-height:0; } .mk-main .mk-text { flex:1; min-height:0; }
+.mk-text { overflow:auto; padding:16px 22px 40px; font-size:16px; line-height:2; outline:none; }
+.mk-side { overflow:auto; padding:12px 14px 30px; border-left:1px solid var(--line); font-size:13.5px; } .mk-side h4 { margin:16px 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--mute); } .mk-side h4:first-child { margin-top:0; }
+.mk-b { margin:0 0 12px; position:relative; padding-left:42px; } .mk-b::before { content:attr(data-lbl); position:absolute; left:0; top:0; width:34px; text-align:right; font-size:10px; color:var(--mute); line-height:3.4; user-select:none; }
+.mk-b.ro { opacity:.55; user-select:none; font-style:italic; }
+.mkseg { background:var(--c, transparent); border-radius:4px; padding:2px 0; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
+.mkchip { display:inline-block; font-size:11px; line-height:1.6; background:var(--accent); color:var(--accent-ink); border-radius:99px; padding:0 8px; margin:0 3px; cursor:pointer; user-select:none; -webkit-user-select:none; vertical-align:1px; }
+.mkchip:hover { text-decoration:line-through; }
+.mk-sp { display:grid; grid-template-columns:22px minmax(0,1fr) auto; gap:4px 8px; align-items:center; padding:6px 8px; border:1px solid var(--line); border-radius:8px; margin-bottom:6px; cursor:pointer; }
+.mk-sp.cur { border-color:var(--accent); } .mk-sp .sw { width:18px; height:18px; border-radius:5px; display:grid; place-items:center; font-size:10px; color:#fff; font-weight:700; }
+.mk-sp input[type=text] { width:100%; min-width:0; padding:2px 6px; } .mk-sp select { width:100%; min-width:0; padding:2px 4px; font-size:12.5px; } .mk-sp .sub { grid-column:2 / 4; display:flex; gap:6px; }
+.mk-card .mk-res, .mk-chars .mk-res { margin-top:8px; }
+.mk-autocard { padding:12px; border:1px solid var(--accent); border-radius:12px; margin-bottom:12px; } .mk-autocard > .primary { width:100%; padding:10px 14px; font-size:15px; } .mk-autocard > .primary + .chip { margin-top:6px; }
+.mk-scope { margin-top:8px; } .mk-scope .consent { margin:2px 0; } #mk-fine h4:first-child { margin-top:12px; } .mk-top .ic { width:34px; padding:6px 0; text-align:center; font-size:16px; line-height:1; }
+.mk-sub { margin-top:10px; } .mk-sub > summary { cursor:pointer; color:var(--mute); font-size:13px; } .mk-sub[open] > summary { margin-bottom:6px; }
+.mk-nextstep { padding:10px 12px; border:1px dashed var(--accent); border-radius:10px; margin-bottom:12px; } .mk-nextstep .row { margin-top:8px; }
+.mk-legend { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0; } .mk-legend .chip { font-size:12px; padding:2px 9px; border-left:5px solid var(--c); }
+.mk-empty { margin:16px 22px 0; padding:16px 18px; border:1px solid var(--accent); border-radius:12px; } .mk-empty p { margin:6px 0 12px; }
+.mk-res div { padding:2px 0; border-bottom:1px dashed var(--line); font-size:13.5px; }
+@media (max-width:760px) { .mk-top select { max-width:150px; } .mk-body { grid-template-rows:42% 58%; } }
+.mk-taglist { display:flex; flex-wrap:wrap; gap:5px; max-height:170px; overflow:auto; margin-top:6px; } .mk-taglist .chip { font-size:12px; padding:2px 9px; }
+
+.mk-vd { margin:10px 0; padding:10px; border:1px solid var(--accent); border-radius:10px; } .mk-vd textarea { width:100%; font:inherit; font-size:12.5px; min-height:54px; resize:vertical; }
+.mk-vd .tier { display:block; margin:8px 0; padding:6px 8px; border:1px solid var(--line); border-radius:8px; } .mk-vd .tier.on { border-color:var(--accent); }
+.mk-vd .tier b { font-size:12px; } .mk-vd .take { display:flex; gap:8px; align-items:center; padding:4px 0; border-bottom:1px dashed var(--line); }
+.mk-chars { margin-top:8px; font-size:12.5px; } .mk-chars div { padding:2px 0; border-bottom:1px dashed var(--line); }
+@media (max-width:860px) { .mk-body { grid-template-columns:1fr; grid-template-rows:55% 45%; } .mk-side { border-left:0; border-top:1px solid var(--line); } }
 .pron-box { margin-top:12px; padding:10px 14px; border:1px solid var(--line); border-radius:12px; } .pron-box summary { cursor:pointer; font-weight:600; } .pron-box summary small { font-weight:400; margin-left:6px; }
 .pron-box textarea { width:100%; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; line-height:1.5; white-space:pre; tab-size:4; } .pron-help { margin:8px 0 0; padding-left:18px; } .pron-help li { margin:3px 0; } .pron-try { margin-top:12px; padding-top:10px; border-top:1px dashed var(--line); } .pron-try textarea { width:100%; margin:8px 0; } .pron-try .row { gap:10px; align-items:center; } .pron-warn { margin:6px 0 0; padding-left:18px; color:var(--err, #c0392b); }
 .gp-adv summary { cursor:pointer; color:var(--mute); font-size:13px; } .gp-est { font-size:14px; }
@@ -198,6 +229,11 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
 .done-card button { background:var(--accent-ink); color:var(--accent); border-color:var(--accent-ink); } .done-card button.chip { background:transparent; color:var(--accent-ink); border-color:var(--accent-ink); }
 .runbar.redo .big-go { font-size:15px; font-weight:500; padding:8px 16px; background:var(--card); color:var(--ink); border-color:var(--line); box-shadow:none; }
 @media (max-width:560px) { .done-card { flex-direction:column; align-items:flex-start; } .runbar.redo .big-go { width:auto; } }
+dialog { border:1px solid var(--line); border-radius:14px; background:var(--card); color:var(--ink); width:min(680px,94vw); padding:20px 22px; }
+dialog::backdrop { background:rgba(0,0,0,.45); }
+dialog pre { max-height:42vh; overflow:auto; white-space:pre-wrap; font:12px/1.45 ui-monospace,Menlo,Consolas,monospace; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dialog .btns { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
+#eng-fish .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; } #eng-fish progress { width:100%; height:8px; }
 .costcard { margin:10px 0; padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:var(--card); }
 .cc-main { display:flex; flex-wrap:wrap; gap:14px 28px; align-items:flex-end; }
 .cc-big { font-size:34px; font-weight:700; line-height:1; color:var(--accent); } .cc-big small { display:block; margin-top:6px; font-size:13px; font-weight:400; color:var(--mute); }
@@ -271,7 +307,86 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
     </div>
     <small class="mute" data-i18n="s1.pron.note">Saved automatically for this book. Only the fragments with changed words are read again.</small>
   </details>
+  <details id="mk-box" class="meta-box mk-card" hidden>
+    <summary><span data-i18n="mk.h">Different voices for characters</span> <small id="mk-sub" class="mute"></small></summary>
+    <div id="mk-none">
+      <p class="mute" style="margin:8px 0 6px" data-i18n="mk.cta.text">Give each character their own voice. The program finds the characters and who says what; you only check the result.</p>
+      <div class="row"><button type="button" id="mk-cta" class="primary" data-i18n="mk.cta">Voice the characters automatically</button><button type="button" id="mk-open2" class="chip" data-i18n="mk.adv">Advanced settings</button></div>
+      <div id="mk-eta" class="mute" style="margin-top:8px"></div>
+    </div>
+    <div id="mk-have" hidden>
+      <div class="row" style="margin-top:8px"><span id="mk-summary" class="mute grow"></span><button type="button" id="mk-open" class="primary" data-i18n="mk.review">Review and fine-tune</button><button type="button" id="mk-again" class="chip" data-i18n="mk.again">Run again</button></div>
+      <label class="consent" style="margin-top:8px"><input type="checkbox" id="mk-use" checked><span data-i18n="mk.use">Use the markup when rendering</span></label>
+    </div>
+    <div class="row" style="margin-top:8px"><progress id="mk-mprog" max="100" value="0" hidden class="grow"></progress><button type="button" id="mk-mstop" class="chip" hidden data-i18n="mk.stop">Stop</button></div>
+    <div id="mk-mmsg" class="mute" style="margin-top:6px"></div>
+    <div id="mk-mres" class="mk-res"></div>
+  </details>
 </section>
+
+<dialog id="mk-dlg" class="mk-dlg" aria-labelledby="mk-title">
+  <div class="mk-top row">
+    <b id="mk-title" data-i18n="mk.title">Markup editor</b>
+    <select id="mk-ch" aria-label="Chapter" data-i18n-attr="aria-label:mk.chapter"></select>
+    <button type="button" id="mk-prev" aria-label="Previous chapter" data-i18n-attr="aria-label:mk.prev">&#8249;</button><button type="button" id="mk-next" aria-label="Next chapter" data-i18n-attr="aria-label:mk.next">&#8250;</button>
+    <span class="grow"></span><span id="mk-state" class="mute"></span>
+    <button type="button" id="mk-undo" class="ic" aria-label="Undo" title="Undo the last change" data-i18n-attr="aria-label:mk.undo;title:mk.undo.t">&#8630;</button><button type="button" id="mk-redo" class="ic" aria-label="Redo" title="Redo" data-i18n-attr="aria-label:mk.redo;title:mk.redo.t">&#8631;</button>
+    <button type="button" id="mk-save" class="primary" data-i18n="mk.save">Save</button><button type="button" id="mk-close" class="ic" aria-label="Close" data-i18n-attr="aria-label:mk.close">&#10005;</button>
+  </div>
+  <div class="mk-body">
+    <div class="mk-main"><div id="mk-empty" class="mk-empty" hidden><b data-i18n="mk.empty.h">Nothing is marked yet</b><p data-i18n="mk.empty.p">Press “Mark automatically” in the panel: the program finds the characters and gives each their lines.</p></div>
+    <div id="mk-text" class="mk-text" tabindex="0"></div></div>
+    <aside class="mk-side">
+      <div class="mk-autocard">
+        <button type="button" id="mk-auto" class="primary" data-i18n="mk.auto.btn">Mark automatically</button>
+        <button type="button" id="mk-stop" class="chip" hidden data-i18n="mk.stop">Stop</button>
+        <div class="mk-scope"><label class="consent"><input type="radio" name="mk-scope" id="mk-scope-all" checked><span><span data-i18n="mk.scope.all">Whole book</span> <small class="mute" id="mk-eta-all"></small></span></label>
+          <label class="consent"><input type="radio" name="mk-scope" id="mk-scope-ch"><span><span data-i18n="mk.onlych">Only this chapter</span> <small class="mute" id="mk-eta-ch"></small></span></label></div>
+        <div class="mute" style="margin-top:6px" data-i18n="mk.auto.note">Finds the characters and who says what. It takes a few minutes and you can fix anything afterwards.</div>
+        <progress id="mk-prog" max="100" value="0" hidden style="width:100%;margin-top:8px"></progress>
+        <div id="mk-llmmsg" class="mute" style="margin-top:6px"></div>
+        <details id="mk-opts" class="mk-sub"><summary data-i18n="mk.options">Options</summary>
+          <label class="f"><span data-i18n="mk.model">Model</span><select id="mk-model"></select></label>
+          <div id="mk-modelhint" class="mute" style="font-size:12.5px;margin-top:4px"></div>
+          <div class="row" style="margin-top:6px"><button type="button" id="mk-dl" class="chip" hidden></button><button type="button" id="mk-rm" class="chip" hidden data-i18n="mk.rm.btn">Remove from this computer</button><button type="button" id="mk-dlstop" class="chip" hidden data-i18n="mk.stop">Stop</button></div>
+          <progress id="mk-dlprog" max="100" value="0" hidden style="width:100%;margin-top:6px"></progress>
+          <div id="mk-dlmsg" class="mute" style="font-size:12.5px;margin-top:4px"></div>
+          <label class="consent" style="margin-top:6px"><input type="checkbox" id="mk-llmtags"><span data-i18n="mk.llmtags">Also place expression tags (off by default)</span></label>
+          <div class="row" style="margin-top:8px"><button type="button" id="mk-analyse" class="chip" data-i18n="mk.analyse">Analyse characters</button></div>
+        </details>
+      </div>
+      <div id="mk-step" class="mk-nextstep" hidden></div>
+      <div id="mk-chars" class="mk-chars"></div>
+      <div id="mk-legend" class="mk-legend"></div>
+      <div id="mk-fine">
+        <h4 data-i18n="mk.speakers">Speakers</h4>
+        <div class="mute" id="mk-hint" data-i18n="mk.hint" style="margin-bottom:8px">Select text, then click a speaker (or press its number).</div>
+        <div id="mk-speakers"></div>
+        <div class="row" style="margin-top:6px"><button type="button" id="mk-addsp" class="chip" data-i18n="mk.add">+ Add speaker</button><button type="button" id="mk-clear" class="chip" data-i18n="mk.clear">Clear selection</button></div>
+      <div id="mk-vd" class="mk-vd" hidden>
+        <div class="row"><b id="mk-vd-title"></b><span class="grow"></span><button type="button" id="mk-vd-close" class="chip" aria-label="Close" data-i18n-attr="aria-label:mk.close">&#10005;</button></div>
+        <small class="mute" data-i18n="mk.vd.hint">English descriptions: the simple one works with any model, the detailed one helps strong models. Edit them freely; you choose the voice by ear.</small>
+        <div id="mk-vd-cards"></div>
+        <div class="row"><button type="button" id="mk-vd-write" class="chip" data-i18n="mk.vd.write">Write ideas</button><span id="mk-vd-msg" class="mute"></span></div>
+        <label class="f" style="margin-top:8px"><span data-i18n="mk.vd.provider">Voice generator</span><select id="mk-vd-prov"></select></label>
+        <label class="f" style="margin-top:6px"><span data-i18n="mk.model">Model</span><select id="mk-vd-model"></select></label>
+        <div id="mk-vd-est" class="mute" style="margin-top:6px"></div>
+        <label class="consent" style="margin-top:6px"><input type="checkbox" id="mk-vd-ack"><span data-i18n="mk.vd.ack">I understand that the sample text is sent to this online service and billed to my account.</span></label>
+        <div class="row" style="margin-top:8px"><button type="button" id="mk-vd-gen" class="primary" data-i18n="mk.vd.generate">Generate 3 takes</button></div>
+        <h4 data-i18n="mk.vd.takes">Takes: listen and choose</h4>
+        <div id="mk-vd-takes"></div>
+      </div>
+        <div class="row" style="margin-top:10px"><button type="button" id="mk-listen" class="primary" data-i18n="mk.listen">&#9654; Listen to the selection</button><span id="mk-listenmsg" class="mute"></span></div>
+        <details class="mk-sub" id="mk-tagbox"><summary data-i18n="mk.tags">Expression tags</summary>
+          <label class="consent"><input type="checkbox" id="mk-exprtags" checked><span data-i18n="mk.tags.on">Use expression tags (Fish engines)</span></label>
+          <input type="search" id="mk-tagq" style="width:100%;margin-top:6px" placeholder="Search tags" data-i18n-attr="placeholder:mk.tags.search">
+          <small class="mute" data-i18n="mk.tags.hint">Put the cursor where the effect should happen, then click a tag.</small>
+          <div id="mk-taglist" class="mk-taglist"></div>
+        </details>
+      </div>
+    </aside>
+  </div>
+</dialog>
 
 <section id="s-chapters" class="disabled"><h2 data-i18n="s2.h">2 · Chapters</h2>
   <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:6px"><span data-i18n="s2.lang">Language</span> <select id="lang"></select></label>
@@ -287,7 +402,27 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
     <label class="f eng-cloud" hidden><span data-i18n="s3.cap">Spending cap, $ (optional)</span><input id="o-max_cost" type="number" min="0.5" step="0.5" placeholder="no cap" data-i18n-attr="placeholder:s3.cap.ph"></label>
   </div>
   <small class="mute" id="eng-blurb"></small>
+  <div id="eng-fish" class="costcard" hidden>
+    <label class="f"><span data-i18n="fish.build">Build</span><select id="o-tts_build"></select></label>
+    <div id="fish-info" class="mute" style="margin-top:8px"></div>
+    <div id="fish-warn" class="warn" style="margin-top:6px"></div>
+    <div class="row"><button type="button" id="fish-licence" class="primary" data-i18n="fish.licence.btn">Read and accept the licence…</button>
+      <button type="button" id="fish-install" class="primary" hidden></button><button type="button" id="fish-remove" hidden data-i18n="fish.remove">Remove</button>
+      <span id="fish-state" class="mute"></span></div>
+    <progress id="fish-progress" max="100" value="0" hidden></progress>
+    <small class="mute" id="fish-attrib" style="display:block;margin-top:8px"></small>
+  </div>
 </section>
+<dialog id="fish-dlg" aria-labelledby="fish-dlg-h">
+  <h3 id="fish-dlg-h" style="margin:0 0 6px"></h3>
+  <div class="mute" data-i18n="fish.licence.intro">Fish Audio models are not part of Folivox. You download them from Hugging Face under the vendor's licence. The main points:</div>
+  <ul id="fish-points"></ul>
+  <small class="mute" data-i18n="fish.licence.disclaimer">This is a summary, not legal advice. The full text is what binds you.</small>
+  <div style="margin-top:10px"><button type="button" id="fish-showfull" data-i18n="fish.licence.full">Show the full licence text</button> <a id="fish-page" href="#" target="_blank" rel="noopener" data-i18n="fish.licence.page">Open it on the vendor's page</a></div>
+  <pre id="fish-full" hidden></pre>
+  <label class="consent" style="margin-top:12px"><input type="checkbox" id="fish-check"><span data-i18n="fish.licence.check">I have read the licence and accept it. I will only clone voices that are mine, synthetic, or of people who agreed.</span></label>
+  <div class="btns"><button type="button" id="fish-cancel" data-i18n="fish.licence.cancel">Cancel</button><button type="button" id="fish-accept" class="primary" disabled data-i18n="fish.licence.accept">Accept</button></div>
+</dialog>
 
 <section id="s-voice" class="disabled"><h2 data-i18n="s4.h">4 · Voice</h2>
   <div id="v-cloud" class="eng-cloud" hidden>
@@ -615,7 +750,582 @@ async function savePron() {
 }
 $("#pron-text").addEventListener("input", () => { clearTimeout(pronTimer); $("#pron-msg").textContent = ""; pronTimer = setTimeout(() => savePron().catch(() => {}), 700); });
 // A server started before an update lacks the routes this page uses: say so instead of failing one feature at a time.
-const PAGE_API = 2;
+
+// ---- markup editor: who speaks each part, expression tags (see docs/markup.md) ---------------------------------
+const MK = { data: null, bible: null, tags: null, ch: 0, blocks: [], shown: 0, undo: [], redo: [], dirty: false, sel: null, cur: 1, audio: null, llm: null };
+const MK_PAGE = 300, MK_LISTEN_MAX = 1500;
+const mkColor = (id) => id ? `hsl(${(id * 47) % 360} 70% 55% / .28)` : "transparent";
+const mkSwatch = (id) => id ? `hsl(${(id * 47) % 360} 65% 45%)` : "var(--mute)";
+const JSONH = { "Content-Type": "application/json" };
+const mkEmpty = () => ({ version: 1, depth: +$("#depth").value || 2, expression_tags: true, speakers: [{ id: 0, name: t("mk.narrator"), voice: "", gender: "", aliases: [], notes: "" }], chapters: {} });
+const mkSpeaker = (id) => MK.data.speakers.find(s => s.id === id);
+function mkCh(create) { const k = String(MK.ch); let c = MK.data.chapters[k]; if (!c && create) c = MK.data.chapters[k] = { title: "", sig: "", spans: [], marks: [] }; return c; }
+function mkSnap() { MK.undo.push(JSON.stringify(MK.data)); if (MK.undo.length > 100) MK.undo.shift(); MK.redo = []; MK.dirty = true; }
+function mkState() {
+  $("#mk-state").textContent = MK.dirty ? t("mk.unsavedmark") : "";
+  $("#mk-undo").disabled = !MK.undo.length; $("#mk-redo").disabled = !MK.redo.length;
+}
+function mkSummary() {
+  if (!MK.data) return;
+  const spans = Object.values(MK.data.chapters).reduce((n, c) => n + c.spans.length, 0);
+  $("#mk-summary").textContent = spans ? t("mk.summary", { n: MK.data.speakers.length, m: spans }) : t("mk.none");
+  $("#mk-none").hidden = spans > 0; $("#mk-have").hidden = !spans;
+  $("#mk-sub").textContent = spans ? $("#mk-summary").textContent : t("mk.sub");
+  const e = $("#mk-empty"); if (e) e.hidden = spans > 0;
+}
+async function loadMk() {
+  if (!book) return; const id = book.book_id; MK.bookId = id;
+  try { const r = await api(`/api/books/${id}/markup`); if (MK.bookId !== id) return; MK.data = r; MK.dirty = false; MK.undo = []; MK.redo = []; $("#mk-box").hidden = false; mkSummary(); mkEtaMain(); }
+  catch (e) { $("#mk-box").hidden = true; }
+}
+// segments of a block: the same cut rules as the server (folivox.markup.Markup.segments)
+function mkSegments(b, text) {
+  const c = mkCh(false);
+  if (!c) return [{ s: 0, e: text.length, sp: 0, tags: [], span: null, marks: [] }];
+  const spans = c.spans.filter(x => x.b === b && x.s >= 0 && x.s < x.e && x.e <= text.length).sort((a, z) => a.s - z.s);
+  const marks = c.marks.filter(m => m.b === b && m.at > 0 && m.at < text.length);
+  const cuts = [...new Set([0, text.length, ...spans.flatMap(x => [x.s, x.e]), ...marks.map(m => m.at)])].sort((a, z) => a - z);
+  const out = [];
+  for (let i = 0; i + 1 < cuts.length; i++) {
+    const a = cuts[i], z = cuts[i + 1], span = spans.find(x => x.s <= a && z <= x.e) || null;
+    out.push({ s: a, e: z, sp: span ? span.sp : 0, span: span && span.s === a ? span : null, marks: marks.filter(m => m.at === a) });
+  }
+  return out;
+}
+const mkChip = (tag, attrs) => `<span class="mkchip" contenteditable="false" ${attrs} title="${esc(t("mk.chip.rm"))}">[${esc(tag)}]</span>`;
+function mkBlockHtml(blk) {
+  if (blk.text.includes("\n")) return `<div class="mk-b ro" data-lbl="${blk.b}" title="${esc(t("mk.poem"))}">${esc(blk.text)}</div>`;
+  const parts = [];
+  for (const g of mkSegments(blk.b, blk.text)) {
+    for (const m of g.marks) parts.push(mkChip(m.tag, `data-mb="${blk.b}" data-mat="${m.at}"`));
+    if (g.span) for (const tg of g.span.tags) parts.push(mkChip(tg, `data-sb="${blk.b}" data-ss="${g.span.s}"`));
+    const sp = mkSpeaker(g.sp);
+    parts.push(`<span class="mkseg" data-s="${g.s}" data-sp="${g.sp}" style="--c:${mkColor(g.sp)}" title="${esc(sp ? sp.name : "")}">${esc(blk.text.slice(g.s, g.e))}</span>`);
+  }
+  return `<div class="mk-b" data-b="${blk.b}" data-lbl="${blk.b}">${parts.join("")}</div>`;
+}
+function mkRender(keepScroll = true) {
+  const pane = $("#mk-text"), top = keepScroll ? pane.scrollTop : 0;
+  const shown = MK.blocks.slice(0, MK.shown);
+  pane.innerHTML = shown.map(mkBlockHtml).join("") + (MK.blocks.length > MK.shown ? `<button type="button" id="mk-more" class="chip">${esc(t("mk.more"))}</button>` : "");
+  pane.scrollTop = top; mkSpeakers(); mkState(); mkSummary();
+}
+async function mkLoadChapter(n) {
+  MK.ch = n; MK.sel = null; $("#mk-ch").value = String(n);
+  const r = await api(`/api/books/${book.book_id}/text?chapter=${n}&depth=${MK.data.depth || 2}`);
+  MK.blocks = r.blocks.filter(b => /\S/.test(b.text)); MK.shown = MK_PAGE; mkRender(false); $("#mk-text").scrollTop = 0; mkEtaEditor();
+}
+// ---- selection --------------------------------------------------------------------------------------------------
+function mkPos(node, off) {
+  const segs = [...$("#mk-text").querySelectorAll(".mkseg")]; if (!segs.length) return null;
+  const at = (seg, o) => ({ b: +seg.closest(".mk-b").dataset.b, o: +seg.dataset.s + o });
+  for (const seg of segs) {
+    const probe = document.createRange(); probe.selectNodeContents(seg);
+    const c = probe.comparePoint(node, off);
+    if (c === 0) { const r = document.createRange(); r.setStart(seg, 0); r.setEnd(node, off); return at(seg, r.toString().length); }
+    if (c < 0) return at(seg, 0);
+  }
+  const last = segs[segs.length - 1]; return at(last, last.textContent.length);
+}
+function mkReadSelection() {
+  const sel = getSelection(); if (!sel.rangeCount) return null;
+  const r = sel.getRangeAt(0), pane = $("#mk-text");
+  if (!pane.contains(r.startContainer) || !pane.contains(r.endContainer)) return null;
+  const a = mkPos(r.startContainer, r.startOffset), z = mkPos(r.endContainer, r.endOffset);
+  return a && z ? { a, z, collapsed: r.collapsed } : null;
+}
+document.addEventListener("selectionchange", () => { if ($("#mk-dlg").open) { const s = mkReadSelection(); if (s) MK.sel = s; } });
+function mkRanges(sel) {
+  const out = [];
+  for (const blk of MK.blocks) {
+    if (blk.b < sel.a.b || blk.b > sel.z.b || blk.text.includes("\n")) continue;
+    const s = blk.b === sel.a.b ? sel.a.o : 0, e = blk.b === sel.z.b ? sel.z.o : blk.text.length;
+    if (e > s) out.push({ b: blk.b, s, e });
+  }
+  return out;
+}
+// ---- editing ----------------------------------------------------------------------------------------------------
+function mkApply(b, s, e, sp, tags) {
+  const c = mkCh(true), kept = [];
+  for (const x of c.spans) {
+    if (x.b !== b || x.e <= s || x.s >= e) { kept.push(x); continue; }
+    if (x.s < s) kept.push({ ...x, e: s });
+    if (x.e > e) kept.push({ b, s: e, e: x.e, sp: x.sp, tags: [] });
+  }
+  if (sp !== 0 || tags.length) kept.push({ b, s, e, sp, tags });
+  c.spans = kept.sort((p, q) => p.b - q.b || p.s - q.s);
+}
+function mkHint(msg, err) { $("#mk-hint").innerHTML = err ? `<span class="err">${esc(msg)}</span>` : esc(msg); }
+function mkAssign(sp) {
+  const rs = MK.sel ? mkRanges(MK.sel) : [];
+  if (!rs.length) { mkHint(t("mk.needsel"), true); return; }
+  mkSnap(); rs.forEach(r => mkApply(r.b, r.s, r.e, sp, [])); MK.cur = sp; mkRender(); mkHint(t("mk.hint"));
+}
+function mkClear() {
+  const rs = MK.sel ? mkRanges(MK.sel) : [];
+  if (!rs.length) { mkHint(t("mk.needsel"), true); return; }
+  mkSnap(); const c = mkCh(true);
+  rs.forEach(r => { mkApply(r.b, r.s, r.e, 0, []); c.marks = c.marks.filter(m => !(m.b === r.b && m.at >= r.s && m.at < r.e)); }); mkRender();
+}
+function mkInsertTag(tag) {
+  const sel = MK.sel; if (!sel) { mkHint(t("mk.needcaret"), true); return; }
+  const blk = MK.blocks.find(x => x.b === sel.a.b); if (!blk || blk.text.includes("\n")) { mkHint(t("mk.needcaret"), true); return; }
+  mkSnap(); const c = mkCh(true), o = sel.a.o;
+  if (o <= 0) {  // at the very start: a delivery tag of the passage that starts there
+    let span = c.spans.find(x => x.b === blk.b && x.s === 0);
+    if (!span) { const next = Math.min(blk.text.length, ...c.spans.filter(x => x.b === blk.b && x.s > 0).map(x => x.s), ...c.marks.filter(m => m.b === blk.b).map(m => m.at)); span = { b: blk.b, s: 0, e: next, sp: 0, tags: [] }; c.spans.push(span); }
+    if (!span.tags.includes(tag)) span.tags.push(tag);
+  } else if (o < blk.text.length) {
+    if (!c.marks.some(m => m.b === blk.b && m.at === o && m.tag === tag)) c.marks.push({ b: blk.b, at: o, tag });
+    c.marks.sort((p, q) => p.b - q.b || p.at - q.at);
+  } else { MK.undo.pop(); mkHint(t("mk.needcaret"), true); return; }
+  mkRender();
+}
+$("#mk-text").addEventListener("click", (ev) => {
+  if (ev.target.id === "mk-more") { MK.shown += MK_PAGE; mkRender(); return; }
+  const chip = ev.target.closest(".mkchip"); if (!chip) return;
+  mkSnap(); const c = mkCh(true);
+  if (chip.dataset.mb !== undefined) c.marks = c.marks.filter(m => !(m.b === +chip.dataset.mb && m.at === +chip.dataset.mat && `[${m.tag}]` === chip.textContent));
+  else { const sp = c.spans.find(x => x.b === +chip.dataset.sb && x.s === +chip.dataset.ss); if (sp) sp.tags = sp.tags.filter(g => `[${g}]` !== chip.textContent); }
+  mkRender();
+});
+function mkUndo(redo) {
+  const from = redo ? MK.redo : MK.undo, to = redo ? MK.undo : MK.redo; if (!from.length) return;
+  to.push(JSON.stringify(MK.data)); MK.data = JSON.parse(from.pop()); MK.dirty = true; mkRender();
+}
+// ---- speakers ---------------------------------------------------------------------------------------------------
+function mkVoiceOptions(cur) {
+  const have = new Set(VOICES.map(v => v.id));
+  return `<option value="">${esc(t("mk.mainvoice"))}</option>` + VOICES.map(v => `<option value="${esc(v.id)}" ${v.id === cur ? "selected" : ""}>${esc(v.name)}${v.bundled ? " *" : ""}</option>`).join("")
+    + (cur && !have.has(cur) ? `<option value="${esc(cur)}" selected>${esc(cur)}</option>` : "");
+}
+function mkSpeakers() {
+  if (!MK.data) return; const used = {};
+  Object.values(MK.data.chapters).forEach(c => c.spans.forEach(s => { used[s.sp] = (used[s.sp] || 0) + 1; }));
+  $("#mk-speakers").innerHTML = MK.data.speakers.map(s => `<div class="mk-sp ${s.id === MK.cur ? "cur" : ""}" data-id="${s.id}">
+    <span class="sw" style="background:${mkSwatch(s.id)}" title="${esc(t("mk.press", { n: s.id }))}">${s.id}</span>
+    <input type="text" data-f="name" value="${esc(s.name)}" aria-label="${esc(t("mk.name"))}"><span class="mute">${used[s.id] || (s.id ? 0 : "")}</span>
+    <div class="sub">${s.id ? `<select data-f="voice" aria-label="${esc(t("mk.voice"))}">${mkVoiceOptions(s.voice)}</select><button type="button" class="chip" data-vd="${s.id}" title="${esc(t("mk.vd.btn.title"))}">${esc(t("mk.vd.btn"))}</button><button type="button" class="chip" data-rm="${s.id}" title="${esc(t("mk.rmsp"))}">&#10005;</button>` : `<span class="mute">${esc(t("mk.narrator.note"))}</span>`}</div></div>`).join("");
+  $("#mk-exprtags").checked = MK.data.expression_tags !== false;
+  $("#mk-legend").innerHTML = MK.data.speakers.filter(s => s.id && used[s.id]).map(s => `<button type="button" class="chip" data-lg="${s.id}" style="--c:${mkSwatch(s.id)}" title="${esc(t("mk.press", { n: s.id }))}">${esc(s.name)}</button>`).join("");
+}
+$("#mk-legend").addEventListener("click", (ev) => { const b = ev.target.closest("[data-lg]"); if (b) mkAssign(+b.dataset.lg); });
+$("#mk-speakers").addEventListener("mousedown", (ev) => { if (!ev.target.closest("input, select")) ev.preventDefault(); });
+$("#mk-speakers").addEventListener("click", (ev) => {
+  const vd = ev.target.closest("[data-vd]"); if (vd) { vdOpen(+vd.dataset.vd); return; }
+  const rm = ev.target.closest("[data-rm]");
+  if (rm) { const id = +rm.dataset.rm, sp = mkSpeaker(id); if (!confirm(t("mk.rmsp.confirm", { name: sp.name }))) return; mkSnap();
+    Object.values(MK.data.chapters).forEach(c => { c.spans = c.spans.filter(s => s.sp !== id); }); MK.data.speakers = MK.data.speakers.filter(s => s.id !== id); mkRender(); return; }
+  if (ev.target.closest("input, select")) return;
+  const row = ev.target.closest(".mk-sp"); if (row) mkAssign(+row.dataset.id);
+});
+$("#mk-speakers").addEventListener("change", (ev) => {
+  const row = ev.target.closest(".mk-sp"), f = ev.target.dataset.f; if (!row || !f) return;
+  mkSnap(); mkSpeaker(+row.dataset.id)[f] = ev.target.value; MK.dirty = true; mkState(); if (f === "name") mkRender();
+});
+$("#mk-addsp").onclick = () => {
+  const id = [...Array(16).keys()].find(i => !mkSpeaker(i)); if (id === undefined) { mkHint(t("mk.max"), true); return; }
+  mkSnap(); MK.data.speakers.push({ id, name: t("mk.newname", { n: id }), voice: "", gender: "", aliases: [], notes: "" }); MK.data.speakers.sort((a, b) => a.id - b.id); MK.cur = id; mkRender();
+};
+$("#mk-clear").onclick = mkClear;
+$("#mk-exprtags").onchange = (ev) => { mkSnap(); MK.data.expression_tags = ev.target.checked; mkState(); };
+document.querySelectorAll("#mk-dlg button").forEach(b => b.addEventListener("mousedown", (ev) => ev.preventDefault()));  // keep the text selected
+// ---- tags -------------------------------------------------------------------------------------------------------
+function mkTagList() {
+  if (!MK.tags) return; const q = $("#mk-tagq").value.trim().toLowerCase();
+  $("#mk-taglist").innerHTML = MK.tags.tags.filter(x => !q || x.tag.includes(q) || x.category.includes(q)).map(x => `<button type="button" class="chip" data-tag="${esc(x.tag)}" title="${esc(x.category)}">${esc(x.tag)}</button>`).join("");
+}
+$("#mk-tagq").addEventListener("input", mkTagList);
+$("#mk-taglist").addEventListener("click", (ev) => { const b = ev.target.closest("[data-tag]"); if (b) mkInsertTag(b.dataset.tag); });
+// ---- save, open, close -------------------------------------------------------------------------------------------
+async function mkSave() {
+  if (!MK.dirty) return true;
+  try {
+    const r = await api(`/api/books/${book.book_id}/markup`, { method: "PUT", headers: JSONH, body: JSON.stringify(MK.data) });
+    MK.data = r; MK.dirty = false; mkRender(); $("#mk-state").textContent = t("saved"); return true;
+  } catch (e) { mkHint(e.message, true); return false; }
+}
+$("#mk-save").onclick = mkSave;
+$("#mk-undo").onclick = () => mkUndo(false); $("#mk-redo").onclick = () => mkUndo(true);
+async function mkOpenEditor(fine) {
+  try { MK.data = await api(`/api/books/${book.book_id}/markup`); } catch (e) { MK.data = mkEmpty(); }
+  if (!MK.data.speakers.length) MK.data = mkEmpty();
+  MK.undo = []; MK.redo = []; MK.dirty = false; MK.sel = null; MK.cur = 1;
+  MK.data.depth = MK.data.depth || +$("#depth").value || 2;
+  if (!MK.tags) { try { MK.tags = await api("/api/markup/tags"); } catch (e) { MK.tags = { tags: [] }; } }
+  mkTagList();
+  $("#mk-ch").innerHTML = book.chapters.map((c, i) => `<option value="${i}">${esc(c.n + ". " + c.title)}</option>`).join("");
+  $("#mk-step").hidden = true; $("#mk-chars").innerHTML = ""; $("#mk-llmmsg").textContent = "";
+  $("#mk-dlg").showModal(); mkLlmModels().then(() => { mkModelHint(); mkModelButtons(); mkEtaEditor(); }); await mkLoadChapter(0); $("#mk-text").focus(); if (fine) $("#mk-speakers").scrollIntoView({ block: "start" });
+}
+$("#mk-open").onclick = () => mkOpenEditor(false); $("#mk-open2").onclick = () => mkOpenEditor(false);
+function mkClose() { if (MK.dirty && !confirm(t("mk.unsaved"))) return; if (MK.audio) MK.audio.pause(); $("#mk-dlg").close(); loadMk(); }
+$("#mk-close").onclick = mkClose;
+$("#mk-dlg").addEventListener("cancel", (ev) => { ev.preventDefault(); mkClose(); });
+$("#mk-ch").onchange = async (ev) => { await mkLoadChapter(+ev.target.value); };
+$("#mk-prev").onclick = () => { if (MK.ch > 0) mkLoadChapter(MK.ch - 1); };
+$("#mk-next").onclick = () => { if (MK.ch < book.chapters.length - 1) mkLoadChapter(MK.ch + 1); };
+$("#mk-dlg").addEventListener("keydown", (ev) => {
+  const typing = ev.target.matches("input, select, textarea"), mod = ev.metaKey || ev.ctrlKey;
+  if (mod && ev.key.toLowerCase() === "s") { ev.preventDefault(); mkSave(); }
+  else if (mod && ev.key.toLowerCase() === "z") { ev.preventDefault(); mkUndo(ev.shiftKey); }
+  else if (!typing && !mod && /^[0-9]$/.test(ev.key) && mkSpeaker(+ev.key)) { ev.preventDefault(); mkAssign(+ev.key); }
+});
+// ---- listen to the selection with the current voices ---------------------------------------------------------------
+$("#mk-listen").onclick = async () => {
+  const msg = $("#mk-listenmsg"), rs = MK.sel ? mkRanges(MK.sel) : [];
+  if (ENG.cloud()) { msg.textContent = t("mk.listen.local"); return; }
+  if (!rs.length && MK.sel) rs.push({ b: MK.sel.a.b });
+  if (!rs.length) { msg.textContent = t("mk.needsel"); return; }
+  const from = rs[0].b, to = rs[rs.length - 1].b, chars = MK.blocks.filter(b => b.b >= from && b.b <= to).reduce((n, b) => n + b.text.length, 0);
+  if (chars > MK_LISTEN_MAX) { msg.textContent = t("mk.listen.toolong", { n: MK_LISTEN_MAX }); return; }
+  if (!await mkSave()) return;
+  msg.textContent = t("mk.listening"); $("#mk-listen").disabled = true;
+  try {
+    const j = await api("/api/jobs", { method: "POST", headers: JSONH, body: JSON.stringify({ kind: "preview", book_id: book.book_id, voice, chapters: [1], options: options(),
+      sample_range: { chapter: MK.ch, block_from: from, block_to: to, depth: MK.data.depth || 2 } }) });
+    for (;;) {
+      await new Promise(r => setTimeout(r, 1000));
+      const s = await api(`/api/jobs/${j.id}`);
+      if (s.state === "running") continue;
+      if (s.state === "done") { if (MK.audio) MK.audio.pause(); MK.audio = new Audio(tok(`/api/jobs/${j.id}/chapters/1`)); await MK.audio.play(); msg.textContent = t("mk.playing"); }
+      else msg.innerHTML = `<span class="err">${esc(s.error || t("mk.listen.failed"))}</span>`;
+      break;
+    }
+  } catch (e) { msg.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  finally { $("#mk-listen").disabled = false; }
+};
+// ---- automatic markup (language model) ----------------------------------------------------------------------------------
+async function mkLlmModels() {
+  try {
+    const m = await api("/api/llm/models"), seen = new Set(), opts = []; MK.models = m;
+    const add = (name, note) => { if (name && !seen.has(name)) { seen.add(name); opts.push(`<option value="${esc(name)}">${esc(name)}${note ? " - " + esc(note) : ""}</option>`); } };
+    const has = (x) => m.installed.includes(x);
+    add(m.configured, t("mk.model.configured"));
+    // the whole ladder, smallest (fastest) first; what is missing says so
+    [...m.tiers].reverse().forEach(x => add(x.model, [`${x.download_gb} GB`, has(x.model) ? t("mk.model.installed") : t("mk.model.missing"), x.model === m.recommended ? t("mk.model.recommended") : ""].filter(Boolean).join(", ")));
+    m.installed.filter(x => !x.startsWith("gemma4") && !x.includes("embed")).forEach(x => add(x, t("mk.model.installed")));
+    $("#mk-model").innerHTML = opts.join("");
+    const pick = m.configured || m.installed.find(x => x === m.recommended) || m.installed.find(x => x.startsWith("gemma4")) || m.recommended;
+    if (pick) $("#mk-model").value = pick;
+  } catch (e) { $("#mk-model").innerHTML = ""; }
+}
+// the model to use without asking: the configured one, else an installed Gemma 4, else any installed model
+async function mkPickModel() {
+  const m = await api("/api/llm/models");
+  const pick = m.configured || m.installed.find(x => x === m.recommended) || m.installed.find(x => x.startsWith("gemma4")) || m.installed.find(x => !x.includes("embed")) || "";
+  return { pick, rec: m.recommended, m };
+}
+const mkGB = (b) => (b / 1e9).toFixed(1);
+const mkTier = (m, model) => (m.tiers || []).find(x => x.model === model);
+// download a listed model through Ollama; ui = { busy(on), progress(pct, text), error(text) }; true when it arrived
+async function mkPull(model, ui) {
+  try { await api("/api/llm/pull", { method: "POST", headers: JSONH, body: JSON.stringify({ model }) }); }
+  catch (e) { ui.error(e.message); return false; }
+  ui.busy(true); MK.running = true;
+  try {
+    for (;;) {
+      await new Promise(r => setTimeout(r, 1000));
+      let s; try { s = await api("/api/llm/pull"); } catch (e) { return false; }
+      const left = s.done > 0 && s.elapsed > 0 ? (s.total - s.done) / (s.done / s.elapsed) : null;
+      ui.progress(s.total ? Math.round(100 * s.done / s.total) : 0, t("mk.dl.progress", { d: mkGB(s.done), n: mkGB(s.total) }) + (left !== null && s.state === "running" ? " · " + t("mk.eta.left", { t: mkDur(left) }) : ""));
+      if (s.state === "running") continue;
+      if (s.state === "error") { ui.error(s.message); return false; }
+      return s.state === "done";
+    }
+  } finally { ui.busy(false); MK.running = false; }
+}
+// the person is asked once before anything big is downloaded
+function mkAskDownload(model, m) { const x = mkTier(m, model); return confirm(t("mk.dl.confirm", { m: model, gb: x ? x.download_gb : "?" })); }
+const mkCancelPull = () => api("/api/llm/pull/cancel", { method: "POST" });
+// editor: the buttons next to the model list
+function mkModelButtons() {
+  const m = MK.models, model = $("#mk-model").value, x = m && mkTier(m, model);
+  $("#mk-dl").hidden = !(x && !m.installed.includes(model)); $("#mk-rm").hidden = !(x && m.installed.includes(model));
+  if (x) $("#mk-dl").textContent = t("mk.dl.btn", { gb: x.download_gb });
+}
+async function mkEditorPull(model) {
+  const msg = $("#mk-dlmsg"); msg.textContent = "";
+  const ok = await mkPull(model, {
+    busy: (on) => { ["#mk-dl", "#mk-rm", "#mk-auto", "#mk-analyse"].forEach(b => $(b).disabled = on); $("#mk-dlprog").hidden = !on; $("#mk-dlstop").hidden = !on; },
+    progress: (pct, text) => { $("#mk-dlprog").value = pct; msg.textContent = text; },
+    error: (e) => { msg.innerHTML = `<span class="err">${esc(e)}</span>`; } });
+  await mkLlmModels(); $("#mk-model").value = model; mkModelButtons();
+  if (ok) msg.textContent = t("mk.dl.done");
+  return ok;
+}
+$("#mk-dl").onclick = async () => { const model = $("#mk-model").value; if (MK.models && mkAskDownload(model, MK.models)) { await mkEditorPull(model); mkEtaEditor(); } };
+$("#mk-dlstop").onclick = mkCancelPull;
+$("#mk-rm").onclick = async () => {
+  const model = $("#mk-model").value; if (!confirm(t("mk.rm.confirm", { m: model }))) return;
+  try { await api("/api/llm/models", { method: "DELETE", headers: JSONH, body: JSON.stringify({ model }) }); }
+  catch (e) { $("#mk-dlmsg").innerHTML = `<span class="err">${esc(e.message)}</span>`; return; }
+  $("#mk-dlmsg").textContent = ""; await mkLlmModels(); $("#mk-model").value = model; mkModelButtons(); mkEtaEditor();
+};
+// time guesses: tokens per second by model size, until a real run teaches the page this computer's speed
+function mkTokRate(model) {
+  const m = String(model).toLowerCase().match(/:(e?)(\d+)b/), n = m ? +m[2] : 0;
+  if (!n) return 20; if (n <= 2) return 60; if (n <= 4) return 45; if (n <= 8) return 35; if (n <= 14) return 25;
+  return /a4b/.test(model) ? 30 : n <= 27 ? 14 : 10;
+}
+const mkLearned = (model) => { try { return +localStorage.getItem("folivox.mkrate." + model) || 0; } catch (e) { return 0; } };
+function mkSecs(model, est) {  // seconds per window (analyse, annotate) and the total for a run
+  let m = (est.window_chars / 2.5 + 300) / mkTokRate(model), a = 650 / mkTokRate(model);
+  const l = mkLearned(model); if (l) { a *= l / m; m = l; }
+  return { a, m, na: est.analyse_windows, nm: est.annotate_windows, total: est.analyse_windows * a + est.annotate_windows * m };
+}
+function mkDur(sec) {
+  if (sec < 60) return t("mk.dur.under");
+  let m = Math.round(sec / 60); if (m >= 10) m = 5 * Math.round(m / 5);
+  return m < 90 ? t("mk.dur.min", { n: m }) : t("mk.dur.hm", { h: Math.floor(m / 60), m: m % 60 });
+}
+const mkEstimate = (chapter) => api(`/api/books/${book.book_id}/llm/estimate?depth=${(MK.data && MK.data.depth) || +$("#depth").value || 2}${chapter ? "&chapter=" + chapter : ""}`);
+const mkEtaText = (model, est) => t("mk.eta.approx", { t: mkDur(mkSecs(model, est).total) });
+async function mkEtaMain() {
+  const el = $("#mk-eta"); if (!book || $("#mk-none").hidden) return;
+  try {
+    const p = await mkPickModel();
+    if (!p.pick) { const x = mkTier(p.m, p.rec); el.textContent = p.m.running ? t("mk.dl.pre", { gb: x ? x.download_gb : "?" }) : t("mk.dl.noollama"); return; }
+    const sec = mkSecs(p.pick, await mkEstimate(0));
+    el.textContent = t("mk.eta.before", { t: mkDur(sec.total) }) + (sec.total > 1200 ? " " + t("mk.eta.long") : "");
+  } catch (e) { el.textContent = ""; }
+}
+async function mkEtaEditor() {
+  if (!book || !$("#mk-dlg").open) return;
+  try {
+    const model = $("#mk-model").value, [all, ch] = await Promise.all([mkEstimate(0), mkEstimate(MK.ch + 1)]);
+    $("#mk-eta-all").textContent = mkEtaText(model, all); $("#mk-eta-ch").textContent = mkEtaText(model, ch);
+  } catch (e) { $("#mk-eta-all").textContent = $("#mk-eta-ch").textContent = ""; }
+}
+function mkModelHint() {
+  const m = $("#mk-model").value, key = /31b/.test(m) ? "mk.model.h31" : /26b/.test(m) ? "mk.model.h26" : /12b/.test(m) ? "mk.model.h12" : "";
+  $("#mk-modelhint").textContent = key ? t(key) : "";
+}
+$("#mk-model").addEventListener("change", () => { mkModelHint(); mkModelButtons(); mkEtaEditor(); });
+const mkStageText = (s) => s.state !== "running" ? "" : !s.total ? t("mk.run.start") : t(s.stage === "analyse" ? "mk.run.read" : "mk.run.mark", { d: s.done, n: s.total });
+// one run of the whole flow (characters, then speakers); ui = { busy(on), progress(pct, text), error(text) }
+async function mkAutoRun(task, o, ui) {
+  const body = { task, model: o.model || undefined, expression_tags: !!o.tags, depth: (MK.data && MK.data.depth) || +$("#depth").value || 2, chapters: o.chapters };
+  let sec = null; try { sec = mkSecs(o.model, await mkEstimate(o.chapters ? o.chapters[0] : 0)); } catch (e) { /* no estimate */ }
+  if (sec && task === "analyse") sec.nm = 0;
+  try { await api(`/api/books/${book.book_id}/llm/start`, { method: "POST", headers: JSONH, body: JSON.stringify(body) }); }
+  catch (e) { ui.error(e.message); return null; }
+  ui.busy(true); MK.running = true;
+  const t0 = Date.now(); let stage = "", tStage = t0, scale = 1, per = 0;
+  try {
+    for (;;) {
+      await new Promise(r => setTimeout(r, 1500));
+      let s; try { s = await api(`/api/books/${book.book_id}/llm/status`); } catch (e) { return null; }
+      const now = Date.now(); if (s.stage !== stage) { stage = s.stage; tStage = now; }
+      let left = null; per = s.done > 0 ? (now - tStage) / 1000 / s.done : 0;
+      if (sec && s.total) {
+        if (stage === "analyse") { scale = per ? per / sec.a : 1; left = (s.total - s.done) * (per || sec.a) + sec.nm * sec.m * scale; }
+        else left = (s.total - s.done) * (per || sec.m * scale);
+      }
+      const el = (now - t0) / 1000;
+      ui.progress(left === null ? (s.total ? Math.round(100 * s.done / s.total) : 0) : Math.round(100 * el / (el + left)),
+        mkStageText(s) + (left === null || s.state !== "running" ? "" : " · " + t("mk.eta.left", { t: mkDur(left) })));
+      if (s.state === "running") continue;
+      if (s.state === "error") { ui.error(s.message); return null; }
+      if (stage === "annotate" && s.done >= 2 && per) { try { localStorage.setItem("folivox.mkrate." + o.model, String(per)); } catch (e) { /* private mode */ } }
+      return s;
+    }
+  } finally { ui.busy(false); MK.running = false; }
+}
+// who got which voice: the characters of the list with the voice of their speaker (or what is missing)
+function mkVoiceList() {
+  const sp = MK.data.speakers.filter(x => x.id > 0 && MK.data.chapters && Object.values(MK.data.chapters).some(c => c.spans.some(z => z.sp === x.id)));
+  const missing = sp.filter(x => !x.voice);
+  return { sp, missing, html: sp.map(x => `<div>${esc(x.name)} - ${x.voice ? esc(x.voice.split("/").pop()) : `<i>${esc(t("mk.res.novoice"))}</i>`}</div>`).join("") };
+}
+const mkNeeded = () => mkVoiceList().sp.length + 1;  // the narrator and every marked character
+async function mkReadBack() {
+  MK.data = await api(`/api/books/${book.book_id}/markup`); MK.dirty = false; MK.undo = []; MK.redo = [];
+  try { MK.bible = await api(`/api/books/${book.book_id}/characters`); } catch (e) { /* the list is optional */ }
+}
+// main page: the whole flow with defaults
+async function mkCta() {
+  if (MK.running) return;
+  const msg = $("#mk-mmsg"), res = $("#mk-mres"); res.innerHTML = ""; msg.textContent = "";
+  if (!$("#mk-have").hidden && !confirm(t("mk.again.confirm"))) return;
+  let pick; try { pick = await mkPickModel(); } catch (e) { pick = { pick: "", rec: "" }; }
+  const btns = ["#mk-cta", "#mk-again", "#mk-open", "#mk-open2"];
+  if (!pick.pick) {
+    if (!pick.m || !pick.m.running) { msg.textContent = t("mk.dl.noollama"); return; }
+    if (!mkAskDownload(pick.rec, pick.m)) return;
+    const ok = await mkPull(pick.rec, {
+      busy: (on) => { btns.forEach(b => $(b).disabled = on); $("#mk-mprog").hidden = !on; $("#mk-mstop").hidden = !on; $("#mk-mstop").onclick = on ? mkCancelPull : mkStopMain; },
+      progress: (pct, text) => { $("#mk-mprog").value = pct; msg.textContent = text; },
+      error: (m) => { msg.innerHTML = `<span class="err">${esc(m)}</span>`; } });
+    if (!ok) return;
+    pick.pick = pick.rec; msg.textContent = "";
+  }
+  const s = await mkAutoRun("auto", { model: pick.pick }, {
+    busy: (on) => { btns.forEach(b => $(b).disabled = on); $("#mk-mprog").hidden = !on; $("#mk-mstop").hidden = !on; },
+    progress: (pct, text) => { $("#mk-mprog").value = pct; msg.textContent = text; },
+    error: (m) => { msg.innerHTML = `<span class="err">${esc(m)}</span>`; } });
+  if (!s) return;
+  await mkReadBack(); mkSummary(); msg.textContent = "";
+  const v = mkVoiceList();
+  res.innerHTML = `<b>${esc(t("mk.chars.voices", { n: mkNeeded() }))}</b>` + v.html
+    + `<div class="row" style="margin-top:8px"><button type="button" class="primary" id="mk-res-open">${esc(t(v.missing.length ? "mk.res.choose" : "mk.review"))}</button></div>`;
+}
+$("#mk-cta").onclick = mkCta; $("#mk-again").onclick = mkCta;
+const mkStopMain = () => api(`/api/books/${book.book_id}/llm/cancel`, { method: "POST" });
+$("#mk-mstop").onclick = mkStopMain;
+$("#mk-mres").addEventListener("click", (ev) => { if (ev.target.closest("#mk-res-open")) mkOpenEditor(true); });
+// editor: the same flow, or the characters only
+async function mkLlm(task) {
+  if (MK.running || !await mkSave()) return;
+  const msg = $("#mk-llmmsg"); msg.textContent = ""; $("#mk-chars").innerHTML = ""; $("#mk-step").hidden = true;
+  const hasMarkup = Object.values(MK.data.chapters).some(c => c.spans.length);
+  if (task === "auto" && hasMarkup && !confirm(t("mk.again.confirm"))) return;
+  let model = $("#mk-model").value;
+  if (model && MK.models && !MK.models.installed.includes(model)) {
+    if (!MK.models.running) { msg.textContent = t("mk.dl.noollama"); return; }
+    if (!mkAskDownload(model, MK.models) || !await mkEditorPull(model)) return;
+  }
+  const btns = ["#mk-analyse", "#mk-auto"];
+  const s = await mkAutoRun(task, { model, tags: $("#mk-llmtags").checked, chapters: task === "auto" && $("#mk-scope-ch").checked ? [MK.ch + 1] : undefined }, {
+    busy: (on) => { btns.forEach(b => $(b).disabled = on); $("#mk-stop").hidden = !on; $("#mk-prog").hidden = !on; },
+    progress: (pct, text) => { $("#mk-prog").value = pct; msg.textContent = text; },
+    error: (m) => { msg.innerHTML = `<span class="err">${esc(m)}</span>`; } });
+  if (!s) return;
+  if (task === "analyse") { await mkShowChars(); return; }
+  await mkReadBack(); await mkLoadChapter(MK.ch);
+  msg.textContent = t("mk.auto.done", { m: s.stats.marked || 0, f: s.stats.fell_back || 0 });
+  const v = mkVoiceList();
+  $("#mk-chars").innerHTML = `<b>${esc(t("mk.chars.voices", { n: mkNeeded() }))}</b>` + `<div class="mk-res">${v.html}</div>`;
+  const nx = $("#mk-step"); nx.hidden = false;
+  nx.innerHTML = `<b>${esc(t(v.missing.length ? "mk.next.voices" : "mk.next.check"))}</b><div class="row"><button type="button" class="primary" id="mk-next-go">${esc(t(v.missing.length ? "mk.res.choose" : "mk.next.read"))}</button></div>`;
+}
+$("#mk-step").addEventListener("click", (ev) => {
+  if (!ev.target.closest("#mk-next-go")) return;
+  if (mkVoiceList().missing.length) { $("#mk-speakers").scrollIntoView({ block: "start" }); const f = $("#mk-speakers select"); if (f) f.focus(); }
+  else $("#mk-text").focus();
+});
+async function mkShowChars() {
+  try { MK.bible = await api(`/api/books/${book.book_id}/characters`); } catch (e) { return; }
+  const cs = MK.bible.characters.filter(c => c.lines > 0).sort((a, b) => b.lines - a.lines);
+  if (!cs.length) { $("#mk-chars").innerHTML = ""; return; }
+  $("#mk-chars").innerHTML = `<b>${esc(t("mk.chars.voices", { n: MK.bible.voices_needed }))}</b>` + cs.map(c => `<div>${esc(c.name)}${c.aliases.length ? " (" + esc(c.aliases.slice(0, 3).join(", ")) + ")" : ""} - ${esc(c.gender || "?")}, ${c.lines}</div>`).join("")
+    + `<button type="button" class="chip" id="mk-usechars" style="margin-top:8px">${esc(t("mk.chars.use"))}</button>`;
+}
+$("#mk-chars").addEventListener("click", (ev) => {
+  if (!ev.target.closest("#mk-usechars") || !MK.bible) return; mkSnap();
+  MK.bible.characters.filter(c => c.id > 0 && c.lines > 0).forEach(c => {
+    let sp = mkSpeaker(c.id); if (!sp) { sp = { id: c.id, name: c.name, voice: "", gender: c.gender, aliases: c.aliases, notes: c.traits }; MK.data.speakers.push(sp); }
+    else if (/^Speaker \d+$/.test(sp.name)) sp.name = c.name;
+  });
+  MK.data.speakers.sort((a, b) => a.id - b.id); mkRender();
+});
+$("#mk-analyse").onclick = () => mkLlm("analyse"); $("#mk-auto").onclick = () => mkLlm("auto");
+$("#mk-stop").onclick = () => api(`/api/books/${book.book_id}/llm/cancel`, { method: "POST" });
+
+// ---- voice ideas: English voice-design prompts for a character, takes to listen to, you choose --------------------
+const VD = { sid: 0, info: null, provs: [], takes: {}, audio: null, tier: "standard" };
+const VD_TIERS = ["simple", "standard", "detailed"];
+const vdMsg = (m, err) => { $("#mk-vd-msg").innerHTML = err ? `<span class="err">${esc(m)}</span>` : esc(m || ""); };
+async function vdOpen(sid) {
+  VD.sid = sid; MK.cur = sid; $("#mk-vd").hidden = false; mkSpeakers();
+  if (!await mkSave()) return;
+  vdMsg("");
+  await vdLoad(); await vdProviders(); $("#mk-vd").scrollIntoView({ block: "nearest" });
+}
+async function vdLoad() {
+  VD.info = await api(`/api/books/${book.book_id}/speakers/${VD.sid}/voice`); vdRender();
+}
+function vdRender() {
+  const i = VD.info; if (!i) return;
+  $("#mk-vd-title").textContent = t("mk.vd.title", { name: (mkSpeaker(VD.sid) || {}).name || i.name });
+  const has = i.prompts && i.prompts.standard;
+  $("#mk-vd-cards").innerHTML = has ? VD_TIERS.map(k => `<label class="tier ${k === VD.tier ? "on" : ""}"><input type="radio" name="vdtier" value="${k}" ${k === VD.tier ? "checked" : ""}> <b>${esc(t("mk.vd.tier." + k))}</b>
+    <textarea data-tier="${k}" spellcheck="false">${esc(i.prompts[k] || "")}</textarea></label>`).join("") : `<div class="mute" style="margin:8px 0">${esc(t("mk.vd.noprompts"))}</div>`;
+  $("#mk-vd-write").textContent = t(has ? "mk.vd.again" : "mk.vd.write");
+  vdTakes();
+}
+$("#mk-vd-cards").addEventListener("change", (ev) => { if (ev.target.name === "vdtier") { VD.tier = ev.target.value; vdRender(); } });
+$("#mk-vd-cards").addEventListener("input", (ev) => { const k = ev.target.dataset.tier; if (k) VD.info.prompts[k] = ev.target.value; });
+async function vdWait(bid) {
+  for (;;) {
+    await new Promise(r => setTimeout(r, 1200));
+    const s = await api(`/api/books/${bid}/llm/status`);
+    if (s.state !== "running") return s;
+    vdMsg(`${s.stage} ${s.done}/${s.total} ${s.message}`);
+  }
+}
+$("#mk-vd-write").onclick = async () => {
+  if (!await mkSave()) return;
+  const again = !!(VD.info && VD.info.prompts && VD.info.prompts.standard);
+  vdMsg(t("mk.vd.writing")); $("#mk-vd-write").disabled = true;
+  try {
+    await api(`/api/books/${book.book_id}/llm/start`, { method: "POST", headers: JSONH, body: JSON.stringify({ task: "prompts", speakers: [VD.sid], regenerate: again, model: $("#mk-model").value || undefined }) });
+    const s = await vdWait(book.book_id);
+    if (s.state === "error") { vdMsg(s.message, true); return; }
+    vdMsg(""); await vdLoad();
+  } catch (e) { vdMsg(e.message, true); }
+  finally { $("#mk-vd-write").disabled = false; }
+};
+function vdProvider() { return VD.provs.find(p => p.name === $("#mk-vd-prov").value); }
+async function vdProviders() {
+  try { VD.provs = (await api("/api/gen/providers")).providers.filter(p => p.modes.includes("design") && (!p.languages || p.languages.includes(book.lang))); }
+  catch (e) { VD.provs = []; }
+  $("#mk-vd-prov").innerHTML = VD.provs.map(p => `<option value="${esc(p.name)}">${esc(p.label)}</option>`).join("");
+  $("#mk-vd-gen").disabled = !VD.provs.length; if (!VD.provs.length) $("#mk-vd-est").textContent = t("mk.vd.nodesign");
+  vdModels();
+}
+function vdModels() {
+  const p = vdProvider(); if (!p) return;
+  $("#mk-vd-model").innerHTML = `<option value="auto">${esc(t("eng.autonew"))}</option>` + (p.models || []).map(m => `<option value="${esc(m.id)}">${esc(m.label || m.id)}</option>`).join("");
+  vdEstimate();
+}
+const vdPrompt = () => { const el = document.querySelector(`#mk-vd-cards textarea[data-tier="${VD.tier}"]`); return el ? el.value.trim() : ""; };
+function vdBody() {
+  return { provider: $("#mk-vd-prov").value, mode: "design", model: $("#mk-vd-model").value, lang: book.lang, texts: (VD.info.texts || []).slice(0, 1),
+           takes: 3, description: vdPrompt(), rank: false, book_id: book.book_id };
+}
+async function vdEstimate() {
+  const el = $("#mk-vd-est"); el.textContent = ""; if (!VD.info || vdPrompt().length < 10 || !vdProvider()) return;
+  try { const r = await api("/api/gen/estimate", { method: "POST", headers: JSONH, body: JSON.stringify(vdBody()) });
+    el.textContent = r.usd != null ? t("mk.vd.price", { usd: r.usd.toFixed(2) }) : ""; } catch (e) { el.textContent = ""; }
+}
+$("#mk-vd-prov").onchange = vdModels; $("#mk-vd-model").onchange = vdEstimate;
+$("#mk-vd-cards").addEventListener("change", vdEstimate);
+$("#mk-vd-gen").onclick = async () => {
+  if (vdPrompt().length < 10) { vdMsg(t("mk.vd.noprompts"), true); return; }
+  if (!$("#mk-vd-ack").checked) { vdMsg(t("mk.vd.ack"), true); return; }
+  vdMsg(t("mk.vd.generating")); $("#mk-vd-gen").disabled = true;
+  try {
+    const j = await api("/api/gen/start", { method: "POST", headers: JSONH, body: JSON.stringify({ ...vdBody(), acknowledged: true }) });
+    for (;;) {
+      await new Promise(r => setTimeout(r, 1200));
+      const s = await api(`/api/jobs/${j.id}`);
+      if (s.state === "running") continue;
+      if (s.state !== "done") { vdMsg(s.error || t("mk.listen.failed"), true); break; }
+      const list = VD.takes[VD.sid] = VD.takes[VD.sid] || [];
+      (s.takes || []).forEach(x => list.push({ job: j.id, tier: VD.tier, name: x.name, text: x.text, duration: x.duration }));
+      vdMsg(""); vdTakes(); break;
+    }
+  } catch (e) { vdMsg(e.message + (/key/i.test(e.message) ? " " + t("mk.vd.keyhint") : ""), true); }
+  finally { $("#mk-vd-gen").disabled = !VD.provs.length; }
+};
+function vdTakes() {
+  const list = VD.takes[VD.sid] || [];
+  $("#mk-vd-takes").innerHTML = list.map((x, n) => `<div class="take"><button type="button" class="chip" data-play="${n}">&#9654;</button><span class="grow mute">${esc(t("mk.vd.tier." + x.tier))} &middot; ${x.duration}s</span><button type="button" class="chip" data-use="${n}">${esc(t("mk.vd.use"))}</button></div>`).join("");
+}
+$("#mk-vd-takes").addEventListener("click", async (ev) => {
+  const list = VD.takes[VD.sid] || [], pl = ev.target.closest("[data-play]"), us = ev.target.closest("[data-use]");
+  if (pl) { const x = list[+pl.dataset.play]; if (VD.audio) VD.audio.pause(); VD.audio = new Audio(tok(`/api/gen/${x.job}/takes/${encodeURIComponent(x.name)}`)); VD.audio.play(); return; }
+  if (!us) return;
+  const x = list[+us.dataset.use], sp = mkSpeaker(VD.sid);
+  try {
+    const v = await api(`/api/gen/${x.job}/add`, { method: "POST", headers: JSONH, body: JSON.stringify({ take: x.name, id: freeId(`char-${book.book_id.slice(0, 6)}-s${VD.sid}`),
+      name: `${book.title} · ${sp.name}`, gender: (VD.info && VD.info.gender) || sp.gender || "", lang: book.lang }) });
+    await loadVoices(); mkSnap(); sp.voice = v.id; mkRender(); vdMsg(t("mk.vd.used", { name: sp.name }));
+  } catch (e) { vdMsg(e.message, true); }
+});
+$("#mk-vd-close").onclick = () => { $("#mk-vd").hidden = true; if (VD.audio) VD.audio.pause(); };
+const PAGE_API = 3;
 async function checkServer() {
   try { const r = await api("/api/ping"); if (!(r.api >= PAGE_API)) $("#stale").hidden = false; }
   catch (e) { if (e.message === "Not Found") $("#stale").hidden = false; }  // a server too old to have /api/ping
@@ -623,7 +1333,7 @@ async function checkServer() {
 function renderBookInfo() { const b = book;$("#book-info").innerHTML = `<b style="color:var(--ink)">${esc(b.title)}</b> — ${esc(b.author || t("book.noauthor"))} · ${esc(b.lang_name)} · ${esc(b.format.toUpperCase())}${b.year ? " · " + esc(b.year) : ""} · ${t("book.chars", { n: num(b.chars) })} · ≈ ${fmt(b.estimated_seconds)}`; }
 function setBook(b, keep, lang) {
   book = b; showCover(b.cover || "");
-  renderBookInfo(); loadMeta(); loadPron();
+  renderBookInfo(); loadMeta(); loadPron(); loadMk();
   $("#lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}" ${c === b.lang ? "selected" : ""}>${n}</option>`).join("");
   if (lang) $("#lang").value = lang;
   renderChapters(keep);
@@ -705,7 +1415,7 @@ function drawWave(cv, progress) {
   g.clearRect(0, 0, W, H);
   v.peaks.forEach((p, i) => { const h = Math.max(2 * dpr, H * p / 100); g.fillStyle = i / n < progress ? on : off; g.fillRect(i * step, (H - h) / 2, bw, h); });
 }
-function pickVoice(id) { voice = id; renderVoices(); saveSession(); if (typeof runSummary === "function") runSummary(); }
+function pickVoice(id) { voice = id; renderVoices(); saveSession(); if (typeof runSummary === "function") runSummary(); if (typeof ENG !== "undefined" && ENG.list.length) fishRender(); }
 function playVoice(id) {
   if (vplayer && vplayer.vid === id && !vplayer.paused) { vplayer.pause(); return; }
   if (vplayer) vplayer.pause();
@@ -976,7 +1686,8 @@ async function restoreSession() {
 function options() {
   const v = (id) => $("#o-" + id).value;
   return { speed: +v("speed"), max_chars: +v("max_chars"), stress: v("stress"), takes: +v("takes"), qa: v("qa") === "1", qa_level: v("qa_level"),
-           mp3: v("mp3") === "1", output_dir: v("output_dir"), device: v("device"), depth: +$("#depth").value || 2, ...engOptions() };
+           mp3: v("mp3") === "1", output_dir: v("output_dir"), device: v("device"), depth: +$("#depth").value || 2, ...engOptions(),
+           use_markup: $("#mk-use").checked, expression_tags: !(MK.data && MK.data.expression_tags === false) };
 }
 async function start(kind, sample) {
   const chapters = sample ? [1] : selected();
@@ -1261,6 +1972,7 @@ function handle(ev) {
 // -- reading engine: local model or a paid online service ---------------------------------------------------------
 const ENG = { list: [], voices: {}, tm: null, cur() { return this.list.find(e => e.name === $("#o-tts").value) || this.list[0]; }, cloud() { const e = this.cur(); return !!e && e.cloud; } };
 function engOptions() {
+  if (ENG.cur() && ENG.cur().fish) return { tts: ENG.cur().name, tts_build: $("#o-tts_build").value || "auto" };
   if (!ENG.cloud()) return {};
   const cap = $("#o-max_cost").value;
   const base = { tts: ENG.cur().name, tts_model: $("#o-tts_model").value, tts_style: $("#o-tts_style").value, max_cost: cap ? +cap : null };
@@ -1281,10 +1993,74 @@ function engRelabel() {  // after a UI language switch: same selections, new lab
   if (e.cloud) { const m = $("#o-tts_model").value; $("#o-tts_model").innerHTML = engModelOptions(e); $("#o-tts_model").value = m; engMode(); engSaved(); if (ENG.vlist) engRenderVoices(); else engVoices(); renderEst(); }
   runSummary();
 }
+// -- Fish Audio engines (optional): choose a build, accept its licence, install
+const FISH = { st: null, timer: null };
+const FISH_POINTS = { "fish-research": ["research_only", "no_selling", "voices", "no_training", "attribution"], "fish-community": ["commercial", "no_hosting", "voices", "no_training", "attribution"] };
+async function fishRefresh() { try { FISH.st = await api("/api/engines/fish"); } catch (e) { FISH.st = null; } fishRender(); }
+function fishCur() {  // the build the choice resolves to (the server applies the same rule when it renders)
+  const e = ENG.cur(); if (!e || !e.fish || !FISH.st) return null;
+  const bs = FISH.st.builds.filter(b => b.engine === e.name), id = $("#o-tts_build").value;
+  return bs.find(b => b.id === id) || bs.find(b => b.installed) || bs.find(b => b.verified && b.fit !== "no") || bs[0] || null;
+}
+function fishRender() {
+  const e = ENG.cur(), box = $("#eng-fish"); box.hidden = !(e && e.fish && FISH.st); if (box.hidden) return;
+  const bs = FISH.st.builds.filter(b => b.engine === e.name), keep = $("#o-tts_build").value;
+  $("#o-tts_build").innerHTML = `<option value="auto">${esc(t("fish.auto"))}</option>` + bs.map(b => `<option value="${esc(b.id)}">${esc(b.title)}</option>`).join("");
+  $("#o-tts_build").value = bs.some(b => b.id === keep) ? keep : "auto";
+  const b = fishCur(); if (!b) { box.hidden = true; return; }
+  $("#fish-info").textContent = t("fish.size", { gb: b.size_gb, peak: b.peak_gb, ram: b.min_total_gb });
+  const warn = [b.fit !== "ok" ? b.fit_message : "", !b.commercial ? t("fish.noncommercial") : ""];
+  const v = VOICES.find(x => x.id === voice);
+  if (v && v.bundled && !FISH.st.bundled_voices_allowed) warn.push(t("fish.bundledvoice"));
+  $("#fish-warn").textContent = warn.filter(Boolean).join(" ");
+  const running = FISH.inst && FISH.inst.state === "running";
+  $("#fish-licence").hidden = b.accepted; $("#fish-install").hidden = !b.accepted || b.installed || running;
+  $("#fish-install").textContent = t("fish.install", { gb: b.size_gb }); $("#fish-remove").hidden = !b.installed || running;
+  $("#fish-state").textContent = b.installed ? t("fish.installed") : b.accepted ? t("fish.licence.accepted", { version: b.licence_version }) : "";
+  $("#fish-attrib").textContent = t("fish.attrib") + " · " + b.licence_name + " " + b.licence_version;
+}
+$("#o-tts_build").addEventListener("change", fishRender);
+async function fishPoll() {
+  clearTimeout(FISH.timer);
+  try { FISH.inst = await api("/api/engines/fish/install"); } catch (e) { return; }
+  const i = FISH.inst, bar = $("#fish-progress");
+  bar.hidden = i.state !== "running"; if (i.total) bar.value = Math.round(100 * i.done / i.total);
+  if (i.state === "running") { $("#fish-state").textContent = i.total ? t("fish.installing", { name: i.name, done: (i.done / 1e9).toFixed(1), total: (i.total / 1e9).toFixed(1) }) : (i.message || t("fish.preparing")); FISH.timer = setTimeout(fishPoll, 1500); return; }
+  if (i.state === "error") { $("#fish-warn").textContent = i.message; }
+  await fishRefresh();
+}
+$("#fish-install").addEventListener("click", async () => {
+  const b = fishCur(); if (!b) return;
+  try { await api("/api/engines/fish/install", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ build: b.id }) }); $("#fish-install").hidden = true; fishPoll(); }
+  catch (e) { $("#fish-warn").textContent = e.message; }
+});
+$("#fish-remove").addEventListener("click", async () => {
+  const b = fishCur(); if (!b || !confirm(t("fish.confirmrm", { name: b.title }))) return;
+  try { FISH.st = await api("/api/engines/fish/remove", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ build: b.id }) }); fishRender(); }
+  catch (e) { $("#fish-warn").textContent = e.message; }
+});
+$("#fish-licence").addEventListener("click", () => {
+  const b = fishCur(); if (!b) return; const L = FISH.st.licences[b.licence];
+  $("#fish-dlg-h").textContent = t("fish.licence.title", { name: L.name, version: L.version });
+  $("#fish-points").innerHTML = (FISH_POINTS[b.licence] || []).map(id => `<li>${esc(t("fish.points." + id))}</li>`).join("");
+  $("#fish-full").hidden = true; $("#fish-full").textContent = ""; $("#fish-page").href = L.page; $("#fish-check").checked = false; $("#fish-accept").disabled = true;
+  $("#fish-dlg").dataset.licence = b.licence; $("#fish-dlg").showModal();
+});
+$("#fish-showfull").addEventListener("click", async () => {
+  const box = $("#fish-full"); box.hidden = false; box.textContent = t("fish.loading");
+  try { const r = await api("/api/engines/fish/licence/" + $("#fish-dlg").dataset.licence); box.textContent = r.text || (r.error || "") ; }
+  catch (e) { box.textContent = e.message; }
+});
+$("#fish-check").addEventListener("change", () => { $("#fish-accept").disabled = !$("#fish-check").checked; });
+$("#fish-cancel").addEventListener("click", () => $("#fish-dlg").close());
+$("#fish-accept").addEventListener("click", async () => {
+  try { FISH.st = await api("/api/engines/fish/accept", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ licence: $("#fish-dlg").dataset.licence, confirm: $("#fish-check").checked }) }); $("#fish-dlg").close(); fishRender(); }
+  catch (e) { $("#fish-warn").textContent = e.message; $("#fish-dlg").close(); }
+});
 async function engLoad() {
   try {
     const r = await api("/api/tts/engines"); ENG.list = r.engines;
-    const st = await api("/api/settings").catch(() => null), pref = (st && st.kinds && st.kinds.tts && st.kinds.tts.selected) || "cosyvoice3";
+    const st = await api("/api/settings").catch(() => null), pref = (st && st.kinds && st.kinds.tts && st.kinds.tts.selected) || r.default || "cosyvoice3";
     let saved = ""; try { saved = localStorage.getItem("folivox.tts") || ""; } catch (e) {}
     $("#o-tts").innerHTML = engTtsOptions(r.engines);
     $("#o-tts").value = r.engines.some(e => e.name === saved) ? saved : r.engines.some(e => e.name === pref) ? pref : "cosyvoice3";
@@ -1310,6 +2086,7 @@ function engChange() {
   optionsVisibility(); ENG.est = null; $("#eng-est").textContent = ""; runSummary();
   $("#o-takes").parentElement.title = e.cloud ? t("eng.retakebilled") : "";
   $("#eng-blurb").innerHTML = engBlurb(e);
+  if (e.fish) fishRefresh(); else $("#eng-fish").hidden = true;
   if (!e.cloud) return;
   $("#o-tts_model").innerHTML = `<option value="auto">${esc(t("eng.autonew"))}</option>` + e.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${e.prices[m.id] != null ? ` (≈ $${dec(e.prices[m.id], 2)}/${t("u.h")})` : ""}${m.note ? " — " + esc(m.note) : ""}</option>`).join("");
   $("#o-tts_mode").innerHTML = e.voice_modes.map(m => `<option value="${m}">${esc((e.mode_labels || {})[m] || m)}</option>`).join("");

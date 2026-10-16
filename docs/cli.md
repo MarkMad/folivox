@@ -27,7 +27,8 @@ longer explanations (`voices`, `providers`, `config`, `languages`, `resuming`, `
 | | `--stress` | `yo` | `none`, `yo` (restore ё), `all` (acute stress marks, experimental) |
 | Quality control | `--qa` / `--no-qa` | on | check each fragment with speech recognition (faster without) |
 | | `--takes` | 3 | max takes per fragment when QA finds a mismatch |
-| Providers | `--tts` | `cosyvoice3` | TTS provider (`folivox providers`) |
+| Providers | `--tts` | best installed Fish engine you accepted, else `cosyvoice3` | TTS provider (`folivox providers`, `folivox engines`) |
+| | `--tts-build` | `auto` | Fish engines: build id from `folivox engines` |
 | | `--asr` | `auto` | speech recognition for QA: `mlx-whisper`, `faster-whisper`, `openai` |
 | | `--llm` | `rl` | CosyVoice language-model weights: `rl` or `base` |
 | | `--model-dir` | downloaded on first run | folder with CosyVoice 3 weights |
@@ -40,6 +41,32 @@ longer explanations (`voices`, `providers`, `config`, `languages`, `resuming`, `
 | | `--cover` | the book's own | an image (JPEG, PNG, WebP) to embed instead, or `none`; shrunk to 1600 px |
 | | `--work-dir` | `<output>.folivox/` | cache and journal; delete it when done |
 | | `--verbose` | | print every fragment |
+
+## Speakers and expression tags
+
+```bash
+folivox markup export book.epub -o book.txt    # edit it, then:
+folivox markup import book.epub book.txt
+folivox render book.epub --tts fish-drama3 --voice me.wav     # picks up book.markup.json by itself
+```
+
+Automatic: `markup models|analyse|characters|auto` (a local Gemma 4 or any LLM). Also `markup speaker|speakers|check|tags|clear`, and for `render`: `--markup FILE`, `--no-markup`,
+`--no-expression-tags`. See [Speakers and expression tags](markup.md).
+
+## Fish Audio engines
+
+```bash
+folivox engines                         # builds, size, memory, licence, fit here, install state
+folivox engines licence BUILD           # the full licence text
+folivox engines accept fish-community   # read and accept a licence (also asked by `install`)
+folivox engines install BUILD           # download + verify (asks for the licence first)
+folivox engines remove BUILD            # delete the downloaded weights
+folivox engines best                    # id of the best tested build that fits this computer
+folivox render book.epub --tts fish-drama3 --tts-build drama3-mlx-4bit --voice my-voice.wav
+```
+
+`--tts-build auto` (default) uses the best installed build that fits. Details, licences and memory:
+[Fish Audio engines](fish-engines.md).
 
 ## Speed test
 

@@ -46,8 +46,13 @@ def run_generation(job: GenJob, gen, texts: list[str], *, asr_factory: Callable[
     if job.cancel_requested.is_set():
         raise Cancelled
     by_path = {path: texts[i // n_takes] for i, path in enumerate(paths)}
-    job.emit("stage", name="score", detail="Checking the takes with speech recognition")
-    ranked = score_takes(paths, by_path, asr_factory(lang), lang)
+    if p.get("rank", True):
+        job.emit("stage", name="score", detail="Checking the takes with speech recognition")
+        ranked = score_takes(paths, by_path, asr_factory(lang), lang)
+    else:  # the person listens and chooses: no recogniser, the takes stay in the order they were made
+        from folivox.voices.design import Candidate, audio_seconds_of
+
+        ranked = [Candidate(path, by_path[path], 0, audio_seconds_of(path), None, "") for path in paths]
     if job.cancel_requested.is_set():
         raise Cancelled
     job.takes = [{"name": c.path.name, "duration": round(c.duration, 1), "score": c.score, "text": c.text,

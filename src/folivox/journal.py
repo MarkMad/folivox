@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS chapters (idx INTEGER PRIMARY KEY, title TEXT NOT NUL
 CREATE TABLE IF NOT EXISTS chunks (
     chapter INTEGER NOT NULL, idx INTEGER NOT NULL, key TEXT NOT NULL,
     text TEXT NOT NULL, source TEXT NOT NULL, pause REAL NOT NULL, kind TEXT NOT NULL,
+    speaker INTEGER NOT NULL DEFAULT 0, markup TEXT NOT NULL DEFAULT '', voice TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (chapter, idx)
 );
 CREATE INDEX IF NOT EXISTS chunks_key ON chunks(key);
@@ -34,8 +35,14 @@ CREATE TABLE IF NOT EXISTS takes (
 """
 
 
-def chunk_key(text: str, voice_id: str, settings: str) -> str:
-    return hashlib.sha1(f"{settings}\x1f{voice_id}\x1f{text}".encode()).hexdigest()[:24]
+def chunk_key(text: str, voice_id: str, settings: str, speaker: str = "", markup: str = "") -> str:
+    """Identity of a take. ``settings`` carries the engine, its build and the synthesis version; ``speaker`` and
+    ``markup`` (expression tags, delivery cues) are part of the key only when used, so keys of single-voice
+    renders made before multi-voice existed stay valid."""
+    base = f"{settings}\x1f{voice_id}\x1f{text}"
+    if speaker or markup:
+        base += f"\x1f{speaker}\x1f{markup}"
+    return hashlib.sha1(base.encode()).hexdigest()[:24]
 
 
 @dataclass
@@ -47,6 +54,9 @@ class PlannedChunk:
     source: str
     pause: float
     kind: str
+    speaker: int = 0
+    markup: str = ""
+    voice: str = ""  # id of the voice that reads it ("" = the book's main voice)
 
 
 @dataclass
@@ -67,6 +77,11 @@ class Journal:
         self.db = sqlite3.connect(self.dir / "journal.sqlite", isolation_level=None)  # autocommit
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.executescript(SCHEMA)
+        cols = {r[1] for r in self.db.execute("PRAGMA table_info(chunks)")}
+        for name, ddl in (("speaker", "INTEGER NOT NULL DEFAULT 0"), ("markup", "TEXT NOT NULL DEFAULT ''"),
+                          ("voice", "TEXT NOT NULL DEFAULT ''")):
+            if name not in cols:  # a journal made before multi-voice
+                self.db.execute(f"ALTER TABLE chunks ADD COLUMN {name} {ddl}")
 
     def close(self) -> None:
         self.db.close()
@@ -81,23 +96,29 @@ class Journal:
         return json.loads(row[0]) if row else default
 
     # -- plan
-    def set_plan(self, chapters: list[tuple[str, list[Chunk]]], voice_id: str, settings: str) -> None:
+    def set_plan(self, chapters: list[tuple[str, list[Chunk]]], voice_id: str, settings: str,
+                 speaker_voices: dict[int, str] | None = None) -> None:
+        """``speaker_voices`` maps a speaker id to the id of the voice that reads it (the main voice otherwise)."""
+        speaker_voices = speaker_voices or {}
         with self.db:
             self.db.execute("BEGIN")
             self.db.execute("DELETE FROM chapters")
             self.db.execute("DELETE FROM chunks")
             for ci, (title, chunks) in enumerate(chapters):
                 self.db.execute("INSERT INTO chapters VALUES (?, ?)", (ci, title))
-                self.db.executemany(
-                    "INSERT INTO chunks VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    [(ci, c.index, chunk_key(c.text, voice_id, settings), c.text, c.source, c.pause_after, c.kind)
-                     for c in chunks])
+                rows = []
+                for c in chunks:
+                    vid = speaker_voices.get(c.speaker, voice_id) if c.speaker else voice_id
+                    rows.append((ci, c.index, chunk_key(c.text, vid, settings, str(c.speaker) if c.speaker else "",
+                                                        c.markup), c.text, c.source, c.pause_after, c.kind,
+                                 c.speaker, c.markup, vid if c.speaker else ""))
+                self.db.executemany("INSERT INTO chunks VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", rows)
 
     def chapters(self) -> list[tuple[int, str]]:
         return list(self.db.execute("SELECT idx, title FROM chapters ORDER BY idx"))
 
     def chunks(self, chapter: int | None = None) -> list[PlannedChunk]:
-        q = "SELECT chapter, idx, key, text, source, pause, kind FROM chunks"
+        q = "SELECT chapter, idx, key, text, source, pause, kind, speaker, markup, voice FROM chunks"
         args: tuple = ()
         if chapter is not None:
             q += " WHERE chapter = ?"

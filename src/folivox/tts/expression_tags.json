@@ -1,0 +1,1013 @@
+{
+ "schema": 1,
+ "note": "Expression tags for Fish Audio S2 Pro and Drama 3, collected from the vendors' public model cards and documentation (retrieved 2026-10-15). Only short tag names (facts) are listed, no vendor text. Tags are free-form natural language: the models accept tags that are not in this list; the list feeds the editor's picker and the LLM prompt, and tags outside it are kept but flagged. Refresh with tools/fish_tags.py.",
+ "syntax": {
+  "inline": "[tag]",
+  "placement": "A tag stands where the effect should happen. Emotion cues work best at the start of a sentence; tone and sound tags can go anywhere; put 'emphasis' right before the word. Combine at most three per sentence.",
+  "max_per_sentence": 3,
+  "speaker": "<|speaker:N|> for N in 0..15 (Drama 3, up to 16 characters in one text; the reference transcript of speaker N starts with the same tag)"
+ },
+ "sources": [
+  {
+   "id": "s2card",
+   "url": "https://huggingface.co/fishaudio/s2-pro"
+  },
+  {
+   "id": "d3card",
+   "url": "https://huggingface.co/fishaudio/drama-3"
+  },
+  {
+   "id": "docs",
+   "url": "https://docs.fish.audio/developer-guide/core-features/emotions"
+  }
+ ],
+ "categories": [
+  "emotion",
+  "tone",
+  "sound",
+  "effect",
+  "pause"
+ ],
+ "tags": [
+  {
+   "tag": "happy",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "sad",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs",
+    "s2card"
+   ]
+  },
+  {
+   "tag": "angry",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs",
+    "s2card"
+   ]
+  },
+  {
+   "tag": "excited",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs",
+    "s2card"
+   ]
+  },
+  {
+   "tag": "calm",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "nervous",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "confident",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "surprised",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs",
+    "s2card"
+   ]
+  },
+  {
+   "tag": "satisfied",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "delighted",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "scared",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "worried",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "upset",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "frustrated",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "depressed",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "empathetic",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "embarrassed",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "disgusted",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "moved",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "proud",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "relaxed",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "grateful",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "curious",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "sarcastic",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "disdainful",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "unhappy",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "anxious",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "hysterical",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "indifferent",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "uncertain",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "doubtful",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "confused",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "disappointed",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "regretful",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "guilty",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "ashamed",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "jealous",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "envious",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "hopeful",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "optimistic",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "pessimistic",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "nostalgic",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "lonely",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "bored",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "contemptuous",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "sympathetic",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "compassionate",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "determined",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "resigned",
+   "category": "emotion",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "in a hurry tone",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "shouting",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs",
+    "s2card"
+   ]
+  },
+  {
+   "tag": "screaming",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs",
+    "s2card"
+   ]
+  },
+  {
+   "tag": "whispering",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "soft tone",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "emphasis",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs",
+    "s2card"
+   ]
+  },
+  {
+   "tag": "laughing",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs",
+    "s2card"
+   ]
+  },
+  {
+   "tag": "chuckling",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs",
+    "s2card"
+   ]
+  },
+  {
+   "tag": "sobbing",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "crying loudly",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "sighing",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "groaning",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "panting",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs",
+    "s2card"
+   ]
+  },
+  {
+   "tag": "gasping",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "yawning",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "snoring",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "clear throat",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "audience laughing",
+   "category": "effect",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "background laughter",
+   "category": "effect",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "crowd laughing",
+   "category": "effect",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "break",
+   "category": "pause",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "long-break",
+   "category": "pause",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "docs"
+   ]
+  },
+  {
+   "tag": "pause",
+   "category": "pause",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "short pause",
+   "category": "pause",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "shocked",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "delight",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "excited tone",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "laughing tone",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "low volume",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "low voice",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "whisper",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "loud",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "volume up",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "volume down",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "with strong accent",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "echo",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "interrupting",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "singing",
+   "category": "tone",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "inhale",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "exhale",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "chuckle",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "tsk",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "sigh",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "clearing throat",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "moaning",
+   "category": "sound",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "audience laughter",
+   "category": "effect",
+   "models": [
+    "s2"
+   ],
+   "sources": [
+    "s2card"
+   ]
+  },
+  {
+   "tag": "sighs",
+   "category": "sound",
+   "models": [
+    "drama3"
+   ],
+   "sources": [
+    "d3card"
+   ]
+  },
+  {
+   "tag": "laughs",
+   "category": "sound",
+   "models": [
+    "drama3"
+   ],
+   "sources": [
+    "d3card"
+   ]
+  }
+ ]
+}

@@ -10,7 +10,46 @@ from __future__ import annotations
 
 import ctypes
 import gc
+import os
+import subprocess
 import sys
+
+
+def available_gb() -> float | None:
+    """Memory that can be given to a program right now, in GB: free + reclaimable (file cache, purgeable pages).
+    None when the system does not tell. Not psutil: macOS ``vm_stat``, Linux ``MemAvailable``, Windows API."""
+    try:
+        if sys.platform == "darwin":
+            out = subprocess.run(["vm_stat"], capture_output=True, text=True, timeout=5).stdout
+            page = 16384 if "page size of 16384" in out else 4096
+            counts = {}
+            for line in out.splitlines()[1:]:
+                key, _, val = line.partition(":")
+                digits = "".join(c for c in val if c.isdigit())
+                if digits:
+                    counts[key.strip()] = int(digits)
+            pages = sum(counts.get(k, 0) for k in ("Pages free", "Pages inactive", "Pages speculative",
+                                                   "Pages purgeable"))
+            return pages * page / 1e9
+        if sys.platform.startswith("linux"):
+            with open("/proc/meminfo", encoding="ascii") as f:
+                for line in f:
+                    if line.startswith("MemAvailable:"):
+                        return int(line.split()[1]) * 1024 / 1e9
+            return None
+        if os.name == "nt":
+            class Mem(ctypes.Structure):
+                _fields_ = [("length", ctypes.c_ulong), ("load", ctypes.c_ulong), ("total", ctypes.c_ulonglong),
+                            ("avail", ctypes.c_ulonglong), ("pt", ctypes.c_ulonglong), ("pa", ctypes.c_ulonglong),
+                            ("vt", ctypes.c_ulonglong), ("va", ctypes.c_ulonglong), ("ve", ctypes.c_ulonglong)]
+
+            m = Mem()
+            m.length = ctypes.sizeof(Mem)
+            ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m))  # type: ignore[attr-defined]
+            return m.avail / 1e9
+    except Exception:  # noqa: BLE001
+        return None
+    return None
 
 
 def release() -> None:

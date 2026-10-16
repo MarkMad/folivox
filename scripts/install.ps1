@@ -95,6 +95,16 @@ Ok "folivox installed"
 Step 5 "Models and first check"
 $env:PYTHONIOENCODING = "utf-8"
 if ($env:FOLIVOX_SKIP_MODELS -eq "1") { folivox setup --skip-models } else { folivox setup }
+# Optional Fish Audio engines (separate licences, 7-24 GB). Asked only of a person at a console, only where a tested build fits.
+$fishBuild = ""
+try { $fishBuild = ((& folivox engines best 2>$null) | Out-String).Trim() } catch { }
+if ($fishBuild -and $env:FOLIVOX_NO_START -ne "1" -and -not $env:CI -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected) {
+  Write-Host "`nOptional: Fish Audio engines (more natural voices, several speakers in one book)." -ForegroundColor White
+  Write-Host "  They are not part of Folivox: a separate download from Hugging Face under the vendor's licence."
+  Write-Host "  Personal use is free; selling audiobooks needs a commercial licence (details are shown before the download)."
+  $fishAnswer = Read-Host "  Install $fishBuild now? You will see the licence first. [y/N]"
+  if ($fishAnswer -match '^[yYдД]') { folivox engines install $fishBuild; if ($LASTEXITCODE -ne 0) { Warn "Fish engine not installed. Later: folivox engines install $fishBuild" } }
+}
 Write-Host "`nIf 'folivox' is not found in a new window: run  uv tool update-shell  and reopen PowerShell." -ForegroundColor White
 # Offer to open the studio, only for a person at a console (not agents, CI or redirected input). FOLIVOX_NO_START=1 skips it.
 if ($env:FOLIVOX_NO_START -ne "1" -and -not $env:CI -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected) {

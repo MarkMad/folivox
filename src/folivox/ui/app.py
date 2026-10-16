@@ -23,12 +23,13 @@ from folivox import config
 from folivox import voices as catalog
 from folivox.pipeline import QA_LEVELS, RenderOptions
 from folivox.text import pronounce as pronunciations
+from folivox.ui import fish_routes, markup_routes
 from folivox.ui.jobs import JobManager, chapter_files
 
 STATIC = Path(__file__).parent / "static"
 # Bumped when the page starts using a route that servers started before the update do not have: the page asks
 # /api/ping and, if the server is older, tells the user to restart it.
-API_LEVEL = 2
+API_LEVEL = 3
 MAX_UPLOAD = 200 * 1024 * 1024
 PREVIEW_CHARS = 600
 
@@ -123,6 +124,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                render=None, services: dict | None = None) -> Starlette:
     """``services`` (tests): ``generator(name)``, ``llm(name)`` and ``asr(lang)`` factories replacing the real ones."""
     state = State(data_dir or Path(user_data_dir("folivox", appauthor=False)) / "ui", render)
+    fish_install = fish_routes.Install()
     services = services or {}
     # what the cookie holds: derived from the token, so it survives restarts but the token itself never sits in it
     session = (hmac.new(token.encode(), b"folivox-ui-cookie", "sha256").hexdigest() if token
@@ -275,6 +277,65 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     # ---- pronunciations: the lexicon of this book (see folivox.text.pronounce) ---------------------------
     PRONOUNCE_LIMIT = 100_000
     SAMPLE_LIMIT = 600
+    SAMPLE_RANGE_LIMIT = 1500
+
+    def markup_file(book_id: str) -> Path:
+        return state.data_dir / "markup" / f"{Path(book_id).name}.json"
+
+    async def get_markup(request: Request):
+        """The book's markup (speakers, spans, tags) as JSON, or an empty one; spans never carry book text."""
+        from folivox import markup as mk
+
+        bid = request.path_params["book_id"]
+        state.book(bid)
+        f = markup_file(bid)
+        try:
+            m = mk.Markup.load(f) if f.is_file() else mk.Markup()
+        except mk.MarkupError as e:
+            raise ApiError(str(e)) from None
+        return JSONResponse(m.to_dict())
+
+    async def put_markup(request: Request):
+        """Save markup after checking it against the book (stale chapters and bad spans are refused, not repaired)."""
+        from folivox import markup as mk
+
+        bid = request.path_params["book_id"]
+        entry = state.book(bid)
+        body = await request.json()
+        try:
+            m = mk.Markup.from_dict(body)
+            chapters = entry["book"].chapters(m.depth)
+            clean, problems = mk.bind(m, chapters)
+        except mk.MarkupError as e:
+            raise ApiError(str(e)) from None
+        if problems:
+            raise ApiError("The markup does not fit the book: " + "; ".join(problems[:3]), 400, problems=problems)
+        mk.stamp(clean, chapters)
+        f = markup_file(bid)
+        if clean.is_empty() and len(clean.speakers) == 1:
+            f.unlink(missing_ok=True)
+        else:
+            f.parent.mkdir(parents=True, exist_ok=True)
+            clean.save(f)
+        return JSONResponse(clean.to_dict())
+
+    async def chapter_text(request: Request):
+        """The paragraphs of one chapter, as the markup addresses them (block index, text)."""
+        bid = request.path_params["book_id"]
+        entry = state.book(bid)
+        depth = int(request.query_params.get("depth", 2))
+        n = int(request.query_params.get("chapter", 0))
+        chapters = entry["book"].chapters(depth)
+        if not 0 <= n < len(chapters):
+            raise ApiError("No such chapter", 404)
+        ch = chapters[n]
+        blocks = [{"b": i, "kind": b.kind.value, "text": b.text} for i, b in enumerate(ch.blocks)]
+        return JSONResponse({"chapter": n, "title": ch.title, "headings": ch.headings, "blocks": blocks})
+
+    async def expression_tags(request: Request):
+        from folivox import markup as mk
+
+        return JSONResponse(mk.tag_database())
 
     def pronounce_file(book_id: str) -> Path:
         return state.data_dir / "pronounce" / f"{Path(book_id).name}.txt"
@@ -578,6 +639,24 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                     keep_voice=bool(o.get("keep_voice", False)) and not mine,
                     tts_voice_name=" ".join(str(o.get("tts_voice_name") or "").split())[:60])
 
+    def check_fish(tts: str, build_id: str, voice) -> None:
+        """Say why a Fish engine cannot start before a job is made (the render checks again)."""
+        from folivox.tts import builds as fb
+        from folivox.tts import fish_check, fish_setup, licences
+
+        try:
+            b = fb.build_for(tts, build_id)
+        except fb.CatalogError as e:
+            raise ApiError(str(e)) from None
+        if not licences.is_accepted(fb.load().licences[b.licence]):
+            raise ApiError(f"Accept the {fb.load().licences[b.licence].name} first (Engine → Licence).", 403,
+                           code="fish_licence")
+        if not fish_setup.is_ready(b):
+            raise ApiError(f"{b.title} is not installed yet ({b.size_gb:.1f} GB download): install it first.", 409,
+                           code="fish_install")
+        if voice is not None and fish_check.is_bundled_voice(voice.path) and not fish_check.bundled_voices_allowed():
+            raise ApiError(fish_check.BUNDLED_VOICES_NOTE, 400, code="fish_voice")
+
     def build_options(body: dict, book_entry: dict, kind: str) -> RenderOptions:
         from folivox.text.stress import MODES
 
@@ -585,17 +664,23 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         book = book_entry["book"]
         voice_id = body.get("voice") or ""
         from folivox.pipeline import is_cloud
+        from folivox.tts import builds as fish_builds
 
-        tts = config.provider("tts", o.get("tts") or None) or "cosyvoice3"
+        explicit_tts = config.provider("tts", o.get("tts") or None)
+        tts = explicit_tts or fish_builds.default_engine()
         cloud = tts in regs_tts_names() and is_cloud(tts)
         v = catalog.find(voice_id) if voice_id else catalog.default_for(book.lang)
+        if not explicit_tts and fish_builds.is_fish_engine(tts) and v is not None:
+            from folivox.tts import fish_check
+
+            if fish_check.is_bundled_voice(v.path) and not fish_check.bundled_voices_allowed():
+                tts = "cosyvoice3"  # the bundled voices are real readers: Fish engines do not use them
         if v is None and not cloud:
             raise ApiError(f"Unknown voice {voice_id!r}")
         stress = o.get("stress", "yo")
         if stress not in MODES:
             raise ApiError(f"stress must be one of {', '.join(MODES)}")
         regs = _registries()
-        tts = config.provider("tts", o.get("tts") or None) or "cosyvoice3"
         asr = config.provider("asr", o.get("asr") or None) or "auto"
         for kind_name, name in (("tts", tts), ("asr", asr)):
             if name not in regs[kind_name].names():
@@ -603,15 +688,21 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         chapters = body.get("chapters") or []
         spec = ",".join(str(int(n)) for n in chapters) or None
         cloud_opts = cloud_options(body, o, tts, v) if cloud else {}
+        tts_build = str(o.get("tts_build") or "auto")
+        if not cloud and fish_builds.is_fish_engine(tts):
+            check_fish(tts, tts_build, v)
         lexicon = pronounce_file(str(body.get("book_id", "")))
+        markup = markup_file(str(body.get("book_id", "")))
         common = dict(voice_wav=v.path if v else None,
                       voice_text=body.get("voice_text") or (v.transcript if v else None), lang=book.lang, **cloud_opts,
                       depth=int(o.get("depth", 2)), max_chars=int(o.get("max_chars", 300)), stress=stress,
                       speed=float(o.get("speed", 1.0)), qa=bool(o.get("qa", True)),
                       qa_threshold=QA_LEVELS.get(str(o.get("qa_level")), QA_LEVELS["standard"]),
                       max_takes=int(o.get("takes") or (2 if cloud else 3)),
-                      tts=tts, asr=asr, device=str(o.get("device", "auto")),
+                      tts=tts, tts_build=tts_build, asr=asr, device=str(o.get("device", "auto")),
                       pronounce=(lexicon,) if lexicon.is_file() else (),
+                      markup=markup if markup.is_file() and o.get("use_markup", True) else None,
+                      expression_tags=bool(o.get("expression_tags", True)),
                       cover=custom_cover(str(body.get("book_id", ""))),
                       no_cover=cover_kind(str(body.get("book_id", "")), book) == "none",
                       meta=book_meta(str(body.get("book_id", "")), book))
@@ -625,6 +716,38 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         stem = Path(book_entry["path"]).stem
         return RenderOptions(output=out_dir / stem if mp3 else out_dir / f"{stem}.m4b", chapters=spec, mp3=mp3,
                              bitrate=str(o.get("bitrate", "64k")), **common)
+
+    def sample_from_range(body: dict, entry: dict, kind: str, opts: RenderOptions):
+        """A one-chapter book made of the chosen paragraphs, and its markup, for a preview."""
+        from folivox import markup as mk
+        from folivox.book import Book, Section
+
+        r = body["sample_range"]
+        try:
+            n, first, last, depth = int(r["chapter"]), int(r["block_from"]), int(r["block_to"]), int(r.get("depth", 2))
+        except (KeyError, TypeError, ValueError):
+            raise ApiError("sample_range needs chapter, block_from and block_to") from None
+        chapters = entry["book"].chapters(depth)
+        if kind != "preview" or not 0 <= n < len(chapters):
+            raise ApiError("A passage is played as a preview of an existing chapter")
+        blocks = chapters[n].blocks[first:last + 1]
+        total = sum(len(b.text) for b in blocks)
+        if not blocks or first < 0 or total > SAMPLE_RANGE_LIMIT:
+            raise ApiError(f"Pick 1–{SAMPLE_RANGE_LIMIT} characters of whole paragraphs to listen to")
+        mf = markup_file(str(body.get("book_id", "")))
+        opts.markup = None
+        if mf.is_file() and (body.get("options") or {}).get("use_markup", True):
+            try:
+                m = mk.Markup.load(mf)
+                if m.depth == depth:
+                    sliced = mk.slice_markup(m, n, first, last)
+                    opts.markup = opts.output.parent / "passage.markup.json"
+                    opts.output.parent.mkdir(parents=True, exist_ok=True)
+                    sliced.save(opts.markup)
+            except mk.MarkupError as e:
+                raise ApiError(str(e)) from None
+        opts.sample_exact, opts.preview, opts.chapters, opts.depth = True, total + 50, "1", 2
+        return Book(title=entry["book"].title, lang=entry["book"].lang, sections=[Section(blocks=list(blocks))])
 
     async def start_job(request: Request):
         body = await request.json()
@@ -643,6 +766,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             if kind != "preview" or not text or len(text) > SAMPLE_LIMIT:
                 raise ApiError(f"A test text is 1–{SAMPLE_LIMIT} characters, played as a preview")
             book = Book(title=book.title, lang=book.lang, sections=[Section(blocks=[Block(BlockKind.PARAGRAPH, text)])])
+        if body.get("sample_range"):  # listen to some paragraphs with their speakers and tags
+            book = sample_from_range(body, entry, kind, opts)
         opts.output.parent.mkdir(parents=True, exist_ok=True)
         try:
             job = state.manager.start(kind, body["book_id"], book, opts)
@@ -773,7 +898,10 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     async def get_settings(request: Request):
         kinds = {}
         for kind, reg in _registries().items():
-            kinds[kind] = {"default": reg.default, "selected": config.provider(kind) or reg.default,
+            from folivox.tts import builds as fb
+
+            fallback = fb.default_engine() if kind == "tts" else reg.default
+            kinds[kind] = {"default": reg.default, "selected": config.provider(kind) or fallback,
                            "providers": [{"name": p.name, "description": p.description, "local": p.local,
                                           "needs": p.needs} for p in reg.providers()]}
         return JSONResponse({"kinds": kinds, "config_path": str(config.config_path()),
@@ -941,12 +1069,21 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             out.append({**cls.capabilities(), **key_state(cls), "local": False, "cloud": True,
                         "voice_modes": list(voice_modes_of(cls)), "per_hour": prices.get(cls.models[0]["id"])
                         if cls.models else None, "prices": prices})
-        order = ["cosyvoice3", "gemini", "cartesia", "elevenlabs", "openai"]  # free first, then by value for money
+        from folivox.tts import builds as fb
+
+        hw = fb.detect_hardware()
+        for name in fb.load().engines():  # Fish engines show only where one of their builds can run
+            bs = [b for b in fb.load().for_engine(name) if hw.platform_tag in b.platforms]
+            if bs:
+                out.append({"name": name, "label": bs[0].title.split(",")[0], "local": True, "cloud": False,
+                            "fish": True, "blurb": "", "models": [], "per_hour": 0,
+                            "builds": [b.id for b in bs]})
+        order = ["cosyvoice3", "fish-drama3", "fish-s2", "gemini", "cartesia", "elevenlabs", "openai"]  # free first
         tags = {"gemini": "cheap and best", "openai": "low quality for non-English"}
         for e in out:
             e["tag"] = tags.get(e["name"], "")
         out.sort(key=lambda e: order.index(e["name"]) if e["name"] in order else len(order))
-        return JSONResponse({"engines": out, "notice": COMMERCIAL_NOTICE})
+        return JSONResponse({"engines": out, "notice": COMMERCIAL_NOTICE, "default": fb.default_engine(hw)})
 
     async def tts_estimate(request: Request):
         from folivox.tts import cost
@@ -1134,7 +1271,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         if len(description) > 1000:
             raise ApiError("The description is too long (1000 characters at most)")
         return {"cls": cls, "mode": mode, "lang": lang, "texts": texts, "takes": takes, "description": description,
-                "speaker": speaker, "model": model, "reference": reference}
+                "speaker": speaker, "model": model, "reference": reference, "rank": body.get("rank", True) is not False}
 
     async def gen_estimate(request: Request):
         from folivox.voicegen.cloud import COMMERCIAL_NOTICE
@@ -1239,6 +1376,10 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/books/{book_id}/chapters", book_chapters),
         Route("/api/books/{book_id}/meta", get_meta),
         Route("/api/books/{book_id}/meta", put_meta, methods=["PUT"]),
+        Route("/api/books/{book_id}/markup", get_markup),
+        Route("/api/books/{book_id}/markup", put_markup, methods=["PUT"]),
+        Route("/api/markup/tags", expression_tags),
+        Route("/api/books/{book_id}/text", chapter_text),
         Route("/api/books/{book_id}/pronounce", get_pronounce),
         Route("/api/books/{book_id}/pronounce", put_pronounce, methods=["PUT"]),
         Route("/api/books/{book_id}/pronounce/sample", pronounce_sample),
@@ -1282,6 +1423,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/keys", get_keys),
         Route("/api/keys/{name}", put_key, methods=["PUT"]),
         Route("/api/keys/{name}", delete_key, methods=["DELETE"]),
+        *fish_routes.routes(ApiError, fish_install),
+        *markup_routes.routes(ApiError, state, services),
     ]
     app = Starlette(routes=routes, exception_handlers={ApiError: api_error, ValueError: bad_request,
                                                       TypeError: bad_request, KeyError: bad_request})

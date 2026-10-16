@@ -38,7 +38,9 @@ def plan(everything: bool = False) -> list[Item]:
     from folivox.tts import weights
 
     d = data_dir()
-    cands: list[tuple[str, Path]] = [("Voice model (CosyVoice 3)", d / "models")]
+    cands: list[tuple[str, Path]] = [("Voice model (CosyVoice 3)", d / "models"),
+                                     ("Fish Audio engines (weights and environments)", d / "engines"),
+                                     ("Fish Audio licence texts", d / "licences")]
     for repo in weights.owned_repos():
         cands.append((f"Speech recognition model ({repo})", weights._hf_repo_dir(repo)))
     if everything:

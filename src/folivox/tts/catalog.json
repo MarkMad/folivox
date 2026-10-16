@@ -1,0 +1,397 @@
+{
+ "schema": 1,
+ "comment": "Fish Audio builds offered by Folivox. Only entries listed here can be installed: repo, pinned revision, file sizes and sha256 of the large files. A build enters this file only after a run on the standard test fragment (see tools/fish_catalog.py).",
+ "trusted_orgs": [
+  "mlx-community",
+  "fishaudio"
+ ],
+ "licences": {
+  "fish-research": {
+   "name": "Fish Audio Research License",
+   "version": "2026-03-07",
+   "commercial": false,
+   "text_url": "https://huggingface.co/fishaudio/s2-pro/resolve/1de9996b6be38b745688de084d87a5633f714e4e/LICENSE.md",
+   "text_sha256": "aa7d9206e9d710590987a3636934f643529c00cd490323594e6206aaa0c32d80",
+   "page": "https://huggingface.co/fishaudio/s2-pro/blob/main/LICENSE.md"
+  },
+  "fish-community": {
+   "name": "Fish Audio Community License",
+   "version": "1.0 (2026-10-13)",
+   "commercial": true,
+   "text_url": "https://huggingface.co/fishaudio/drama-3/resolve/e0a9218aa48888270f06ef1ed9ea67622c0e17d2/LICENSE",
+   "text_sha256": "733a32442087acbda12ecafe8e71eb8ee5890c89b50ce7ac4ea3777faa3c823e",
+   "page": "https://huggingface.co/fishaudio/drama-3/blob/main/LICENSE"
+  }
+ },
+ "runtimes": {
+  "mlx-audio-0.5.9": {
+   "backend": "mlx",
+   "python": "3.12",
+   "platforms": [
+    "darwin-arm64"
+   ],
+   "packages": [
+    "mlx-audio==0.5.9",
+    "mlx==0.32.4",
+    "transformers==5.19.0",
+    "huggingface-hub==2.2.0",
+    "numpy==2.5.4",
+    "soundfile==0.14.0",
+    "scipy==1.18.1"
+   ],
+   "note": "mainline mlx-audio from PyPI"
+  },
+  "mlx-audio-drama3-fork": {
+   "backend": "mlx",
+   "python": "3.12",
+   "platforms": [
+    "darwin-arm64"
+   ],
+   "packages": [
+    "mlx-audio @ https://github.com/stickerdaniel/mlx-audio/archive/478f3189974fb7dcafe886afba09887f03996aec.zip",
+    "mlx==0.32.4",
+    "transformers==5.19.0",
+    "huggingface-hub==2.2.0",
+    "numpy==2.5.4",
+    "soundfile==0.14.0",
+    "scipy==1.18.1"
+   ],
+   "note": "fork stickerdaniel/mlx-audio pinned at commit 478f318 (adds fish_drama3 and a vendored Qwen3.5; reviewed: no network, subprocess or pickle). Replace with mainline mlx-audio once Blaizzy/mlx-audio#1018 is merged."
+  }
+ },
+ "builds": [
+  {
+   "id": "drama3-mlx-4bit",
+   "engine": "fish-drama3",
+   "title": "Fish Audio Drama 3, MLX 4-bit",
+   "backend": "mlx",
+   "kind": "drama3",
+   "platforms": [
+    "darwin-arm64"
+   ],
+   "repo": "mlx-community/fish-audio-drama-3-4bit",
+   "runtime": "mlx-audio-drama3-fork",
+   "licence": "fish-community",
+   "quant": "4-bit",
+   "rank": 100,
+   "status": "verified",
+   "memory_gb": {
+    "weights": 23.8,
+    "peak": 33.0,
+    "min_total": 36
+   },
+   "languages": [
+    "ru",
+    "en",
+    "de",
+    "fr",
+    "es",
+    "it",
+    "zh",
+    "ja",
+    "ko"
+   ],
+   "tested_on": [
+    {
+     "hardware": "Apple M3 Pro, 36 GB",
+     "date": "2026-10-15",
+     "fragment": "ru-hard, 6 fragments",
+     "rtf": 1.0,
+     "peak_gb": 33.0,
+     "cer": "0.000-0.134 with Whisper (0.0-0.011 after the standard hallucination strip)",
+     "note": "first call warms up for 80-90 s; with a browser and OrbStack open it swapped 17 GB and stalled"
+    }
+   ],
+   "notes": "Unofficial community conversion of fishaudio/drama-3 (not released or endorsed by Fish Audio). Needs lots of free memory; close heavy applications.",
+   "revision": "cc639e27aba7edb73429d3e3806f471dcd79d316",
+   "size_bytes": 23781118816,
+   "files": [
+    {
+     "path": ".gitattributes",
+     "size": 1570,
+     "sha256": null
+    },
+    {
+     "path": "LICENSE",
+     "size": 19685,
+     "sha256": null
+    },
+    {
+     "path": "NOTICE",
+     "size": 910,
+     "sha256": null
+    },
+    {
+     "path": "README.md",
+     "size": 3247,
+     "sha256": null
+    },
+    {
+     "path": "chat_template.jinja",
+     "size": 7756,
+     "sha256": null
+    },
+    {
+     "path": "codec.safetensors",
+     "size": 1572080341,
+     "sha256": "6ff9d6f07920b2155e3a48ada21956004b96df9114d255ed9f0788484ba73040"
+    },
+    {
+     "path": "config.json",
+     "size": 53444,
+     "sha256": null
+    },
+    {
+     "path": "model-00001.safetensors",
+     "size": 4354661374,
+     "sha256": "de6eeebdd8c09316acd4f5fdd05482221e8596a19a6e8384d7fd129d70e894bf"
+    },
+    {
+     "path": "model-00002.safetensors",
+     "size": 4360386773,
+     "sha256": "cdd874495884ba7a1f9ae5b2baf7fc8fed85f73799556e87a6406184b4f8cf9f"
+    },
+    {
+     "path": "model-00003.safetensors",
+     "size": 4304379853,
+     "sha256": "eefa12cee1d032b511869de2a71666b4f07c82ca2fd8c94c3c5bcd1da431ef11"
+    },
+    {
+     "path": "model-00004.safetensors",
+     "size": 4407528323,
+     "sha256": "cd4960872fc5ceff7c719bd5be9d9f770f3357068eca83af065db6ba68927a8a"
+    },
+    {
+     "path": "model-00005.safetensors",
+     "size": 4425623733,
+     "sha256": "e0dbbeb7f66a2168fd744df15987b145780213d65cb6b3579a2531a78e92774e"
+    },
+    {
+     "path": "model-00006.safetensors",
+     "size": 335374378,
+     "sha256": "0b3e0b1b620080e4f4db53cc3b9c697c4179964be0e2172b339b605459470a7e"
+    },
+    {
+     "path": "special_tokens_map.json",
+     "size": 102779,
+     "sha256": null
+    },
+    {
+     "path": "tokenizer.json",
+     "size": 20791070,
+     "sha256": "0e9b9db76b2f0389b04b6ef057a2ac3b89100b7e96f2dd7034d19580a09654d6"
+    },
+    {
+     "path": "tokenizer_config.json",
+     "size": 103580,
+     "sha256": null
+    }
+   ]
+  },
+  {
+   "id": "drama3-mlx-3bit",
+   "engine": "fish-drama3",
+   "title": "Fish Audio Drama 3, MLX mixed 3-bit",
+   "backend": "mlx",
+   "kind": "drama3",
+   "platforms": [
+    "darwin-arm64"
+   ],
+   "repo": "Nav8ha/drama-3-mlx-mixed-3bit",
+   "runtime": "mlx-audio-drama3-fork",
+   "licence": "fish-community",
+   "quant": "mixed 3-bit",
+   "rank": 90,
+   "status": "untested",
+   "memory_gb": {
+    "weights": 18.5,
+    "peak": 24.0,
+    "min_total": 32
+   },
+   "languages": [
+    "ru",
+    "en",
+    "de",
+    "fr",
+    "es",
+    "it",
+    "zh",
+    "ja",
+    "ko"
+   ],
+   "tested_on": [],
+   "notes": "Personal conversion (not a trusted organisation): offered only because every file is pinned by revision and sha256. The README claims a 22.5-24 GB peak and a fit on a 32 GB Mac. NOT run on the standard fragment yet, so it is hidden until it is.",
+   "revision": "41ed6f3d690424cb33651cdd906ab650a80d3cb0",
+   "size_bytes": 19754586704,
+   "files": [
+    {
+     "path": ".gitattributes",
+     "size": 1570,
+     "sha256": null
+    },
+    {
+     "path": "LICENSE",
+     "size": 19685,
+     "sha256": null
+    },
+    {
+     "path": "NOTICE",
+     "size": 514,
+     "sha256": null
+    },
+    {
+     "path": "README.md",
+     "size": 3403,
+     "sha256": null
+    },
+    {
+     "path": "chat_template.jinja",
+     "size": 7756,
+     "sha256": null
+    },
+    {
+     "path": "codec.safetensors",
+     "size": 1572080341,
+     "sha256": "6ff9d6f07920b2155e3a48ada21956004b96df9114d255ed9f0788484ba73040"
+    },
+    {
+     "path": "config.json",
+     "size": 53444,
+     "sha256": null
+    },
+    {
+     "path": "model-00001.safetensors",
+     "size": 4315585035,
+     "sha256": "d2f638bc8bad47c6b808a75a70ca67dff4e2a8d3f66d2e1317fed76dcbc302d0"
+    },
+    {
+     "path": "model-00002.safetensors",
+     "size": 4386263574,
+     "sha256": "cfb4a47317c757f6409c1f83d0cd91bbf45cc2be688da4a1e4b65497e8fdfa46"
+    },
+    {
+     "path": "model-00003.safetensors",
+     "size": 4334840381,
+     "sha256": "4d81d7a926b4af488c57ab219be2b288c0dee25cf18bc0dac6c625253cc50afc"
+    },
+    {
+     "path": "model-00004.safetensors",
+     "size": 4305337082,
+     "sha256": "7b950e3a7bf4959d47fce8216cfe075ea145674386c076199704c78e494d4219"
+    },
+    {
+     "path": "model-00005.safetensors",
+     "size": 819396490,
+     "sha256": "c2cac79fa7e3af806d5552de312490afb296495a798b6dce1564fded2c8f7f43"
+    },
+    {
+     "path": "special_tokens_map.json",
+     "size": 102779,
+     "sha256": null
+    },
+    {
+     "path": "tokenizer.json",
+     "size": 20791070,
+     "sha256": "0e9b9db76b2f0389b04b6ef057a2ac3b89100b7e96f2dd7034d19580a09654d6"
+    },
+    {
+     "path": "tokenizer_config.json",
+     "size": 103580,
+     "sha256": null
+    }
+   ]
+  },
+  {
+   "id": "s2pro-mlx-8bit",
+   "engine": "fish-s2",
+   "title": "Fish Audio S2 Pro, MLX 8-bit",
+   "backend": "mlx",
+   "kind": "s2",
+   "platforms": [
+    "darwin-arm64"
+   ],
+   "repo": "mlx-community/fish-audio-s2-pro-8bit",
+   "runtime": "mlx-audio-0.5.9",
+   "licence": "fish-research",
+   "quant": "8-bit",
+   "rank": 70,
+   "status": "verified",
+   "memory_gb": {
+    "weights": 6.7,
+    "peak": 17.7,
+    "min_total": 24
+   },
+   "languages": [
+    "ru",
+    "en",
+    "de",
+    "fr",
+    "es",
+    "it",
+    "zh",
+    "ja",
+    "ko"
+   ],
+   "tested_on": [
+    {
+     "hardware": "Apple M3 Pro, 36 GB",
+     "date": "2026-10-15",
+     "fragment": "ru-hard, 6 fragments",
+     "rtf": 2.3,
+     "peak_gb": 17.7,
+     "cer": "0.000-0.007 with Whisper"
+    }
+   ],
+   "notes": "Weights are under the Fish Audio Research License: personal and research use only, no commercial use.",
+   "revision": "c8d4481b3f7cbfe64d855c8b7cda7739502fc3ff",
+   "size_bytes": 6731423034,
+   "files": [
+    {
+     "path": ".gitattributes",
+     "size": 1570,
+     "sha256": null
+    },
+    {
+     "path": "README.md",
+     "size": 3535,
+     "sha256": null
+    },
+    {
+     "path": "codec.safetensors",
+     "size": 1870921167,
+     "sha256": "c2096e27a1bb69a05151ccb502649a88744712270d9b029a68a3c9305f2b1edf"
+    },
+    {
+     "path": "config.json",
+     "size": 2315,
+     "sha256": null
+    },
+    {
+     "path": "model.safetensors",
+     "size": 4847260185,
+     "sha256": "bf31b4e5fb713a565750e120ebadd54de245eb1214e46d14fc5108f1e79171a1"
+    },
+    {
+     "path": "model.safetensors.index.json",
+     "size": 53694,
+     "sha256": null
+    },
+    {
+     "path": "special_tokens_map.json",
+     "size": 101864,
+     "sha256": null
+    },
+    {
+     "path": "tokenizer.json",
+     "size": 12217872,
+     "sha256": "f24e08099d45a8adf3f52f5f0b03276e433bb9d689bb15fcbcc48ce58744588b"
+    },
+    {
+     "path": "tokenizer_config.json",
+     "size": 860832,
+     "sha256": null
+    }
+   ]
+  }
+ ]
+}

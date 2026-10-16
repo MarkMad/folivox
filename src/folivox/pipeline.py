@@ -15,11 +15,12 @@ from folivox.audio import postprocess, save
 from folivox.audio.assemble import BookMeta, ChapterAudio, build_chapter, write_m4b, write_mp3s
 from folivox.book import Book, Chapter
 from folivox.journal import Journal, PlannedChunk, Take
-from folivox.text.chunk import ChunkOptions, finalize, plan_chapter
+from folivox.text.chunk import ChunkOptions, MarkupContext, finalize, plan_chapter
 from folivox.text.pronounce import Lexicon
 
 # Bump when synthesis changes in a way that invalidates cached audio.
 SYNTH_VERSION = "cv3-1"
+FISH_SYNTH_VERSION = "fish-1"  # Fish engines (S2 Pro, Drama 3): own counter, independent of CosyVoice
 
 
 # QA strictness: highest speech-recognition error (CER + rate penalty) a take may have without a retake
@@ -42,6 +43,7 @@ class RenderOptions:
     speed: float = 1.0
     device: str = "auto"
     tts: str = "cosyvoice3"  # provider name in folivox.tts.ENGINES
+    tts_build: str = "auto"  # Fish engines: build id from the catalog (auto = the best installed one that fits)
     asr: str = "auto"  # provider name in folivox.qa.asr.ASR_PROVIDERS
     llm: str = "rl"  # CosyVoice LLM weights: "rl" (fewer content errors, per upstream eval) or "base"
     threads: int | None = None
@@ -57,6 +59,9 @@ class RenderOptions:
     meta: dict[str, str] = field(default_factory=dict)  # edited book details; an empty value keeps the book's own
     chunk: ChunkOptions = field(default_factory=ChunkOptions)
     pronounce: tuple[Path, ...] = ()  # custom pronunciation files, the book's own last (see folivox.text.pronounce)
+    markup: Path | None = None  # speakers and expression tags for the book (see folivox.markup)
+    expression_tags: bool = True  # write the markup's expression tags into the model input (Fish engines only)
+    sample_exact: bool = False  # a preview of a chosen passage: read it from its first word, skip nothing
     # cloud engines (paid, the text leaves the computer)
     tts_model: str = "auto"
     tts_voice: str = ""  # provider voice id or name
@@ -137,7 +142,53 @@ def parse_selection(spec: str | None, count: int) -> list[int]:
     return sorted(out)
 
 
-def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, events: Events, engine=None) -> list[str]:
+def load_markup(book: Book, opts: RenderOptions, events: Events):
+    """The book's markup bound to its chapters (problems are warnings: the narrator reads what does not fit)."""
+    from folivox import markup as mk
+
+    if not opts.markup:
+        return None
+    try:
+        raw = mk.Markup.load(Path(opts.markup).expanduser())
+    except (OSError, mk.MarkupError) as e:
+        raise RuntimeError(f"Cannot use the markup {opts.markup}: {e}") from None
+    if raw.depth != opts.depth:
+        events.warning(f"The markup was made for chapter depth {raw.depth} but this render uses {opts.depth}: "
+                       "chapters may not line up; the parts that do not match are read by the narrator")
+    clean, problems = mk.bind(raw, book.chapters(raw.depth))
+    for w in problems[:10]:
+        events.warning(w)
+    if len(problems) > 10:
+        events.warning(f"…and {len(problems) - 10} more markup problems")
+    return clean
+
+
+def speaker_voices(markup, main_voice, asr, opts: RenderOptions, events: Events) -> dict:
+    """{speaker id: Voice} for the speakers that read something and have a voice of their own."""
+    from folivox import voices as catalog
+    from folivox.tts.voice import load_voice
+
+    out: dict = {}
+    if markup is None:
+        return out
+    for sid in sorted(markup.used_speakers() - {0}):
+        sp = markup.speaker(sid)
+        ref = (sp.voice if sp else "").strip()
+        if not ref:
+            continue
+        entry = catalog.find(ref)
+        if entry is not None:
+            wav, text = entry.path, entry.transcript
+        else:
+            wav, text = Path(ref).expanduser(), None
+        out[sid] = load_voice(wav, text, transcribe=asr.transcribe_file if asr else None)
+        for w in out[sid].warnings:
+            events.warning(f"{sp.name}: {w}")
+    return out
+
+
+def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, events: Events, engine=None,
+         markup=None, voices: dict | None = None) -> list[str]:
     chapters = book.chapters(opts.depth)
     selected = parse_selection(opts.chapters, len(chapters))
     events.stage("plan", "Preparing the preview text" if opts.preview else
@@ -157,13 +208,27 @@ def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, event
             events.warning(f"Pronunciations: {w}")
         for w in copts.lexicon.unusable_here(not cloud):
             events.warning(f"Pronunciations: «{w}» is given as phonemes only; an online engine reads it as written")
-    planned = [(chapters[i].title, _plan_preview(chapters[i], copts, opts.preview)) for i in selected]
+    tags_ok = markup is not None and is_fish(opts.tts) and opts.expression_tags
+    if markup is not None and opts.expression_tags and not is_fish(opts.tts) and any(
+            c.marks or any(s.tags for s in c.spans) for c in markup.chapters.values()):
+        events.warning("Expression tags are written only for Fish engines; this engine reads the text without them")
+
+    def ctx(i: int):
+        return MarkupContext(markup, i, tags_ok) if markup is not None else None
+
+    planned = [(chapters[i].title, _plan_preview(chapters[i], copts, opts.preview, ctx(i), opts.sample_exact))
+               for i in selected]
     settings = f"{SYNTH_VERSION}|llm={opts.llm}|speed={opts.speed}"
     if opts.tts != "cosyvoice3":  # keep cache keys of existing CosyVoice renders valid
         settings = f"{opts.tts}|speed={opts.speed}"
         if cloud:
             settings = f"{opts.tts}|{engine.model}"
-    journal.set_plan(planned, voice_id, settings)
+        elif is_fish(opts.tts):  # another build or revision sounds different
+            from folivox.tts import builds
+
+            b = builds.build_for(opts.tts, opts.tts_build)
+            settings = f"{opts.tts}|{FISH_SYNTH_VERSION}|{b.id}@{b.revision[:12]}"
+    journal.set_plan(planned, voice_id, settings, {sid: v.id for sid, v in (voices or {}).items()})
     journal.set_meta(book_title=book.title, chapters_selected=[i + 1 for i in selected], settings=settings,
                      lang=copts.lang, qa_threshold=opts.qa_threshold if opts.qa else None)
     return [t for t, _ in planned]
@@ -208,16 +273,17 @@ def _head(chapter: Chapter, budget: int) -> tuple[Chapter, bool]:
     return chapter, False
 
 
-def _plan_preview(chapter: Chapter, copts: ChunkOptions, preview: int | None):
+def _plan_preview(chapter: Chapter, copts: ChunkOptions, preview: int | None, ctx: MarkupContext | None = None,
+                  exact: bool = False):
     """Plan a chapter; for a preview only its beginning, so a huge book is not split into thousands of
     fragments to keep the first few hundred characters. The window grows if the title pages eat it."""
     if not preview:
-        return plan_chapter(chapter, copts)
+        return plan_chapter(chapter, copts, ctx)
     budget = max(PREVIEW_HEAD, preview * 4)
     bare = replace(copts, stress="none", lexicon=None)  # stress is a neural model: run it only on the kept fragments
     while True:
         part, cut = _head(chapter, budget)
-        out = _limit(plan_chapter(part, bare), preview, copts)
+        out = _limit(plan_chapter(part, bare, ctx), preview, copts, exact)
         if not cut or sum(len(c.source) for c in out) >= preview:
             break
         budget *= 4
@@ -227,11 +293,12 @@ def _plan_preview(chapter: Chapter, copts: ChunkOptions, preview: int | None):
     return out
 
 
-def _limit(chunks, preview: int | None, copts: ChunkOptions):
+def _limit(chunks, preview: int | None, copts: ChunkOptions, exact: bool = False):
     """Keep fragments until ``preview`` characters are covered; end with a chapter pause."""
     if not preview:
         return chunks
-    chunks = chunks[_prose_start(chunks):]
+    if not exact:
+        chunks = chunks[_prose_start(chunks):]
     out, n = [], 0
     for c in chunks:
         if n >= preview:
@@ -262,7 +329,7 @@ SPLIT_PAUSE = 0.25  # seconds between the halves of a fragment split after faile
 
 
 def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: str, depth: int = 0,
-               events: Events | None = None):
+               events: Events | None = None, voice=None):
     """Synthesise ``text`` up to ``opts.max_takes`` times, keep the best take by QA score.
 
     If every take fails QA and the fragment has several sentences, split it in two at a
@@ -286,7 +353,8 @@ def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: 
         events.step("synth", attempt + 1, takes)
         if attempt:  # a retake of a cloud fragment is billed: stop cleanly instead of overspending
             _check_cap(prefetch.engine, len(text))
-        syn = prefetch.synthesize(key, text, _seed(key, attempt), speed=opts.speed)
+        extra = {"voice": voice} if voice is not None else {}  # a speaker with a voice of their own
+        syn = prefetch.synthesize(key, text, _seed(key, attempt), speed=opts.speed, **extra)
         audio = postprocess(syn.audio, syn.sample_rate)
         dur = len(audio) / syn.sample_rate
         sc = hyp = None
@@ -318,7 +386,8 @@ def _best_take(prefetch, asr, opts: RenderOptions, key: str, text: str, source: 
             break
     halves = [" ".join(parts[:cut]), " ".join(parts[cut:])]
     # a half's check text is rebuilt from the model input: phoneme markup of custom pronunciations is dropped
-    results = [_best_take(prefetch, asr, opts, f"{key}/{i}", h, _PHONEMES.sub("", strip_marks(h)), depth + 1, events)
+    results = [_best_take(prefetch, asr, opts, f"{key}/{i}", h, _PHONEMES.sub("", strip_marks(h)), depth + 1, events,
+                          voice)
                for i, h in enumerate(halves)]
     sr = prefetch.engine.sample_rate
     audio = np.concatenate([results[0][1], np.zeros(int(sr * SPLIT_PAUSE), np.float32), results[1][1]])
@@ -341,7 +410,8 @@ def _report_spend(engine, events: Events, opts: RenderOptions) -> None:
         events.spend(engine.chars_sent, engine.spent_usd, opts.max_cost)
 
 
-def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions, events: Events) -> None:
+def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions, events: Events,
+                       voices: dict | None = None) -> None:
     from folivox.tts.base import Prefetcher
 
     pending = journal.pending()
@@ -372,10 +442,10 @@ def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions
                 raise Cancelled
             _check_cap(engine, len(chunk.text))
             for nxt in todo[pos: pos + 1 + max(LOOKAHEAD, engine.parallel)]:
-                prefetch.submit(nxt.key, nxt.text, _seed(nxt.key, 0))
+                prefetch.submit(nxt.key, nxt.text, _seed(nxt.key, 0), (voices or {}).get(nxt.speaker))
             events.chunk_started(chunk)
             sc, audio, hyp, attempts = _best_take(prefetch, asr, opts, chunk.key, chunk.text, chunk.source,
-                                                  events=events)
+                                                  events=events, voice=(voices or {}).get(chunk.speaker))
             sr = engine.sample_rate
             dur = len(audio) / sr
             save(journal.audio_path(chunk.key), audio, sr)
@@ -439,6 +509,8 @@ def device_label(engine) -> str:
             return "CUDA"
     if dev == "mps":
         return "MPS · Apple GPU"
+    if dev == "mlx":
+        return "MLX · Apple GPU"
     return dev.upper() or "CPU"
 
 
@@ -506,7 +578,15 @@ def assemble(journal: Journal, book: Book, opts: RenderOptions, sample_rate: int
 def _engine_options(opts: RenderOptions) -> dict:
     if opts.tts == "cosyvoice3":
         return {"model_dir": opts.model_dir, "device": opts.device, "threads": opts.threads, "llm": opts.llm}
+    if is_fish(opts.tts):
+        return {"build": opts.tts_build, "device": opts.device}
     return {"device": opts.device}
+
+
+def is_fish(name: str) -> bool:
+    from folivox.tts import builds
+
+    return builds.is_fish_engine(name)
 
 
 def is_cloud(name: str) -> bool:
@@ -573,12 +653,16 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
     opts.lang = languages.get(opts.lang or book.lang or "ru").code
     preflight(opts, events)
     journal = Journal(opts.resolved_work_dir())
-    voice, owned = None, False
+    voice, owned, engine = None, False, None
     try:
         bad = journal.audit()
         if bad:
             events.warning(f"{len(bad)} saved fragment(s) were damaged and will be synthesised again")
         cloud = is_cloud(opts.tts)
+        if is_fish(opts.tts):
+            from folivox.tts import fish_check
+
+            fish_check.check(opts, events)
         if cloud and not opts.accept_cloud:
             from folivox.providers import ProviderError
 
@@ -594,7 +678,6 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
             except Exception as e:  # noqa: BLE001 — QA is optional; do not block the whole render
                 events.warning(f"Speech recognition could not be loaded ({e}); rendering without the quality check")
                 asr = None
-        engine = None
         if cloud:
             if opts.speed != 1.0:
                 events.warning("Reading speed is not applied by cloud engines; the provider's own pace is used")
@@ -610,7 +693,20 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
                                transcribe=asr.transcribe_file if asr else None)
             for w in voice.warnings:
                 events.warning(w)
-        plan(book, opts, journal, voice.id, events, engine)
+        markup = load_markup(book, opts, events)
+        voices = speaker_voices(markup, voice, asr, opts, events) if not cloud else {}
+        if markup is not None and cloud and markup.used_speakers() - {0}:
+            raise RuntimeError("Several speakers need a local engine; a cloud engine reads the whole book in one voice")
+        if voices and is_fish(opts.tts):
+            from folivox.tts import fish_check
+
+            if not fish_check.bundled_voices_allowed():
+                for sid, v in voices.items():
+                    if fish_check.is_bundled_voice(v.wav):
+                        from folivox.providers import ProviderError
+
+                        raise ProviderError(f"Speaker {sid}: " + fish_check.BUNDLED_VOICES_NOTE)
+        plan(book, opts, journal, voice.id, events, engine, markup, voices)
         if journal.pending():
             from folivox.tts import weights
 
@@ -625,10 +721,14 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
 
                 with weights.reporting(events.download):
                     engine = load_engine(opts, events)
+                start = getattr(engine, "start", None)
+                if start is not None:  # Fish: load the worker's model and warm it up with the book's voice
+                    events.stage("model", f"Warming up {engine.build.title} (the first call takes a while)")
+                    start(voice)
                 events.stage("model", f"Model loaded in {time.time() - t0:.0f} s ({engine.device})")
                 sample_rate = engine.sample_rate
             events.stage("device", f"Device: {device_label(engine)}")
-            synthesize_pending(journal, engine, voice, asr, opts, events)
+            synthesize_pending(journal, engine, voice, asr, opts, events, voices)
         else:
             sample_rate = journal.meta("sample_rate", 24000)
         journal.set_meta(sample_rate=sample_rate)
@@ -638,4 +738,7 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
             journal.set_meta(cloud_voice="", cloud_voice_for="")
         return result
     finally:
+        closer = getattr(engine, "close", None)
+        if closer is not None:
+            closer()  # a Fish worker holds tens of GB: stop it when the render stops
         journal.close()
