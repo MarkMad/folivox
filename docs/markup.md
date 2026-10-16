@@ -127,8 +127,11 @@ cases and nicknames. `BOOK.characters.json` holds the list with the number of **
 names are one person and joins them, then looks again, with passages from all over the book (pronouns, forms of
 address, who is called a child or a grandfather), at every character whose gender or age is still unsure. This is
 what the voice ideas rely on. After the marking, a **rule check** reads only the text: the name in an attribution
-("said Boris") must be the speaker of that speech, and a pronoun (or the ending of a Russian speech verb) must not
-contradict the speaker's gender. A paragraph that fails, that the model skipped or that it answered unusably goes on
+("said Boris", the clause right next to the speech, the name in its base form) must be the speaker of that speech,
+and a subject pronoun (or the ending of a Russian speech verb) must not contradict the speaker's gender; a name or an
+object pronoun ("said Anna to him", "so softly that Anna barely heard") is never taken as the speaker. On 268
+paragraphs of a real Russian novel this left 3 doubts, all of them real mistakes of the model, where the first
+version of the rules raised 13 (5 of them false). A paragraph that fails, that the model skipped or that it answered unusably goes on
 the **review list** in the markup file; `second_opinion` asks about each of them again with six paragraphs before and
 two after and keeps the new answer only if the rule check accepts it. Whatever is left is for the person.
 
@@ -172,6 +175,11 @@ tool live. The state says what is found ("Found 3 characters, 12 marked passages
 processed and which are not (only the chapters chosen in step 2 count: one you left out needs no markup, and a not-yet-processed chosen chapter is shown in red), and who has which
 voice (the characters without their own voice are read by the narrator). With nothing set up it says so and points to
 the editor. A chapter counts as processed once the automatic marking (or an edit) has touched it.
+
+**Time, measured** (36 GB Mac, Russian prose, 5000-character windows, the estimate within 2% of the real run): reading a
+window takes about 40 s with gemma4 12b and 100 s with 31b; marking a window 90 s and 240 s; a short second look
+(one character or one doubtful paragraph) 6-9 s and 12-27 s. Two chapters (59k characters) in *Best quality*: 19 min
+with 12b, 47 min with 31b; *Quick preview* of a whole novel: 7 min with 12b, about 20 min with 31b.
 
 **Time.** The editor shows an estimate *before* you press the button and the progress line shows the time left while it
 works. The estimate counts the model calls the run needs (the server's `/llm/estimate`) and turns them into time by
