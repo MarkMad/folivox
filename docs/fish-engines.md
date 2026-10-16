@@ -47,8 +47,12 @@ License). The engine and the model run in a separate `audiocpp_server` process l
 **Drama 3 needs a server you build yourself**: audio.cpp releases do not contain it, only the unofficial branch
 [JarodMica/audio.cpp `drama-3-native`](https://github.com/JarodMica/audio.cpp/blob/drama-3-native/docs/models/fish_drama3.md)
 does. Build `audiocpp_server` from it and set `FOLIVOX_NATIVE_SERVER` to the file; the install refuses without it.
-Memory figures for native builds are estimates. None of the native Fish builds has been tested by the Folivox
-project yet (status `untested`); see [Native runtime](native-runtime.md) for what is verified.
+Memory figures for native builds are estimates. The builds keep the status `untested` (the project's standard test
+has not been run on them), but each was run once on the test fragment (M3 Pro 36 GB, Metal, voice `gemini-2`, 73 s of
+audio, no retakes): `s2pro-native-q8` RTF 2.52 (MLX build: 2.3), mean Whisper QA score 0.004; `drama3-native-q2` with a
+self-built server RTF 2.11 (MLX build: about 1.0), score 0.003, model load 65 s. So on Apple Silicon the native
+builds are not faster than MLX; the reason to use them is a computer without MLX (Windows, Linux), which has not
+been tested. See [Native runtime](native-runtime.md).
 
 ## Licences, and what they mean for your audiobooks
 

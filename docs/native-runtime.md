@@ -75,7 +75,8 @@ are used instead of the installed files (a CUDA or HIP build from source, for ex
 ## Fish Audio models (S2 Pro, Drama 3)
 
 `--runtime native` also selects the native GGUF builds of the Fish engines (`s2pro-native-q8`, `drama3-native-q*`;
-see [Fish Audio engines](fish-engines.md#native-builds-audiocpp-any-platform-experimental)). Without the switch
+see [Fish Audio engines](fish-engines.md#native-builds-audiocpp-any-platform-experimental)). Measured once on the M3 Pro (see the Fish page): S2 Pro Q8 RTF 2.52, Drama 3 Q2 RTF 2.11, QA scores 0.004 and
+0.003; both slower than the MLX builds there. Without the switch
 Fish keeps using its MLX builds on Apple Silicon. S2 Pro uses the stock audio.cpp release; Drama 3 exists only in the
 unofficial `JarodMica/audio.cpp` branch `drama-3-native`, so it runs only on an `audiocpp_server` that you built from
 it and pointed `FOLIVOX_NATIVE_SERVER` at.
