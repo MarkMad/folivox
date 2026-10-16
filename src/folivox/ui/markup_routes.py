@@ -190,9 +190,19 @@ def routes(api_error, state, services: dict) -> list[Route]:
                   if not chapter or w.chapter == int(chapter) - 1]
         left = max(bible.total_windows - bible.done_windows, 0) if bible.total_windows else len(every)
         every_speech = ml.windows(chapters, ml.WINDOW_CHARS, only_speech=True)
+        stale: list[int] = []  # chapters whose text is not the text that was marked (their markup is ignored)
+        mp = files(bid)[1]
+        if mp.is_file():
+            try:
+                saved = mk.Markup.load(mp)
+                book_chs = entry["book"].chapters(saved.depth)
+                stale = [i for i, cm in sorted(saved.chapters.items())
+                         if i >= len(book_chs) or (cm.sig and cm.sig != mk.chapter_sig(book_chs[i]))]
+            except (mk.MarkupError, OSError, ValueError):
+                stale = []
         return JSONResponse({"analyse_windows": left, "annotate_windows": len(speech), "window_chars": ml.WINDOW_CHARS,
                              "chars": sum(len(w.text()) for w in every),
-                             "speech_chapters": sorted({w.chapter for w in every_speech})})
+                             "speech_chapters": sorted({w.chapter for w in every_speech}), "stale_chapters": stale})
 
     async def status(request: Request):
         return JSONResponse(task_of(request.path_params["book_id"]).snapshot())

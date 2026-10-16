@@ -46,8 +46,8 @@ def client(tmp_path, monkeypatch):
     config.load.cache_clear()
 
 
-def upload(client):
-    r = client.post("/api/books", files={"file": ("tale.txt", BOOK, "text/plain")})
+def upload(client, data=BOOK):
+    r = client.post("/api/books", files={"file": ("tale.txt", data, "text/plain")})
     assert r.status_code == 200, r.text
     return r.json()
 
@@ -344,7 +344,7 @@ def test_last_uploaded_book_survives_restarts_and_a_lost_session(tmp_path):
     assert c.get("/api/session").json() is None  # nothing uploaded yet
     first = upload(c)["book_id"]
     time.sleep(0.02)
-    second = upload(c)["book_id"]
+    second = upload(c, BOOK + b"\n\nAnother paragraph.")["book_id"]
     # a restarted server, no PUT /api/session was ever sent: the last upload is selected
     assert open_app().get("/api/session").json() == {"book_id": second}
     # the session file is lost or corrupted: fall back to the newest upload
@@ -484,3 +484,25 @@ def test_pronunciation_sample_is_picked_from_the_book_and_played_as_a_preview(cl
     assert seen["text"] == "My own sentence about the river." and len(seen["pronounce"]) == 1
     for bad in ({**job, "kind": "render"}, {**job, "sample_text": "  "}, {**job, "sample_text": "x" * 601}):
         assert client.post("/api/jobs", json=bad).status_code == 400
+
+
+def test_the_same_file_is_the_same_book_and_the_library_lists_it(tmp_path):
+    app = create_app(token=TOKEN, port=8765, data_dir=tmp_path / "ui", render=fake_render)
+    c = TestClient(app, base_url="http://127.0.0.1:8765", headers={"X-Folivox-Token": TOKEN})
+    first = upload(c)["book_id"]
+    (tmp_path / "ui" / "markup").mkdir()
+    (tmp_path / "ui" / "markup" / f"{first}.json").write_text(
+        '{"version": 1, "speakers": [{"id": 0, "name": "N"}, {"id": 1, "name": "A"}], "chapters": '
+        '{"0": {"spans": [{"b": 0, "s": 0, "e": 3, "sp": 1}]}}}', encoding="utf-8")
+    assert upload(c)["book_id"] == first  # the same content: the same book, its markup is still there
+    assert len(list((tmp_path / "ui" / "uploads").iterdir())) == 1
+    other = upload(c, BOOK + b"\n\nAnother paragraph.")["book_id"]
+    assert other != first
+    books = c.get("/api/books").json()["books"]
+    assert [b["book_id"] for b in books] == [other, first]  # the one used last comes first
+    assert books[1]["markup"] == {"characters": 1, "spans": 1} and books[0]["markup"]["spans"] == 0
+    assert books[0]["title"] and books[0]["chars"] > 0
+    back = c.post(f"/api/books/{first}/open").json()
+    assert back["book_id"] == first and c.get("/api/session").json() == {"book_id": first}
+    assert [b["book_id"] for b in c.get("/api/books").json()["books"]][0] == first
+    assert c.post("/api/books/nope/open").status_code == 404

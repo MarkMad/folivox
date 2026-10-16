@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import hmac
 import json
 import os
 import re
 import secrets
 import shutil
+import time
 import urllib.parse
 import uuid
 from pathlib import Path
@@ -174,6 +176,63 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         return Response(path.read_text(encoding="utf-8"), media_type="application/json",
                         headers={"Cache-Control": "no-cache"})
 
+    # ---- the library: the books uploaded before, so one can go back to them ----------------------------
+    def library_file() -> Path:
+        return state.data_dir / "library.json"
+
+    def library_read() -> dict:
+        try:
+            d = json.loads(library_file().read_text(encoding="utf-8"))
+            return d if isinstance(d, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def library_note(book_id: str, book, path: Path) -> None:
+        """Remember a book (title, author, language, size) and that it was used just now."""
+        lib = library_read()
+        lib[book_id] = {"title": book.title, "author": book.author, "lang": book.lang,
+                        "chars": sum(len(b.text) for c in book.chapters(2) for b in c.blocks),
+                        "name": path.name, "used": time.time()}
+        state.data_dir.mkdir(parents=True, exist_ok=True)
+        library_file().write_text(json.dumps(lib, ensure_ascii=False), encoding="utf-8")
+
+    def markup_state(book_id: str) -> dict:
+        """What the studio's markup file for this book holds, without reading the book."""
+        f = state.data_dir / "markup" / f"{Path(book_id).name}.json"
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+            spans = sum(len(c.get("spans", [])) for c in d.get("chapters", {}).values())
+            return {"characters": sum(1 for x in d.get("speakers", []) if x.get("id")), "spans": spans}
+        except (OSError, ValueError, AttributeError):
+            return {"characters": 0, "spans": 0}
+
+    async def list_books(request: Request):
+        lib = library_read()
+        out = []
+        for bid in uploads_newest_first()[:60]:
+            info = lib.get(bid)
+            if info is None:  # an upload from before the library existed: read it once
+                try:
+                    entry = await asyncio.to_thread(state.book, bid)
+                    library_note(bid, entry["book"], entry["path"])
+                    lib = library_read()
+                    info = lib.get(bid)
+                    # keep the order: it was not used just now
+                    info["used"] = (state.data_dir / "uploads" / bid).stat().st_mtime
+                except Exception:  # noqa: BLE001 — an unreadable upload does not belong in the list
+                    continue
+            out.append({"book_id": bid, **info, "markup": markup_state(bid)})
+        out.sort(key=lambda x: x.get("used", 0), reverse=True)
+        return JSONResponse({"books": out})
+
+    async def open_book(request: Request):
+        """Go back to a book uploaded earlier."""
+        bid = request.path_params["book_id"]
+        entry = await asyncio.to_thread(state.book, bid)
+        library_note(bid, entry["book"], entry["path"])
+        write_session({"book_id": bid})
+        return JSONResponse(_book_summary(bid, entry["book"], cover=cover_kind(bid, entry["book"])))
+
     async def upload_book(request: Request):
         from folivox.readers import UnsupportedFormat, read_book
 
@@ -184,20 +243,29 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         data = await f.read()
         if len(data) > MAX_UPLOAD:
             raise ApiError("File is too large", 413)
-        book_id = uuid.uuid4().hex[:12]
+        # the id comes from the content: the same file again is the same book, with its markup and settings
+        book_id = hashlib.sha256(data).hexdigest()[:12]
         folder = state.data_dir / "uploads" / book_id
-        folder.mkdir(parents=True)
-        path = folder / (Path(f.filename or "book").name or "book")
-        path.write_bytes(data)
+        known = [p for p in folder.iterdir() if p.is_file()] if folder.is_dir() else []
+        fresh = not known
+        if fresh:
+            folder.mkdir(parents=True, exist_ok=True)
+            path = folder / (Path(f.filename or "book").name or "book")
+            path.write_bytes(data)
+        else:
+            path = known[0]
         try:
             book = await asyncio.to_thread(read_book, path)
         except UnsupportedFormat as e:
-            shutil.rmtree(folder, ignore_errors=True)
+            if fresh:
+                shutil.rmtree(folder, ignore_errors=True)
             raise ApiError(str(e), 415) from None
         except Exception as e:  # noqa: BLE001 — a broken book must not kill the server
-            shutil.rmtree(folder, ignore_errors=True)
+            if fresh:
+                shutil.rmtree(folder, ignore_errors=True)
             raise ApiError(f"Cannot read the book: {e}") from None
         state.books[book_id] = {"book": book, "path": path}
+        library_note(book_id, book, path)
         write_session({"book_id": book_id})  # the last uploaded book survives a reload even before any other change
         return JSONResponse(_book_summary(book_id, book, cover=cover_kind(book_id, book)))
 
@@ -217,17 +285,24 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             title = first[:60].rstrip()
         # the file name carries the title; " - " would be read as "author - title", and path characters are unsafe
         title = re.sub(r'[\\/:*?"<>|]', " ", title).replace(" - ", " – ").strip(" .") or "Pasted text"
-        book_id = uuid.uuid4().hex[:12]
+        book_id = hashlib.sha256((title + "\n" + text).encode("utf-8")).hexdigest()[:12]
         folder = state.data_dir / "uploads" / book_id
-        folder.mkdir(parents=True)
-        path = folder / f"{title[:80].strip(' .')}.txt"
-        path.write_text(text, encoding="utf-8")
+        known = [p for p in folder.iterdir() if p.is_file()] if folder.is_dir() else []
+        fresh = not known
+        if fresh:
+            folder.mkdir(parents=True, exist_ok=True)
+            path = folder / f"{title[:80].strip(' .')}.txt"
+            path.write_text(text, encoding="utf-8")
+        else:
+            path = known[0]
         try:
             book = await asyncio.to_thread(read_book, path)
         except Exception as e:  # noqa: BLE001 — a broken text must not kill the server
-            shutil.rmtree(folder, ignore_errors=True)
+            if fresh:
+                shutil.rmtree(folder, ignore_errors=True)
             raise ApiError(f"Cannot read the text: {e}") from None
         state.books[book_id] = {"book": book, "path": path}
+        library_note(book_id, book, path)
         write_session({"book_id": book_id})
         return JSONResponse(_book_summary(book_id, book, cover=cover_kind(book_id, book)))
 
@@ -1372,6 +1447,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/ping", ping),
         Route("/api/shutdown", shutdown, methods=["POST"]),
         Route("/api/books", upload_book, methods=["POST"]),
+        Route("/api/books", list_books),
+        Route("/api/books/{book_id}/open", open_book, methods=["POST"]),
         Route("/api/books/text", paste_text, methods=["POST"]),
         Route("/api/books/{book_id}/chapters", book_chapters),
         Route("/api/books/{book_id}/meta", get_meta),

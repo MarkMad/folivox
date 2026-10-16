@@ -32,6 +32,7 @@ def client(tmp_path, monkeypatch):
                                "delete_model": holder["removed"].append})
     c = TestClient(app, base_url="http://127.0.0.1:8765", headers={"X-Folivox-Token": TOKEN})
     c.holder = holder
+    c.data_dir = tmp_path / "ui"
     yield c
     config.load.cache_clear()
 
@@ -188,3 +189,17 @@ def test_model_download_and_removal(client):
 def test_estimate_lists_the_chapters_with_dialogue(client):
     bid = upload(client)
     assert client.get(f"/api/books/{bid}/llm/estimate").json()["speech_chapters"] == [0, 1]
+
+
+def test_estimate_names_the_chapters_whose_text_changed(client):
+    import json
+
+    bid = upload(client)
+    client.post(f"/api/books/{bid}/llm/start", json={"task": "auto"})
+    wait(client, bid)
+    assert client.get(f"/api/books/{bid}/llm/estimate").json()["stale_chapters"] == []
+    mp = client.data_dir / "markup" / f"{bid}.json"
+    d = json.loads(mp.read_text(encoding="utf-8"))
+    d["chapters"]["0"]["sig"] = "another-text"  # as if the first chapter had been edited since it was marked
+    mp.write_text(json.dumps(d), encoding="utf-8")
+    assert client.get(f"/api/books/{bid}/llm/estimate").json()["stale_chapters"] == [0]
