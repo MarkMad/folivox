@@ -178,7 +178,7 @@ In the editor the top of the right panel holds the one **Mark automatically** bu
 model, *also place expression tags* and *Analyse characters* alone. After a run the panel lists the characters and
 offers the next step (*Choose voices*, or reading the text through when everyone has a voice). Coloured chips assign
 the selection to a speaker. Running again asks first, because passages you changed by hand may be replaced. The top
-bar has the chapter picker, undo and redo (the arrows), Save and a close cross.
+bar has the chapter picker, undo and redo (the arrows) and a close cross; edits are saved by themselves.
 
 Below the button the manual tools are always visible:
 
@@ -206,8 +206,10 @@ Below the button the manual tools are always visible:
   from several descriptions stay in the list, *Use for this speaker* adds the take to your voices and gives it
   to the speaker. In the console: `folivox markup voices BOOK` (add `-g qwen3-voicedesign` or a cloud provider to
   make takes into `BOOK.voices/`).
-- **Save / Undo / Redo**: *Save* (Ctrl/Cmd+S) checks the markup against the book; Undo/Redo (Ctrl/Cmd+Z, with Shift
-  to redo) cover every edit since the editor was opened. Closing with unsaved changes asks first.
+- **Saving and Undo / Redo**: every edit is **saved by itself** a second after you stop (the top bar says *Saving…*,
+  then *Saved.*, or shows the reason in red if the markup does not fit the book); there is no Save button. Closing
+  saves what is pending. Undo/Redo (the arrows, or Ctrl/Cmd+Z, with Shift to redo) cover every edit since the editor
+  was opened; Ctrl/Cmd+S saves at once.
 
 Paragraphs that contain line breaks (poems) are shown but cannot be marked in the editor; the JSON can address
 them. The same operations exist in the console (`folivox markup export` / `import`).

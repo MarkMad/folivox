@@ -309,7 +309,7 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
     <button type="button" id="mk-prev" aria-label="Previous chapter" data-i18n-attr="aria-label:mk.prev">&#8249;</button><button type="button" id="mk-next" aria-label="Next chapter" data-i18n-attr="aria-label:mk.next">&#8250;</button>
     <span class="grow"></span><span id="mk-state" class="mute"></span>
     <button type="button" id="mk-undo" class="ic" aria-label="Undo" title="Undo the last change" data-i18n-attr="aria-label:mk.undo;title:mk.undo.t">&#8630;</button><button type="button" id="mk-redo" class="ic" aria-label="Redo" title="Redo" data-i18n-attr="aria-label:mk.redo;title:mk.redo.t">&#8631;</button>
-    <button type="button" id="mk-save" class="primary" data-i18n="mk.save">Save</button><button type="button" id="mk-close" class="ic" aria-label="Close" data-i18n-attr="aria-label:mk.close">&#10005;</button>
+    <button type="button" id="mk-close" class="ic" aria-label="Close" data-i18n-attr="aria-label:mk.close">&#10005;</button>
   </div>
   <div class="mk-body">
     <div class="mk-main"><div id="mk-empty" class="mk-empty" hidden><b data-i18n="mk.empty.h">Nothing is marked yet</b><p data-i18n="mk.empty.p">Press “Mark automatically” in the panel: the program finds the characters and gives each their lines.</p></div>
@@ -792,6 +792,7 @@ function mkCh(create) { const k = String(MK.ch); let c = MK.data.chapters[k]; if
 function mkSnap() { MK.undo.push(JSON.stringify(MK.data)); if (MK.undo.length > 100) MK.undo.shift(); MK.redo = []; MK.dirty = true; }
 function mkState() {
   $("#mk-state").textContent = MK.dirty ? t("mk.unsavedmark") : "";
+  if (MK.dirty) { clearTimeout(MK.timer); MK.timer = setTimeout(mkSave, 1000); }  // edits are saved by themselves
   $("#mk-undo").disabled = !MK.undo.length; $("#mk-redo").disabled = !MK.redo.length;
 }
 // the state of the characters for the Voice step: what is found, which chapters are done, who has which voice
@@ -1013,13 +1014,15 @@ $("#mk-tagq").addEventListener("input", mkTagList);
 $("#mk-taglist").addEventListener("click", (ev) => { const b = ev.target.closest("[data-tag]"); if (b) mkInsertTag(b.dataset.tag); });
 // ---- save, open, close -------------------------------------------------------------------------------------------
 async function mkSave() {
+  clearTimeout(MK.timer);
   if (!MK.dirty) return true;
+  const sent = JSON.stringify(MK.data);
   try {
-    const r = await api(`/api/books/${book.book_id}/markup`, { method: "PUT", headers: JSONH, body: JSON.stringify(MK.data) });
+    const r = await api(`/api/books/${book.book_id}/markup`, { method: "PUT", headers: JSONH, body: sent });
+    if (JSON.stringify(MK.data) !== sent) { MK.timer = setTimeout(mkSave, 300); return true; }  // edited meanwhile: the next save has it
     MK.data = r; MK.dirty = false; mkRender(); $("#mk-state").textContent = t("saved"); return true;
-  } catch (e) { mkHint(e.message, true); return false; }
+  } catch (e) { mkHint(e.message, true); $("#mk-state").innerHTML = `<span class="err">${esc(e.message)}</span>`; return false; }
 }
-$("#mk-save").onclick = mkSave;
 $("#mk-undo").onclick = () => mkUndo(false); $("#mk-redo").onclick = () => mkUndo(true);
 async function mkOpenEditor(fine) {
   try { MK.data = await api(`/api/books/${book.book_id}/markup`); } catch (e) { MK.data = mkEmpty(); }
@@ -1033,7 +1036,7 @@ async function mkOpenEditor(fine) {
   $("#mk-dlg").showModal(); mkLlmModels().then(() => { mkModelHint(); mkModelButtons(); mkEtaEditor(); }); await mkLoadChapter(0); $("#mk-text").focus(); if (fine) $("#mk-speakers").scrollIntoView({ block: "start" });
 }
 $("#mk-open2").onclick = () => mkOpenEditor(false);
-function mkClose() { if (MK.dirty && !confirm(t("mk.unsaved"))) return; if (MK.audio) MK.audio.pause(); $("#mk-dlg").close(); loadMk(); }
+async function mkClose() { if (MK.dirty && !await mkSave() && !confirm(t("mk.unsaved"))) return; if (MK.audio) MK.audio.pause(); $("#mk-dlg").close(); loadMk(); }
 $("#mk-close").onclick = mkClose;
 $("#mk-dlg").addEventListener("cancel", (ev) => { ev.preventDefault(); mkClose(); });
 $("#mk-ch").onchange = async (ev) => { await mkLoadChapter(+ev.target.value); };
@@ -1041,7 +1044,7 @@ $("#mk-prev").onclick = () => { if (MK.ch > 0) mkLoadChapter(MK.ch - 1); };
 $("#mk-next").onclick = () => { if (MK.ch < book.chapters.length - 1) mkLoadChapter(MK.ch + 1); };
 $("#mk-dlg").addEventListener("keydown", (ev) => {
   const typing = ev.target.matches("input, select, textarea"), mod = ev.metaKey || ev.ctrlKey;
-  if (mod && ev.key.toLowerCase() === "s") { ev.preventDefault(); mkSave(); }
+  if (mod && ev.key.toLowerCase() === "s") { ev.preventDefault(); mkSave().then(ok => { if (ok) $("#mk-state").textContent = t("saved"); }); }
   else if (mod && ev.key.toLowerCase() === "z") { ev.preventDefault(); mkUndo(ev.shiftKey); }
   else if (!typing && !mod && /^[0-9]$/.test(ev.key) && mkSpeaker(+ev.key)) { ev.preventDefault(); mkAssign(+ev.key); }
 });
