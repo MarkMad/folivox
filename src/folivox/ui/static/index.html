@@ -281,6 +281,7 @@ dialog ul { padding-inline-start:18px; margin:10px 0; } dialog li { margin:6px 0
 .costcard .consent { margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); }
 .runbar { margin-top:16px; padding:14px 16px; border-radius:12px; background:var(--glow); border:1px solid var(--line); }
 .run-sum { font-size:14px; line-height:1.5; margin-bottom:12px; } .run-sum .err, .run-sum .warn { display:block; }
+.warn .chip[data-eng], #lang-hint .chip { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600; font-size:13.5px; padding:4px 14px; margin-inline-start:4px; } .warn .chip[data-eng]:hover, #lang-hint .chip:hover { color:var(--accent-ink); filter:brightness(1.1); }
 .run-final { display:flex; flex-wrap:wrap; gap:12px 18px; align-items:center; }
 .big-go { font-size:18px; font-weight:700; padding:14px 34px; border-radius:12px; box-shadow:0 4px 14px var(--glow); }
 .big-go:disabled { opacity:.5; box-shadow:none; }
@@ -1686,7 +1687,7 @@ function langHint() {  // one line under the language field: the engine cannot r
   if (e && !engReads(e, c)) {
     h.hidden = false; h.className = "warn"; h.textContent = t("s2.lang_local", { engine: e.label, lang: lname(c) }) + " ";
     if (alt) { const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = alt.label;
-      b.onclick = () => { $("#o-tts").value = alt.name; $("#o-tts").onchange(); }; h.appendChild(b); }
+      b.onclick = () => useEngine(alt.name); h.appendChild(b); }
     return;
   }
   h.className = "";
@@ -2723,9 +2724,12 @@ function runSummary() {
   if (!ch.length) warn.push(t("run.nochap"));
   if (cloud && !(e.key_in_env || e.key_saved)) warn.push(t("sum.w.nokey"));
   if (cloud && !$("#eng-ack").checked) warn.push(t("sum.w.ack"));
-  if (!engReads(e, book.lang)) warn.push(t("s2.lang_local", { engine: e.label, lang: lname(book.lang) }) + (engFor(book.lang) ? " " + engFor(book.lang).label : ""));
-  $("#run-sum").innerHTML = parts.join(" · ") + warn.map(w => `<span class="warn">⚠ ${esc(w)}</span>`).join("");
+  const alt = engReads(e, book.lang) ? null : engFor(book.lang);
+  if (!engReads(e, book.lang)) warn.push({ html: esc(t("s2.lang_local", { engine: e.label, lang: lname(book.lang) })) + (alt ? ` <button type="button" class="chip" data-eng="${esc(alt.name)}">${esc(alt.label)}</button>` : "") });
+  $("#run-sum").innerHTML = parts.join(" · ") + warn.map(w => `<span class="warn">⚠ ${w.html || esc(w)}</span>`).join("");
 }
+function useEngine(name) { $("#o-tts").value = name; $("#o-tts").onchange(); }
+$("#run-sum").addEventListener("click", (ev) => { const b = ev.target.closest("[data-eng]"); if (b) useEngine(b.dataset.eng); });
 ["#o-qa", "#o-mp3", "#o-output_dir", "#eng-ack", "#o-tts_voice", "#o-tts_mode"].forEach(i => { $(i).addEventListener("change", () => { renderEst(); runSummary(); }); });
 $("#o-output_dir").addEventListener("input", runSummary);
 $("#o-tts").onchange = () => { engChange(); addRules(); if (av) showSample(); }; 
