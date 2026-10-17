@@ -63,7 +63,8 @@ def main() -> int:
         return 1
     allow = json.loads(ALLOWLIST.read_text("utf-8")) if ALLOWLIST.exists() else {}
 
-    problems: dict[str, list[str]] = {k: [] for k in ("missing", "extra", "empty", "placeholders", "copy", "nowhere", "orphan", "allowlist")}
+    kinds = ("missing", "extra", "empty", "placeholders", "copy", "nowhere", "orphan", "allowlist")
+    problems: dict[str, list[str]] = {k: [] for k in kinds}
 
     for lang, pack in packs.items():
         for key in source:
@@ -96,7 +97,7 @@ def main() -> int:
         key, _, lang = entry.partition("@")
         if key not in source or (lang and lang not in packs):
             problems["allowlist"].append(f"{entry}: key or language no longer exists")
-        elif not any(packs[l].get(key) == source[key] for l in ([lang] if lang else packs) if l != SOURCE_LANG):
+        elif not any(packs[c].get(key) == source[key] for c in ([lang] if lang else packs) if c != SOURCE_LANG):
             problems["allowlist"].append(f"{entry}: no longer identical to English, remove it")
 
     labels = {

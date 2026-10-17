@@ -18,7 +18,16 @@ ALLOW_MISSING: dict[str, set[str]] = {}
 DYNAMIC_PREFIXES = ("cover.state.", "g.", "used.", "mode.", "kind.", "stage.", "gp.idea.", "engine.", "fish.points.",
                     "mk.vd.tier.")
 NATIVE = {"ru": "Русский", "es": "Español", "de": "Deutsch", "fr": "Français", "it": "Italiano",
-          "zh": "中文", "ja": "日本語", "ko": "한국어", "en": "English"}
+          "zh": "中文", "ja": "日本語", "ko": "한국어", "en": "English",
+          "pt": "Português", "hi": "हिन्दी", "ar": "العربية", "bn": "বাংলা", "ur": "اردو", "id": "Bahasa Indonesia",
+          "tr": "Türkçe", "vi": "Tiếng Việt", "fa": "فارسی", "pl": "Polski", "uk": "Українська", "nl": "Nederlands",
+          "th": "ไทย", "mr": "मराठी", "te": "తెలుగు", "ta": "தமிழ்", "gu": "ગુજરાતી", "sw": "Kiswahili",
+          "ms": "Bahasa Melayu", "he": "עברית",
+          "cs": "Čeština", "sv": "Svenska", "el": "Ελληνικά", "ro": "Română", "hu": "Magyar", "bg": "Български",
+          "sr": "Српски", "hr": "Hrvatski", "sk": "Slovenčina", "da": "Dansk", "fi": "Suomi", "nb": "Norsk bokmål",
+          "lt": "Lietuvių", "lv": "Latviešu", "et": "Eesti", "sl": "Slovenščina", "ca": "Català", "sq": "Shqip",
+          "mk": "Македонски", "is": "Íslenska"}
+RTL = {"ar", "he", "fa", "ur"}
 
 
 def load(code):
@@ -47,7 +56,8 @@ def used_keys():
 
 
 def test_every_book_language_has_a_catalog():
-    assert set(CODES) == set(languages.SUPPORTED)
+    # the interface may speak more languages than books can be read in, never fewer
+    assert set(languages.SUPPORTED) <= set(CODES)
 
 
 @pytest.mark.parametrize("code", CODES)
@@ -100,7 +110,20 @@ def test_language_switcher_lists_exactly_the_supported_languages():
     block = re.search(r"const UI_LANGS = \[(.*?)\];", INDEX, re.S).group(1)
     listed = dict(re.findall(r'\["(\w+)", "([^"]+)"\]', block))
     assert listed == NATIVE
-    assert set(listed) == set(CODES) == set(languages.SUPPORTED)
+    assert set(listed) == set(CODES) >= set(languages.SUPPORTED)
+
+
+def test_right_to_left_languages_mirror_the_page():
+    block = re.search(r"RTL_LANGS = new Set\(\[(.*?)\]\)", INDEX).group(1)
+    declared = set(re.findall(r'"(\w+)"', block))
+    assert declared == RTL
+    assert "documentElement.dir" in INDEX
+
+
+def test_stylesheet_uses_logical_directions():
+    css = INDEX[: INDEX.index("</style>")]
+    physical = r"(?<![\w-])(?:margin|padding)-(?:left|right)\b|text-align:\s*(?:left|right)|border-(?:left|right)(?!-)"
+    assert not re.findall(physical, css)
 
 
 def test_html_lang_and_switcher_markup():

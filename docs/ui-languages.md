@@ -1,11 +1,39 @@
 # Studio languages
 
-The web studio (`folivox ui`) speaks English, Russian, Spanish, German, French, Italian, Chinese, Japanese and
-Korean: the same languages Folivox can generate books in. The language menu is in the top-right corner. The first
+The web studio (`folivox ui`) has **49 interface languages**. The language menu is in the top-right corner. The first
 visit follows the browser language, the choice is remembered in `localStorage` (`folivox.lang`) and applies without
 a reload. Only the browser UI is translated: the command line, logs, Python error messages, docs and code stay
 English, and so do texts that come from the backend (pipeline warnings and errors, provider descriptions, price
 notes).
+
+Interface languages are independent of **book languages**: a book is read in one of nine (Russian, English, German,
+French, Spanish, Italian, Chinese, Japanese, Korean), the menu may be in any of the 49.
+
+| Group | Languages |
+|---|---|
+| Book languages (also in the menu) | English `en`, Russian `ru`, German `de`, French `fr`, Spanish `es`, Italian `it`, Chinese `zh`, Japanese `ja`, Korean `ko` |
+| Western and Southern Europe | Portuguese `pt`, Dutch `nl`, Catalan `ca`, Greek `el`, Albanian `sq` |
+| Northern Europe | Swedish `sv`, Danish `da`, Norwegian Bokmål `nb`, Finnish `fi`, Icelandic `is`, Estonian `et`, Latvian `lv`, Lithuanian `lt` |
+| Central and Eastern Europe | Polish `pl`, Czech `cs`, Slovak `sk`, Hungarian `hu`, Romanian `ro`, Ukrainian `uk`, Bulgarian `bg`, Serbian (Cyrillic) `sr`, Croatian `hr`, Slovenian `sl`, Macedonian `mk` |
+| Middle East, right to left | Arabic `ar`, Hebrew `he`, Persian `fa`, Urdu `ur` |
+| Middle East and Central Asia, left to right | Turkish `tr` |
+| South and Southeast Asia, Africa | Hindi `hi`, Bengali `bn`, Marathi `mr`, Telugu `te`, Tamil `ta`, Gujarati `gu`, Indonesian `id`, Malay `ms`, Vietnamese `vi`, Thai `th`, Swahili `sw` |
+
+## Right to left
+
+Arabic, Hebrew, Persian and Urdu are right to left: `applyI18n` sets `<html dir="rtl">` from `RTL_LANGS` in
+`index.html`, and the stylesheet uses only logical properties (`margin-inline-start`, `text-align: start`,
+`inset-inline-end`...), so the page mirrors by itself. Book text, pronunciation rules, `code` and `kbd` stay left to
+right. Numbers use Latin digits in every language. Never write `margin-left`, `padding-right`, `text-align: left`
+and the like in the stylesheet (`tests/test_ui_i18n.py` fails on it). The play buttons are not mirrored, as in
+every media player.
+
+## Checking the catalogs
+
+`python3 scripts/check_i18n.py` (part of `scripts/check.sh`, so of the pre-push hook and CI) reports missing keys,
+changed placeholders, strings left identical to English, unused keys and keys the page asks for that no catalog has.
+Intentional identical strings (units, product names, words spelled the same) go to `scripts/i18n-allowlist.json` as
+`"key@lang": "why"`.
 
 ## How strings are organised
 
@@ -28,10 +56,10 @@ spending cap). Do not translate product and provider names, file extensions or `
 
 ## Add a language
 
-1. Add the book language first (`src/folivox/lang/`), if it does not exist.
-2. Copy `en.json` to `<code>.json` and translate the values.
-3. Add `["<code>", "<native name>"]` to `UI_LANGS` in `index.html`, and the same pair to `NATIVE` in
-   `tests/test_ui_i18n.py`.
+1. Copy `en.json` to `<code>.json` and translate the values (a book language is not needed for an interface language).
+2. Add `["<code>", "<native name>"]` to `UI_LANGS` in `index.html` (and the code to `RTL_LANGS` if the script is
+   right to left), and the same pair to `NATIVE` in `tests/test_ui_i18n.py`; add the language to the table above.
+3. Add the intentional identical strings to `scripts/i18n-allowlist.json`.
 4. Look at the page in the new language at desktop and phone width (long words in tiles, chips and buttons).
 5. Run `uv run pytest tests/test_ui_i18n.py -q`.
 

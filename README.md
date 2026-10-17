@@ -29,7 +29,7 @@ ElevenLabs, OpenAI, Gemini or Cartesia with your own API key. A narrator voice c
 catalog, from your own recording, or be designed for this particular book. Everything around the voice,
 from text clean-up to quality control, chapters and a crash-safe journal, is the same whichever engine you choose.
 
-Use the **web studio** (`folivox ui`, in 9 interface languages) or the **command line**: same pipeline, same
+Use the **web studio** (`folivox ui`, in 49 interface languages) or the **command line**: same pipeline, same
 results.
 
 ## Quick start
@@ -259,9 +259,13 @@ over. `folivox doctor` reviews your hardware and gives advice; `folivox bench` m
 <tr>
 <td valign="top">
 
-**Interface in 9 languages**<br>
-The studio speaks English, Russian, German, French, Spanish, Italian, Chinese, Japanese and Korean (menu in
-the header).
+**Interface in 49 languages**<br>
+English, Russian, German, French, Spanish, Italian, Chinese, Japanese, Korean, Portuguese, Dutch, Catalan,
+Greek, Albanian, Swedish, Danish, Norwegian, Finnish, Icelandic, Estonian, Latvian, Lithuanian, Polish, Czech,
+Slovak, Hungarian, Romanian, Ukrainian, Bulgarian, Serbian, Croatian, Slovenian, Macedonian, Turkish, Arabic,
+Hebrew, Persian, Urdu, Hindi, Bengali, Marathi, Telugu, Tamil, Gujarati, Indonesian, Malay, Vietnamese, Thai
+and Swahili (menu in the header). Arabic, Hebrew, Persian and Urdu mirror the page right to left.
+[Full list](docs/ui-languages.md).
 
 </td>
 <td valign="top">
@@ -368,7 +372,7 @@ Your books, audiobooks, ffmpeg and anything you had before are never touched. De
 | [docs/fish-engines.md](docs/fish-engines.md) | Optional Fish Audio engines (S2 Pro, Drama 3): licences, memory, catalog |
 | [docs/providers.md](docs/providers.md) | Pluggable providers and `config.toml` |
 | [docs/ui.md](docs/ui.md) | The web studio: design, screens and API |
-| [docs/ui-languages.md](docs/ui-languages.md) | Interface languages and translations |
+| [docs/ui-languages.md](docs/ui-languages.md) | The 49 interface languages, right-to-left support, translations |
 | [docs/how-it-works.md](docs/how-it-works.md) | The pipeline in five steps |
 | [docs/support.md](docs/support.md) | Resuming, retries, `folivox doctor` and the support bundle |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup and code structure |
