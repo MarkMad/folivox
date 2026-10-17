@@ -32,7 +32,7 @@ from folivox.ui.jobs import JobManager, chapter_files
 STATIC = Path(__file__).parent / "static"
 # Bumped when the page starts using a route that servers started before the update do not have: the page asks
 # /api/ping and, if the server is older, tells the user to restart it.
-API_LEVEL = 4
+API_LEVEL = 5
 MAX_UPLOAD = 200 * 1024 * 1024
 PREVIEW_CHARS = 600
 
@@ -156,6 +156,12 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
 
         return JSONResponse({"app": "folivox-studio", "api": API_LEVEL, "version": __version__, "pid": os.getpid(),
                              "busy": state.manager.busy()})
+
+    async def changelog(request: Request):
+        """Version history shown in the footer dialog (``static/changelog.json``, English only)."""
+        path = STATIC / "changelog.json"
+        entries = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
+        return JSONResponse(entries, headers={"Cache-Control": "no-cache"})
 
     async def shutdown(request: Request):
         """Stop this server (`folivox ui --restart` / `--stop`); a running job is not killed without ``force``."""
@@ -1548,6 +1554,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/", index),
         Route("/i18n/{code}.json", i18n_catalog),
         Route("/api/ping", ping),
+        Route("/api/changelog", changelog),
         Route("/api/shutdown", shutdown, methods=["POST"]),
         Route("/api/books", upload_book, methods=["POST"]),
         Route("/api/books", list_books),

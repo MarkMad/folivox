@@ -733,5 +733,8 @@
  "fish.cer.mean": "{min}–{max} with Whisper (mean {mean})",
  "fish.cer.strip": "{min}–{max} with Whisper ({clean} after the standard hallucination strip)",
  "fish.auto.have": "Automatic ({title}, installed)",
- "fish.auto.get": "Automatic ({title}, will need downloading)"
+ "fish.auto.get": "Automatic ({title}, will need downloading)",
+ "foot.new": "What's new",
+ "foot.title": "Version history",
+ "foot.close": "Close"
 }

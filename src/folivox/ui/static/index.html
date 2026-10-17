@@ -257,6 +257,12 @@ textarea { font:inherit; color:inherit; background:var(--card); border:1px solid
 .runbar.redo .big-go { font-size:15px; font-weight:500; padding:8px 16px; background:var(--card); color:var(--ink); border-color:var(--line); box-shadow:none; }
 @media (max-width:560px) { .done-card { flex-direction:column; align-items:flex-start; } .runbar.redo .big-go { width:auto; } }
 dialog { border:1px solid var(--line); border-radius:14px; background:var(--card); color:var(--ink); width:min(680px,94vw); padding:20px 22px; }
+.foot { max-width:1100px; margin:28px auto 18px; padding:12px 16px 0; border-top:1px solid var(--line); display:flex; gap:12px; align-items:center; justify-content:center; color:var(--mute); font-size:13px; }
+.chg-body { max-height:60vh; overflow:auto; font-size:13px; line-height:1.5; padding-right:6px; }
+.chg-body h4 { margin:18px 0 6px; padding-bottom:5px; border-bottom:1px solid var(--line); font-size:14px; display:flex; align-items:baseline; gap:8px; } .chg-body > div:first-child h4 { margin-top:4px; }
+.chg-body h4 small { color:var(--mute); font-weight:400; font-size:12px; }
+.chg-body ul { margin:0; padding:0; } .chg-body li { list-style:none; margin:0; padding:4px 0; display:grid; grid-template-columns:56px 1fr; column-gap:10px; align-items:start; }
+.chg-body .tag { justify-self:start; margin-top:2px; padding:1px 8px; border-radius:999px; font-size:10.5px; font-weight:600; line-height:1.5; letter-spacing:.03em; text-transform:uppercase; color:var(--accent); background:color-mix(in srgb, var(--accent) 13%, transparent); }
 dialog::backdrop { background:rgba(0,0,0,.45); }
 dialog pre { max-height:42vh; overflow:auto; white-space:pre-wrap; font:12px/1.45 ui-monospace,Menlo,Consolas,monospace; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
 dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dialog .btns { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
@@ -649,6 +655,12 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
   </div>
 </details>
 </main>
+<footer class="foot"><span id="foot-ver">Folivox</span><button type="button" id="foot-new" class="chip" data-i18n="foot.new">What's new</button></footer>
+<dialog id="chg-dlg" aria-labelledby="chg-h">
+  <h3 id="chg-h" style="margin:0 0 8px" data-i18n="foot.title">Version history</h3>
+  <div id="chg-body" class="chg-body"></div>
+  <div class="btns"><button type="button" id="chg-close" data-i18n="foot.close">Close</button></div>
+</dialog>
 
 <script>
 const $ = (s) => document.querySelector(s);
@@ -1560,7 +1572,7 @@ $("#mk-vd-takes").addEventListener("click", async (ev) => {
   } catch (e) { vdMsg(e.message, true); }
 });
 $("#mk-vd-close").onclick = () => { $("#mk-vd").hidden = true; if (VD.audio) VD.audio.pause(); };
-const PAGE_API = 4;
+const PAGE_API = 5;
 async function checkServer() {
   try { const r = await api("/api/ping"); if (!(r.api >= PAGE_API)) $("#stale").hidden = false; }
   catch (e) { if (e.message === "Not Found") $("#stale").hidden = false; }  // a server too old to have /api/ping
@@ -2923,6 +2935,17 @@ async function reconcile() {
     }
   }
 }
+// Footer: app version and the change history (English only, from /api/changelog).
+let CHG = null;
+fetch("/api/ping").then(r => r.json()).then(p => { $("#foot-ver").textContent = "Folivox " + p.version; }).catch(() => {});
+$("#foot-new").addEventListener("click", async () => {
+  const box = $("#chg-body");
+  if (!CHG) { try { CHG = await api("/api/changelog"); } catch (e) { box.textContent = e.message; $("#chg-dlg").showModal(); return; } }
+  box.replaceChildren(...CHG.map(v => { const d = document.createElement("div");
+    d.innerHTML = `<h4>${esc(v.version)}<small>${esc(v.date)}</small></h4><ul>` + v.items.map(i => `<li><span class="tag ${i.type === "fix" ? "fix" : ""}">${i.type === "fix" ? "Fixed" : "New"}</span>${esc(i.text)}</li>`).join("") + "</ul>"; return d; }));
+  $("#chg-dlg").showModal();
+});
+$("#chg-close").addEventListener("click", () => $("#chg-dlg").close());
 // After a language switch: rebuild what JS drew (static markup is handled by applyI18n).
 let uiReady = false;
 function refreshUi() {

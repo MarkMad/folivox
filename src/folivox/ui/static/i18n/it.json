@@ -733,5 +733,8 @@
  "fish.cer.mean": "{min}–{max} con Whisper (media {mean})",
  "fish.cer.strip": "{min}–{max} con Whisper ({clean} dopo la solita pulizia delle parole inventate)",
  "fish.auto.have": "Automatico ({title}, installata)",
- "fish.auto.get": "Automatico ({title}, da scaricare)"
+ "fish.auto.get": "Automatico ({title}, da scaricare)",
+ "foot.new": "Novità",
+ "foot.title": "Cronologia delle versioni",
+ "foot.close": "Chiudi"
 }

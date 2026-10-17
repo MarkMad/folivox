@@ -1,0 +1,54 @@
+[
+ {
+  "version": "0.1.0.253",
+  "date": "2026-10-17",
+  "items": [
+   {
+    "type": "new",
+    "text": "Fish Audio engines: the studio picks the build automatically by total memory; build names show their size."
+   },
+   {
+    "type": "new",
+    "text": "Version and change history in the studio footer."
+   },
+   {
+    "type": "fix",
+    "text": "Crashes in the FB2/EPUB/PDF readers and in number normalisation on unusual input."
+   },
+   {
+    "type": "fix",
+    "text": "Studio jobs that could get stuck after a crashed render; leftover ffmpeg temporary files are cleaned up."
+   },
+   {
+    "type": "fix",
+    "text": "Broken config.toml values no longer stop the app from starting."
+   }
+  ]
+ },
+ {
+  "version": "0.1.0.230",
+  "date": "2026-10-16",
+  "items": [
+   {
+    "type": "new",
+    "text": "Native C++ runtime (audio.cpp) for CosyVoice 3 and the Fish engines (S2 Pro, Drama 3): faster, lighter on memory."
+   },
+   {
+    "type": "new",
+    "text": "Books with several languages: language shares per book and per speaker, each fragment is read with its own language rules."
+   },
+   {
+    "type": "new",
+    "text": "Editor: listen to a sample with progress on the button; a rendered sample is kept until the text, markup, voices or engine change."
+   },
+   {
+    "type": "new",
+    "text": "Reuse of model weights already on this computer (Hugging Face cache, LM Studio), checked by sha256."
+   },
+   {
+    "type": "fix",
+    "text": "Engine install progress is honest, and the studio joins an install that is already running."
+   }
+  ]
+ }
+]

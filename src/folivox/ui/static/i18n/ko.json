@@ -733,5 +733,8 @@
  "fish.cer.mean": "Whisper 기준 {min}–{max} (평균 {mean})",
  "fish.cer.strip": "Whisper 기준 {min}–{max} (일반적인 환각어 제거 후 {clean})",
  "fish.auto.have": "자동({title}, 설치됨)",
- "fish.auto.get": "자동({title}, 다운로드 필요)"
+ "fish.auto.get": "자동({title}, 다운로드 필요)",
+ "foot.new": "새로운 기능",
+ "foot.title": "버전 기록",
+ "foot.close": "닫기"
 }

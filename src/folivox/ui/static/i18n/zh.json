@@ -733,5 +733,8 @@
  "fish.cer.mean": "Whisper 检测 {min}–{max}（平均 {mean}）",
  "fish.cer.strip": "Whisper 检测 {min}–{max}（常规去除幻觉词后为 {clean}）",
  "fish.auto.have": "自动（{title}，已安装）",
- "fish.auto.get": "自动（{title}，需要下载）"
+ "fish.auto.get": "自动（{title}，需要下载）",
+ "foot.new": "更新内容",
+ "foot.title": "版本历史",
+ "foot.close": "关闭"
 }

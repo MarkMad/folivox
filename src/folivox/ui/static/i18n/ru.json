@@ -733,5 +733,8 @@
  "fish.cer.mean": "{min}–{max} по Whisper (в среднем {mean})",
  "fish.cer.strip": "{min}–{max} по Whisper ({clean} после обычной очистки выдуманных слов)",
  "fish.auto.have": "Автоматически ({title}, установлена)",
- "fish.auto.get": "Автоматически ({title}, нужно скачать)"
+ "fish.auto.get": "Автоматически ({title}, нужно скачать)",
+ "foot.new": "Что нового",
+ "foot.title": "История версий",
+ "foot.close": "Закрыть"
 }

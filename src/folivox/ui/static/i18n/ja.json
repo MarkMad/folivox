@@ -733,5 +733,8 @@
  "fish.cer.mean": "Whisper で {min}–{max}（平均 {mean}）",
  "fish.cer.strip": "Whisper で {min}–{max}（通常の幻覚語除去後は {clean}）",
  "fish.auto.have": "自動（{title}、インストール済み）",
- "fish.auto.get": "自動（{title}、ダウンロードが必要）"
+ "fish.auto.get": "自動（{title}、ダウンロードが必要）",
+ "foot.new": "新機能",
+ "foot.title": "バージョン履歴",
+ "foot.close": "閉じる"
 }
