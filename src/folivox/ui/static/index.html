@@ -2382,6 +2382,13 @@ async function engLoad() {
     engChange();
   } catch (e) { /* the page still works with the local engine */ }
 }
+async function engKeysChanged() {  // an API key was saved or removed in the settings: the open engine panel must notice
+  try {
+    ENG.list = (await api("/api/tts/engines")).engines; const e = ENG.cur();
+    if (e && e.cloud) { ENG.vlist = null; engVoices(); renderEst(); }
+    runSummary();
+  } catch (x) { /* the next engine change reloads it */ }
+}
 // Options that mean something only for the local model are hidden for online engines (they ignore them).
 function optionsVisibility() {
   const cloud = ENG.cloud(), qaOn = $("#o-qa").value === "1", ru = !book || book.lang === "ru";
@@ -2903,10 +2910,10 @@ async function loadKeys() {
     const name = row.dataset.key, input = row.querySelector("input");
     row.querySelector("[data-save]").onclick = async () => {
       if (!input.value.trim()) return;
-      try { await api("/api/keys/" + name, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: input.value }) }); input.value = ""; loadKeys(); }
+      try { await api("/api/keys/" + name, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: input.value }) }); input.value = ""; loadKeys(); engKeysChanged(); }
       catch (e) { alert(e.message); } };
     const rm = row.querySelector("[data-remove]");
-    if (rm) rm.onclick = async () => { if (confirm(t("key.confirmrm", { name: SERVICE[name] || name }))) { await api("/api/keys/" + name, { method: "DELETE" }); loadKeys(); } };
+    if (rm) rm.onclick = async () => { if (confirm(t("key.confirmrm", { name: SERVICE[name] || name }))) { await api("/api/keys/" + name, { method: "DELETE" }); loadKeys(); engKeysChanged(); } };
   });
 }
 $("#save-settings").onclick = async () => {
