@@ -76,6 +76,34 @@ if ($gpuOk) {
 }
 
 Step 4 "Installing Folivox (a few minutes: PyTorch is large)"
+# Python: uv's own build by default. Smart App Control / WDAC on Windows 11 blocks that unsigned python.exe
+# ("os error 4551", issue #4); then fall back to the signed python.org build (found, or installed with winget).
+function RunsPy($exe) {
+  if (-not $exe -or -not (Test-Path $exe)) { return $false }
+  $ErrorActionPreference = "Continue"
+  try { & $exe -c "import sys" *> $null; return ($LASTEXITCODE -eq 0) } catch { return $false }
+}
+function FindPy($pref) {
+  $ErrorActionPreference = "Continue"
+  try { $p = "" + (& uv python find --python-preference $pref ">=3.10,<3.13" 2>$null | Select-Object -First 1) } catch { $p = "" }
+  if ($p -and (RunsPy $p.Trim())) { return $p.Trim() } else { return $null }
+}
+$ErrorActionPreference = "Continue"
+try { & uv python install 3.12 *> $null } catch { }
+$ErrorActionPreference = "Stop"
+$pyExe = FindPy "only-managed"
+if (-not $pyExe) {
+  Warn "Windows blocked the Python that uv downloads (Smart App Control or another app control policy). Using Python from python.org instead."
+  $pyExe = FindPy "only-system"
+  if (-not $pyExe -and (Has winget)) {
+    Write-Host "  installing Python 3.12 with winget (signed python.org build, for your user)..."
+    winget install --id Python.Python.3.12 -e --scope user --accept-source-agreements --accept-package-agreements | Out-Null
+    RefreshPath
+    $pyExe = FindPy "only-system"
+  }
+  if (-not $pyExe) { Die "No usable Python 3.10-3.12. Install Python 3.12 from https://www.python.org/downloads/windows/ (tick 'Add python.exe to PATH'), open a new PowerShell window and run this script again." }
+}
+Ok ("Python: " + $pyExe)
 $here = if ($MyInvocation.MyCommand.Path) { Split-Path -Parent $MyInvocation.MyCommand.Path } else { $null }  # $null under irm | iex
 $src = $env:FOLIVOX_SOURCE
 if (-not $src) {
@@ -88,11 +116,11 @@ elseif (Test-Path (Join-Path $src "pyproject.toml")) { $spec = (Resolve-Path $sr
 else { $spec = "$src[all]" }
 $constraints = Join-Path ([IO.Path]::GetTempPath()) "folivox-torch.txt"
 [IO.File]::WriteAllLines($constraints, [string[]]@($torch, ($torch -replace '^torch', 'torchaudio')))  # no BOM
-& uv tool install --force --refresh-package folivox --python ">=3.10,<3.13" --constraints $constraints @extra $spec
+& uv tool install --force --refresh-package folivox --python $pyExe --constraints $constraints @extra $spec
 $code = $LASTEXITCODE
 Remove-Item $constraints -ErrorAction SilentlyContinue
 $LASTEXITCODE = $code
-if ($LASTEXITCODE -ne 0) { Die "Installation failed. Check the network and run this script again; it is safe to repeat." }
+if ($LASTEXITCODE -ne 0) { Die "Installation failed (the reason is in the lines above). If it is a network error, run this script again; it is safe to repeat. If it says 'Application Control policy', see https://github.com/vatavale/folivox/blob/main/docs/install.md#windows-smart-app-control" }
 # update-shell writes "already in PATH" to stderr; under Stop, PowerShell 5.1 turns that into a terminating error even with 2>$null
 $ErrorActionPreference = "Continue"
 try { & uv tool update-shell *> $null } catch { }

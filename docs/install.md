@@ -55,6 +55,15 @@ crash, a closed lid or a power cut, run the same command again: it continues fro
 Open a new terminal window. If it still says `folivox: command not found`, run `uv tool update-shell`, then open a new
 terminal again.
 
+## Windows: Smart App Control
+
+On a new Windows 11 computer, Smart App Control (or a company app control policy) may block the Python build that
+`uv` downloads, with `An Application Control policy has blocked this file (os error 4551)`. The installer notices
+this and uses the signed Python from python.org instead: one already installed, or Python 3.12 installed with
+`winget`. If `winget` is missing, install Python 3.12 from
+[python.org](https://www.python.org/downloads/windows/) (tick "Add python.exe to PATH"), open a new PowerShell
+window and run the installer again. You do not need to turn Smart App Control off.
+
 ## Update
 
 Run:
