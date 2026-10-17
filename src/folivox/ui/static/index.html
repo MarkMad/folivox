@@ -396,6 +396,7 @@ dialog ul { padding-inline-start:18px; margin:10px 0; } dialog li { margin:6px 0
   <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:6px"><span data-i18n="s2.lang">Language</span> <select id="lang"></select></label>
     <label class="f" style="flex-direction:row;align-items:center;gap:6px"><span data-i18n="s2.depth">Split depth</span> <input id="depth" type="number" min="1" max="6" value="2" style="width:60px"></label>
     <button id="all" data-i18n="s2.all">All</button><button id="none" data-i18n="s2.none">None</button><span id="sel-info" class="mute grow"></span></div>
+  <div id="lang-hint" class="mute" hidden style="margin-top:6px"></div>
   <div class="chapters" style="margin-top:10px"><table id="chapters"></table></div>
 </section>
 
@@ -1614,7 +1615,8 @@ async function checkServer() {
 }
 // ---- the languages of the book: the shares, the voices' gaps (all computed by the server) ------------------------
 let LANGINFO = null, langTimer = 0;
-const lname = (c) => LANGS[c] || c.toUpperCase();
+const OTHER_LANGS = {pt: "Português", pl: "Polski", nl: "Nederlands", tr: "Türkçe", uk: "Українська", cs: "Čeština", sk: "Slovenčina", sl: "Slovenščina", hr: "Hrvatski", sr: "Српски", bg: "Български", ro: "Română", hu: "Magyar", el: "Ελληνικά", sv: "Svenska", da: "Dansk", nb: "Norsk bokmål", fi: "Suomi", ar: "العربية", he: "עברית", fa: "فارسی", ur: "اردو", hi: "हिन्दी", bn: "বাংলা", ta: "தமிழ்", te: "తెలుగు", mr: "मराठी", gu: "ગુજરાતી", th: "ไทย", vi: "Tiếng Việt", id: "Bahasa Indonesia", ms: "Bahasa Melayu", sw: "Kiswahili", ca: "Català", lt: "Lietuvių", lv: "Latviešu", et: "Eesti", is: "Íslenska", mk: "Македонски", sq: "Shqip"};  // self-names of the languages online engines read with no Folivox rules
+const lname = (c) => LANGS[c] || OTHER_LANGS[c] || c.toUpperCase();
 function langsFound() {  // the languages of the book that matter (>= 2%), the book's own first, then by share
   const sh = LANGINFO && book && LANGINFO.lang === book.lang ? Object.entries(LANGINFO.shares).filter(([, v]) => v >= 0.02).map(([c]) => c) : [];
   return [book ? book.lang : "", ...sh.filter(c => !book || c !== book.lang)].filter(Boolean);
@@ -1650,12 +1652,26 @@ function setBook(b, keep, lang) {
   if (!book || book.book_id !== b.book_id) ENG.vlang = undefined;  // voices of the new book's language
   book = b; showCover(b.cover || "");
   renderBookInfo(); loadMeta(); loadPron(); loadMk(); loadRecent();
-  $("#lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}" ${c === b.lang ? "selected" : ""}>${n}</option>`).join("");
-  if (lang) $("#lang").value = lang;
+  fillLangs(lang || b.lang);
   renderChapters(keep);
   if (typeof ENG !== "undefined" && ENG.list.length) engChange(); else if (typeof optionsVisibility === "function") optionsVisibility();
   ["#s-chapters", "#s-engine", "#s-voice", "#s-run"].forEach(s => $(s).classList.remove("disabled"));
   loadVoices(); loadLangs();
+}
+const WEAK_RULELESS = new Set(["cs", "sv", "hi"]);  // measured: the online voice reads numbers less reliably in these
+function fillLangs(cur) {  // the nine languages with rules, then the ones online engines read as they are
+  const online = new Set(); (ENG.list || []).forEach(e => (e.voice_langs || []).forEach(c => online.add(c)));
+  if (cur && !LANGS[cur]) online.add(cur);
+  const opt = (c, n) => `<option value="${c}" ${c === cur ? "selected" : ""}>${esc(n)}</option>`;
+  const other = [...online].filter(c => !LANGS[c]).sort((a, b) => lname(a).localeCompare(lname(b)));
+  $("#lang").innerHTML = Object.entries(LANGS).map(([c, n]) => opt(c, n)).join("")
+    + (other.length ? `<optgroup label="${esc(t("s2.lang_other"))}">${other.map(c => opt(c, lname(c))).join("")}</optgroup>` : "");
+  langHint();
+}
+function langHint() {  // one line under the language field for a language without rules
+  const c = $("#lang").value, e = ENG.list.length ? ENG.cur() : null;
+  const key = LANGS[c] ? "" : e && e.name === "cosyvoice3" ? "s2.lang_local" : WEAK_RULELESS.has(c) ? "s2.lang_weak" : "s2.lang_hint";
+  $("#lang-hint").hidden = !key; $("#lang-hint").textContent = key ? t(key, { lang: lname(c) }) : "";
 }
 function renderChapters(keep) {
   const tb = $("#chapters");
@@ -1677,7 +1693,7 @@ async function reflow() {
   book = r; LANGINFO = null; renderChapters(); loadVoices(); loadLangs();
   if (ENG.cloud()) { ENG.vlang = undefined; engVoices(); engEstimate(); }  // an online engine lists the voices of the book's language
 }
-$("#depth").onchange = reflow; $("#lang").onchange = reflow;
+$("#depth").onchange = reflow; $("#lang").onchange = () => { langHint(); reflow(); };
 
 // ---- voices: a searchable, filterable gallery with waveform thumbnails -------------------------------
 let VOICES = [], AUTO = {}, FAV = new Set(), vf = { q: "", lang: null, gender: "", fav: false, manual: false }, vplayer = null;
@@ -2450,6 +2466,7 @@ function engChange() {
   optionsVisibility(); ENG.est = null; $("#eng-est").textContent = ""; runSummary();
   $("#o-takes").parentElement.title = e.cloud ? t("eng.retakebilled") : "";
   $("#eng-blurb").innerHTML = engBlurb(e);
+  if (book) fillLangs($("#lang").value || book.lang);
   if (e.fish) fishRefresh(); else $("#eng-fish").hidden = true;
   if (!e.cloud) return;
   $("#o-tts_model").innerHTML = `<option value="auto">${esc(t("eng.autonew"))}</option>` + e.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${e.prices[m.id] != null ? ` (≈ $${dec(e.prices[m.id], 2)}/${t("u.h")})` : ""}${m.note ? " — " + esc(m.note) : ""}</option>`).join("");

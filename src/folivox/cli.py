@@ -112,7 +112,7 @@ def inspect(
     book_path: Path = typer.Argument(..., help="Book file (FB2, EPUB, DOCX, PDF, TXT, or ZIP of one)."),
     depth: int = typer.Option(2, "--depth", help="How deep to split the book into chapters (1 = top level only)."),
     lang: str | None = typer.Option(None, "--lang", show_default="from book / detected",
-                                    help="Book language: ru en de fr es it zh ja ko."),
+                                    help="Book language: ru en de fr es it zh ja ko; others online."),
     text: bool = typer.Option(False, "--text", help="Add a column with the beginning of every chapter."),
 ):
     """Show the book structure, chapters and estimated audio length."""
@@ -277,7 +277,7 @@ class RichEvents(Events):
 def names(
     book_path: Path = typer.Argument(..., help="Book file (FB2, EPUB, DOCX, PDF, TXT, or ZIP of one)."),
     lang: str | None = typer.Option(None, "--lang", show_default="from book / detected",
-                                    help="Book language: ru en de fr es it zh ja ko."),
+                                    help="Book language: ru en de fr es it zh ja ko; others online."),
     min_count: int = typer.Option(3, "--min", min=1, help="Only names that occur at least this many times."),
     limit: int = typer.Option(150, "--limit", min=1, help="At most this many names (the most frequent first)."),
     write: bool = typer.Option(False, "--write", help="Add the new names to <book>.pronounce.txt instead of printing."),
@@ -311,7 +311,7 @@ def names(
 def render(
     book_path: Path = typer.Argument(..., help="Book file (FB2, EPUB, DOCX, PDF, TXT, or ZIP of one)."),
     lang: str | None = typer.Option(None, "--lang", rich_help_panel=P_INPUT, show_default="from book / detected",
-                                    help="Book language: ru en de fr es it zh ja ko."),
+                                    help="Book language: ru en de fr es it zh ja ko; others online."),
     chapters: str | None = typer.Option(None, "--chapters", "-c", rich_help_panel=P_INPUT, show_default="all",
                                         help="Chapters to render, e.g. 1-3,5 (numbers from `folivox inspect`)."),
     depth: int = typer.Option(2, "--depth", rich_help_panel=P_INPUT,
