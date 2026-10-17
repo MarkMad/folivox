@@ -28,7 +28,7 @@ ANALYSIS_SR = 16000
 VOICE_SR = 24000
 FRAME = 480  # 30 ms at 16 kHz
 FRAME_S = FRAME / ANALYSIS_SR
-MIN_LEN, MAX_LEN, BEST_LEN = 6.0, 15.0, 10.0
+MIN_LEN, MAX_LEN = 6.0, 15.0
 PAD = 0.12  # seconds kept around a window so no word is clipped
 
 
@@ -221,9 +221,10 @@ def _phrases(fr: Frames, floor: float) -> tuple[np.ndarray, list[_Phrase]]:
     return joined, out
 
 
-def find_windows(fr: Frames) -> list[Candidate]:
-    """Every 6–15 s run of neighbouring phrases, scored 0..1 (most promising first)."""
-    if len(fr.db) < int(MIN_LEN / FRAME_S):
+def find_windows(fr: Frames, length: tuple[float, float] = (MIN_LEN, MAX_LEN)) -> list[Candidate]:
+    """Every run of neighbouring phrases of ``length`` seconds, scored 0..1 (most promising first)."""
+    min_len, max_len = length
+    if len(fr.db) < int(min_len / FRAME_S):
         return []
     floor = float(np.percentile(fr.db, 10))
     speech, phrases = _phrases(fr, floor)
@@ -235,9 +236,9 @@ def find_windows(fr: Frames) -> list[Candidate]:
             if j > i and phrases[j].a - phrases[j - 1].b > max_gap:
                 break
             span = (last.b - first.a) * FRAME_S
-            if span > MAX_LEN:
+            if span > max_len:
                 break
-            if span < MIN_LEN:
+            if span < min_len:
                 continue
             seg = slice(first.a, last.b)
             group = phrases[i:j + 1]
@@ -249,7 +250,7 @@ def find_windows(fr: Frames) -> list[Candidate]:
             dens = float(spk.mean())
             dens_s = min(1.0, dens / 0.6) if dens < 0.97 else 0.7
             voiced = float(np.average([p.voiced for p in group], weights=[p.b - p.a for p in group]))
-            length_s = 1.0 if 8 <= span <= 13 else 0.75
+            length_s = 1.0 if abs(span - (min_len + max_len) / 2) <= (max_len - min_len) * 0.3 else 0.75
             score = 0.45 * snr + 0.2 * dens_s + 0.15 * length_s + 0.2 * min(1.0, voiced / 0.5)
             if float((fr.peak[seg] >= 0.98).mean()) > 0.005:  # clipping
                 score *= 0.5
@@ -275,6 +276,7 @@ def pick_distinct(cands: list[Candidate], n: int, min_gap: float = 5.0) -> list[
 # ── the whole search ──────────────────────────────────────────────────────────
 
 def find_samples(path: Path, lang: str, asr=None, *, count: int = 3, start: float = 0.0, end: float | None = None,
+                 length: tuple[float, float] = (MIN_LEN, MAX_LEN),
                  progress: Callable[[float, str], None] | None = None) -> list[Candidate]:
     """Up to ``count`` samples of 6–15 s, best first. ``asr`` is a recogniser (``Transcriber(language=lang)``)."""
     from folivox.tts.voice import transcript_warnings
@@ -287,10 +289,10 @@ def find_samples(path: Path, lang: str, asr=None, *, count: int = 3, start: floa
         raise NothingFound("The file has no audio track.")
     say = progress or (lambda *_: None)
     fr = analyse_file(path, start, end, lambda f: say(f * 0.7, "analysing"), total)
-    pool = pick_distinct(find_windows(fr), max(6, count * 3))
+    pool = pick_distinct(find_windows(fr, length), max(6, count * 3))
     if not pool:
-        raise NothingFound("No clean stretch of speech of 6–15 s found: the recording is music, noise or "
-                           "speech with no pauses. Try another part with --from/--to.")
+        raise NothingFound(f"No clean stretch of speech of {length[0]:g}–{length[1]:g} s found: "
+                           "the recording is music, noise or speech with no pauses. Try another part with --from/--to.")
     for c in pool:  # frame times are relative to ``start``
         c.start += start
         c.end += start

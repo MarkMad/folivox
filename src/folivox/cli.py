@@ -702,16 +702,17 @@ def voices_add(
     with tempfile.TemporaryDirectory(prefix="folivox-found-") as found_dir:
         if searching:
             audio, text = _find_in_recording(audio, lang, text, pick, find_from, find_to, list_only,
-                                             Path(found_dir))
-        _voices_add_sample(voice_id, audio, text, name, gender, lang, license, force, denoise)
+                                             Path(found_dir), engine)
+        _voices_add_sample(voice_id, audio, text, name, gender, lang, license, force, denoise, engine)
 
 
 def _find_in_recording(audio: Path, lang: str, text: str | None, pick: int, find_from: str | None,
-                       find_to: str | None, list_only: bool, tmp: Path) -> tuple[Path, str]:
+                       find_to: str | None, list_only: bool, tmp: Path, engine: str) -> tuple[Path, str]:
     """Search a video or long recording for a voice sample; returns the cut WAV and its recognised text."""
     from rich.progress import Progress
 
     from folivox.qa.asr import Transcriber
+    from folivox.tts.voice import good_range
     from folivox.voices import search
 
     if text:
@@ -729,6 +730,7 @@ def _find_in_recording(audio: Path, lang: str, text: str | None, pick: int, find
             task = bar.add_task("Looking for speech", total=100)
             found = search.find_samples(
                 audio, lang, Transcriber(language=lang), count=max(3, pick), start=t0, end=t1,
+                length=good_range(engine),
                 progress=lambda f, what: bar.update(task, completed=f * 100, description=what.capitalize()))
     except (search.NothingFound, FileNotFoundError, RuntimeError) as e:
         console.print(f"[red]{e}[/]")
@@ -753,7 +755,7 @@ def _find_in_recording(audio: Path, lang: str, text: str | None, pick: int, find
 
 
 def _voices_add_sample(voice_id: str, audio: Path, text: str | None, name: str, gender: str, lang: str,
-                       license: str, force: bool, denoise: bool) -> None:
+                       license: str, force: bool, denoise: bool, engine: str) -> None:
     from folivox import voices as catalog
     from folivox.tts.voice import load_voice
 
