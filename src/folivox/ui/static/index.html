@@ -2372,8 +2372,6 @@ function fishAutoLabel(bs, engine) {  // say which build "automatic" will use, a
   const a = FISH.st.auto[engine], b = a && bs.find(x => x.id === a.id);
   return b ? t(a.installed ? "fish.auto.have" : "fish.auto.get", { title: b.title }) : t("fish.auto");
 }
-const fishCer = (m) => m.cer_min == null ? m.cer : m.cer_clean != null ? t("fish.cer.strip", { min: m.cer_min, max: m.cer_max, clean: m.cer_clean })
-  : m.cer_mean != null ? t("fish.cer.mean", { min: m.cer_min, max: m.cer_max, mean: m.cer_mean }) : t("fish.cer", { min: m.cer_min, max: m.cer_max });
 function fishFit(b) {  // the server's fit_message is English: build the sentence from the numbers instead
   const hw = FISH.st.hardware, title = b.title;
   if (!b.supported) return t("fish.fit.platform", { title, platforms: b.platforms.join(", "), here: hw.platform });
@@ -2410,7 +2408,7 @@ function fishRender() {
   const b = fishCur(); if (!b) { box.hidden = true; return; }
   $("#fish-info").textContent = t("fish.size", { gb: b.size_gb, peak: b.peak_gb, ram: b.min_total_gb });
   const m = (b.tested_on || [])[0], mlx = bs.find(x => x.engine === b.engine && !x.native && (x.tested_on || [])[0] && x.tested_on[0].rtf);
-  $("#fish-measured").textContent = [m ? t("fish.measured", { hw: m.hardware, date: m.date, rtf: m.rtf, cer: fishCer(m) }) : t("fish.unmeasured", { cmd: "folivox bench --tts " + b.engine + (b.native ? " --runtime native" : "") }),
+  $("#fish-measured").textContent = [m ? t("fish.measured", { hw: m.hardware, rtf: m.rtf }) : t("fish.unmeasured", { cmd: "folivox bench --tts " + b.engine + (b.native ? " --runtime native" : "") }),
     b.native && m && mlx && FISH.st.hardware.platform === "darwin-arm64" && m.rtf > mlx.tested_on[0].rtf * 1.1 ? t("fish.nativeslower", { mlx: mlx.tested_on[0].rtf, native: m.rtf }) : "",
     b.native && b.kind === "drama3" ? t("fish.ownserver", { cmd: "folivox runtime build drama3" }) : ""].filter(Boolean).join(" ");
   const warn = [b.fit !== "ok" ? fishFit(b) : ""];
@@ -2421,7 +2419,7 @@ function fishRender() {
   const running = FISH.inst && FISH.inst.state === "running";
   $("#fish-licence").hidden = b.accepted; $("#fish-install").hidden = !b.accepted || b.installed || running;
   $("#fish-install").textContent = t("fish.install", { gb: b.size_gb }); $("#fish-remove").hidden = !b.installed || running;
-  $("#fish-state").textContent = b.installed ? t("fish.installed") : b.accepted ? t("fish.licence.accepted", { version: b.licence_version }) : "";
+  if (!running) $("#fish-state").textContent = b.installed ? t("fish.installed") : b.accepted ? t("fish.licence.accepted", { version: b.licence_version }) : "";  // while installing, fishPoll owns this line
   $("#fish-attrib").textContent = t("fish.attrib") + " · " + b.licence_name + " " + b.licence_version;
 }
 $("#o-tts_build").addEventListener("change", fishRender);
@@ -2430,13 +2428,28 @@ async function fishPoll() {
   try { FISH.inst = await api("/api/engines/fish/install"); } catch (e) { return; }
   const i = FISH.inst, bar = $("#fish-progress"), gb = (n) => (n / 1e9).toFixed(1);
   bar.hidden = i.state !== "running";
+  // speed: blend of the last ~20 s (reacts to a change) and the average since the start (the past path), then an
+  // exponential smoothing over the polls. The server reports in bursts and a stall is real information, so a quiet
+  // spell pulls the speed down towards 0 (and the estimate up) instead of hiding anything.
+  const now = Date.now(), dl = i.state === "running" && i.phase === "downloading";
+  FISH.samples = dl ? (FISH.samples || []).concat([[now, i.done]]).filter(x => now - x[0] <= 20000) : [];
+  if (!dl) { FISH.mbs = null; FISH.start = null; }
+  else {
+    if (!FISH.start) FISH.start = [now, i.done];
+    const s0 = FISH.samples[0], st = FISH.start, mbs = (a) => Math.max(0, i.done - a[1]) / (now - a[0]) / 1e3;  // MB/s
+    const recent = s0 && now - s0[0] >= 3000 ? mbs(s0) : null, avg = now - st[0] >= 6000 ? mbs(st) : null;
+    const raw = recent !== null && avg !== null ? 0.4 * recent + 0.6 * avg : recent !== null ? recent : avg;
+    if (raw !== null) FISH.mbs = FISH.mbs === null ? raw : FISH.mbs + 0.2 * (raw - FISH.mbs);
+  }
+  const left = FISH.mbs > 0.02 && i.total > i.done ? (i.total - i.done) / (FISH.mbs * 1e6) : null;  // same wording as the model download
+  const speed = dl ? " · " + (FISH.mbs || 0).toFixed(1) + " MB/s" + (left !== null ? " · " + t("mk.eta.left", { t: mkDur(left) }) : "") : "";
   if (i.total > 0 && i.done > 0) bar.value = Math.round(100 * i.done / i.total); else bar.removeAttribute("value");  // no value = honest "working"
   if (i.state === "running") {
     $("#fish-state").textContent = i.phase === "looking" ? t("fish.looking") : i.phase === "found" ? t("fish.found", { gb: gb(i.found), of: gb(i.of) })
       : i.phase === "downloading" && !i.found && !(i.done > 0) ? t("fish.notfound")
-      : i.total >= 1e7 && i.done > 0 ? t("fish.installing", { name: i.name, done: gb(i.done), total: gb(i.total) })
+      : i.total >= 1e7 && i.done > 0 ? t("fish.installing", { name: i.name, done: gb(i.done), total: gb(i.total) }) + speed
       : i.phase === "downloading" ? t("fish.starting") : i.phase === "verifying" ? t("fish.verifying") : (i.message || t("fish.preparing"));
-    fishRender(); FISH.timer = setTimeout(fishPoll, 1500); return;
+    fishRender(); FISH.timer = setTimeout(fishPoll, 3000); return;
   }
   if (i.state === "error") { $("#fish-warn").textContent = i.message; }
   await fishRefresh();

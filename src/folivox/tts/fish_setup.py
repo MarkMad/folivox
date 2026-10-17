@@ -233,7 +233,8 @@ def _download(b: Build, wd: Path, names: list[str], progress: Progress | None, l
     from folivox.tts import weights
 
     log(f"Downloading {b.title} ({b.size_gb:.1f} GB) from huggingface.co/{b.repo} at revision {b.revision[:8]}…")
-    with weights.reporting(progress), weights._watch(b.title, wd, names):
+    sizes = {f["path"]: f.get("size", 0) for f in b.files}
+    with weights.reporting(progress), weights._watch(b.title, wd, names, sum(sizes.get(n, 0) for n in names)):
         weights.with_retries(lambda: snapshot_download(b.repo, revision=b.revision, local_dir=str(wd),
                                                        allow_patterns=names), b.title)
 

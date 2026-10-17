@@ -137,11 +137,13 @@ def _watch_measured(name: str, measure: Callable[[], int], total: int) -> Iterat
 
 
 @contextmanager
-def _watch(name: str, target: Path, patterns: list[str]) -> Iterator[None]:
+def _watch(name: str, target: Path, patterns: list[str], total: int | None = None) -> Iterator[None]:
+    """``total`` is the known size in bytes; without it the size is looked up in the default (CosyVoice) repo."""
     if _hook is None:
         yield
         return
-    with _watch_measured(name, lambda: _downloaded(target, patterns), _total_size(patterns)):
+    size = _total_size(patterns) if total is None else total
+    with _watch_measured(name, lambda: _downloaded(target, patterns), size):
         yield
 
 
