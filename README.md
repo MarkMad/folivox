@@ -214,13 +214,11 @@ Prices, limits and terms of all five engines: [docs/cloud-engines.md](docs/cloud
 <td width="50%"><img src="docs/img/studio-done.png" alt="The audiobook is ready card"><br><sub>Done: the file, its length and how long it took.</sub></td>
 <td width="50%"><img src="docs/img/studio-gallery.png" alt="Voice gallery with 64 bundled voices filtered by language"><br><sub>The bundled voice library: filter by language and sex, audition, star favourites.</sub></td>
 </tr>
-<tr>
-<td width="50%"><img src="docs/img/studio-markup.png" alt="Markup editor: a short story with dialogue highlighted by character, speakers with their voices"><br><sub>Several voices: the program finds the characters and gives each their lines; check, fix and listen in the editor. The Russian lullaby line is tagged <code>RU</code> and read in its own language.</sub></td>
-<td width="50%"><img src="docs/img/studio-languages.png" alt="Book card showing the language shares en 95% and ru 5%"><br><sub>Books with several languages: the card shows each language's share, and every fragment is read in its own language.</sub></td>
-</tr>
 </table>
 
 <sub>Demo render on a public-domain text (<i>Alice's Adventures in Wonderland</i>); timings are illustrative.</sub>
+
+<p align="center"><img src="docs/img/studio-markup.png" alt="Markup editor: a short story with dialogue highlighted by character, speakers with their voices" width="900"><br><sub>Several voices: the program finds the characters and gives each their lines; check, fix and listen in the editor. The Russian lullaby line is tagged <code>RU</code> and read in its own language.</sub></p>
 
 ## Why Folivox
 
