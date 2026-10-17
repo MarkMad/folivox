@@ -106,8 +106,8 @@ class Chinese(CJKLanguage):
     def counters(self, text: str) -> str:
         # a year is read digit by digit: 一九八四年; other numbers as numbers
         text = re.sub(r"(?<![\d.,])([12]\d{3})(?=年)", lambda m: "".join(DIGITS[int(d)] for d in m.group(1)), text)
-        # «2个» is 两个, not 二个
-        text = re.sub(rf"(?<![\d.,])(2|20{{2,4}})(?=[{MEASURE}])",
+        # «2个» is 两个, not 二个; but an ordinal stays 二: 第2层
+        text = re.sub(rf"(?<![\d.,第])(2|20{{2,4}})(?=[{MEASURE}])",
                       lambda m: TWO.get(len(m.group(1)), m.group(0)), text)
         return re.sub(r"(\d+(?:\.\d+)?)%", r"百分之\1", text)
 
