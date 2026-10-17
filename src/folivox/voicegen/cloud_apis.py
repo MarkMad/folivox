@@ -517,9 +517,8 @@ class FishAudio(CloudGenerator):
                    "clone": "Clone one of my voices"}
     style = True  # Drama 3 / S2 read a bracketed note before the words as direction: "[calm, warm narration] …"
     blurb = (
-        "Drama 3: a model that is directed in plain words (emotion, pace, who is listening). Thousands of library "
-        "voices in dozens of languages, a new voice from a description, or a clone of your own recording. The same "
-        "model also runs on this computer (Apple Silicon, 32+ GB)."
+        "Thousands of library voices in dozens of languages, a new voice from a description, or a clone of your own "
+        "recording. Drama 3 also runs on this computer (Apple Silicon, 32+ GB)."
     )
     key_env = "FISH_API_KEY"
     price_note = ("Billed per UTF-8 byte of text, so Cyrillic costs about twice and Chinese/Japanese/Korean about "
@@ -536,10 +535,17 @@ class FishAudio(CloudGenerator):
                    "community library is not listed). Never use a voice that imitates a real person without consent.")
     max_chars = 3000  # not documented; the pipeline sends 300-character fragments (Fish's own chunk size)
     BASE = "https://api.fish.audio"
-    models = (_model("drama-3", "Drama 3", "newest, directed in plain words"),
-              _model("s2.1-pro", "S2.1 Pro", "stable, price on the public list"),
-              _model("s2.1-pro-free", "S2.1 Pro (free tier)", "no cost under fair use, for tests"),
-              _model("s2-pro", "S2 Pro"))
+    models = (
+        {**_model("drama-3", "Drama 3", "newest, directed in plain words"),
+         "blurb": "Drama 3: the newest model, directed in plain words (emotion, pace, who is listening). Its price is "
+                  "not on Fish's public list: the estimate uses the list price reported at launch."},
+        {**_model("s2.1-pro", "S2.1 Pro", "stable, price on the public list"),
+         "blurb": "S2.1 Pro: the stable production model, 83 languages, $15 per million bytes of text."},
+        {**_model("s2.1-pro-free", "S2.1 Pro (free tier)", "no cost under fair use, for tests"),
+         "blurb": "S2.1 Pro free tier: the same model at no cost under fair use, without speed or availability "
+                  "guarantees. Good for tests."},
+        {**_model("s2-pro", "S2 Pro"),
+         "blurb": "S2 Pro: the previous generation, 80+ languages, $15 per million bytes of text."})
     PRICE_PER_M = {"drama-3": 50.0, "s2.1-pro": 15.0, "s2-pro": 15.0, "s2.1-pro-free": 0.0}
     BYTES_PER_CHAR = {"en": 1.0, "ru": 1.85, "zh": 3.0, "ja": 2.9, "ko": 2.7}  # UTF-8 bytes per character of prose
     DESIGN_MODEL = "voice-design-1"
