@@ -579,7 +579,7 @@ def _confirm_cloud(book, opts, yes: bool) -> None:
     chosen = [i + 1 for i in parse_selection(opts.chapters, len(book.chapters(opts.depth)))]
     chars = cost.book_chars(book, opts.depth, chosen, opts.preview)
     model = opts.tts_model if opts.tts_model != "auto" else (cls.models[0]["id"] if cls.models else "")
-    est = cost.estimate(opts.tts, chars, model, opts.max_takes, opts.qa, opts.tts_mode)
+    est = cost.estimate(opts.tts, chars, model, opts.max_takes, opts.qa, opts.tts_mode, opts.lang)
     console.print(f"[bold yellow]Paid cloud engine: {cls.label}[/] ({'model ' + model if model else 'model auto'})")
     console.print(f"  {cost.describe(est)}")
     if opts.max_cost is not None:
@@ -732,7 +732,8 @@ def voices_design(
     model: str | None = typer.Option(None, "--model", show_default="auto = newest the provider offers",
                                      help="Cloud provider model id (see `folivox providers`)."),
     mode: str | None = typer.Option(None, "--mode", show_default="from --describe / --speaker",
-                                    help="preset, design, localize (Cartesia) or clone (Cartesia)."),
+                                    help="preset, design (Gemini, ElevenLabs, Fish), localize (Cartesia), "
+                                         "clone (Cartesia, Fish)."),
     reference: str | None = typer.Option(None, "--reference", help="Your own catalog voice to clone (clone mode)."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Do not ask before sending text to a cloud provider."),
 ):
@@ -930,7 +931,7 @@ def voices_sample_text(
 
 @app.command("tts-voices", help="List the voices of a cloud reading engine (needs its API key).",
              rich_help_panel="Setup")
-def tts_voices(engine: str = typer.Argument(..., help="elevenlabs, openai, gemini or cartesia."),
+def tts_voices(engine: str = typer.Argument(..., help="elevenlabs, openai, gemini, cartesia or fish."),
                lang: str | None = typer.Option(None, "--lang", help="Only voices for this language (Cartesia)."),
                delete: str | None = typer.Option(None, "--delete", metavar="NAME_OR_ID",
                                                  help="Delete a kept voice from your account and forget it.")):

@@ -19,5 +19,7 @@ for _n, _d, _k in (
         ("gemini", "Gemini API TTS (cloud, paid): 30 voices, style notes, voice from a description",
          "GEMINI_API_KEY"),
         ("cartesia", "Cartesia Sonic (cloud, paid): fast clean voices, 40+ languages, clone your own voice",
-         "CARTESIA_API_KEY")):
+         "CARTESIA_API_KEY"),
+        ("fish", "Fish Audio Drama 3 (cloud, paid): directed delivery, voice library, clone or design a voice, "
+                 "80+ languages", "FISH_API_KEY")):
     ENGINES.register(_n, f"folivox.tts.cloud:{_n}", _d, local=False, needs=_k)

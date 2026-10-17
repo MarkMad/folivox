@@ -53,7 +53,7 @@ def job(tmp_path, **kw):
 
 def test_registry_and_capabilities():
     found = cloud_providers()
-    assert set(found) == {"openai", "gemini", "elevenlabs", "cartesia"}
+    assert set(found) == {"openai", "gemini", "elevenlabs", "cartesia", "fish"}
     assert found["elevenlabs"].modes == ("preset", "design")
     for name, cls in found.items():
         caps = cls.capabilities()

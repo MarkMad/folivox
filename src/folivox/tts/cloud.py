@@ -1,4 +1,4 @@
-"""Commercial cloud TTS engines: ElevenLabs, OpenAI, Gemini API, Cartesia.
+"""Commercial cloud TTS engines: ElevenLabs, OpenAI, Gemini API, Cartesia, Fish Audio.
 
 A thin adapter over the cloud *voice generators* in :mod:`folivox.voicegen.cloud_apis`, so the HTTP plumbing
 (retries with ``Retry-After``, error mapping, ``model=auto``, key lookup) is shared. Differences from the local
@@ -31,7 +31,7 @@ DEFAULT_STYLE = {"openai": NEUTRAL_STYLE, "gemini": NEUTRAL_STYLE}
 ACCENT_NOTE = ("Speak {language} like a native speaker, with natural {language} pronunciation and intonation, "
                "never an English accent.")
 NO_INSTRUCTIONS = ("tts-1", "tts-1-hd")  # OpenAI models that ignore the note
-PARALLEL = {"elevenlabs": 3, "openai": 3, "gemini": 2, "cartesia": 3}  # simultaneous requests per provider
+PARALLEL = {"elevenlabs": 3, "openai": 3, "gemini": 2, "cartesia": 3, "fish": 3}  # simultaneous requests per provider
 CHARS_PER_SECOND = 14  # narration pace used for audio-duration estimates
 SPEED_NOTE = "Reading speed is not applied by cloud engines; the provider's own pace is used."
 
@@ -99,6 +99,7 @@ class CloudTTS(TTSEngine):
         return (limits or {}).get(self.model, self.gen.max_chars)
 
     def estimate_usd(self, chars: int, mode: str = "preset") -> float | None:
+        chars = int(chars * type(self.gen).bytes_factor(self.lang))
         return type(self.gen).estimate_for(chars, 1, mode, self.model).get("usd")
 
     @property
@@ -284,7 +285,8 @@ def make_engine(provider: str):
 
 
 # One module-level factory per provider, importable as "folivox.tts.cloud:<name>".
-elevenlabs, openai, gemini, cartesia = (make_engine(n) for n in ("elevenlabs", "openai", "gemini", "cartesia"))
+elevenlabs, openai, gemini, cartesia, fish = (
+    make_engine(n) for n in ("elevenlabs", "openai", "gemini", "cartesia", "fish"))
 
 
 def register_cloud_engine(name: str, description: str, key_env: str, target: str | None = None) -> None:

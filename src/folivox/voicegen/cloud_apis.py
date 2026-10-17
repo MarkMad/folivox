@@ -1,5 +1,5 @@
-"""Gemini, OpenAI, ElevenLabs and Cartesia voice generators (endpoints, models and prices checked against the
-providers' documentation and live calls in October 2026; see CONTRIBUTING for how to add another).
+"""Gemini, OpenAI, ElevenLabs, Cartesia and Fish Audio voice generators (endpoints, models and prices checked
+against the providers' documentation and live calls in October 2026; see CONTRIBUTING for how to add another).
 
 Models: ``model="auto"`` (the default) asks the provider which models the key can use and takes the newest good
 one; a name pins it (``[voicegen.<name>] model = "..."`` in config.toml, ``--model`` on the command line)."""
@@ -13,7 +13,7 @@ import uuid
 from pathlib import Path
 
 from folivox.voicegen import Job
-from folivox.voicegen.cloud import CloudError, CloudGenerator, b64, file_as_wav, pcm_to_wav, to_wav
+from folivox.voicegen.cloud import CloudError, CloudGenerator, b64, file_as_wav, multipart, pcm_to_wav, to_wav
 
 LANGS = ("en", "ru", "de", "fr", "es", "it", "zh", "ja", "ko")
 
@@ -482,3 +482,160 @@ class Cartesia(CloudGenerator):
                    "language": job.lang,
                    "output_format": {"container": "wav", "encoding": "pcm_s16le", "sample_rate": 24000}}
         return self.call("POST", f"{self.BASE}/tts/bytes", payload).body
+
+
+class FishAudio(CloudGenerator):
+    """Fish Audio API: Drama 3 (and the S2 family) reading with a library voice, a voice designed from a text
+    description (``/v1/voice-design``) or a clone of one of your own recordings (``/model``). The voice made for
+    a book is a private model in the account and is deleted afterwards unless the user keeps it."""
+
+    name, label, languages = "fish", "Fish Audio", LANGS
+    modes = ("preset", "design", "clone")
+    mode_labels = {"preset": "Pick a voice from the library",
+                   "design": "Describe a voice (made for this run, then deleted)",
+                   "clone": "Clone one of my voices"}
+    style = True  # Drama 3 / S2 read a bracketed note before the words as direction: "[calm, warm narration] …"
+    blurb = (
+        "Drama 3: a model that is directed in plain words (emotion, pace, who is listening). Thousands of library "
+        "voices in dozens of languages, a new voice from a description, or a clone of your own recording. The same "
+        "model also runs on this computer (Apple Silicon, 32+ GB)."
+    )
+    key_env = "FISH_API_KEY"
+    price_note = ("Billed per UTF-8 byte of text, so Cyrillic costs about twice and Chinese/Japanese/Korean about "
+                  "three times as much per character as English. S2 models: $15 per million bytes. Drama 3 is not "
+                  "on Fish's public price page: the figure used here, $50 per million characters, is the list price "
+                  "reported at its October 2026 launch (a launch offer of $10 was reported until 12 Nov 2026); check "
+                  "your dashboard. Voice Design costs $0.01 per request. An API balance is needed: the free "
+                  "plan's credits do not cover the API. Commercial use falls under the Fish Audio Community "
+                  "License (free below USD 500k revenue, 'Built with Fish Audio' attribution, no voice "
+                  "imitation without consent).")
+    terms_url = "https://fish.audio/terms/"
+    docs_url = "https://docs.fish.audio/features/text-to-speech/drama-3"
+    voices_note = ("Library voices are uploaded by users: use only voices you may use, and never one that imitates "
+                   "a real person without their consent.")
+    max_chars = 3000  # not documented; the pipeline sends 300-character fragments (Fish's own chunk size)
+    BASE = "https://api.fish.audio"
+    models = (_model("drama-3", "Drama 3", "newest, directed in plain words"),
+              _model("s2.1-pro", "S2.1 Pro", "stable, price on the public list"),
+              _model("s2.1-pro-free", "S2.1 Pro (free tier)", "no cost under fair use, for tests"),
+              _model("s2-pro", "S2 Pro"))
+    PRICE_PER_M = {"drama-3": 50.0, "s2.1-pro": 15.0, "s2-pro": 15.0, "s2.1-pro-free": 0.0}
+    BYTES_PER_CHAR = {"en": 1.0, "ru": 1.85, "zh": 3.0, "ja": 2.9, "ko": 2.7}  # UTF-8 bytes per character of prose
+    DESIGN_MODEL = "voice-design-1"
+    FEATURED = {"en": {"bf322df2096a46f18c579d0baa36f41d": ("Adrian", "m"),  # the Drama 3 page's example voices
+                       "c70cfb98867a4bfb9ae20d2401257b92": ("Delia", "f"),
+                       "f3a2b90078d54a65af4b95f63bc7798e": ("Sheila", "f")}}
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.names, self.details = {}, {}
+
+    def headers(self):
+        return {"Authorization": f"Bearer {self.key}"}
+
+    @classmethod
+    def bytes_factor(cls, lang=""):
+        return cls.BYTES_PER_CHAR.get(lang, 1.08)  # the Latin languages with accents
+
+    @classmethod
+    def estimate_for(cls, chars, takes=1, mode="preset", model=""):
+        n = chars * takes
+        price = cls.PRICE_PER_M.get(model or cls.models[0]["id"], cls.PRICE_PER_M["drama-3"])
+        usd = n * price / 1e6 + (0.01 if mode == "design" else 0.0)
+        return {"chars": n, "usd": round(usd, 3), "note": cls.price_note}
+
+    # ---- voices ----------------------------------------------------------------------------------
+    def speakers(self, lang=None):
+        key = lang or ""
+        cache = self.__dict__.setdefault("_by_lang", {})
+        if key not in cache:
+            out: dict[str, tuple[str, str]] = {}
+            for vid, (name, sex) in self.FEATURED.get(lang or "", {}).items():
+                out[vid] = (lang or "", sex)
+                self.names[vid] = name
+                self.details[vid] = {"traits": "Drama 3 example voice", "description": "", "preview_url": ""}
+            for own in (True, False):  # the account's own voices first, then the public library by popularity
+                q = {"page_size": 100, "sort_by": "task_count", **({"self": "true"} if own else {}),
+                     **({"language": lang} if lang and not own else {})}
+                data = self.call("GET", f"{self.BASE}/model?{urllib.parse.urlencode(q)}").json()
+                for v in data.get("items", []):
+                    if v.get("type") != "tts" or v.get("state") != "trained" or not v.get("_id"):
+                        continue
+                    tags = [str(t) for t in v.get("tags") or []]
+                    low = {t.lower() for t in tags}
+                    sex = "f" if "female" in low else "m" if "male" in low else ""
+                    out.setdefault(v["_id"], ((v.get("languages") or [""])[0], sex))
+                    self.names.setdefault(v["_id"], v.get("title") or v["_id"])
+                    sample = (v.get("samples") or [{}])[0]
+                    self.details.setdefault(v["_id"], {
+                        "traits": " · ".join(t for t in tags if t.lower() not in ("male", "female"))[:80],
+                        "description": (v.get("description") or "")[:300], "preview_url": sample.get("audio") or ""})
+            cache[key] = out
+        return cache[key]
+
+    def create_voice(self, title: str, audio: bytes, filename: str, text: str = "", enhance: bool = True) -> str:
+        """A private, instantly trained voice model from one clip; ``text`` is its transcript (else Fish runs ASR)."""
+        fields = [("type", "tts"), ("title", title), ("train_mode", "fast"), ("visibility", "private"),
+                  ("enhance_audio_quality", "true" if enhance else "false")]
+        if text:
+            fields.append(("texts", text))
+        ctype = "audio/wav" if audio[:4] == b"RIFF" else "application/octet-stream"
+        body = self.call("POST", f"{self.BASE}/model", raw=multipart(fields, [("voices", filename, audio, ctype)]),
+                         timeout=180).json()
+        if not body.get("_id"):
+            raise CloudError("Fish Audio did not return a voice id", "server")
+        if body.get("state") == "failed":
+            raise CloudError("Fish Audio could not train a voice from this sample", "bad_request")
+        return body["_id"]
+
+    def setup_voices(self, jobs):
+        if self.mode == "preset":
+            return []
+        made: dict[tuple, str] = {}
+        name = f"folivox-{uuid.uuid4().hex[:8]}"
+        for j in jobs:
+            self.check_lang(j.lang)
+            key = (j.description, j.lang) if self.mode == "design" else (str(j.reference), j.lang)
+            if key not in made:
+                if self.mode == "design":
+                    made[key] = self.design(j, name)
+                else:
+                    if not j.reference or not Path(j.reference).exists():
+                        raise CloudError("Fish Audio clone: choose one of your own voices as the sample",
+                                         "bad_request")
+                    made[key] = self.create_voice(name, file_as_wav(Path(j.reference)), "voice.wav")
+            j.speaker = made[key]
+        return list(dict.fromkeys(made.values()))
+
+    def design(self, j: Job, name: str) -> str:
+        """Voice Design returns short stateless candidates; the first becomes a reusable model, so every
+        fragment of the book is read by the same voice."""
+        if len(j.description.strip()) < 10:
+            raise CloudError("Fish Audio Voice Design needs a description of at least a few words", "bad_request")
+        payload = {"instruction": j.description.strip()[:2000], "n": 1, **({"language": j.lang} if j.lang else {})}
+        data = self.call("POST", f"{self.BASE}/v1/voice-design", payload, headers={"model": self.DESIGN_MODEL}).json()
+        cands = data.get("candidates") or []
+        if not cands or not cands[0].get("audio_base64"):
+            raise CloudError("Fish Audio returned no voice candidate for the description", "server")
+        return self.create_voice(name, b64(cands[0]["audio_base64"]), "voice.wav", cands[0].get("text") or "",
+                                 enhance=False)
+
+    def teardown_voices(self, ids):
+        for i in ids:
+            self.call("DELETE", f"{self.BASE}/model/{urllib.parse.quote(i, safe='')}")
+
+    # ---- synthesis -------------------------------------------------------------------------------
+    def synth(self, job: Job) -> bytes:
+        if not job.speaker:
+            raise CloudError("Fish Audio: pick a voice (a voice id from the library or your account)", "bad_request")
+        text = job.text
+        if job.description:
+            text = f"[{job.description.strip('[] ')}] {text}"
+        # Folivox has already expanded numbers and abbreviations for the fragment's language, so Fish's own
+        # normalisation stays off; PCM avoids a streamed WAV header of unknown length.
+        payload = {"text": text, "reference_id": job.speaker, "format": "pcm", "sample_rate": 24000,
+                   "normalize": False, **({"language": job.lang} if job.lang else {})}
+        body = self.call("POST", f"{self.BASE}/v1/tts", payload, headers={"model": self.model}).body
+        if not body:
+            raise CloudError("Fish Audio returned no audio", "server")
+        return pcm_to_wav(body, 24000)

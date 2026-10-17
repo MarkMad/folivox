@@ -784,7 +784,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             ref = voice.path
         if mode == "design" and not mine and len(description) < 10:
             raise ApiError("Describe the voice (at least a few words)")
-        if mode in ("preset", "localize") and not speaker and tts in ("elevenlabs", "cartesia"):
+        if mode in ("preset", "localize") and not speaker and tts in ("elevenlabs", "cartesia", "fish"):
             raise ApiError("Pick one of the provider's voices")
         cap = o.get("max_cost")
         try:
@@ -1231,7 +1231,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
 
         out = [{**cls.capabilities(), **key_state(cls), "sample_usd": sample_usd(cls)}
                for cls in cloud_providers().values()]
-        order = ["gemini", "cartesia", "elevenlabs", "openai"]  # by value for money
+        order = ["gemini", "cartesia", "fish", "elevenlabs", "openai"]  # by value for money
         tags = {"gemini": "cheap and best", "openai": "low quality for non-English"}
         for p in out:
             p["tag"] = tags.get(p["name"], "")
@@ -1261,7 +1261,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                 out.append({"name": name, "label": bs[0].title.split(",")[0], "local": True, "cloud": False,
                             "fish": True, "blurb": "", "models": [], "per_hour": 0,
                             "builds": [b.id for b in bs]})
-        order = ["cosyvoice3", "fish-drama3", "fish-s2", "gemini", "cartesia", "elevenlabs", "openai"]  # free first
+        order = ["cosyvoice3", "fish-drama3", "fish-s2", "gemini", "cartesia", "fish", "elevenlabs",
+                 "openai"]  # free first
         tags = {"gemini": "cheap and best", "openai": "low quality for non-English",
                 "fish-drama3": "best"}
         for e in out:
@@ -1295,7 +1296,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         if model in ("auto", "latest"):
             model = cls.models[0]["id"] if cls.models else ""
         est = cost.estimate(cls.name, chars, model, int(o.get("takes") or 2), bool(o.get("qa", True)),
-                            str(o.get("tts_mode") or "preset"))
+                            str(o.get("tts_mode") or "preset"), str(o.get("lang") or entry["book"].lang or ""))
         return JSONResponse({**est, "summary": cost.describe(est), "notice": COMMERCIAL_NOTICE,
                              "label": cls.label, "price_note": cls.price_note})
 

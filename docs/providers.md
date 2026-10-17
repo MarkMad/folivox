@@ -8,7 +8,7 @@ folivox providers        # what is available and selected
 |---|---|---|
 | `tts` | `cosyvoice3` | `fish-s2`, `fish-drama3` ([Fish Audio engines](fish-engines.md): optional download, own licence), and the paid cloud engines |
 | `asr` | `auto` (mlx-whisper / faster-whisper) | `openai` (any OpenAI-compatible transcription API) |
-| `voicegen` | `qwen3-voicedesign`, `qwen3-customvoice` | `gemini`, `openai`, `elevenlabs`, `cartesia` |
+| `voicegen` | `qwen3-voicedesign`, `qwen3-customvoice` | `gemini`, `openai`, `elevenlabs`, `cartesia`, `fish` |
 | `llm` | `ollama` | `openai` (OpenAI, OpenRouter, llama.cpp server… any OpenAI-compatible API) |
 
 Choose with CLI options, `FOLIVOX_TTS` / `FOLIVOX_ASR` / `FOLIVOX_VOICEGEN` / `FOLIVOX_LLM`, or a

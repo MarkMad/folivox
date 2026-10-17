@@ -78,6 +78,7 @@ short text, listen to the takes (ranked by Whisper), keep the best one as your c
 | `gemini` | `preset` (30 voices + narration style), `design` (voice from a description; made for the run, then deleted) | `gemini-3.8-flash-tts`, `-flash-lite-tts`, 3.1 preview, 2.5 | `GEMINI_API_KEY` |
 | `openai` | `preset` (13 voices + style instructions on `gpt-*-tts`) | `gpt-4o-mini-tts`, `tts-1-hd`, `tts-1` | `OPENAI_API_KEY` |
 | `elevenlabs` | `preset` (premade voices; `[style]` audio tags on v3/v4), `design` (3 previews per request, billed once) | `eleven_v4`, `eleven_v3`, `eleven_multilingual_v2`, `eleven_flash_v2_5` (design: `eleven_ttv_v3`) | `ELEVENLABS_API_KEY` |
+| `fish` | `preset` (library), `design` (Voice Design, saved as a private model), `clone` (one of your own voices) | `drama-3`, `s2.1-pro`, `s2.1-pro-free`, `s2-pro` | `FISH_API_KEY` |
 | `cartesia` | `preset`, `localize` (same voice with the native accent of the language), `clone` (one of your own voices) | `sonic-3.6`, `sonic-3.5`, `sonic-3`, `sonic-latest` | `CARTESIA_API_KEY` |
 
 Texts here are a few hundred characters, so use the best model: with `auto` Folivox asks the provider

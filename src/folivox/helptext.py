@@ -33,7 +33,7 @@ RENDER_EPILOG = """\
 
 TOPICS: dict[str, tuple[str, str]] = {
     "cloud": ("Paid cloud reading engines", """\
-ElevenLabs, OpenAI, Gemini API and Cartesia can read the whole book instead of the local model.
+ElevenLabs, OpenAI, Gemini API, Cartesia and Fish Audio (Drama 3) can read the whole book instead of the local model.
 The book text is sent to the provider and [bold]billed to your account[/] (a whole book can cost tens of dollars).
 
   [cyan]folivox render book.epub --tts elevenlabs --tts-voice Rachel --preview 600[/]   cheap test first
@@ -60,8 +60,9 @@ Without [cyan]--voice[/] Folivox picks a catalog voice in the book's language.
   [cyan]folivox voices design anna -g cartesia --mode localize --speaker <id> --lang ru[/]   native accent
   [cyan]--model NAME[/] pins a cloud model; the default [cyan]auto[/] uses the newest the provider lists.
 
-Cloud generators ([cyan]openai[/], [cyan]gemini[/], [cyan]elevenlabs[/], [cyan]cartesia[/]) need an API key in
-[cyan]OPENAI_API_KEY[/], [cyan]GEMINI_API_KEY[/], [cyan]ELEVENLABS_API_KEY[/], [cyan]CARTESIA_API_KEY[/]
+Cloud generators ([cyan]openai[/], [cyan]gemini[/], [cyan]elevenlabs[/], [cyan]cartesia[/], [cyan]fish[/]) need an
+API key in [cyan]OPENAI_API_KEY[/], [cyan]GEMINI_API_KEY[/], [cyan]ELEVENLABS_API_KEY[/], [cyan]CARTESIA_API_KEY[/],
+[cyan]FISH_API_KEY[/]
 (or the OS keychain via [cyan]folivox ui[/]). The text is sent to the provider and billed to you;
 the voice is stored as a [bold]commercial API[/] voice for your own use and is never bundled.
 Check each provider's terms.

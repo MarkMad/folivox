@@ -171,6 +171,11 @@ class CloudGenerator(VoiceGenerator):
         """Characters sent and, where the provider documents a price, an approximate cost (``usd`` else None)."""
         return {"chars": chars * takes, "usd": None, "note": cls.price_note}
 
+    @classmethod
+    def bytes_factor(cls, lang: str = "") -> float:
+        """Billed units per character of text in ``lang`` (1 unless the provider bills by UTF-8 bytes)."""
+        return 1.0
+
     def speakers(self, lang: str | None = None) -> dict[str, tuple[str, str]]:
         """Preset voices ``{id: (language or "", sex "f"/"m"/"")}``; may call the provider's API."""
         return {}
@@ -183,9 +188,15 @@ class CloudGenerator(VoiceGenerator):
     def headers(self) -> dict[str, str]:
         raise NotImplementedError
 
-    def call(self, method: str, url: str, payload: dict | None = None, *, timeout: float = 300) -> Response:
+    def call(self, method: str, url: str, payload: dict | None = None, *, timeout: float = 300,
+             raw: tuple[bytes, str] | None = None, headers: dict[str, str] | None = None) -> Response:
+        """One request with retries. ``raw`` = ``(body, content_type)`` replaces the JSON payload (multipart
+        uploads); ``headers`` adds request-specific headers to the provider's own."""
         body = json.dumps(payload).encode() if payload is not None else None
-        headers = {**self.headers(), **({"Content-Type": "application/json"} if body is not None else {})}
+        ctype = "application/json"
+        if raw is not None:
+            body, ctype = raw
+        headers = {**self.headers(), **(headers or {}), **({"Content-Type": ctype} if body is not None else {})}
         for attempt in range(self.retries + 1):
             try:
                 resp = self.transport(method, url, headers, body, timeout)
@@ -271,6 +282,20 @@ class CloudGenerator(VoiceGenerator):
             except CloudError:
                 pass
         return [j.out for j in jobs]
+
+
+def multipart(fields: list[tuple[str, str]], files: list[tuple[str, str, bytes, str]]) -> tuple[bytes, str]:
+    """A multipart/form-data body and its Content-Type. ``files`` = ``(field, filename, data, content_type)``."""
+    import uuid
+
+    boundary = uuid.uuid4().hex
+    out = b""
+    for name, value in fields:
+        out += (f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n').encode()
+    for name, filename, data, ctype in files:
+        out += (f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"; filename="{filename}"\r\n'
+                f'Content-Type: {ctype}\r\n\r\n').encode() + data + b"\r\n"
+    return out + f"--{boundary}--\r\n".encode(), f"multipart/form-data; boundary={boundary}"
 
 
 def to_wav(data: bytes, rate: int = 24000) -> bytes:

@@ -50,7 +50,7 @@ def run(tmp_path, eng, voice, **kw):
 
 def test_registered_as_cloud_engines():
     for name, env in (("elevenlabs", "ELEVENLABS_API_KEY"), ("openai", "OPENAI_API_KEY"),
-                      ("gemini", "GEMINI_API_KEY"), ("cartesia", "CARTESIA_API_KEY")):
+                      ("gemini", "GEMINI_API_KEY"), ("cartesia", "CARTESIA_API_KEY"), ("fish", "FISH_API_KEY")):
         p = ENGINES.get(name)
         assert not p.local and p.needs == env
 

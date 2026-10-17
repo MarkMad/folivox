@@ -20,7 +20,7 @@ names are given for that.
 | Install | `astral.sh` (the `uv` installer), `github.com` / `raw.githubusercontent.com` (Folivox itself), `pypi.org` and `files.pythonhosted.org` (Python packages), `download.pytorch.org` (PyTorch builds) | Installing the program |
 | First run of the local voice | `huggingface.co`, repository `FunAudioLLM/Fun-CosyVoice3-0.5B-2512` (`src/folivox/tts/weights.py`) | Voice model weights, about 4.5 GB |
 | First use of the quality check | `huggingface.co`, Whisper `large-v3-turbo` (`src/folivox/qa/asr.py`) | Speech recognition model that checks each take |
-| Only if you pick a cloud engine and set a key | OpenAI, Google Gemini, ElevenLabs, Cartesia (`src/folivox/voicegen/cloud_apis.py`, `src/folivox/tts/cloud.py`) | Speech synthesis; the text of the book goes to that provider |
+| Only if you pick a cloud engine and set a key | OpenAI, Google Gemini, ElevenLabs, Cartesia, Fish Audio (`src/folivox/voicegen/cloud_apis.py`, `src/folivox/tts/cloud.py`) | Speech synthesis; the text of the book goes to that provider |
 | Only if you pick a cloud text helper | OpenRouter / OpenAI, or a local Ollama on `localhost:11434` (`src/folivox/llm.py`) | Writing voice descriptions; short snippets only |
 
 There is no other network code. You can check: `grep -rnE "urlopen|huggingface_hub|requests|socket" src` (the

@@ -25,7 +25,7 @@ Folivox turns a whole book, many hours of it, into a finished audiobook. Out of 
 running entirely on your machine: no account, no subscription, no per-character fee, nothing uploaded.
 
 It is one application with many engines behind it. The book can be read by the free local model or by
-ElevenLabs, OpenAI, Gemini or Cartesia with your own API key. A narrator voice can come from the bundled
+ElevenLabs, OpenAI, Gemini, Cartesia or Fish Audio with your own API key. A narrator voice can come from the bundled
 catalog, from your own recording, or be designed for this particular book. Everything around the voice,
 from text clean-up to quality control, chapters and a crash-safe journal, is the same whichever engine you choose.
 
@@ -126,7 +126,7 @@ Details, options, manual install and troubleshooting: [docs/install.md](docs/ins
 
 | | Free, on your computer | With an online engine (your API key) |
 |---|---|---|
-| **Who reads** | CosyVoice 3, local and offline | ElevenLabs, OpenAI, Gemini or Cartesia |
+| **Who reads** | CosyVoice 3, local and offline | ElevenLabs, OpenAI, Gemini, Cartesia or Fish Audio |
 | **Voice** | Clones any sample: bundled, recorded, uploaded or generated | The provider's voices, or a voice designed or localised for the book |
 | **Cost** | Free | Estimated before you start, confirmed by you, with an optional spending cap |
 | **Your text** | Never leaves your computer | Sent to that provider |

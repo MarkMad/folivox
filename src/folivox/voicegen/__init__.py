@@ -118,5 +118,7 @@ for _name, _cls, _desc, _key in (
         ("gemini", "Gemini", "Gemini API TTS: 30 preset voices, style notes", "GEMINI_API_KEY"),
         ("elevenlabs", "ElevenLabs", "ElevenLabs: preset voices + Voice Design from a text prompt",
          "ELEVENLABS_API_KEY"),
-        ("cartesia", "Cartesia", "Cartesia Sonic: preset voices", "CARTESIA_API_KEY")):
+        ("cartesia", "Cartesia", "Cartesia Sonic: preset voices", "CARTESIA_API_KEY"),
+        ("fish", "FishAudio", "Fish Audio Drama 3: library voices, voice from a description, clone your own voice",
+         "FISH_API_KEY")):
     GENERATORS.register(_name, f"folivox.voicegen.cloud_apis:{_cls}", _desc, local=False, needs=_key)

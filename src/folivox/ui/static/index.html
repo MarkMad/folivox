@@ -2480,7 +2480,7 @@ async function engVoices() {
     const localize = $("#o-tts_mode").value === "localize"; if (ENG.vlang === undefined) ENG.vlang = "en";
     const lang = localize ? ENG.vlang : (book && book.lang) || "", r = ENG.voices[e.name + lang] || (ENG.voices[e.name + lang] = await api(`/api/gen/voices/${e.name}?lang=${encodeURIComponent(lang)}`));
     if (ticket !== ENG.ticket) return;  // a newer request (another mode or engine) owns the list now
-    ENG.vlist = (e.name === "elevenlabs" || e.name === "cartesia" ? [] : [{ id: "", name: t("eng.default"), traits: t("eng.neutral"), gender: "" }]).concat(r.voices);
+    ENG.vlist = (e.name === "elevenlabs" || e.name === "cartesia" || e.name === "fish" ? [] : [{ id: "", name: t("eng.default"), traits: t("eng.neutral"), gender: "" }]).concat(r.voices);
     ENG.vnote = r.note || ""; ENG.vname = e.name;
     if (!ENG.vlist.some(v => v.id === $("#o-tts_voice").value)) $("#o-tts_voice").value = ENG.vlist[0] ? ENG.vlist[0].id : "";
     engRenderVoices();
@@ -2889,7 +2889,7 @@ async function loadSettings() {
   $("#settings-note").textContent = t("set.file", { path: s.config_path });
   $("#o-output_dir").placeholder = s.output_dir;
 }
-const SERVICE = { GEMINI_API_KEY: "Google Gemini", OPENAI_API_KEY: "OpenAI", ELEVENLABS_API_KEY: "ElevenLabs", CARTESIA_API_KEY: "Cartesia" };
+const SERVICE = { GEMINI_API_KEY: "Google Gemini", OPENAI_API_KEY: "OpenAI", ELEVENLABS_API_KEY: "ElevenLabs", CARTESIA_API_KEY: "Cartesia", FISH_API_KEY: "Fish Audio" };
 const USED_FOR = new Proxy({}, { get: (_, k) => ["tts", "voicegen", "asr", "llm"].includes(k) ? t("used." + k) : undefined });
 async function loadKeys() {
   const { keys } = await api("/api/keys");

@@ -19,15 +19,18 @@ def book_chars(book, depth: int = 2, selected: list[int] | None = None, preview:
     return total
 
 
-def estimate(provider: str, chars: int, model: str, takes: int = 2, qa: bool = True, mode: str = "preset") -> dict:
+def estimate(provider: str, chars: int, model: str, takes: int = 2, qa: bool = True, mode: str = "preset",
+             lang: str = "") -> dict:
     """``{chars, likely_chars, max_chars_billed, usd, usd_max, per_hour, hours}``; usd values may be None."""
     cls = generator_class(provider)
     takes = max(1, takes if qa else 1)
     likely = int(chars * (1 + RETAKE_SHARE * (takes - 1))) if takes > 1 else chars
     worst = chars * takes
 
+    factor = cls.bytes_factor(lang)  # providers that bill UTF-8 bytes charge more per character outside ASCII
+
     def usd(n):
-        return cls.estimate_for(n, 1, mode, model).get("usd")
+        return cls.estimate_for(int(n * factor), 1, mode, model).get("usd")
 
     hour = CHARS_PER_SECOND * 3600
     return {"provider": provider, "model": model, "chars": chars, "likely_chars": likely,

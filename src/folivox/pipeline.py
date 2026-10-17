@@ -696,7 +696,7 @@ def _cloud_voice(engine, opts: RenderOptions, journal: Journal, events: Events):
     voice = engine.make_voice(opts.tts_voice, opts.tts_style, opts.lang, opts.tts_mode, opts.tts_description,
                               opts.voice_ref, remembered or "")
     if opts.tts_mode == "preset":
-        if not voice.speaker and opts.tts in ("elevenlabs", "cartesia"):
+        if not voice.speaker and opts.tts in ("elevenlabs", "cartesia", "fish"):
             raise RuntimeError(f"Pick a voice for {opts.tts} (--tts-voice NAME or id; `folivox tts-voices {opts.tts}`)")
         return voice, False
     journal.set_meta(cloud_voice=voice.speaker, cloud_voice_for=kind)

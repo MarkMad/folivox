@@ -68,7 +68,7 @@ language, as the entry says how to read it there.
 | CosyVoice 3, Fish Audio S2 Pro, Drama 3 | No language parameter: the model reads the language of the text. The fragment is planned and cut in its language and checked in it. |
 | ElevenLabs | Reads the language of the text. |
 | OpenAI, Gemini | No language parameter; the "native speaker, no English accent" note names the fragment's language. |
-| Cartesia | The fragment's language is sent in the request. |
+| Cartesia, Fish Audio (cloud) | The fragment's language is sent in the request. |
 
 An engine that does not list a language (or a language Folivox has no text rules for) reads such fragments in
 the book's language, and the render log says how many. One-voice books use this too: the studio keeps the languages
