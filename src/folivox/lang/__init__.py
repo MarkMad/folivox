@@ -9,12 +9,14 @@ import importlib
 
 from folivox.lang.base import CJKLanguage, Language, LatinLanguage, has_speech
 
-__all__ = ["CJKLanguage", "Language", "LatinLanguage", "available", "get", "has_speech", "register"]
+__all__ = ["CJKLanguage", "Language", "LatinLanguage", "available", "get", "has_rules", "has_speech", "register"]
 
-# CosyVoice 3 languages. Each code maps to the module folivox.lang.<code>.
+# Languages with normalisation rules (the CosyVoice 3 set). Any other known code gets a rule-less
+# GenericLanguage from get(). Each code maps to the module folivox.lang.<code>.
 SUPPORTED = ("ru", "en", "de", "fr", "es", "it", "zh", "ja", "ko")
 
 _registry: dict[str, Language] = {}
+_generic: dict[str, Language] = {}  # rule-less languages, built on demand
 
 
 def register(lang: Language) -> Language:
@@ -49,6 +51,17 @@ def get(code: str | None) -> Language:
             importlib.import_module(f"folivox.lang.{code}")
         except ImportError:
             pass
-    if code not in _registry:
-        raise ValueError(f"Unsupported language {code!r}; supported: {', '.join(SUPPORTED)}")
-    return _registry[code]
+    if code in _registry:
+        return _registry[code]
+    from folivox.lang.generic import NAMES, GenericLanguage
+
+    if code not in NAMES:
+        raise ValueError(f"Unknown language {code!r}; languages with rules: {', '.join(SUPPORTED)}")
+    if code not in _generic:
+        _generic[code] = GenericLanguage(code)
+    return _generic[code]
+
+
+def has_rules(code: str | None) -> bool:
+    """True for the languages with their own normalisation rules (:data:`SUPPORTED`)."""
+    return normalize_code(code) in SUPPORTED

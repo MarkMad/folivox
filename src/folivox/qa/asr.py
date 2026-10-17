@@ -40,13 +40,21 @@ def _resample(audio: np.ndarray, sr: int, target: int = 16000) -> np.ndarray:
 _resample_16k = _resample
 
 
+# Languages Whisper knows (ISO 639-1); any other book language is left to its own detection
+WHISPER_LANGUAGES = frozenset(
+    "af am ar as az ba be bg bn bo br bs ca cs cy da de el en es et eu fa fi fo fr gl gu ha he hi hr ht hu hy id is "
+    "it ja jw ka kk km kn ko la lb ln lo lt lv mg mi mk ml mn mr ms mt my ne nl nn no oc pa pl ps pt ro ru sa sd si "
+    "sk sl sn so sq sr su sv sw ta te tg th tk tl tr tt uk ur uz vi yi yo zh".split())
+
+
 class ASR:
     """Transcribes float32 mono audio into text in ``language``."""
 
     name = ""
 
     def __init__(self, language: str = "ru"):
-        self.language = language
+        language = {"nb": "no"}.get(language, language)
+        self.language = language if language in WHISPER_LANGUAGES else None
 
     def transcribe(self, audio: np.ndarray, sample_rate: int, prompt: str | None = None,
                    language: str | None = None) -> str:
@@ -161,7 +169,9 @@ class OpenAIASR(ASR):
 
         buf = io.BytesIO()
         sf.write(buf, _resample(audio, sample_rate), 16000, format="WAV", subtype="PCM_16")
-        fields = {"model": self.model, "language": language or self.language, "response_format": "json"}
+        fields = {"model": self.model, "response_format": "json"}
+        if language or self.language:
+            fields["language"] = language or self.language
         if prompt:
             fields["prompt"] = prompt
         body, ctype = _multipart(fields, ("file", "audio.wav", buf.getvalue()))

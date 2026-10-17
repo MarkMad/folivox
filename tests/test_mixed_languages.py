@@ -68,12 +68,22 @@ def test_an_engine_that_cannot_read_the_language_leaves_it_to_the_book_language(
     assert opts.fallbacks["en"] == 1
 
 
-def test_a_language_without_text_rules_is_a_fallback_too():
+def test_a_language_without_text_rules_is_read_as_it_is_when_the_engine_speaks_it():
     t = "Он сказал: Dzień dobry wszystkim, и ушёл."
     m = mk.Markup()
     a = t.index("Dzień")
     m.assign(0, 0, a, a + len("Dzień dobry wszystkim,"), 0, lang="pl")
-    opts = ChunkOptions(lang="ru", stress="none")
+    opts = ChunkOptions(lang="ru", stress="none", speaks=frozenset({"ru", "pl"}))
+    chunks = plan_chapter(chapter(t), opts, MarkupContext(m, 0, False))
+    assert any(c.lang == "pl" and "Dzień dobry" in c.text for c in chunks) and not opts.fallbacks
+
+
+def test_a_language_the_engine_does_not_speak_is_a_fallback_even_without_rules():
+    t = "Он сказал: Dzień dobry wszystkim, и ушёл."
+    m = mk.Markup()
+    a = t.index("Dzień")
+    m.assign(0, 0, a, a + len("Dzień dobry wszystkim,"), 0, lang="pl")
+    opts = ChunkOptions(lang="ru", stress="none", speaks=frozenset({"ru", "en"}))
     assert all(c.lang == "" for c in plan_chapter(chapter(t), opts, MarkupContext(m, 0, False)))
     assert opts.fallbacks["pl"] == 1
 

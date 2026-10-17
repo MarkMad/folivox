@@ -35,6 +35,14 @@ def latin_lang(text: str, default: str = "en") -> str:
     return best if scores[best] > scores.get(default, 0) or (scores[best] and best == default) else default
 
 
+# Scripts that say a likely language by themselves (a suggestion: Arabic script may also be Persian or Urdu)
+_OTHER_SCRIPTS = (
+    (0x0370, 0x03FF, "el"), (0x0590, 0x05FF, "he"), (0x0600, 0x06FF, "ar"), (0x0750, 0x077F, "ar"),
+    (0x0900, 0x097F, "hi"), (0x0980, 0x09FF, "bn"), (0x0E00, 0x0E7F, "th"), (0x10A0, 0x10FF, "ka"),
+    (0x0530, 0x058F, "hy"),
+)
+
+
 def _script_counts(text: str) -> Counter:
     counts: Counter = Counter()
     for ch in text:
@@ -49,6 +57,11 @@ def _script_counts(text: str) -> Counter:
             counts["han"] += 1
         elif ch.isascii() and ch.isalpha() or 0xC0 <= o <= 0x24F:
             counts["lat"] += 1
+        elif o >= 0x0370:
+            for lo, hi, code in _OTHER_SCRIPTS:
+                if lo <= o <= hi and ch.isalpha():
+                    counts[code] += 1
+                    break
     return counts
 
 
@@ -64,6 +77,9 @@ def shares(text: str, window: int = 800) -> dict[str, float]:
     out: Counter = Counter()
     out["ru"] = total["cyr"]
     out["ko"] = total["hangul"]
+    for _, _, code in _OTHER_SCRIPTS:
+        if total[code]:
+            out[code] += total[code]
     cjk = total["han"] + total["kana"]
     if cjk:
         out["ja" if total["kana"] > 0.05 * cjk else "zh"] += cjk
@@ -86,20 +102,10 @@ def shares(text: str, window: int = 800) -> dict[str, float]:
 
 
 def detect(text: str, default: str = "ru") -> str:
+    """The most likely language by script and function words; a script of one of the languages without
+    rules (Arabic, Devanagari, Thai, Greek, …) gives that language's code, never Russian."""
     sample = text[:20000]
-    counts = Counter()
-    for ch in sample:
-        o = ord(ch)
-        if 0x0400 <= o <= 0x04FF:
-            counts["cyr"] += 1
-        elif 0x3040 <= o <= 0x30FF:
-            counts["kana"] += 1
-        elif 0xAC00 <= o <= 0xD7AF or 0x1100 <= o <= 0x11FF:
-            counts["hangul"] += 1
-        elif 0x4E00 <= o <= 0x9FFF:
-            counts["han"] += 1
-        elif ch.isascii() and ch.isalpha() or 0xC0 <= o <= 0x24F:
-            counts["lat"] += 1
+    counts = _script_counts(sample)
     if not counts:
         return default
     script = counts.most_common(1)[0][0]
@@ -109,6 +115,8 @@ def detect(text: str, default: str = "ru") -> str:
         return "ko"
     if script in ("kana", "han"):
         return "ja" if counts["kana"] > 0.05 * (counts["han"] + counts["kana"]) else "zh"
+    if script != "lat":
+        return script
     # Latin script: function words and accents; "en" when nothing says (never the Cyrillic default)
     return latin_lang(sample, "en")
 

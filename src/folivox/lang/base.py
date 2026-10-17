@@ -352,13 +352,17 @@ def has_speech(text: str) -> bool:
     return bool(_SPEECH.search(text))
 
 
-def split_sentences(text: str, abbreviations: tuple[str, ...] = ()) -> list[str]:
+SENTENCE_END = r"[.!?…]+[\"'»”’)\]]*\s+(?=[^\s])"
+
+
+def split_sentences(text: str, abbreviations: tuple[str, ...] = (), end: str = SENTENCE_END) -> list[str]:
     """Generic splitter: after . ! ? … (plus closing quotes/brackets) followed by space and a
-    non-lowercase character; known abbreviations and initials do not end a sentence."""
+    non-lowercase character; known abbreviations and initials do not end a sentence.
+    ``end`` is the regex of a sentence end including the space after it."""
     abbr = {a.lower() for a in abbreviations}
     out: list[str] = []
     start = 0
-    for m in re.finditer(r"[.!?…]+[\"'»”’)\]]*\s+(?=[^\s])", text):
+    for m in re.finditer(end, text):
         tokens = text[start:m.start()].split()
         last = tokens[-1].lower() if tokens else ""
         nxt = text[m.end():m.end() + 1]
