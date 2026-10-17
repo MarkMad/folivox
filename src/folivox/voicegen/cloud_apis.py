@@ -510,7 +510,7 @@ class FishAudio(CloudGenerator):
     description (``/v1/voice-design``) or a clone of one of your own recordings (``/model``). The voice made for
     a book is a private model in the account and is deleted afterwards unless the user keeps it."""
 
-    name, label, languages = "fish", "Fish Audio", LANGS
+    name, label = "fish", "Fish Audio"
     modes = ("preset", "design", "clone")
     mode_labels = {"preset": "Pick a voice from the library",
                    "design": "Describe a voice (made for this run, then deleted)",
@@ -547,13 +547,18 @@ class FishAudio(CloudGenerator):
         {**_model("s2-pro", "S2 Pro"),
          "blurb": "S2 Pro: the previous generation, 80+ languages, $15 per million bytes of text."})
     PRICE_PER_M = {"drama-3": 50.0, "s2.1-pro": 15.0, "s2-pro": 15.0, "s2.1-pro-free": 0.0}
-    BYTES_PER_CHAR = {"en": 1.0, "ru": 1.85, "zh": 3.0, "ja": 2.9, "ko": 2.7}  # UTF-8 bytes per character of prose
+    # UTF-8 bytes per character of prose; the Latin languages with accents are 1.08
+    BYTES_PER_CHAR = {
+        "en": 1.0, "ru": 1.85, "zh": 3.0, "ja": 2.9, "ko": 2.7,
+        **dict.fromkeys(("uk", "bg", "sr", "mk", "be", "ar", "he", "fa", "ur"), 1.85), "el": 1.9,
+        **dict.fromkeys(("hi", "bn", "ta", "te", "mr", "gu", "th"), 2.8), "vi": 1.35}
     DESIGN_MODEL = "voice-design-1"
     OFFICIAL = "Fish Official"  # author name of the voices Fish itself publishes
     # languages the voice library is filtered by (a menu in the studio; any code Fish lists works in the API)
     voice_languages = ("zh", "ja", "ko", "ru", "de", "fr", "es", "it", "pt", "pl", "nl", "tr", "uk", "cs", "sk", "sl",
                        "hr", "sr", "bg", "ro", "hu", "el", "sv", "da", "nb", "fi", "ar", "he", "fa", "ur", "hi", "bn",
                        "ta", "te", "mr", "gu", "th", "vi", "id", "ms", "sw", "ca", "lt", "lv", "et", "is", "mk", "sq")
+    languages = tuple(dict.fromkeys((*LANGS, *voice_languages)))  # Fish reads all of these, rule-less ones as they are
     CACHE_TTL = 12 * 3600  # seconds a library listing is kept on disk
     library = "licensed"  # "licensed" (Fish's own and licensed voices) or "all" (the whole community library)
     scopes = ({"id": "licensed", "label": "Fish Official and licensed voices"},
