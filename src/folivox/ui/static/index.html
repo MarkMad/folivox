@@ -1221,16 +1221,18 @@ $("#mk-dlg").addEventListener("keydown", (ev) => {
   else if (!typing && !mod && /^[0-9]$/.test(ev.key) && mkSpeaker(+ev.key)) { ev.preventDefault(); mkAssign(+ev.key); }
 });
 // ---- listen to the selection with the current voices ---------------------------------------------------------------
-// the engines a passage can be tried with (local ones: an online engine reads the whole book in one voice)
+// the engines a passage can be tried with: the local ones, plus the online engine chosen for the book when it reads
+// several voices (most online engines read the whole book in one voice, so they cannot play a markup)
 function mkListenEngines() {
-  const sel = $("#mk-leng"), keep = sel.value || (ENG.cur() && !ENG.cloud() ? ENG.cur().name : "");
-  const list = ENG.list.filter(e => !e.cloud);
+  const sel = $("#mk-leng"), cloud = mkFish(), keep = sel.value || (ENG.cur() ? ENG.cur().name : "");
+  const list = ENG.list.filter(e => !e.cloud || (cloud && e.name === cloud.name));
   sel.innerHTML = list.map(e => `<option value="${esc(e.name)}">${esc(engText(e, "label"))}</option>`).join("");
   sel.value = list.some(e => e.name === keep) ? keep : (list[0] ? list[0].name : "");
 }
 function mkListenOptions() {
   const eng = $("#mk-leng").value, o = options();
   if (!eng || (ENG.cur() && eng === ENG.cur().name)) return o;
+  if ((ENG.list.find(x => x.name === eng) || {}).cloud) return o;
   for (const k of ["tts_model", "tts_style", "max_cost", "tts_mode", "tts_voice", "tts_description", "own_voice", "keep_voice"]) delete o[k];
   const e = ENG.list.find(x => x.name === eng);
   return { ...o, tts: eng, ...(e && e.fish ? { tts_build: "auto" } : {}) };
@@ -1283,6 +1285,8 @@ $("#mk-listen").onclick = async () => {
   if (!r) { msg.textContent = t("mk.needsel"); return; }
   const [from, to] = r, chars = MK.blocks.filter(b => b.b >= from && b.b <= to).reduce((n, b) => n + b.text.length, 0);
   if (chars > MK_LISTEN_MAX) { msg.textContent = t("mk.listen.toolong", { n: MK_LISTEN_MAX }); return; }
+  const online = !!(ENG.list.find(x => x.name === $("#mk-leng").value) || {}).cloud;
+  if (online && !$("#eng-ack").checked) { msg.innerHTML = `<span class="err">${t("run.tick")}</span>`; return; }
   if (!await mkSave()) return;
   const key = mkListenKey(from, to), hit = MK_LISTEN.cache.get(key);
   MK_LISTEN.stop = false;
@@ -1290,7 +1294,7 @@ $("#mk-listen").onclick = async () => {
   MK_LISTEN.job = null; MK_LISTEN.busy = true; mkListenLabel("stop");
   const btn = $("#mk-listen"), t0 = Date.now(); msg.textContent = ""; mkListenLabel("stop", mkClock(0));
   try {
-    const j = await api("/api/jobs", { method: "POST", headers: JSONH, body: JSON.stringify({ kind: "preview", book_id: book.book_id, voice, chapters: [1], options: mkListenOptions(),
+    const j = await api("/api/jobs", { method: "POST", headers: JSONH, body: JSON.stringify({ kind: "preview", book_id: book.book_id, voice, chapters: [1], options: mkListenOptions(), acknowledged: online ? true : undefined,
       sample_range: { chapter: MK.ch, block_from: from, block_to: to, depth: MK.data.depth || 2 } }) });
     MK_LISTEN.job = j.id;
     for (;;) {
