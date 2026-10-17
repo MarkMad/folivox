@@ -665,6 +665,11 @@ dialog ul { padding-inline-start:18px; margin:10px 0; } dialog li { margin:6px 0
 </details>
 </main>
 <footer class="foot"><span id="foot-ver">Folivox</span><button type="button" id="foot-new" class="chip" data-i18n="foot.new">What's new</button></footer>
+<dialog id="mk-stopdlg" aria-labelledby="mk-stopmsg">
+  <p id="mk-stopmsg" data-i18n="mk.stop.confirm">Automatic markup is running. Closing the editor will stop it.</p>
+  <div class="row"><button type="button" class="primary" id="mk-stop-keep" data-i18n="mk.stop.keep">Keep working</button>
+    <button type="button" id="mk-stop-close" data-i18n="mk.stop.close">Stop and close</button></div>
+</dialog>
 <dialog id="chg-dlg" aria-labelledby="chg-h">
   <h3 id="chg-h" style="margin:0 0 8px" data-i18n="foot.title">Version history</h3>
   <div id="chg-body" class="chg-body"></div>
@@ -1207,9 +1212,34 @@ async function mkOpenEditor(fine) {
   $("#mk-ch").innerHTML = book.chapters.map((c, i) => `<option value="${i}">${esc(c.n + ". " + c.title)}</option>`).join("");
   mkListenEngines(); MK.result = false; $("#mk-step").hidden = true; $("#mk-chars").innerHTML = ""; $("#mk-llmmsg").textContent = "";
   $("#mk-dlg").showModal(); mkLlmModels().then(() => { mkModelHint(); mkModelButtons(); mkEtaEditor(); }); await mkLoadChapter(0); $("#mk-text").focus(); if (fine) $("#mk-speakers").scrollIntoView({ block: "start" });
+  mkReattach();
+}
+// The run lives in the server: a reloaded page or a reopened editor picks it up again instead of showing an idle editor.
+async function mkReattach() {
+  if (MK.running) return;
+  try {
+    const st = await api(`/api/books/${book.book_id}/llm/status`);
+    if (st.state === "running" && (st.task === "best" || st.task === "preview")) mkLlm(st.task, true);
+  } catch (e) { /* no run to show */ }
 }
 $("#mk-open2").onclick = () => mkOpenEditor(false);
-async function mkClose() { if (MK.dirty && !await mkSave() && !confirm(t("mk.unsaved"))) return; if (MK.audio) MK.audio.pause(); $("#mk-dlg").close(); loadMk(); }
+// Closing the editor while the language model works asks first: the run belongs to this editor and is stopped with it.
+function mkAskStop() {
+  const d = $("#mk-stopdlg");
+  return new Promise((resolve) => {
+    const done = (stop) => { d.close(); resolve(stop); };
+    $("#mk-stop-keep").onclick = () => done(false); $("#mk-stop-close").onclick = () => done(true);
+    d.oncancel = (ev) => { ev.preventDefault(); done(false); };
+    d.showModal();
+  });
+}
+async function mkClose() {
+  if (MK.auto) {
+    if (!await mkAskStop()) return;
+    try { await api(`/api/books/${book.book_id}/llm/cancel`, { method: "POST" }); } catch (e) { /* the run ended by itself */ }
+  }
+  if (MK_LISTEN.busy) mkListenStop();  // a "Listen" sample would keep the render lock after the editor is gone
+  if (MK.dirty && !await mkSave() && !confirm(t("mk.unsaved"))) return; if (MK.audio) MK.audio.pause(); $("#mk-dlg").close(); loadMk(); }
 $("#mk-close").onclick = mkClose;
 $("#mk-dlg").addEventListener("cancel", (ev) => { ev.preventDefault(); mkClose(); });
 $("#mk-ch").onchange = async (ev) => { await mkLoadChapter(+ev.target.value); };
@@ -1436,7 +1466,7 @@ $("#mk-model").addEventListener("change", () => { mkModelHint(); mkModelButtons(
 const MK_STAGE = { analyse: "mk.run.read", consolidate: "mk.run.consol", annotate: "mk.run.mark", review: "mk.run.review" };
 const mkStageText = (s) => s.state !== "running" ? "" : !s.total ? t("mk.run.start") : t(MK_STAGE[s.stage] || "mk.run.mark", { d: s.done, n: s.total });
 // one run of the whole flow (characters, then speakers); ui = { busy(on), progress(pct, text), error(text) }
-async function mkAutoRun(task, o, ui) {
+async function mkAutoRun(task, o, ui, attach) {  // attach: the run is already going on in the server (reopened editor)
   const body = { task, model: o.model || undefined, expression_tags: !!o.tags, depth: (MK.data && MK.data.depth) || +$("#depth").value || 2, chapters: o.chapters };
   let sec = null;
   try {
@@ -1444,9 +1474,11 @@ async function mkAutoRun(task, o, ui) {
     sec = est.modes && est.modes[task] ? mkModeSecs(o.model, est, task) : { ...mkSecs(o.model, est), nm: 0, ne: 0 };
     if (task === "analyse") sec.nm = 0;
   } catch (e) { /* no estimate */ }
-  try { await api(`/api/books/${book.book_id}/llm/start`, { method: "POST", headers: JSONH, body: JSON.stringify(body) }); }
-  catch (e) { ui.error(e.message); return null; }
-  ui.busy(true); MK.running = true;
+  if (!attach) {
+    try { await api(`/api/books/${book.book_id}/llm/start`, { method: "POST", headers: JSONH, body: JSON.stringify(body) }); }
+    catch (e) { ui.error(e.message); return null; }
+  }
+  ui.busy(true); MK.running = MK.auto = true;
   const t0 = Date.now(); let stage = "", tStage = t0, scale = 1, per = 0;
   try {
     for (;;) {
@@ -1469,7 +1501,7 @@ async function mkAutoRun(task, o, ui) {
       if (stage === "annotate" && s.done >= 2 && per) { try { localStorage.setItem("folivox.mkrate." + o.model, String(per)); } catch (e) { /* private mode */ } }
       return s;
     }
-  } finally { ui.busy(false); MK.running = false; }
+  } finally { ui.busy(false); MK.running = MK.auto = false; }
 }
 // who got which voice: the characters of the list with the voice of their speaker (or what is missing)
 function mkVoiceList() {
@@ -1490,13 +1522,13 @@ async function mkReadBack() {
   try { MK.bible = await api(`/api/books/${book.book_id}/characters`); } catch (e) { /* the list is optional */ }
 }
 // editor: the same flow, or the characters only
-async function mkLlm(task) {
-  if (MK.running || !await mkSave()) return;
+async function mkLlm(task, attach) {
+  if (MK.running || (!attach && !await mkSave())) return;
   const msg = $("#mk-llmmsg"); msg.textContent = ""; MK.result = false; $("#mk-chars").innerHTML = ""; $("#mk-step").hidden = true;
   const hasMarkup = mkHasSpans();
-  if (task !== "analyse" && hasMarkup && !confirm(t("mk.again.confirm"))) return;
+  if (!attach && task !== "analyse" && hasMarkup && !confirm(t("mk.again.confirm"))) return;
   let model = $("#mk-model").value;
-  if (model && MK.models && !MK.models.installed.includes(model)) {
+  if (!attach && model && MK.models && !MK.models.installed.includes(model)) {
     if (!MK.models.running) { msg.textContent = t("mk.dl.noollama"); return; }
     if (!mkAskDownload(model, MK.models) || !await mkEditorPull(model)) return;
   }
@@ -1504,7 +1536,7 @@ async function mkLlm(task) {
   const s = await mkAutoRun(task, { model, chapters: task === "best" && chosen.length ? chosen : undefined }, {
     busy: (on) => { btns.forEach(b => $(b).disabled = on); $("#mk-stop").hidden = !on; $("#mk-prog").hidden = !on; },
     progress: (pct, text) => { $("#mk-prog").value = pct; msg.textContent = text; },
-    error: (m) => { msg.innerHTML = `<span class="err">${esc(m)}</span>`; } });
+    error: (m) => { msg.innerHTML = `<span class="err">${esc(m)}</span>`; } }, attach);
   if (!s) return;
   await mkReadBack(); await mkLoadChapter(MK.ch);
   msg.textContent = task === "preview" ? t("mk.done.prev", { m: s.stats.marked || 0 }) : t("mk.done.best", { m: s.stats.marked || 0, c: s.stats.to_check || 0 });
@@ -3122,6 +3154,15 @@ $("#copy-diag").onclick = async () => {
   } catch (e) { $("#diag-msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 };
 
+// ---- closing the tab: the long work belongs to the server and goes on, but nobody should be surprised by it -------------
+// Asked from the server every few seconds (markup, voice generation, downloads are not in /api/jobs/current).
+let ACT = null;
+async function pollActivity() { try { ACT = await api("/api/activity"); } catch (e) { ACT = null; } }
+pollActivity(); setInterval(pollActivity, 5000);
+window.addEventListener("beforeunload", (ev) => {
+  const working = MK.auto || MK_LISTEN.busy || (job && !job.final) || (ACT && (ACT.render || ACT.voicegen || ACT.markup.length || ACT.download));
+  if (working) { ev.preventDefault(); ev.returnValue = ""; }  // the browser shows its own wording
+});
 // ---- the backend is the source of truth: reattach after reload, reconcile periodically -----------
 let online = true, misses = 0;
 async function reconcile() {

@@ -30,3 +30,11 @@ def slow(book, opts, events):
         if events.cancelled():
             raise Cancelled()
         time.sleep(0.1)
+
+
+def deaf(book, opts, events):
+    """A render that never looks at the cancel flag (a model call stuck in native code)."""
+    import time
+
+    events.stage("load", "Loading")
+    time.sleep(600)

@@ -28,6 +28,29 @@ saved access token: `app`, `api` level, version, pid, whether it is rendering) a
 port is free. The page asks `/api/ping` too: a server that predates the page (lower `api` level, or no `/api/ping`)
 gets a banner telling the user to restart it. Bump `API_LEVEL` in `ui/app.py` when the page starts using a new route.
 
+## Closing the tab, the editor or the browser
+
+All long work belongs to the server, not to the page; the page only polls it. Closing a tab stops nothing by itself.
+
+| Work | Closing the editor | Closing the tab / quitting the browser | Coming back |
+|---|---|---|---|
+| Full render, preview render | the "Listen" sample is cancelled; a full render is not tied to the editor | keeps running in its child process | `GET /api/jobs/current` re-attaches it with Stop/Resume |
+| Automatic markup (language model) | asks "Keep working / Stop and close"; stopping unloads the model | keeps running until the orphan timeout | the reopened editor shows its progress (`GET /api/books/{id}/llm/status`) |
+| Voice generation | n/a | keeps running until the orphan timeout | no screen re-attaches it yet; `GET /api/activity` lists it |
+| Model download, engine install | n/a | keeps running (no GPU/RAM, resumes by itself) | the pages poll their own status routes |
+
+* **Warnings.** While anything above is running, closing or reloading the tab shows the browser's own "leave site?"
+  confirmation (the page learns what runs from `GET /api/activity`, polled every few seconds).
+* **Orphans.** Every request counts as a heartbeat (the open page polls every 4 s). After 10 minutes without any
+  request the server stops the work that holds a model and cannot resume: automatic markup (the Ollama model is
+  unloaded at once with `keep_alive: 0`), voice generation and preview renders, and says so in the terminal.
+  A full render goes on to the end (its journal makes it resumable anyway); after one minute without a browser
+  `folivox ui` prints that it runs on its own and that Ctrl+C stops it. Downloads and installs go on.
+* **Exit.** Ctrl+C, `folivox ui --restart/--stop` cancel every job first, give render children a few seconds to
+  stop at a fragment boundary, then terminate them, and unload the markup model. The render keeps its journal, so
+  the next start resumes. Job state is held in memory only, so a restart never meets a stale state file.
+* After every render the parent process releases its caches (`memory.release()`); the child's models go with it.
+
 ## Fish Audio engines (implemented)
 
 On Apple Silicon, *3 · Reading engine* also lists the optional Fish Audio engines. Choosing one shows a

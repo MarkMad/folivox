@@ -160,11 +160,25 @@ def run(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True, re
 
     token = ui_token()
     app = create_app(token=token, port=port)
-    server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning"))
-    app.state.request_exit = lambda: setattr(server, "should_exit", True)
+    class Server(uvicorn.Server):
+        def handle_exit(self, sig, frame):  # Ctrl+C: stop the jobs first, or their open event streams hold the exit
+            app.state.cancel_all()
+            super().handle_exit(sig, frame)
+
+    server = Server(uvicorn.Config(app, host=host, port=port, log_level="warning"))
+
+    def request_exit() -> None:
+        app.state.cancel_all()
+        server.should_exit = True
+
+    app.state.request_exit = request_exit
     url = f"http://{host}:{port}/?token={token}"
     print(f"Folivox UI: {url}\nOpen this link once: the browser then keeps a cookie and you can use "
           f"http://{host}:{port}/ (bookmark it). Press Ctrl+C to stop.", flush=True)
     if open_browser:
         threading.Timer(1.0, webbrowser.open, args=(url,)).start()
-    server.run()
+    app.state.watchdog.start()
+    try:
+        server.run()
+    finally:
+        app.state.shutdown()  # no render child, markup thread or loaded model outlives the studio
