@@ -2724,8 +2724,7 @@ function openGen() { closeAdd(); $("#genvoice").hidden = false; $("#genvoice").s
 function closeGen() { gpStop(); gpReset(); $("#genvoice").hidden = true; }
 $("#gp-close").onclick = closeGen;
 async function gpLoad() {
-  if (!$("#gp-lang").options.length) $("#gp-lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}">${n}</option>`).join("");
-  if (!GP.job) $("#gp-lang").value = book && LANGS[book.lang] ? book.lang : "en";  // the sample is read in the book's language
+  GP.wantLang = !GP.job && book ? book.lang : "";  // the sample is read in the book's language when the service reads it
   try {
     const r = await api("/api/gen/providers"); GP.providers = r.providers; GP.notice = r.notice;
     $("#gp-notice").textContent = r.notice;
@@ -2747,6 +2746,16 @@ function gpProviders() {
   }).join("");
   gpProvider();
 }
+function gpLangs() {  // the languages the chosen service reads: the nine first, then the rest by name
+  const all = (GP.prov.languages && GP.prov.languages.length) ? GP.prov.languages : Object.keys(LANGS);
+  const opt = (c) => `<option value="${c}">${esc(lname(c))}</option>`;
+  const main = Object.keys(LANGS).filter(c => all.includes(c));
+  const rest = all.filter(c => !LANGS[c]).sort((x, y) => lname(x).localeCompare(lname(y)));
+  const sel = $("#gp-lang"), keep = GP.wantLang || sel.value;
+  sel.innerHTML = main.map(opt).join("") + (rest.length ? `<optgroup label="${esc(t("s2.lang_other"))}">${rest.map(opt).join("")}</optgroup>` : "");
+  sel.value = all.includes(keep) ? keep : (all.includes("en") ? "en" : all[0]);
+  GP.wantLang = ""; if (sel.value !== keep) GP.tx.builtin = null;
+}
 function gpProvider() {
   const p = GP.prov, hasKey = p.key_in_env || p.key_saved;
   $("#gp-provblurb").textContent = engText(p, "blurb");
@@ -2761,7 +2770,7 @@ function gpProvider() {
   const hints = { preset: t("gp.hint.preset"), design: t("gp.hint.design"), localize: t("gp.hint.localize"), clone: t("gp.hint.clone") };
   const modeOrder = [...p.modes].sort((a, b) => (b === "localize") - (a === "localize"));  // the best option first
   $("#gp-modes").innerHTML = modeOrder.map(m => `<div class="gp-mode ${m === GP.mode ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${m === GP.mode}" data-m="${m}"><b>${esc(({ preset: t("gp.mode.preset"), design: t("gp.mode.design"), localize: t("gp.mode.localize"), clone: t("gp.mode.clone") })[m] || m)}${m === "localize" ? ` <span class="vbadge best">${t("badge.best")}</span>` : ""}</b><small>${esc(hints[m] || "")}${(p.sample_usd || {})[m] != null ? " · " + money(p.sample_usd[m]) : ""}</small></div>`).join("");
-  gpMode();
+  gpLangs(); gpMode();
   if (!GP.textInit) { GP.textInit = true; gpTexts("builtin"); }
 }
 $("#gp-provs").addEventListener("click", (e) => { const c = e.target.closest("[data-p]"); if (c) { GP.prov = GP.providers.find(p => p.name === c.dataset.p); gpProviders(); } });
@@ -2855,8 +2864,9 @@ async function gpTexts(src, reload) {
     try {
       const r = await api("/api/gen/texts", { method: "POST", signal: ab.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ source: src, lang: $("#gp-lang").value, book_id: book.book_id }) });
       done(); if (src === "builtin") { GP.tx.builtin = r.texts; GP.tx.blang = $("#gp-lang").value; GP.tx.bi = 0; if (!GP.tx.custom.trim()) { GP.tx.custom = r.texts[0]; LS.set("folivox.gp.custom", GP.tx.custom); } } else GP.tx.book = r.texts;
-      if (src === "book" && r.lang && $("#gp-lang").value !== r.lang && LANGS[r.lang]) { $("#gp-lang").value = r.lang; if (GP.mode !== "design") gpVoices(); }
-    } catch (e) { done(); $("#gp-text-msg").innerHTML = e.name === "AbortError" ? t("cancelled") : `<span class="err">${esc(e.message)}</span>`; }
+      if (src === "book" && r.lang && $("#gp-lang").value !== r.lang && [...$("#gp-lang").options].some(o => o.value === r.lang)) { $("#gp-lang").value = r.lang; if (GP.mode !== "design") gpVoices(); }
+    } catch (e) { done(); if (src === "builtin") GP.tx.builtin = null;  // no built-in text for this language: never show another language's
+      $("#gp-text-msg").innerHTML = e.name === "AbortError" ? t("cancelled") : `<span class="err">${esc(e.message)}</span>`; }
     if (GP.textSrc !== src) return;
   }
   const list = gpTextList();
