@@ -207,12 +207,12 @@ Prices, limits and terms of all five engines: [docs/cloud-engines.md](docs/cloud
 
 <table>
 <tr>
-<td width="50%"><img src="docs/img/studio-book.png" alt="A loaded book with its chapters and estimated length"><br><sub>Drop a book: chapters, language, cover, details and estimated length.</sub></td>
-<td width="50%"><img src="docs/img/studio-voices.png" alt="Reading engine and voice gallery"><br><sub>The voice for your book: the best match is picked automatically; audition others, record your own or generate one.</sub></td>
+<td width="50%"><img src="docs/img/studio-book.png" alt="A loaded book with cover, author, language shares and three chapters"><br><sub>Drop a book: cover, author, languages with their shares, chapters and estimated length.</sub></td>
+<td width="50%"><img src="docs/img/studio-engine.png" alt="Reading engine: Fish Audio Drama 3, free and local, with its builds"><br><sub>Who reads the book: a free local engine (CosyVoice 3, Fish Audio Drama 3 and its builds) or an online one.</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/img/studio-done.png" alt="The audiobook is ready card"><br><sub>Done: the file, its length and how long it took.</sub></td>
-<td width="50%"><img src="docs/img/studio-gallery.png" alt="Voice gallery with 64 bundled voices filtered by language"><br><sub>The bundled voice library: filter by language and sex, audition, star favourites.</sub></td>
+<td width="50%"><img src="docs/img/studio-voices.png" alt="Voice step: one voice or several voices, characters with their voices"><br><sub>One voice for the whole book, or several: the characters found in the book each get their own voice.</sub></td>
+<td width="50%"><img src="docs/img/studio-generate.png" alt="Generate a voice sample: choose an online service"><br><sub>No good recording? Generate a ten-second voice sample with an online service for a few cents and use it for free, offline.</sub></td>
 </tr>
 </table>
 
