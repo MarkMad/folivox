@@ -75,7 +75,7 @@ def section(dotted: str) -> dict:
 
 def provider(kind: str, cli_value: str | None = None) -> str | None:
     """CLI option > ``FOLIVOX_<KIND>`` env var > ``[providers]`` in config > registry default (None)."""
-    return cli_value or os.environ.get(f"FOLIVOX_{kind.upper()}") or load().get("providers", {}).get(kind)
+    return cli_value or os.environ.get(f"FOLIVOX_{kind.upper()}") or section("providers").get(kind)
 
 
 RUNTIMES = ("auto", "pytorch", "native")
@@ -83,8 +83,9 @@ RUNTIMES = ("auto", "pytorch", "native")
 
 def runtime(cli_value: str | None = None) -> str:
     """Inference runtime: CLI option > ``FOLIVOX_RUNTIME`` > ``[runtime] inference`` in config > ``auto``."""
-    value = (cli_value or os.environ.get("FOLIVOX_RUNTIME") or load().get("runtime", {}).get("inference")
-             or "auto").strip().lower()
+    value = (cli_value or os.environ.get("FOLIVOX_RUNTIME") or section("runtime").get("inference")
+             or "auto")
+    value = str(value).strip().lower()
     if value not in RUNTIMES:
         raise ValueError(f"Unknown inference runtime {value!r}; choose one of {', '.join(RUNTIMES)}")
     return value

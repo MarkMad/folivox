@@ -16,8 +16,16 @@ W = r"[А-Яа-яЁёA-Za-z]"
 NUM_WORD_BOUNDARY = r"(?<![\w.,:])"
 
 
+def _digits(n: float | str) -> str:
+    """Digit by digit, for numbers num2words cannot read (too large)."""
+    return " ".join(num2words(int(d), lang="ru") for d in str(n) if d.isdigit())
+
+
 def cardinal(n: float | str, case: str = "n", gender: str = "m") -> str:
-    return num2words(n, lang="ru", case=case, gender=gender)
+    try:
+        return num2words(n, lang="ru", case=case, gender=gender)
+    except (KeyError, IndexError, OverflowError):
+        return _digits(n)
 
 
 def ordinal(n: int, case: str = "n", gender: str = "m", plural: bool = False) -> str:
@@ -319,7 +327,10 @@ def _decimal_words(s: str, case: str = "n") -> str:
     try:
         return num2words(float(s), lang="ru", case=case) if case != "n" else num2words(float(s), lang="ru")
     except (TypeError, ValueError, NotImplementedError):
-        return num2words(float(s), lang="ru")
+        try:
+            return num2words(float(s), lang="ru")
+        except (ValueError, KeyError, IndexError, OverflowError):  # too large for num2words
+            return _digits(s)
 
 
 def _units(text: str) -> str:

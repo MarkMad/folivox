@@ -73,9 +73,13 @@ def build_chapter(parts: list[tuple[Path, float]], out: Path, sample_rate: int, 
     with tempfile.TemporaryDirectory() as tmp:
         raw = Path(tmp) / "raw.wav"
         sf.write(str(raw), audio, sample_rate, subtype="PCM_16")
-        run(["-i", str(raw), "-af", LOUDNORM, "-ar", str(sample_rate), "-ac", "1", "-c:a", "flac",
-             str(out.with_suffix(".tmp.flac"))])
-    out.with_suffix(".tmp.flac").replace(out)
+        tmp_out = out.with_suffix(".tmp.flac")
+        try:
+            run(["-i", str(raw), "-af", LOUDNORM, "-ar", str(sample_rate), "-ac", "1", "-c:a", "flac",
+                 str(tmp_out)])
+            tmp_out.replace(out)
+        finally:
+            tmp_out.unlink(missing_ok=True)
     return len(audio) / sample_rate
 
 
@@ -84,7 +88,7 @@ def _concat_path(p: Path) -> str:
 
 
 def _escape_meta(s: str) -> str:
-    for ch in ("\\", "=", ";", "#", "\n"):
+    for ch in ("\\", "=", ";", "#", "\n", "\r"):
         s = s.replace(ch, "\\" + ch)
     return s
 
@@ -119,7 +123,7 @@ def write_m4b(chapters: list[ChapterAudio], out: Path, meta: BookMeta, cover: by
         if meta.series:
             md.append(f"grouping={_escape_meta(grouping(meta))}")
         if meta.year:
-            md.append(f"date={meta.year}")
+            md.append(f"date={_escape_meta(str(meta.year))}")
         if meta.comment:
             md.append(f"comment={_escape_meta(meta.comment[:1000])}")
         if meta.narrator:
@@ -174,13 +178,18 @@ def write_mp3s(chapters: list[ChapterAudio], out_dir: Path, meta: BookMeta, cove
                 args += ["-i", str(cov)]
                 maps += ["-map", "1:v", *COVER_ARGS]
             part = p.with_name(p.name + ".part")
-            run([*args, *maps, "-c:a", "libmp3lame", "-b:a", bitrate, "-ac", "1", "-id3v2_version", "3",
-                 "-metadata", f"title={c.title}", "-metadata", f"album={meta.title}",
-                 "-metadata", f"artist={meta.author}", "-metadata", f"album_artist={meta.author}",
-                 "-metadata", f"track={i}/{len(chapters)}", "-metadata", f"genre={meta.genre or 'Audiobook'}",
-                 "-metadata", f"composer={meta.narrator}", "-metadata", f"date={meta.year}",
-                 "-metadata", f"comment={meta.comment[:1000]}", "-metadata", f"grouping={grouping(meta)}",
-                 "-f", "mp3", str(part)])
-            os.replace(part, p)
+            try:
+                run([*args, *maps, "-c:a", "libmp3lame", "-b:a", bitrate, "-ac", "1", "-id3v2_version", "3",
+                     "-metadata", f"title={c.title}", "-metadata", f"album={meta.title}",
+                     "-metadata", f"artist={meta.author}", "-metadata", f"album_artist={meta.author}",
+                     "-metadata", f"track={i}/{len(chapters)}", "-metadata", f"genre={meta.genre or 'Audiobook'}",
+                     "-metadata", f"composer={meta.narrator}", "-metadata", f"date={meta.year}",
+                     "-metadata", f"comment={meta.comment[:1000]}", "-metadata", f"grouping={grouping(meta)}",
+                     "-f", "mp3", str(part)])
+                if not part.exists() or part.stat().st_size == 0:
+                    raise RuntimeError("ffmpeg produced an empty file")
+                os.replace(part, p)
+            finally:
+                part.unlink(missing_ok=True)
             paths.append(p)
     return paths

@@ -14,6 +14,8 @@ def zh_int(n: int) -> str:
     """Chinese reading of a non-negative integer (simplified characters)."""
     if n == 0:
         return DIGITS[0]
+    if n >= 10000 ** len(BIG):  # beyond 兆: read digit by digit
+        return "".join(DIGITS[int(d)] for d in str(n))
     groups: list[int] = []
     while n:
         groups.append(n % 10000)

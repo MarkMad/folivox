@@ -61,7 +61,7 @@ class Language:
         try:
             value: float | int = float(s.replace(",", ".")) if re.search(r"[.,]", s) else int(s)
             return num2words(value, lang=self.code)
-        except (NotImplementedError, ValueError, OverflowError):
+        except (NotImplementedError, ValueError, OverflowError, KeyError, IndexError):  # huge numbers
             return s
 
     def sentences(self, text: str) -> list[str]:

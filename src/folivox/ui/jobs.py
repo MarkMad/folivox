@@ -137,6 +137,14 @@ class JobManager:
         return job
 
     def _run_process(self, job: Job, book) -> None:
+        try:
+            self._run_process_inner(job, book)
+        except Exception as e:  # noqa: BLE001 — a failure to start must not leave the job "running" forever
+            if job.state == "running":
+                job.error = str(e) or type(e).__name__
+                job.finish("error", "error", message=job.error)
+
+    def _run_process_inner(self, job: Job, book) -> None:
         from folivox import diag
 
         ctx = mp.get_context("spawn")  # never fork a process that may hold CUDA or Metal state
@@ -176,6 +184,9 @@ class JobManager:
                 final = (type_, data)
         events.close()
         proc.join(timeout=30)
+        if proc.is_alive():  # a child stuck after its last message would keep the models in memory
+            proc.terminate()
+            proc.join(timeout=5)
         secs = round(time.time() - t0, 1)
         if final is None:
             code = proc.exitcode

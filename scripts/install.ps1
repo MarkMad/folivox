@@ -113,5 +113,5 @@ if ($env:FOLIVOX_NO_START -ne "1" -and -not $env:CI -and -not [Console]::IsInput
   $answer = Read-Host "`nStart the studio now? [Y/n]"
   if ($answer -notmatch '^[nNнН]') { folivox ui }
 }
-if ($env:FOLIVOX_SELF_DELETE -eq "1" -and $MyInvocation.MyCommand.Path) { Remove-Item (Split-Path -Parent $MyInvocation.MyCommand.Path) -Recurse -Force -ErrorAction SilentlyContinue }
+if ($env:FOLIVOX_SELF_DELETE -eq "1" -and $MyInvocation.MyCommand.Path -and ((Split-Path -Leaf (Split-Path -Parent $MyInvocation.MyCommand.Path)) -like "folivox-update-*")) {  # only the temp folder `folivox update` made Remove-Item (Split-Path -Parent $MyInvocation.MyCommand.Path) -Recurse -Force -ErrorAction SilentlyContinue }
 if ($env:FOLIVOX_WAIT_PID) { Read-Host "`nDone. Press Enter to close" | Out-Null }

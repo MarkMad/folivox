@@ -75,9 +75,13 @@ def read_book(path: str | Path) -> Book:
         book.title = path.name.split(".")[0]
     book.sections = [s for s in book.sections if not s.is_empty() or s.title]
     _drop_title_page(book)
-    from folivox.lang import normalize_code
+    from folivox.lang import get, normalize_code
 
     book.lang = normalize_code(book.lang)
+    try:
+        get(book.lang)
+    except ValueError:  # missing or unusable metadata («und», «xx»): detect from the text
+        book.lang = ""
     if not book.lang:
         from folivox.lang.detect import detect
 

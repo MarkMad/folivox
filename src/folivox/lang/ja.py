@@ -44,7 +44,7 @@ class Japanese(CJKLanguage):
     def number(self, s: str) -> str:
         try:
             return num2words(float(s) if "." in s else int(s), lang="ja")
-        except (NotImplementedError, ValueError):
+        except (NotImplementedError, ValueError, OverflowError, KeyError, IndexError):
             return s
 
     def times(self, text: str) -> str:

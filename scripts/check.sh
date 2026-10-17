@@ -6,4 +6,5 @@ cd "$(dirname "$0")/.."
 export UV_PROJECT_ENVIRONMENT=.venv-ci PYTHONUTF8=1
 uv sync --no-default-groups --group dev --group test
 uv run ruff check src tests
+uv run python scripts/check_i18n.py
 uv run pytest -q

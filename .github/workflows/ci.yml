@@ -25,6 +25,9 @@ jobs:
       # Core + test deps only: readers, text processing, journal, assembly. No model inference.
       - run: uv sync --no-default-groups --group dev --group test
       - run: uv run ruff check src tests
+      - run: uv run python scripts/check_i18n.py
+        env:
+          PYTHONUTF8: "1"
       - run: uv run pytest -q
         env:
           PYTHONUTF8: "1"
