@@ -10,6 +10,14 @@ and synthesised again. An earlier finished book is never replaced until the new 
 Before a long render starts, Folivox checks ffmpeg, that the output and work folders are writable and how much
 disk is free, so a missing ffmpeg does not show up after ten hours of synthesis.
 
+## Closed the browser but the computer is still busy
+
+Renders, automatic markup and downloads run inside `folivox ui`, not in the browser tab. After closing the tab a
+render goes on to the end (the terminal says so; Ctrl+C stops it and the next start resumes), and automatic markup
+is stopped after 10 minutes without a browser, freeing the model. To release memory at once, stop `folivox ui` with
+Ctrl+C (or `folivox ui --stop`): it cancels the jobs and unloads the Ollama model. See
+[the studio notes](ui.md#closing-the-tab-the-editor-or-the-browser).
+
 ## What is retried, and what is not
 
 - Model download: up to 4 attempts, continuing from the part already downloaded.
