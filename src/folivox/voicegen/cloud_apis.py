@@ -544,6 +544,14 @@ class FishAudio(CloudGenerator):
     BYTES_PER_CHAR = {"en": 1.0, "ru": 1.85, "zh": 3.0, "ja": 2.9, "ko": 2.7}  # UTF-8 bytes per character of prose
     DESIGN_MODEL = "voice-design-1"
     OFFICIAL = "Fish Official"  # author name of the voices Fish itself publishes
+    # languages the voice library is filtered by (a menu in the studio; any code Fish lists works in the API)
+    voice_languages = ("zh", "ja", "ko", "ru", "de", "fr", "es", "it", "pt", "pl", "nl", "tr", "uk", "cs", "sk", "sl",
+                       "hr", "sr", "bg", "ro", "hu", "el", "sv", "da", "nb", "fi", "ar", "he", "fa", "ur", "hi", "bn",
+                       "ta", "te", "mr", "gu", "th", "vi", "id", "ms", "sw", "ca", "lt", "lv", "et", "is", "mk", "sq")
+    CACHE_TTL = 12 * 3600  # seconds a library listing is kept on disk
+    library = "licensed"  # "licensed" (Fish's own and licensed voices) or "all" (the whole community library)
+    scopes = ({"id": "licensed", "label": "Fish Official and licensed voices"},
+              {"id": "all", "label": "All community voices"})
     FEATURED = {"en": {"bf322df2096a46f18c579d0baa36f41d": ("Adrian", "m"),  # the Drama 3 page's example voices
                        "c70cfb98867a4bfb9ae20d2401257b92": ("Delia", "f"),
                        "f3a2b90078d54a65af4b95f63bc7798e": ("Sheila", "f")}}
@@ -567,8 +575,50 @@ class FishAudio(CloudGenerator):
         return {"chars": n, "usd": round(usd, 3), "note": cls.price_note}
 
     # ---- voices ----------------------------------------------------------------------------------
+    def library_rows(self, lang: str | None) -> list[dict]:
+        """The voice library as rows, Fish's own voices first. A listing is slow (big pages), so the result is
+        kept on disk for ``CACHE_TTL`` seconds; only real network use is cached, never a test's fake transport."""
+        import json
+        import time
+
+        from platformdirs import user_cache_dir
+
+        from folivox.voicegen.cloud import urllib_transport
+
+        path = Path(user_cache_dir("folivox", appauthor=False)) / "fish-voices" / f"{self.library}-{lang or 'all'}.json"
+        if self.transport is urllib_transport:
+            try:
+                cached = json.loads(path.read_text("utf-8"))
+                if time.time() - cached["time"] < self.CACHE_TTL:
+                    return cached["rows"]
+            except (OSError, ValueError, KeyError):
+                pass
+        q = {"page_size": 100, "sort_by": "task_count",
+             **({"licensed": "true"} if self.library == "licensed" else {}), **({"language": lang} if lang else {})}
+        items = self.call("GET", f"{self.BASE}/model?{urllib.parse.urlencode(q)}").json().get("items", [])
+        items.sort(key=lambda v: (v.get("author") or {}).get("nickname") != self.OFFICIAL)  # house voices first
+        rows = [self.row(v) for v in items if v.get("type") == "tts" and v.get("state") == "trained" and v.get("_id")]
+        if self.transport is urllib_transport and rows:
+            try:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps({"time": time.time(), "rows": rows}), "utf-8")
+            except OSError:
+                pass
+        return rows
+
+    def row(self, v: dict) -> dict:
+        tags = [str(t) for t in v.get("tags") or []]
+        low = {t.lower() for t in tags}
+        official = (v.get("author") or {}).get("nickname") == self.OFFICIAL
+        sample = (v.get("samples") or [{}])[0]
+        return {"id": v["_id"], "lang": (v.get("languages") or [""])[0], "name": v.get("title") or v["_id"],
+                "sex": "f" if "female" in low else "m" if "male" in low else "",
+                "traits": " · ".join((["Fish Official"] if official else []) + [
+                    t for t in tags if t.lower() not in ("male", "female")])[:90],
+                "description": (v.get("description") or "")[:300], "preview_url": sample.get("audio") or ""}
+
     def speakers(self, lang=None):
-        key = lang or ""
+        key = (self.library, lang or "")
         cache = self.__dict__.setdefault("_by_lang", {})
         if key not in cache:
             out: dict[str, tuple[str, str]] = {}
@@ -576,26 +626,13 @@ class FishAudio(CloudGenerator):
                 out[vid] = (lang or "", sex)
                 self.names[vid] = name
                 self.details[vid] = {"traits": "Drama 3 example voice", "description": "", "preview_url": ""}
-            for own in (True, False):  # the account's own voices first, then the library voices Fish has licensed
-                q = {"page_size": 100, "sort_by": "task_count",
-                     **({"self": "true"} if own else {"licensed": "true", **({"language": lang} if lang else {})})}
-                data = self.call("GET", f"{self.BASE}/model?{urllib.parse.urlencode(q)}").json()
-                items = data.get("items", [])
-                items.sort(key=lambda v: (v.get("author") or {}).get("nickname") != self.OFFICIAL)  # house voices first
-                for v in items:
-                    if v.get("type") != "tts" or v.get("state") != "trained" or not v.get("_id"):
-                        continue
-                    tags = [str(t) for t in v.get("tags") or []]
-                    low = {t.lower() for t in tags}
-                    sex = "f" if "female" in low else "m" if "male" in low else ""
-                    out.setdefault(v["_id"], ((v.get("languages") or [""])[0], sex))
-                    self.names.setdefault(v["_id"], v.get("title") or v["_id"])
-                    sample = (v.get("samples") or [{}])[0]
-                    official = (v.get("author") or {}).get("nickname") == self.OFFICIAL
-                    self.details.setdefault(v["_id"], {
-                        "traits": " · ".join((["Fish Official"] if official else []) + [
-                            t for t in tags if t.lower() not in ("male", "female")])[:90],
-                        "description": (v.get("description") or "")[:300], "preview_url": sample.get("audio") or ""})
+            own = self.call("GET", f"{self.BASE}/model?{urllib.parse.urlencode({'page_size': 100, 'self': 'true'})}")
+            rows = [self.row(v) for v in own.json().get("items", [])
+                    if v.get("type") == "tts" and v.get("state") == "trained" and v.get("_id")]
+            for r in rows + self.library_rows(lang):  # the account's own voices first, then the library
+                out.setdefault(r["id"], (r["lang"], r["sex"]))
+                self.names.setdefault(r["id"], r["name"])
+                self.details.setdefault(r["id"], {k: r[k] for k in ("traits", "description", "preview_url")})
             cache[key] = out
         return cache[key]
 

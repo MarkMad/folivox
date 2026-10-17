@@ -164,7 +164,8 @@ class CloudGenerator(VoiceGenerator):
                 "languages": list(cls.languages), "key_env": cls.key_env, "price_note": cls.price_note,
                 "terms_url": cls.terms_url, "docs_url": cls.docs_url, "commercial": cls.commercial,
                 "max_chars": cls.max_chars, "blurb": cls.blurb, "voices_note": cls.voices_note,
-                "models": list(cls.models), "style": cls.style,
+                "models": list(cls.models), "style": cls.style, "voice_scopes": list(getattr(cls, "scopes", ())),
+                "voice_langs": list(getattr(cls, "voice_languages", ())),
                 "mode_labels": dict(cls.mode_labels)}
 
     @classmethod

@@ -157,3 +157,16 @@ def test_engine_spend_follows_language(tmp_path):
     eng.chars_sent = 1000
     assert eng.spent_usd == pytest.approx(1000 * 1.85 * 50 / 1e6, abs=1e-3)
     assert eng.voice_modes() == ("preset", "design", "clone")
+
+
+def test_library_scope_and_capabilities():
+    caps = FishAudio.capabilities()
+    assert [s["id"] for s in caps["voice_scopes"]] == ["licensed", "all"] and "ru" in caps["voice_langs"]
+    fake = Fake(ok({"items": []}), ok({"items": []}))
+    g = make(FishAudio, fake)
+    g.library = "all"
+    g.speakers("de")
+    assert "licensed" not in fake.calls[1]["url"] and "language=de" in fake.calls[1]["url"]
+    fake = Fake(ok({"items": []}))
+    make(FishAudio, fake).speakers("")  # every language: no language filter
+    assert "language" not in fake.calls[1]["url"] and "licensed=true" in fake.calls[1]["url"]

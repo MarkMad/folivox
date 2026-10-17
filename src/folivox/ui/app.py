@@ -1346,6 +1346,9 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         gen = make_generator(name)
         if "preset" not in gen.modes:
             return JSONResponse({"voices": []})
+        scope = request.query_params.get("scope")
+        if scope in [x["id"] for x in getattr(gen, "scopes", ())]:
+            gen.library = scope  # which part of the provider's voice library to list
         speakers = await gen_call(gen.speakers, request.query_params.get("lang"))
         lang = request.query_params.get("lang")
         names, details = getattr(gen, "names", {}), getattr(gen, "details", {})

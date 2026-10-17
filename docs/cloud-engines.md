@@ -31,8 +31,9 @@ the API). The same Drama 3 model also runs [on this computer](how-it-works.md) (
 needs no 32 GB Mac and is faster, the local one is free.
 
 - **Voices.** *Pick a voice*: your own voices first, then the library voices Fish Audio has licensed (its own
-  "Fish Official" voices first; the rest of the community library is not listed). Chips above the list switch the
-  voice language (the book's language by default); a voice of another language can read the book too. Never use a
+  "Fish Official" voices first). A switch above the list adds the whole community library, a menu picks the voice
+  language (the book's language by default; a voice of another language can read the book too) and a search box
+  filters the list. Listings are cached on disk for 12 hours. Never use a
   voice that imitates a real person without consent. *Describe a voice*: `/v1/voice-design` ($0.01 per request) makes one candidate, which is saved as a
   private model so the whole book has one voice. *Clone*: one of your own voices becomes a private model
   (`enhance_audio_quality` on, Fish transcribes the sample itself; 10–30 s of clean speech works best). Made voices are
