@@ -2540,7 +2540,7 @@ function engChange() {
   $("#eng-ack").checked = false; ENG.vlang = undefined; ENG.sel = null; $("#vc-saved").hidden = true;
   $("#o-takes").value = e.cloud ? 2 : 3;
   $("#o-qa").value = e.cloud ? "0" : "1";  // an online voice rarely misreads; the check costs a retake each time and loads a local model
-  optionsVisibility(); ENG.est = null; $("#eng-est").textContent = ""; runSummary();
+  clearTimeout(ENG.tm); optionsVisibility(); ENG.est = null; $("#eng-est").textContent = ""; runSummary();
   $("#o-takes").parentElement.title = e.cloud ? t("eng.retakebilled") : "";
   engBlurbShow(e);
   if (book) fillLangs($("#lang").value || book.lang);
@@ -2556,14 +2556,14 @@ function engChange() {
 }
 const MODE_UI = new Proxy({}, { get: (_, m) => ["preset", "design", "localize", "clone"].includes(m) ? [t(`mode.${m}.h`), t(`mode.${m}.s`)] : undefined });
 function engModes() {
-  const e = ENG.cur(), cur = $("#o-tts_mode").value;
+  const e = ENG.cur(), cur = $("#o-tts_mode").value; if (!e || !e.voice_modes) return;  // local engines have no voice kinds
   $("#vc-modes").innerHTML = e.voice_modes.map(m => `<button type="button" class="chip ${m === cur ? "on" : ""} ${m === "design" ? "hot" : ""}" role="radio" aria-checked="${m === cur}" data-mode="${m}">${esc(MODE_UI[m] ? MODE_UI[m][0] : m)}${m === "localize" && book && book.lang !== "en" ? " ★ " + esc(t("mode.recommended")) : ""}</button>`).join("");
   $("#vc-modehint").textContent = MODE_UI[cur] ? MODE_UI[cur][1] : "";
 }
 $("#vc-modes").addEventListener("click", (ev) => { const b = ev.target.closest("[data-mode]"); if (!b) return; $("#o-tts_mode").value = b.dataset.mode; engMode(); engVoices(); engEstimate(); });
 function engMode() {
-  engModes();
-  const e = ENG.cur(); if (!e || !e.cloud) return; const m = $("#o-tts_mode").value, sel = !!ENG.sel;
+  const e = ENG.cur(); if (!e || !e.cloud) return;
+  engModes(); const m = $("#o-tts_mode").value, sel = !!ENG.sel;
   $("#vc-modes").parentElement.hidden = sel || e.voice_modes.length < 2;
   document.querySelector(".eng-pick").hidden = sel || !(m === "preset" || m === "localize"); document.querySelector(".eng-desc").hidden = sel || m !== "design";
   document.querySelector(".eng-own").hidden = sel || m !== "clone"; document.querySelector(".eng-keep").hidden = sel || m === "preset";
@@ -2584,6 +2584,7 @@ async function engSaved() {
   const e = ENG.cur(); if (!e || !e.cloud) return;
   if (document.querySelector("#vc-saved-list .sv-edit")) return;  // someone is typing a name: do not redraw under them
   try { ENG.savedList = (await api(`/api/tts/${e.name}/saved`)).voices; } catch (x) { ENG.savedList = []; }
+  if ((ENG.cur() || {}).name !== e.name) return;  // the engine was switched while the list loaded: that change redraws its own panel
   if (ENG.sel && !ENG.savedList.some(v => v.id === ENG.sel.id)) ENG.sel = null;
   $("#vc-saved").hidden = !ENG.savedList.length;
   const KIND = { design: t("kind.design"), localize: t("kind.localize"), clone: t("kind.clone") };
@@ -2682,6 +2683,7 @@ $("#vc-list").addEventListener("keydown", (ev) => { if ((ev.key === "Enter" || e
 function engEstimate() {
   clearTimeout(ENG.tm); if (!ENG.cloud() || !book) { return; }
   ENG.tm = setTimeout(async () => {
+    if (!ENG.cloud()) return;  // switched to a local engine during the delay: the server only prices online engines
     const post = (kind) => api("/api/tts/estimate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, book_id: book.book_id, chapters: selected(), options: options() }) });
     try {
       const [all, pre] = await Promise.all([post("render"), post("preview")]);

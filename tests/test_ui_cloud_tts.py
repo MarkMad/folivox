@@ -157,3 +157,13 @@ def test_saved_voices_list_delete_and_reuse(env, tmp_path, monkeypatch):
     assert c.delete("/api/tts/gemini/saved/nope").status_code == 404
     assert c.delete("/api/tts/gemini/saved/v-1").status_code == 200
     assert calls == [["v-1"]] and saved.listing("gemini") == []
+
+
+def test_only_online_engines_carry_voice_modes(env):
+    # The studio draws voice kinds from `voice_modes`; it must only do so for engines that have them
+    # (a local entry has none, so the UI has to check `cloud` before reading the list).
+    c, _ = env
+    engines = c.get("/api/tts/engines").json()["engines"]
+    assert any(not e["cloud"] for e in engines) and any(e["cloud"] for e in engines)
+    for e in engines:
+        assert bool(e.get("voice_modes")) == bool(e["cloud"]), e["name"]
