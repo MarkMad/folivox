@@ -718,7 +718,6 @@
  "rt.confirm": "Descărcați {gb} GB ({what})? PyTorch rămâne instalat.",
  "rt.confirmrm": "Ștergeți motorul nativ și fișierele modelului său? PyTorch nu este afectat.",
  "rt.device": "Motorul nativ își alege singur procesorul grafic, deci setarea Dispozitiv nu este folosită.",
- "rt.needinstall": "Instalați mai întâi motorul nativ.",
  "book.langs": "Limbi în această carte: {list}",
  "book.warn.lang_uk": "Cartea pare să fie în limba ucraineană, care nu este acceptată; va fi citită după regulile limbii ruse.",
  "book.warn.lang_be": "Cartea pare să fie în limba belarusă, care nu este acceptată; va fi citită după regulile limbii ruse.",

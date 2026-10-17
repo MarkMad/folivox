@@ -718,7 +718,6 @@
  "rt.confirm": "Preuzeti {gb} GB ({what})? PyTorch ostaje instaliran.",
  "rt.confirmrm": "Izbrisati nativni mehanizam i njegove datoteke modela? PyTorch ostaje nepromijenjen.",
  "rt.device": "Nativni mehanizam sam odabire svoj grafički procesor pa se postavka Uređaj ne koristi.",
- "rt.needinstall": "Prvo instalirajte nativni mehanizam.",
  "book.langs": "Jezici u ovoj knjizi: {list}",
  "book.warn.lang_uk": "Čini se da je knjiga na ukrajinskom jeziku, koji nije podržan; čitat će se prema pravilima ruskog.",
  "book.warn.lang_be": "Čini se da je knjiga na bjeloruskom jeziku, koji nije podržan; čitat će se prema pravilima ruskog.",

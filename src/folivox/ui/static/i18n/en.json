@@ -718,7 +718,6 @@
  "rt.confirm": "Download {gb} GB ({what})? PyTorch stays installed.",
  "rt.confirmrm": "Delete the native engine and its model files? PyTorch is not affected.",
  "rt.device": "The native engine picks its own graphics processor, so the Device setting is not used.",
- "rt.needinstall": "Install the native engine first.",
  "book.langs": "Languages in this book: {list}",
  "book.warn.lang_uk": "The book looks Ukrainian, which is not supported; it will be read with Russian rules.",
  "book.warn.lang_be": "The book looks Belarusian, which is not supported; it will be read with Russian rules.",

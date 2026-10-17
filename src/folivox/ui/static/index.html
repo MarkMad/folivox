@@ -642,10 +642,10 @@ dialog ul { padding-inline-start:18px; margin:10px 0; } dialog li { margin:6px 0
 <details id="adv" class="advanced"><summary><b data-i18n="adv.h">Advanced settings</b> <small class="mute" data-i18n="adv.sub">helpers that run on this computer · API keys for online providers</small></summary>
   <div id="s-runtime" class="adv-block"><h3 data-i18n="rt.h">Inference runtime</h3>
     <p class="sec-sub" data-i18n="rt.sub">Which engine runs the CosyVoice 3 voice on this computer. PyTorch is the tested default. The native C++ engine (audio.cpp) is optional and can be much faster; it needs a one-time download and is used only where you choose it.</p>
-    <div class="row"><select id="rt-select" aria-label="Inference runtime"><option value="auto" data-i18n="rt.opt.auto">Automatic (PyTorch for now)</option><option value="pytorch" data-i18n="rt.opt.pytorch">PyTorch</option><option value="native" data-i18n="rt.opt.native">Native C++ (audio.cpp)</option></select>
-      <button type="button" id="rt-install" class="primary" hidden></button><button type="button" id="rt-remove" hidden data-i18n="rt.remove">Remove</button></div>
-    <progress id="rt-progress" max="100" value="0" hidden style="width:100%;height:8px;margin-top:8px"></progress>
+    <div class="row"><select id="rt-select" aria-label="Inference runtime"><option value="auto" data-i18n="rt.opt.auto">Automatic (PyTorch for now)</option><option value="pytorch" data-i18n="rt.opt.pytorch">PyTorch</option><option value="native" data-i18n="rt.opt.native">Native C++ (audio.cpp)</option></select></div>
     <p class="mute" style="margin:8px 0 0"><small id="rt-status"></small></p>
+    <div class="row" style="margin-top:8px"><button type="button" id="rt-install" class="primary" hidden></button><button type="button" id="rt-remove" hidden data-i18n="rt.remove">Remove</button></div>
+    <progress id="rt-progress" max="100" value="0" hidden style="width:100%;height:8px;margin-top:8px"></progress>
     <p class="mute" style="margin:4px 0 0"><small id="rt-advice"></small></p>
     <p class="warn" style="margin:4px 0 0"><small id="rt-warn"></small></p>
   </div>
@@ -2080,6 +2080,7 @@ async function start(kind, sample) {
   $("#run-msg").textContent = "";
   if (vmode() === "multi" && !mkHasSpans()) { $("#run-msg").innerHTML = `<span class="err">${esc(t("vm.nomarkup"))}</span>`; return; }
   if (ENG.cloud() && !$("#eng-ack").checked) { $("#run-msg").innerHTML = `<span class="err">${t("run.tick")}</span>`; return; }
+  if (!await rtEnsureNative()) return;
   if (ENG.cloud() && ENG.cur().voice_modes.includes("clone") && $("#o-tts_mode").value === "clone" && !$("#eng-own").checked) { $("#run-msg").innerHTML = `<span class="err">${t("run.confirmown")}</span>`; return; }
   RUNSECS = sample ? 25 : kind === "preview" ? Math.min(book.chapters.find(c => c.n === chapters[0]).seconds, 600 * book.estimated_seconds / Math.max(1, book.chars)) : book.chapters.filter(c => chapters.includes(c.n)).reduce((a, c) => a + c.seconds, 0); PACE_ENGINE = ENG.cur() ? ENG.cur().name : "cosyvoice3";
   try { attach(await api("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -2997,11 +2998,13 @@ function rtNative() { return !!RT.st && (RT.st.selected === "native" || (RT.st.s
 function rtRender() {
   const s = RT.st, running = s && s.install.state === "running"; if (!s) return;
   $("#rt-select").value = s.selected;
-  $("#rt-install").hidden = !s.todo.bytes || running;
+  // Download only matters when the native engine may be used; Remove only when there is a finished install to remove
+  // (a half-finished one is completed by Download, so it never shows a Remove for something that is "not installed").
+  $("#rt-install").hidden = s.selected === "pytorch" || s.installed || !s.todo.bytes || running;
   $("#rt-install").textContent = t("rt.install", { gb: (s.todo.bytes / 1e9).toFixed(1) });
-  $("#rt-remove").hidden = !s.server || running;
-  $("#rt-status").textContent = !s.build && !s.server ? t("rt.st.nobuild", { platform: s.platform }) : s.installed ? t("rt.st.ready", { backend: (s.build && s.build.backend) || "custom" }) : t("rt.st.none");
-  const warn = [s.build && !s.build.verified ? t("rt.st.untested", { platform: s.platform }) : "", s.selected === "native" && !s.installed ? t("rt.needinstall") : "", rtNative() ? t("rt.device") : ""];
+  $("#rt-remove").hidden = !s.installed || running;
+  if (!running) $("#rt-status").textContent = !s.build && !s.server ? t("rt.st.nobuild", { platform: s.platform }) : s.installed ? t("rt.st.ready", { backend: (s.build && s.build.backend) || "custom" }) : t("rt.st.none");
+  const warn = [s.build && !s.build.verified ? t("rt.st.untested", { platform: s.platform }) : "", rtNative() ? t("rt.device") : ""];
   $("#rt-warn").textContent = warn.filter(Boolean).join(" ");
   const a = s.advice;
   $("#rt-advice").textContent = !a ? "" : [a.level === "try" ? t("rt.adv.try", { hw: a.hardware, date: a.date, lo: a.speedup[0], hi: a.speedup[1], qn: a.qa_native, qp: a.qa_pytorch }) : t("rt.adv.unknown", { platform: a.platform }),
@@ -3015,15 +3018,35 @@ async function rtPoll() {
   if (i.state === "running") { $("#rt-status").textContent = i.total ? t("rt.installing", { name: i.name, done: (i.done / 1e9).toFixed(1), total: (i.total / 1e9).toFixed(1) }) : (i.message || t("rt.preparing")); RT.timer = setTimeout(rtPoll, 1500); return; }
   await rtRefresh(); if (i.state === "error") $("#rt-warn").textContent = i.message;
 }
+async function rtInstall(confirmText) {
+  const s = RT.st; if (!s || !confirm(t(confirmText, { gb: (s.todo.bytes / 1e9).toFixed(1), what: s.todo.lines.join("; ") }))) return false;
+  try { await api("/api/runtime/install", { method: "POST" }); $("#rt-install").hidden = true; rtPoll(); return true; }
+  catch (e) { $("#rt-warn").textContent = e.message; return false; }
+}
 $("#rt-select").addEventListener("change", async () => {
-  try { RT.st = await api("/api/runtime", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inference: $("#rt-select").value }) }); rtRender(); }
-  catch (e) { $("#rt-warn").textContent = e.message; }
+  const prev = RT.st ? RT.st.selected : "auto", next = $("#rt-select").value;
+  const put = (v) => api("/api/runtime", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inference: v }) });
+  try {
+    RT.st = await put(next); rtRender();
+    // Choosing the native engine offers the download at once; declining goes back to the previous choice.
+    if (next === "native" && !RT.st.installed && RT.st.todo.bytes && !await rtInstall("rt.confirm")) { RT.st = await put(prev); rtRender(); }
+  } catch (e) { $("#rt-warn").textContent = e.message; }
 });
-$("#rt-install").addEventListener("click", async () => {
-  const s = RT.st; if (!s || !confirm(t("rt.confirm", { gb: (s.todo.bytes / 1e9).toFixed(1), what: s.todo.lines.join("; ") }))) return;
-  try { await api("/api/runtime/install", { method: "POST" }); $("#rt-install").hidden = true; rtPoll(); }
-  catch (e) { $("#rt-warn").textContent = e.message; }
-});
+$("#rt-install").addEventListener("click", () => rtInstall("rt.confirm"));
+// A render with the native engine chosen but not installed offers the download first and waits for it.
+async function rtEnsureNative() {
+  const s = RT.st, e = ENG.list.length ? ENG.cur() : null;
+  if (!s || s.selected !== "native" || s.installed || !s.todo.bytes || (e && e.name !== "cosyvoice3")) return true;
+  if (!await rtInstall("rt.confirm")) return false;
+  for (;;) {
+    await new Promise(r => setTimeout(r, 1500));
+    let i; try { i = await api("/api/runtime/install"); } catch (err) { return false; }
+    if (i.state === "running") { $("#run-msg").textContent = i.total ? t("rt.installing", { name: i.name, done: (i.done / 1e9).toFixed(1), total: (i.total / 1e9).toFixed(1) }) : (i.message || t("rt.preparing")); continue; }
+    await rtRefresh(); $("#run-msg").textContent = "";
+    if (i.state === "error") { $("#run-msg").innerHTML = `<span class="err">${esc(i.message)}</span>`; return false; }
+    return !!(RT.st && RT.st.installed);
+  }
+}
 $("#rt-remove").addEventListener("click", async () => {
   if (!confirm(t("rt.confirmrm"))) return;
   try { RT.st = await api("/api/runtime/remove", { method: "POST" }); rtRender(); }

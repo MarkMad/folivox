@@ -718,7 +718,6 @@
  "rt.confirm": "Ladda ner {gb} GB ({what})? PyTorch förblir installerat.",
  "rt.confirmrm": "Radera den inbyggda motorn och dess modellfiler? PyTorch påverkas inte.",
  "rt.device": "Den inbyggda motorn väljer sin egen grafikprocessor, så inställningen Enhet används inte.",
- "rt.needinstall": "Installera först den inbyggda motorn.",
  "book.langs": "Språk i den här boken: {list}",
  "book.warn.lang_uk": "Boken verkar vara på ukrainska, som inte stöds; den läses med ryska regler.",
  "book.warn.lang_be": "Boken verkar vara på belarusiska, som inte stöds; den läses med ryska regler.",

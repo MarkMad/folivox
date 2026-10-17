@@ -718,7 +718,6 @@
  "rt.confirm": "Laste ned {gb} GB ({what})? PyTorch forblir installert.",
  "rt.confirmrm": "Slette den native motoren og modellfilene dens? PyTorch påvirkes ikke.",
  "rt.device": "Den native motoren velger selv grafikkprosessor, så innstillingen Enhet brukes ikke.",
- "rt.needinstall": "Installer den native motoren først.",
  "book.langs": "Språk i denne boken: {list}",
  "book.warn.lang_uk": "Boken ser ut til å være på ukrainsk, som ikke støttes; den leses etter russiske regler.",
  "book.warn.lang_be": "Boken ser ut til å være på belarusisk, som ikke støttes; den leses etter russiske regler.",

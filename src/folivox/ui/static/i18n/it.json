@@ -718,7 +718,6 @@
  "rt.confirm": "Scaricare {gb} GB ({what})? PyTorch resta installato.",
  "rt.confirmrm": "Eliminare il motore nativo e i suoi file del modello? PyTorch non viene toccato.",
  "rt.device": "Il motore nativo sceglie da sé il processore grafico, quindi l’impostazione «Dispositivo» non viene usata.",
- "rt.needinstall": "Installa prima il motore nativo.",
  "book.langs": "Lingue di questo libro: {list}",
  "book.warn.lang_uk": "Il libro sembra in ucraino, che non è supportato; verrà letto con le regole del russo.",
  "book.warn.lang_be": "Il libro sembra in bielorusso, che non è supportato; verrà letto con le regole del russo.",

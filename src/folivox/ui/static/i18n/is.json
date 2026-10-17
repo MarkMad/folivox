@@ -718,7 +718,6 @@
  "rt.confirm": "Sækja {gb} GB ({what})? PyTorch helst uppsett.",
  "rt.confirmrm": "Eyða innbyggðu vélinni og líkanaskrám hennar? PyTorch verður ekki fyrir áhrifum.",
  "rt.device": "Innbyggða vélin velur sinn eigin grafíkörgjörva, svo stillingin Tæki er ekki notuð.",
- "rt.needinstall": "Settu fyrst upp innbyggðu vélina.",
  "book.langs": "Tungumál í þessari bók: {list}",
  "book.warn.lang_uk": "Bókin virðist vera á úkraínsku, sem er ekki studd; hún verður lesin eftir reglum rússnesku.",
  "book.warn.lang_be": "Bókin virðist vera á hvítrússnesku, sem er ekki studd; hún verður lesin eftir reglum rússnesku.",

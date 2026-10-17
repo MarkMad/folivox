@@ -42,11 +42,15 @@ See [Fish Audio engines](fish-engines.md).
 
 ## Inference runtime (implemented)
 
-*Advanced settings → Inference runtime* holds the one general switch (Automatic / PyTorch / Native C++), the
-state of the optional native engine, *Download the native engine (N GB)* (a confirmation names what is downloaded;
-progress is shown) and *Remove*. The choice is written to `config.toml` (`[runtime] inference`) at once and applies to
-the next job. With the native runtime on, the *Device* option is hidden for CosyVoice 3 (the engine picks its
-GPU). Routes: `GET/PUT /api/runtime`, `GET/POST /api/runtime/install`, `POST /api/runtime/remove`.
+*Advanced settings → Inference runtime* holds the one general switch (Automatic / PyTorch / Native C++), a status line
+for the optional native engine and its actions. *Download the native engine (N GB)* shows only when the choice is
+Automatic or Native and the engine is not fully installed (it also finishes a half-finished download); a confirmation
+names what is downloaded and progress is shown. *Remove* shows only for a finished install. Choosing *Native C++* offers
+the download at once; declining returns to the previous choice. Starting a render or preview with Native chosen but not
+installed offers the same download first and continues when it is done. The choice is written to `config.toml`
+(`[runtime] inference`) at once and applies to the next job. With the native runtime on, the *Device* option is hidden
+for CosyVoice 3 (the engine picks its GPU). Routes: `GET/PUT /api/runtime`, `GET/POST /api/runtime/install`,
+`POST /api/runtime/remove`.
 See [Native runtime](native-runtime.md).
 
 ## Markup editor (implemented)

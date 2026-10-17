@@ -718,7 +718,6 @@
  "rt.confirm": "Tải xuống {gb} GB ({what})? PyTorch vẫn được giữ lại.",
  "rt.confirmrm": "Xóa công cụ gốc và các tệp mô hình của nó? PyTorch không bị ảnh hưởng.",
  "rt.device": "Công cụ gốc tự chọn bộ xử lý đồ họa, nên cài đặt Thiết bị không được dùng.",
- "rt.needinstall": "Hãy cài đặt công cụ gốc trước.",
  "book.langs": "Các ngôn ngữ trong sách này: {list}",
  "book.warn.lang_uk": "Sách có vẻ là tiếng Ukraina, ngôn ngữ chưa được hỗ trợ; sách sẽ được đọc theo quy tắc tiếng Nga.",
  "book.warn.lang_be": "Sách có vẻ là tiếng Belarus, ngôn ngữ chưa được hỗ trợ; sách sẽ được đọc theo quy tắc tiếng Nga.",

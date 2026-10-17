@@ -718,7 +718,6 @@
  "rt.confirm": "{gb} GB laden ({what})? PyTorch bleibt installiert.",
  "rt.confirmrm": "Native Laufzeit und Modelldateien löschen? PyTorch bleibt unberührt.",
  "rt.device": "Die native Laufzeit wählt ihren Grafikprozessor selbst; die Einstellung „Gerät“ gilt hier nicht.",
- "rt.needinstall": "Installieren Sie zuerst die native Laufzeit.",
  "book.langs": "Sprachen in diesem Buch: {list}",
  "book.warn.lang_uk": "Das Buch scheint ukrainisch zu sein; Ukrainisch wird nicht unterstützt, es wird nach russischen Regeln gelesen.",
  "book.warn.lang_be": "Das Buch scheint belarussisch zu sein; Belarussisch wird nicht unterstützt, es wird nach russischen Regeln gelesen.",

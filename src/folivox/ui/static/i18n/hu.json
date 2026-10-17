@@ -718,7 +718,6 @@
  "rt.confirm": "Letölt {gb} GB-ot ({what})? A PyTorch telepítve marad.",
  "rt.confirmrm": "Törli a natív motort és a modellfájljait? A PyTorchot ez nem érinti.",
  "rt.device": "A natív motor maga választja ki a grafikus processzorát, ezért az Eszköz beállítás nincs használatban.",
- "rt.needinstall": "Előbb telepítse a natív motort.",
  "book.langs": "A könyv nyelvei: {list}",
  "book.warn.lang_uk": "A könyv ukrán nyelvűnek tűnik, ami nem támogatott; az orosz szabályai szerint lesz felolvasva.",
  "book.warn.lang_be": "A könyv belarusz nyelvűnek tűnik, ami nem támogatott; az orosz szabályai szerint lesz felolvasva.",

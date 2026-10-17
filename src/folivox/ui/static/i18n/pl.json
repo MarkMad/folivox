@@ -718,7 +718,6 @@
  "rt.confirm": "Pobrać {gb} GB ({what})? PyTorch pozostaje zainstalowany.",
  "rt.confirmrm": "Usunąć silnik natywny i jego pliki modelu? PyTorch nie jest naruszany.",
  "rt.device": "Silnik natywny sam wybiera procesor graficzny, więc ustawienie Urządzenie nie jest używane.",
- "rt.needinstall": "Najpierw zainstaluj silnik natywny.",
  "book.langs": "Języki w tej książce: {list}",
  "book.warn.lang_uk": "Książka wygląda na napisaną w języku ukraińskim, który nie jest obsługiwany; zostanie przeczytana według zasad rosyjskiego.",
  "book.warn.lang_be": "Książka wygląda na napisaną w języku białoruskim, który nie jest obsługiwany; zostanie przeczytana według zasad rosyjskiego.",

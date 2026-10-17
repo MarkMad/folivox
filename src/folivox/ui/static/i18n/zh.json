@@ -718,7 +718,6 @@
  "rt.confirm": "下载 {gb} GB（{what}）？PyTorch 会保留。",
  "rt.confirmrm": "删除原生引擎及其模型文件？不影响 PyTorch。",
  "rt.device": "原生引擎自行选择显卡，因此“设备”设置不起作用。",
- "rt.needinstall": "请先安装原生引擎。",
  "book.langs": "本书中的语言：{list}",
  "book.warn.lang_uk": "这本书看起来是乌克兰语，目前不支持乌克兰语，将按俄语规则朗读。",
  "book.warn.lang_be": "这本书看起来是白俄罗斯语，目前不支持白俄罗斯语，将按俄语规则朗读。",

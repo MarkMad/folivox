@@ -718,7 +718,6 @@
  "rt.confirm": "Kupakua GB {gb} ({what})? PyTorch inabaki imesakinishwa.",
  "rt.confirmrm": "Kufuta injini asilia na faili za modeli yake? PyTorch haiathiriwi.",
  "rt.device": "Injini asilia huchagua kichakataji chake cha michoro, kwa hiyo mpangilio wa Kifaa haukutumika.",
- "rt.needinstall": "Sakinisha injini asilia kwanza.",
  "book.langs": "Lugha katika kitabu hiki: {list}",
  "book.warn.lang_uk": "Kitabu kinaonekana kuwa cha Kiukreni, ambacho hakitumiki; kitasomwa kwa kanuni za Kirusi.",
  "book.warn.lang_be": "Kitabu kinaonekana kuwa cha Kibelarusi, ambacho hakitumiki; kitasomwa kwa kanuni za Kirusi.",

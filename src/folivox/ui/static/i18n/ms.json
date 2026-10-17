@@ -718,7 +718,6 @@
  "rt.confirm": "Muat turun {gb} GB ({what})? PyTorch kekal dipasang.",
  "rt.confirmrm": "Padam enjin asli dan fail modelnya? PyTorch tidak terjejas.",
  "rt.device": "Enjin asli memilih pemproses grafiknya sendiri, jadi tetapan Peranti tidak digunakan.",
- "rt.needinstall": "Pasang enjin asli dahulu.",
  "book.langs": "Bahasa dalam buku ini: {list}",
  "book.warn.lang_uk": "Buku ini kelihatan dalam bahasa Ukraine, yang tidak disokong; ia akan dibaca dengan peraturan bahasa Rusia.",
  "book.warn.lang_be": "Buku ini kelihatan dalam bahasa Belarus, yang tidak disokong; ia akan dibaca dengan peraturan bahasa Rusia.",

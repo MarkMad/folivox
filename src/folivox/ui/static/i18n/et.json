@@ -718,7 +718,6 @@
  "rt.confirm": "Kas laadida alla {gb} GB ({what})? PyTorch jääb paigaldatuks.",
  "rt.confirmrm": "Kas kustutada natiivne mootor ja selle mudelifailid? PyTorchi see ei mõjuta.",
  "rt.device": "Natiivne mootor valib ise graafikaprotsessori, seega sätet Seade ei kasutata.",
- "rt.needinstall": "Paigaldage esmalt natiivne mootor.",
  "book.langs": "Selle raamatu keeled: {list}",
  "book.warn.lang_uk": "Raamat tundub olevat ukraina keeles, mida ei toetata; seda loetakse vene keele reeglite järgi.",
  "book.warn.lang_be": "Raamat tundub olevat valgevene keeles, mida ei toetata; seda loetakse vene keele reeglite järgi.",

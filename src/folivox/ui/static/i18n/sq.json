@@ -718,7 +718,6 @@
  "rt.confirm": "Të shkarkohen {gb} GB ({what})? PyTorch mbetet i instaluar.",
  "rt.confirmrm": "Të fshihet motori nativ dhe skedarët e modelit të tij? PyTorch nuk preket.",
  "rt.device": "Motori nativ zgjedh vetë procesorin grafik, ndaj cilësimi Pajisja nuk përdoret.",
- "rt.needinstall": "Instaloni fillimisht motorin nativ.",
  "book.langs": "Gjuhët në këtë libër: {list}",
  "book.warn.lang_uk": "Libri duket se është në ukrainisht, që nuk mbështetet; do të lexohet me rregullat e rusishtes.",
  "book.warn.lang_be": "Libri duket se është në bjellorusisht, që nuk mbështetet; do të lexohet me rregullat e rusishtes.",

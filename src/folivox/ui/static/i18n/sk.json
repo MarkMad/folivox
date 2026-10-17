@@ -718,7 +718,6 @@
  "rt.confirm": "Stiahnuť {gb} GB ({what})? PyTorch zostane nainštalovaný.",
  "rt.confirmrm": "Odstrániť natívny engine a jeho súbory modelu? PyTorch to neovplyvní.",
  "rt.device": "Natívny engine si vyberá vlastný grafický procesor, preto sa nastavenie Zariadenie nepoužíva.",
- "rt.needinstall": "Najprv nainštalujte natívny engine.",
  "book.langs": "Jazyky v tejto knihe: {list}",
  "book.warn.lang_uk": "Kniha vyzerá, že je ukrajinsky, čo nie je podporované; bude čítaná podľa pravidiel ruštiny.",
  "book.warn.lang_be": "Kniha vyzerá, že je bielorusky, čo nie je podporované; bude čítaná podľa pravidiel ruštiny.",

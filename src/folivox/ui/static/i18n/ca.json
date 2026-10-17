@@ -718,7 +718,6 @@
  "rt.confirm": "Vols baixar {gb} GB ({what})? PyTorch continua instal·lat.",
  "rt.confirmrm": "Vols eliminar el motor natiu i els seus fitxers de model? PyTorch no es veu afectat.",
  "rt.device": "El motor natiu tria el seu propi processador gràfic, per això la configuració de Dispositiu no s'utilitza.",
- "rt.needinstall": "Instal·la primer el motor natiu.",
  "book.langs": "Idiomes d'aquest llibre: {list}",
  "book.warn.lang_uk": "El llibre sembla en ucraïnès, que no és compatible; es llegirà amb les regles del rus.",
  "book.warn.lang_be": "El llibre sembla en belarús, que no és compatible; es llegirà amb les regles del rus.",

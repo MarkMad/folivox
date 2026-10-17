@@ -718,7 +718,6 @@
  "rt.confirm": "{gb} GB indirilsin mi ({what})? PyTorch kurulu kalır.",
  "rt.confirmrm": "Yerel motor ve model dosyaları silinsin mi? PyTorch etkilenmez.",
  "rt.device": "Yerel motor kendi grafik işlemcisini seçer, bu yüzden Aygıt ayarı kullanılmaz.",
- "rt.needinstall": "Önce yerel motoru kurun.",
  "book.langs": "Bu kitaptaki diller: {list}",
  "book.warn.lang_uk": "Kitap Ukraynaca görünüyor ve bu dil desteklenmiyor; Rusça kurallarıyla okunacak.",
  "book.warn.lang_be": "Kitap Belarusça görünüyor ve bu dil desteklenmiyor; Rusça kurallarıyla okunacak.",

@@ -718,7 +718,6 @@
  "rt.confirm": "Prenesem {gb} GB ({what})? PyTorch ostane nameščen.",
  "rt.confirmrm": "Izbrišem izvorni pogon in datoteke njegovega modela? PyTorch ni prizadet.",
  "rt.device": "Izvorni pogon sam izbere svoj grafični procesor, zato nastavitev Naprava ni uporabljena.",
- "rt.needinstall": "Najprej namestite izvorni pogon.",
  "book.langs": "Jeziki v tej knjigi: {list}",
  "book.warn.lang_uk": "Knjiga je videti v ukrajinščini, ki ni podprta; brala se bo po pravilih ruščine.",
  "book.warn.lang_be": "Knjiga je videti v beloruščini, ki ni podprta; brala se bo po pravilih ruščine.",

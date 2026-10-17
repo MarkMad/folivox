@@ -718,7 +718,6 @@
  "rt.confirm": "Atsisiųsti {gb} GB ({what})? PyTorch lieka įdiegtas.",
  "rt.confirmrm": "Ištrinti savąjį variklį ir jo modelio failus? PyTorch tai neturi įtakos.",
  "rt.device": "Savasis variklis pats pasirenka grafikos procesorių, todėl nustatymas Įrenginys nenaudojamas.",
- "rt.needinstall": "Pirmiausia įdiekite savąjį variklį.",
  "book.langs": "Šios knygos kalbos: {list}",
  "book.warn.lang_uk": "Atrodo, kad knyga parašyta ukrainiečių kalba, kuri nepalaikoma; ji bus skaitoma pagal rusų kalbos taisykles.",
  "book.warn.lang_be": "Atrodo, kad knyga parašyta baltarusių kalba, kuri nepalaikoma; ji bus skaitoma pagal rusų kalbos taisykles.",

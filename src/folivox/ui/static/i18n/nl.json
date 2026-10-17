@@ -718,7 +718,6 @@
  "rt.confirm": "{gb} GB downloaden ({what})? PyTorch blijft geïnstalleerd.",
  "rt.confirmrm": "De native engine en de bijbehorende modelbestanden verwijderen? PyTorch blijft ongemoeid.",
  "rt.device": "De native engine kiest zelf zijn grafische processor, dus de instelling Apparaat wordt niet gebruikt.",
- "rt.needinstall": "Installeer eerst de native engine.",
  "book.langs": "Talen in dit boek: {list}",
  "book.warn.lang_uk": "Het boek lijkt in het Oekraïens te zijn, dat niet wordt ondersteund; het wordt gelezen met Russische regels.",
  "book.warn.lang_be": "Het boek lijkt in het Wit-Russisch te zijn, dat niet wordt ondersteund; het wordt gelezen met Russische regels.",

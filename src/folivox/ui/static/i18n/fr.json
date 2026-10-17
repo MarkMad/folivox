@@ -718,7 +718,6 @@
  "rt.confirm": "Télécharger {gb} Go ({what}) ? PyTorch reste installé.",
  "rt.confirmrm": "Supprimer le moteur natif et ses fichiers de modèle ? PyTorch n’est pas touché.",
  "rt.device": "Le moteur natif choisit lui-même son processeur graphique ; le réglage « Appareil » n’est pas utilisé.",
- "rt.needinstall": "Installez d’abord le moteur natif.",
  "book.langs": "Langues de ce livre : {list}",
  "book.warn.lang_uk": "Le livre semble être en ukrainien, qui n'est pas pris en charge ; il sera lu avec les règles du russe.",
  "book.warn.lang_be": "Le livre semble être en biélorusse, qui n'est pas pris en charge ; il sera lu avec les règles du russe.",

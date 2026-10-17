@@ -718,7 +718,6 @@
  "rt.confirm": "Lejupielādēt {gb} GB ({what})? PyTorch paliek uzstādīts.",
  "rt.confirmrm": "Dzēst dabisko dzinēju un tā modeļa failus? PyTorch tas neietekmē.",
  "rt.device": "Dabiskais dzinējs izvēlas savu grafikas procesoru pats, tāpēc iestatījums Ierīce netiek izmantots.",
- "rt.needinstall": "Vispirms uzstādiet dabisko dzinēju.",
  "book.langs": "Valodas šajā grāmatā: {list}",
  "book.warn.lang_uk": "Šķiet, ka grāmata ir ukraiņu valodā, kas netiek atbalstīta; tā tiks lasīta pēc krievu valodas noteikumiem.",
  "book.warn.lang_be": "Šķiet, ka grāmata ir baltkrievu valodā, kas netiek atbalstīta; tā tiks lasīta pēc krievu valodas noteikumiem.",

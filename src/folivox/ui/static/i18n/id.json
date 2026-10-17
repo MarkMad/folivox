@@ -718,7 +718,6 @@
  "rt.confirm": "Unduh {gb} GB ({what})? PyTorch tetap terpasang.",
  "rt.confirmrm": "Hapus mesin native dan file modelnya? PyTorch tidak terpengaruh.",
  "rt.device": "Mesin native memilih sendiri prosesor grafisnya, jadi pengaturan Perangkat tidak dipakai.",
- "rt.needinstall": "Pasang mesin native terlebih dahulu.",
  "book.langs": "Bahasa dalam buku ini: {list}",
  "book.warn.lang_uk": "Buku ini tampaknya berbahasa Ukraina, yang tidak didukung; buku akan dibaca dengan aturan bahasa Rusia.",
  "book.warn.lang_be": "Buku ini tampaknya berbahasa Belarus, yang tidak didukung; buku akan dibaca dengan aturan bahasa Rusia.",
