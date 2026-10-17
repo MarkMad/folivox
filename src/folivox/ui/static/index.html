@@ -1621,6 +1621,7 @@ function renderBookInfo() {
 }
 function setBook(b, keep, lang) {
   if (!book || book.book_id !== b.book_id) LANGINFO = null;
+  if (!book || book.book_id !== b.book_id) ENG.vlang = undefined;  // voices of the new book's language
   book = b; showCover(b.cover || "");
   renderBookInfo(); loadMeta(); loadPron(); loadMk(); loadRecent();
   $("#lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}" ${c === b.lang ? "selected" : ""}>${n}</option>`).join("");
@@ -1648,6 +1649,7 @@ $("#none").onclick = () => { document.querySelectorAll("#chapters input").forEac
 async function reflow() {
   const r = await api(`/api/books/${book.book_id}/chapters?depth=${+$("#depth").value || 2}&lang=${$("#lang").value}`);
   book = r; LANGINFO = null; renderChapters(); loadVoices(); loadLangs();
+  if (ENG.cloud()) { ENG.vlang = undefined; engVoices(); engEstimate(); }  // an online engine lists the voices of the book's language
 }
 $("#depth").onchange = reflow; $("#lang").onchange = reflow;
 
@@ -2481,13 +2483,15 @@ $("#vc-saved-list").addEventListener("click", async (ev) => {
   if (card) { const v = ENG.savedList.find(x => x.id === card.dataset.sid); ENG.sel = ENG.sel && ENG.sel.id === v.id ? null : v; engSaved(); }
 });
 $("#vc-saved-list").addEventListener("keydown", (ev) => { if ((ev.key === "Enter" || ev.key === " ") && ev.target.dataset && ev.target.dataset.sid) { ev.preventDefault(); ev.target.click(); } });
+// Voice-language chips: always for Cartesia "localize"; for Fish also when picking a library voice (it has voices in every language)
+const vlangOn = (e) => $("#o-tts_mode").value === "localize" || (e.name === "fish" && $("#o-tts_mode").value === "preset");
 async function engVoices() {
   const e = ENG.cur(), box = $("#vc-list"); if (!e || !e.cloud) return;
   if (!e.key_in_env && !e.key_saved) { box.innerHTML = `<div class="mute">${t("eng.nokey", { label: esc(e.label) })}</div>`; $("#vc-sex").innerHTML = ""; return; }
   box.innerHTML = `<div class="mute">${t("eng.loading")}</div>`; const ticket = ENG.ticket = (ENG.ticket || 0) + 1;
   try {
-    const localize = $("#o-tts_mode").value === "localize"; if (ENG.vlang === undefined) ENG.vlang = "en";
-    const lang = localize ? ENG.vlang : (book && book.lang) || "", r = ENG.voices[e.name + lang] || (ENG.voices[e.name + lang] = await api(`/api/gen/voices/${e.name}?lang=${encodeURIComponent(lang)}`));
+    const chips = vlangOn(e); if (ENG.vlang === undefined) ENG.vlang = e.name === "fish" ? (book && book.lang) || "en" : "en";
+    const lang = chips ? ENG.vlang : (book && book.lang) || "", r = ENG.voices[e.name + lang] || (ENG.voices[e.name + lang] = await api(`/api/gen/voices/${e.name}?lang=${encodeURIComponent(lang)}`));
     if (ticket !== ENG.ticket) return;  // a newer request (another mode or engine) owns the list now
     ENG.vlist = (e.name === "elevenlabs" || e.name === "cartesia" || e.name === "fish" ? [] : [{ id: "", name: t("eng.default"), traits: t("eng.neutral"), gender: "" }]).concat(r.voices);
     ENG.vnote = r.note || ""; ENG.vname = e.name;
@@ -2498,7 +2502,8 @@ async function engVoices() {
 function engRenderVoices() {
   const e = ENG.cur(), all = ENG.vlist || [];
   const bl = book && book.lang, langs = [["en", LANGS.en], ...(bl && bl !== "en" ? [[bl, LANGS[bl] || bl]] : []), ["", t("v.alllangs")]];
-  $("#vc-lang").innerHTML = $("#o-tts_mode").value === "localize" ? `<span class="mute" style="align-self:center;font-size:13px">${esc(t("eng.vlang"))}</span>` + langs.map(([c, n]) => `<button type="button" class="chip ${(ENG.vlang ?? "en") === c ? "on" : ""}" data-vlang="${c}">${esc(n)}</button>`).join("") : "";
+  if (e.name === "fish") langs.splice(0, langs.length, ...(bl ? [[bl, LANGS[bl] || bl]] : []), ...Object.entries(LANGS).filter(([c]) => c !== bl), ["", t("v.alllangs")]);
+  $("#vc-lang").innerHTML = vlangOn(e) ? `<span class="mute" style="align-self:center;font-size:13px">${esc(t("eng.vlang"))}</span>` + langs.map(([c, n]) => `<button type="button" class="chip ${(ENG.vlang ?? (e.name === "fish" ? bl : "en")) === c ? "on" : ""}" data-vlang="${c}">${esc(n)}</button>`).join("") : "";
   const sexes = [...new Set(all.map(v => v.gender).filter(Boolean))], cur = $("#o-tts_voice").value;
   if (ENG.vsex && !sexes.includes(ENG.vsex)) ENG.vsex = "";
   $("#vc-sex").innerHTML = sexes.length > 1 ? [["", t("v.any")], ["f", t("sex.female")], ["m", t("sex.male")]].map(([g, n]) => `<button type="button" class="chip ${(ENG.vsex || "") === g ? "on" : ""}" data-vsex="${g}">${n}</button>`).join("") : "";
