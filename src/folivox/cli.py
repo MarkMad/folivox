@@ -692,7 +692,9 @@ def voices_add(
     except VoiceError as e:
         console.print(f"[red]{e}[/]")
         raise typer.Exit(2) from None
-    for w in v.warnings:
+    from folivox.tts.voice import transcript_warnings
+
+    for w in v.warnings + transcript_warnings(v.transcript, v.duration, lang):
         console.print(f"[yellow]⚠ {w}[/]")
     import tempfile
 

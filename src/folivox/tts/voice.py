@@ -35,6 +35,53 @@ class Voice:
         return out
 
 
+# Letters per second of ordinary speech; far outside this the text is not what the recording says
+# (a transcript of a longer original, a cut-off one, or a recogniser run in the wrong language).
+_RATE = {"alpha": (4.0, 22.0), "cjk": (1.2, 11.0)}
+_CJK = {"zh", "ja", "ko"}
+
+
+def _script_of(ch: str) -> str:
+    o = ord(ch)
+    if 0x0400 <= o <= 0x052F:
+        return "cyrillic"
+    if 0x3040 <= o <= 0x30FF:
+        return "kana"
+    if 0xAC00 <= o <= 0xD7AF or 0x1100 <= o <= 0x11FF:
+        return "hangul"
+    if 0x4E00 <= o <= 0x9FFF:
+        return "han"
+    if ch.isascii() or 0x00C0 <= o <= 0x024F:
+        return "latin"
+    return "other"
+
+
+_EXPECTED = {"ru": {"cyrillic"}, "ja": {"han", "kana"}, "zh": {"han"}, "ko": {"hangul", "han"}}
+
+
+def transcript_warnings(text: str, duration: float, lang: str) -> list[str]:
+    """Hints that the transcript does not belong to the recording or is in another language than ``lang``."""
+    letters = [c for c in text if c.isalpha()]
+    if not letters or duration <= 0:
+        return []
+    out = []
+    kind = "cjk" if lang in _CJK else "alpha"
+    rate = len(letters) / duration
+    lo, hi = _RATE[kind]
+    if rate > hi:
+        out.append(f"The transcript is too long for a {duration:.0f} s recording ({len(letters)} letters): it may be "
+                   "the text of a longer original. Clone quality drops when text and audio differ.")
+    elif rate < lo:
+        out.append(f"The transcript is too short for a {duration:.0f} s recording ({len(letters)} letters): "
+                   "part of the speech is not in the text. Clone quality drops when text and audio differ.")
+    expected = _EXPECTED.get(lang, {"latin"})
+    share = sum(_script_of(c) in expected for c in letters) / len(letters)
+    if share < 0.6:
+        out.append(f"The transcript does not look like the sample language ({lang}): the speech recogniser may have "
+                   "been run in the wrong language. Choose the language of the sample and transcribe again.")
+    return out
+
+
 def audio_duration(path: Path) -> float:
     import soundfile as sf
 

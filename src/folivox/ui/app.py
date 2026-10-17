@@ -689,7 +689,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
 
     async def add_voice(request: Request):
         from folivox import lang as languages
-        from folivox.tts.voice import VoiceError, load_voice
+        from folivox.tts.voice import VoiceError, load_voice, transcript_warnings
 
         form = await request.form()
         f = form.get("file")
@@ -723,7 +723,40 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                 raise ApiError(str(e)) from None
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
-        return JSONResponse({**_voice_json(entry), "warnings": v.warnings})
+        return JSONResponse({**_voice_json(entry),
+                             "warnings": v.warnings + transcript_warnings(v.transcript, v.duration, code)})
+
+    async def transcribe_voice(request: Request):
+        """Recognise the sample's text so the user can check it before the voice is saved."""
+        from folivox import lang as languages
+        from folivox.qa.asr import Transcriber
+        from folivox.tts.voice import audio_duration, transcript_warnings
+
+        form = await request.form()
+        f = form.get("file")
+        if f is None or not hasattr(f, "read"):
+            raise ApiError("No audio file in the request")
+        try:
+            code = languages.get(str(form.get("lang") or "en")).code
+        except ValueError as e:
+            raise ApiError(str(e)) from None
+        data = await f.read()
+        if len(data) > MAX_UPLOAD:
+            raise ApiError("File is too large", 413)
+        tmp = state.data_dir / "tmp" / uuid.uuid4().hex
+        tmp.mkdir(parents=True)
+        try:
+            audio = tmp / (Path(f.filename or "voice.wav").name or "voice.wav")
+            audio.write_bytes(data)
+            try:
+                duration = await asyncio.to_thread(audio_duration, audio)
+                text = await asyncio.to_thread(Transcriber(language=code).transcribe_file, audio)
+            except Exception as e:  # noqa: BLE001 — unreadable audio or a missing ASR model is reported, not a crash
+                raise ApiError(f"Cannot transcribe the sample: {e}") from None
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        text = " ".join((text or "").split())
+        return JSONResponse({"transcript": text, "warnings": transcript_warnings(text, duration, code)})
 
     async def denoise(request: Request):
         """WAV in → WAV out with steady background noise reduced (for the A/B check before adding a voice)."""
@@ -1601,6 +1634,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/favorites", put_favorites, methods=["PUT"]),
         Route("/api/voices", list_voices),
         Route("/api/voices", add_voice, methods=["POST"]),
+        Route("/api/voices/transcribe", transcribe_voice, methods=["POST"]),
         Route("/api/denoise", denoise, methods=["POST"]),
         Route("/api/voices/{voice_id}/sample", voice_sample),
         Route("/api/voices/{voice_id}", delete_voice, methods=["DELETE"]),

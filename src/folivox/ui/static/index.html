@@ -1965,6 +1965,15 @@ function checkAdd() {
 $("#av-submit").onclick = async () => {
   const msg = $("#av-msg"), btn = $("#av-submit"); msg.className = "mute"; btn.disabled = true;
   msg.textContent = $("#av-text").value.trim() ? t("av.adding") : t("av.transcribing");
+  if (!$("#av-text").value.trim()) {   // recognise first and let the user check the text: a wrong transcript ruins the clone
+    const tf = new FormData(); tf.append("lang", $("#av-lang").value); tf.append("file", wavBlob(av.mono, av.sr), "voice.wav");
+    try {
+      const r = await api("/api/voices/transcribe", { method: "POST", body: tf }); $("#av-text").value = r.transcript;
+      msg.textContent = [...r.warnings, "Check that the text matches the recording word for word, fix it if needed, then press Add voice again."].join(" ");
+      if (r.warnings.length) msg.className = "err";
+    } catch (err) { msg.className = "err"; msg.textContent = err.message; }
+    btn.disabled = false; checkAdd(); return;
+  }
   const fd = new FormData(); fd.append("id", $("#av-id").value); fd.append("name", $("#av-name").value.trim());
   fd.append("gender", document.querySelector("#av-gender .on").dataset.g); fd.append("lang", $("#av-lang").value);
   fd.append("transcript", $("#av-text").value.trim()); fd.append("file", wavBlob(av.mono, av.sr), "voice.wav");
