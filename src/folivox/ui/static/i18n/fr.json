@@ -83,7 +83,7 @@
  "btn.close": "Fermer",
  "s4.add.rules": "{lo}–{hi} s de parole propre : sans musique ni bruit, à un rythme calme et régulier",
  "av.drop": "<b>Déposez un fichier audio</b> ou cliquez pour le choisir",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "ou",
  "av.rec": "● Enregistrer avec le micro",
  "av.start": "● Démarrer",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "Clone de {name}",
  "mk.fish.made": "Nouvelle voix : {d}",
  "mk.fish.design": "Décrire une nouvelle voix…",
- "mk.fish.ask": "Décrivez la voix en quelques mots (âge, sexe, timbre, manière) :"
+ "mk.fish.ask": "Décrivez la voix en quelques mots (âge, sexe, timbre, manière) :",
+ "av.find.busy": "Recherche d’un passage de parole net… une longue vidéo peut prendre quelques minutes"
 }

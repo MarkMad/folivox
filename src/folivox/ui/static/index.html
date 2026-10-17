@@ -460,7 +460,8 @@ dialog ul { padding-inline-start:18px; margin:10px 0; } dialog li { margin:6px 0
     <div class="av-body">
       <div class="av-left">
         <div id="av-drop" class="dropbox" tabindex="0"><div data-i18n-html="av.drop"><b>Drop an audio file</b> or click to choose</div><div class="mute"><small data-i18n="av.formats">WAV, FLAC, MP3, M4A, OGG</small></div>
-          <div class="av-or" data-i18n="av.or">or</div><button type="button" id="av-rec" class="rec" data-i18n="av.rec">● Record with the microphone</button><input id="av-file" type="file" accept="audio/*" hidden></div>
+          <div class="av-or" data-i18n="av.or">or</div><button type="button" id="av-rec" class="rec" data-i18n="av.rec">● Record with the microphone</button><input id="av-file" type="file" accept="audio/*,video/*,.mkv,.m4a,.aac" hidden></div>
+        <div id="av-found" class="av-found" hidden><div id="av-found-busy" class="mute"></div><div id="av-found-list"></div></div>
         <div id="av-script" class="av-script" hidden><small class="mute" id="av-script-label">READ ALOUD, CALMLY</small><div id="av-script-text"></div></div>
         <div id="av-rec-ui" class="av-rec" hidden><span class="dotrec" id="av-dot"></span><span id="av-timer">Mic ready</span><div class="meter"><i id="av-meter"></i></div>
           <button type="button" id="av-start" class="primary" data-i18n="av.start">● Start</button><button type="button" id="av-stop" class="primary" hidden data-i18n="av.stop">■ Stop</button><button type="button" id="av-cancel" class="chip" data-i18n="btn.cancel">Cancel</button></div>
@@ -1820,7 +1821,7 @@ function openAdd() { addRules(); closeGen(); $("#addvoice").hidden = false; $("#
 function closeAdd() { stopRec(true); resetAdd(); $("#addvoice").hidden = true; }
 function resetAdd() { av = null; avDirty = false; idTouched = false; abp.reset();
   ["#av-name", "#av-id", "#av-text"].forEach(i => $(i).value = ""); $("#av-consent").checked = false; $("#av-msg").textContent = ""; $("#av-file").value = "";
-  $("#av-sample").hidden = true; $("#av-script").hidden = true; $("#av-drop").hidden = false; checkAdd(); }
+  $("#av-sample").hidden = true; $("#av-script").hidden = true; $("#av-found").hidden = true; $("#av-drop").hidden = false; checkAdd(); }
 $("#av-close").onclick = closeAdd;
 const avBox = $("#av-drop");
 avBox.onclick = (e) => { if (!e.target.closest("button")) $("#av-file").click(); };
@@ -1829,7 +1830,31 @@ avBox.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDe
 ["dragleave", "drop"].forEach(t => avBox.addEventListener(t, (e) => { e.preventDefault(); avBox.classList.remove("over"); }));
 avBox.addEventListener("drop", (e) => e.dataTransfer.files[0] && useFile(e.dataTransfer.files[0]));
 $("#av-file").onchange = (e) => e.target.files[0] && useFile(e.target.files[0]);
+const VIDEO_RE = /\.(mp4|m4v|mkv|mov|webm|avi|wmv|flv|ts|mts|m2ts|mpe?g|3gp|ogv)$/i;
+// A video or a long recording: the server finds clean speech in it and offers a few 6–15 s stretches to choose from.
+async function findInRecording(file) {
+  const box = $("#av-found"), busy = $("#av-found-busy"), list = $("#av-found-list");
+  box.hidden = false; list.innerHTML = ""; busy.className = "mute"; busy.textContent = t("av.find.busy"); $("#av-msg").textContent = "";
+  const fd = new FormData(); fd.append("lang", $("#av-lang").value); fd.append("file", file);
+  try {
+    const r = await api("/api/voices/find", { method: "POST", body: fd });
+    busy.textContent = "";
+    r.found.forEach(c => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "chip av-pick"; b.style.cssText = "display:block;width:100%;text-align:start;margin:4px 0;white-space:normal";
+      const tm = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+      b.innerHTML = `<b>${tm(c.start)} – ${tm(c.end)}</b> · ${dec(c.end - c.start)} ${t("u.s")}<br><small>${esc(c.text)}</small>${c.warnings.length ? `<br><small class="err">${esc(c.warnings.join(" "))}</small>` : ""}`;
+      b.onclick = async () => {
+        const wav = await (await fetch(`/api/voices/found/${r.token}/${c.i}`)).arrayBuffer();
+        const ctx = new (window.AudioContext || window.webkitAudioContext)(); const buf = await ctx.decodeAudioData(wav); ctx.close();
+        box.hidden = true; setSample(buf.getChannelData(0).slice(), buf.sampleRate, file.name);
+        $("#av-text").value = c.text; if (!$("#av-name").value) { $("#av-name").value = file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " "); nameChanged(); }
+      };
+      list.appendChild(b);
+    });
+  } catch (e) { busy.className = "err"; busy.textContent = e.message; }
+}
 async function useFile(file, defaultName) {
+  if (file.type.startsWith("video/") || VIDEO_RE.test(file.name) || file.size > 25 * 1024 * 1024) return findInRecording(file);
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const buf = await ctx.decodeAudioData(await file.arrayBuffer()); ctx.close();

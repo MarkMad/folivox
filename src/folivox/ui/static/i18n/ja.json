@@ -83,7 +83,7 @@
  "btn.close": "閉じる",
  "s4.add.rules": "クリーンな音声 {lo}〜{hi} 秒: 音楽やノイズがなく、落ち着いた一定のペースで",
  "av.drop": "<b>音声ファイルをドロップ</b>、またはクリックして選択",
- "av.formats": "WAV、FLAC、MP3、M4A、OGG",
+ "av.formats": "WAV、FLAC、MP3、M4A、OGG、MP4、MKV、MOV",
  "av.or": "または",
  "av.rec": "● マイクで録音",
  "av.start": "● 開始",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "{name} のクローン",
  "mk.fish.made": "新しい声：{d}",
  "mk.fish.design": "新しい声を説明する…",
- "mk.fish.ask": "声を短い言葉で説明してください（年齢、性別、音色、話し方）："
+ "mk.fish.ask": "声を短い言葉で説明してください（年齢、性別、音色、話し方）：",
+ "av.find.busy": "クリアな音声の区間を探しています… 長い動画では数分かかることがあります"
 }

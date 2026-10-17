@@ -83,7 +83,7 @@
  "btn.close": "Bezárás",
  "s4.add.rules": "{lo}–{hi} mp tiszta beszéd: zene és zaj nélkül, egyenletes, nyugodt tempóban",
  "av.drop": "<b>Húzzon ide egy hangfájlt</b>, vagy kattintson a kiválasztáshoz",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "vagy",
  "av.rec": "● Felvétel mikrofonnal",
  "av.start": "● Indítás",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "{name} klónja",
  "mk.fish.made": "Új hang: {d}",
  "mk.fish.design": "Új hang leírása…",
- "mk.fish.ask": "Írd le a hangot néhány szóval (kor, nem, hangszín, stílus):"
+ "mk.fish.ask": "Írd le a hangot néhány szóval (kor, nem, hangszín, stílus):",
+ "av.find.busy": "Tiszta beszédrészletet keresek… egy hosszú videó néhány percig is eltarthat"
 }

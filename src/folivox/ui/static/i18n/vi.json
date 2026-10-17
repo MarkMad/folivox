@@ -83,7 +83,7 @@
  "btn.close": "Đóng",
  "s4.add.rules": "{lo}–{hi} giây giọng nói sạch: không nhạc, không tạp âm, nhịp đều và bình tĩnh",
  "av.drop": "<b>Thả tệp âm thanh vào đây</b> hoặc nhấp để chọn",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "hoặc",
  "av.rec": "● Ghi âm bằng micro",
  "av.start": "● Bắt đầu",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "Bản sao giọng {name}",
  "mk.fish.made": "Giọng mới: {d}",
  "mk.fish.design": "Mô tả một giọng mới…",
- "mk.fish.ask": "Mô tả giọng bằng vài từ (tuổi, giới tính, âm sắc, phong cách):"
+ "mk.fish.ask": "Mô tả giọng bằng vài từ (tuổi, giới tính, âm sắc, phong cách):",
+ "av.find.busy": "Đang tìm đoạn giọng nói sạch… video dài có thể mất vài phút"
 }

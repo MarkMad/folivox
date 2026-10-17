@@ -83,7 +83,7 @@
  "btn.close": "Sulge",
  "s4.add.rules": "{lo}–{hi} s puhast kõnet: ilma muusika ja mürata, ühtlases rahulikus tempos",
  "av.drop": "<b>Lohistage helifail</b> või klõpsake valimiseks",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "või",
  "av.rec": "● Salvesta mikrofoniga",
  "av.start": "● Alusta",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "{name} klooni",
  "mk.fish.made": "Uus hääl: {d}",
  "mk.fish.design": "Kirjelda uut häält…",
- "mk.fish.ask": "Kirjelda häält mõne sõnaga (vanus, sugu, tämber, stiil):"
+ "mk.fish.ask": "Kirjelda häält mõne sõnaga (vanus, sugu, tämber, stiil):",
+ "av.find.busy": "Otsin puhast kõnelõiku… pikk video võib võtta mõne minuti"
 }

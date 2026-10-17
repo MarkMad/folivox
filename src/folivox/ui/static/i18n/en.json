@@ -83,7 +83,7 @@
  "btn.close": "Close",
  "s4.add.rules": "{lo}–{hi} s of clean speech: no music, no noise, an even calm pace",
  "av.drop": "<b>Drop an audio file</b> or click to choose",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "or",
  "av.rec": "● Record with the microphone",
  "av.start": "● Start",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "Clone of {name}",
  "mk.fish.made": "New voice: {d}",
  "mk.fish.design": "Describe a new voice…",
- "mk.fish.ask": "Describe the voice in a few words (age, sex, timbre, manner):"
+ "mk.fish.ask": "Describe the voice in a few words (age, sex, timbre, manner):",
+ "av.find.busy": "Looking for a clean stretch of speech… a long video can take a few minutes"
 }

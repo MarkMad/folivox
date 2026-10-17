@@ -83,7 +83,7 @@
  "btn.close": "Stäng",
  "s4.add.rules": "{lo}–{hi} s ren tal: ingen musik, inget brus, ett jämnt lugnt tempo",
  "av.drop": "<b>Släpp en ljudfil</b> eller klicka för att välja",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "eller",
  "av.rec": "● Spela in med mikrofonen",
  "av.start": "● Starta",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "Klon av {name}",
  "mk.fish.made": "Ny röst: {d}",
  "mk.fish.design": "Beskriv en ny röst …",
- "mk.fish.ask": "Beskriv rösten med några ord (ålder, kön, klang, sätt att tala):"
+ "mk.fish.ask": "Beskriv rösten med några ord (ålder, kön, klang, sätt att tala):",
+ "av.find.busy": "Letar efter ett rent talavsnitt … en lång video kan ta några minuter"
 }

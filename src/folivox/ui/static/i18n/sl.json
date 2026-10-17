@@ -83,7 +83,7 @@
  "btn.close": "Zapri",
  "s4.add.rules": "{lo}–{hi} s čistega govora: brez glasbe, brez šuma, enakomeren miren tempo",
  "av.drop": "<b>Povlecite zvočno datoteko</b> ali kliknite za izbiro",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "ali",
  "av.rec": "● Posnemi z mikrofonom",
  "av.start": "● Začni",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "Klon glasu {name}",
  "mk.fish.made": "Nov glas: {d}",
  "mk.fish.design": "Opiši nov glas…",
- "mk.fish.ask": "Opišite glas z nekaj besedami (starost, spol, barva, način govora):"
+ "mk.fish.ask": "Opišite glas z nekaj besedami (starost, spol, barva, način govora):",
+ "av.find.busy": "Iščem čist odsek govora … dolg video lahko traja nekaj minut"
 }

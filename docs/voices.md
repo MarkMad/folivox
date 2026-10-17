@@ -132,6 +132,32 @@ tick **Reduce background noise** in `folivox ui` (play the sample with and witho
 It is spectral gating with a noise profile from the quietest part of the recording, deliberately mild so the
 voice does not get a metallic ring; it cannot fix a noisy room, re-record closer to the microphone for that.
 
+### From a video or a long recording
+
+Give `voices add` a video (MP4, MKV, MOV, WebM…) or an audio file longer than 30 s and Folivox looks for the
+sample itself. It needs ffmpeg and Whisper, as the book itself does.
+
+```bash
+folivox voices add anna interview.mp4 --lang en --list     # show the stretches it found, add nothing
+folivox voices add anna interview.mp4 --lang en --pick 2   # add the second one (default: the best)
+folivox voices add anna interview.mp4 --from 12:30 --to 40:00   # search only this part
+```
+
+How it finds speech without a model: the audio track is read in pieces (a two-hour film is not loaded at
+once), and each 30 ms frame is measured for loudness, how much of the energy lies in the voice band and
+whether it has a pitch of 70–400 Hz. Stretches with no pitch (noise, effects) or a perfectly even level
+(music, a drone) are dropped. Runs of neighbouring phrases of 6–15 s are then ranked by how far the voice
+stands above the quiet moments, natural pauses, no clipping and a steady pitch (a jump of pitch between
+phrases suggests a second speaker). Whisper transcribes the best few; text that does not fit the length or
+the language (a song, another language) pushes a stretch down. The transcript is used for the voice.
+
+In the studio, drop the video on **Add your own voice**: the best three stretches appear with their text;
+pick one and the usual form opens with the sample and text filled in. The upload goes to your own computer
+only, and the clips are deleted after an hour.
+
+It cannot tell one person from another or hear music under speech reliably, so **listen to the result**.
+Prefer a part with a single speaker and no background music; `--from`/`--to` narrow the search.
+
 **Clone only your own voice or a voice you have explicit permission to use.** Imitating real
 people without consent can be illegal and is harmful. Folivox ships no celebrity or third-party
 voices.

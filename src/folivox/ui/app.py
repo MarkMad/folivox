@@ -730,6 +730,52 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                              "warnings": v.warnings_for(str(form.get("engine") or ""))
                              + transcript_warnings(v.transcript, v.duration, code)})
 
+    async def find_voice(request: Request):
+        """A video or long recording in, a few clean 6–15 s stretches of speech out (to preview and pick)."""
+        from folivox import lang as languages
+        from folivox.qa.asr import Transcriber
+        from folivox.voices import search
+
+        form = await request.form()
+        f = form.get("file")
+        if f is None or not hasattr(f, "read"):
+            raise ApiError("No file in the request")
+        try:
+            code = languages.get(str(form.get("lang") or "en")).code
+        except ValueError as e:
+            raise ApiError(str(e)) from None
+        token = uuid.uuid4().hex
+        for old in (state.data_dir / "tmp").glob("*"):  # clips of earlier searches, an hour is enough to listen
+            if old.is_dir() and old.stat().st_mtime < time.time() - 3600:
+                shutil.rmtree(old, ignore_errors=True)
+        tmp = state.data_dir / "tmp" / token
+        tmp.mkdir(parents=True)
+        src = tmp / ("source" + (Path(f.filename or "").suffix.lower()[:8] or ".bin"))
+        try:
+            with src.open("wb") as out:
+                while chunk := await f.read(1024 * 1024):
+                    out.write(chunk)
+            try:
+                found = await asyncio.to_thread(search.find_samples, src, code, Transcriber(language=code), count=3)
+                for i, c in enumerate(found):
+                    await asyncio.to_thread(search.cut, src, c, tmp / f"{i}.wav")
+            except (search.NothingFound, RuntimeError) as e:
+                raise ApiError(str(e)) from None
+        except BaseException:
+            shutil.rmtree(tmp, ignore_errors=True)
+            raise
+        src.unlink(missing_ok=True)  # only the short clips stay
+        return JSONResponse({"token": token, "found": [
+            {"i": i, "start": c.start, "end": c.end, "text": c.text, "warnings": c.warnings}
+            for i, c in enumerate(found)]})
+
+    async def found_voice(request: Request):
+        token, i = request.path_params["token"], request.path_params["i"]
+        path = state.data_dir / "tmp" / token / f"{i}.wav"
+        if not re.fullmatch(r"[0-9a-f]{32}", token) or not i.isdigit() or not path.is_file():
+            raise ApiError("Unknown sample", 404)
+        return FileResponse(path, media_type="audio/wav")
+
     async def transcribe_voice(request: Request):
         """Recognise the sample's text so the user can check it before the voice is saved."""
         from folivox import lang as languages
@@ -1639,6 +1685,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/voices", list_voices),
         Route("/api/voices", add_voice, methods=["POST"]),
         Route("/api/voices/transcribe", transcribe_voice, methods=["POST"]),
+        Route("/api/voices/find", find_voice, methods=["POST"]),
+        Route("/api/voices/found/{token}/{i}", found_voice),
         Route("/api/denoise", denoise, methods=["POST"]),
         Route("/api/voices/{voice_id}/sample", voice_sample),
         Route("/api/voices/{voice_id}", delete_voice, methods=["DELETE"]),

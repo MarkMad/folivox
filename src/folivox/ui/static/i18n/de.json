@@ -83,7 +83,7 @@
  "btn.close": "Schließen",
  "s4.add.rules": "{lo}–{hi} s saubere Sprache: ohne Musik, ohne Rauschen, in gleichmäßig ruhigem Tempo",
  "av.drop": "<b>Audiodatei hierher ziehen</b> oder zum Auswählen klicken",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "oder",
  "av.rec": "● Mit dem Mikrofon aufnehmen",
  "av.start": "● Start",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "Klon von {name}",
  "mk.fish.made": "Neue Stimme: {d}",
  "mk.fish.design": "Neue Stimme beschreiben …",
- "mk.fish.ask": "Beschreibe die Stimme in wenigen Worten (Alter, Geschlecht, Klangfarbe, Art):"
+ "mk.fish.ask": "Beschreibe die Stimme in wenigen Worten (Alter, Geschlecht, Klangfarbe, Art):",
+ "av.find.busy": "Suche einen sauberen Sprachabschnitt … ein langes Video kann einige Minuten dauern"
 }

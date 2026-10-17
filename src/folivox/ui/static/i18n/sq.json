@@ -83,7 +83,7 @@
  "btn.close": "Mbyll",
  "s4.add.rules": "{lo}–{hi} s të folur të pastër: pa muzikë, pa zhurmë, me ritëm të qetë e të njëtrajtshëm",
  "av.drop": "<b>Hidhni një skedar audio</b> ose klikoni për ta zgjedhur",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "ose",
  "av.rec": "● Incizo me mikrofon",
  "av.start": "● Fillo",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "Klon i {name}",
  "mk.fish.made": "Zë i ri: {d}",
  "mk.fish.design": "Përshkruaj një zë të ri…",
- "mk.fish.ask": "Përshkruani zërin me pak fjalë (mosha, gjinia, timbri, mënyra):"
+ "mk.fish.ask": "Përshkruani zërin me pak fjalë (mosha, gjinia, timbri, mënyra):",
+ "av.find.busy": "Po kërkoj një pjesë të pastër të të folurit… një video e gjatë mund të zgjasë disa minuta"
 }

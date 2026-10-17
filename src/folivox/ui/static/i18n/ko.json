@@ -83,7 +83,7 @@
  "btn.close": "닫기",
  "s4.add.rules": "깨끗한 음성 {lo}–{hi}초: 음악과 소음 없이, 고르고 차분한 속도로",
  "av.drop": "<b>오디오 파일을 끌어다 놓거나</b> 클릭해서 선택하세요",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "또는",
  "av.rec": "● 마이크로 녹음",
  "av.start": "● 시작",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "{name} 복제",
  "mk.fish.made": "새 목소리: {d}",
  "mk.fish.design": "새 목소리 설명하기…",
- "mk.fish.ask": "목소리를 몇 마디로 설명하세요 (나이, 성별, 음색, 말투):"
+ "mk.fish.ask": "목소리를 몇 마디로 설명하세요 (나이, 성별, 음색, 말투):",
+ "av.find.busy": "깨끗한 음성 구간을 찾는 중… 긴 동영상은 몇 분 걸릴 수 있습니다"
 }

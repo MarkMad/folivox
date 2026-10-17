@@ -676,12 +676,87 @@ def voices_add(
                                "is recommended (cosyvoice3, fish-s2, fish-drama3…)."),
     denoise: bool = typer.Option(False, "--denoise/--no-denoise", show_default=False,
                                  help="Reduce steady background noise in the sample first (off)."),
+    pick: int = typer.Option(1, "--pick", min=1, help="For a video or a long recording: which found stretch "
+                                                      "to use (1 = the best)."),
+    find_from: str | None = typer.Option(None, "--from", help="For a video or a long recording: search from "
+                                                              "here (seconds, mm:ss or h:mm:ss)."),
+    find_to: str | None = typer.Option(None, "--to", help="For a video or a long recording: search up to here."),
+    list_only: bool = typer.Option(False, "--list", help="For a video or a long recording: only show the found "
+                                                         "stretches, add nothing."),
 ):
-    """Add your own voice to the catalog (stays on this computer)."""
+    """Add your own voice to the catalog (stays on this computer).
+
+    ``audio`` may also be a video or a long recording: a clean 6–15 s stretch of speech is found in it."""
+    import tempfile
+
+    lang = _check_lang(lang)
+    if not audio.exists():
+        console.print(f"[red]File not found: {audio}[/]")
+        raise typer.Exit(2)
+    from folivox.voices import search
+
+    searching = search.needs_search(audio)
+    if (find_from or find_to or list_only or pick > 1) and not searching:
+        console.print("[red]--from, --to, --list and --pick are for videos and recordings longer than 30 s.[/]")
+        raise typer.Exit(2)
+    with tempfile.TemporaryDirectory(prefix="folivox-found-") as found_dir:
+        if searching:
+            audio, text = _find_in_recording(audio, lang, text, pick, find_from, find_to, list_only,
+                                             Path(found_dir))
+        _voices_add_sample(voice_id, audio, text, name, gender, lang, license, force, denoise)
+
+
+def _find_in_recording(audio: Path, lang: str, text: str | None, pick: int, find_from: str | None,
+                       find_to: str | None, list_only: bool, tmp: Path) -> tuple[Path, str]:
+    """Search a video or long recording for a voice sample; returns the cut WAV and its recognised text."""
+    from rich.progress import Progress
+
+    from folivox.qa.asr import Transcriber
+    from folivox.voices import search
+
+    if text:
+        console.print("[red]--text cannot be used with a video or a long recording: the text is recognised "
+                      "for the stretch that is found.[/]")
+        raise typer.Exit(2)
+    try:
+        t0 = search.parse_time(find_from) if find_from else 0.0
+        t1 = search.parse_time(find_to) if find_to else None
+    except ValueError as e:
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(2) from None
+    try:
+        with Progress(console=console, transient=True) as bar:
+            task = bar.add_task("Looking for speech", total=100)
+            found = search.find_samples(
+                audio, lang, Transcriber(language=lang), count=max(3, pick), start=t0, end=t1,
+                progress=lambda f, what: bar.update(task, completed=f * 100, description=what.capitalize()))
+    except (search.NothingFound, FileNotFoundError, RuntimeError) as e:
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(2) from None
+
+    def stamp(s: float) -> str:
+        return f"{int(s // 3600)}:{int(s % 3600 // 60):02d}:{s % 60:04.1f}"
+
+    for i, c in enumerate(found, 1):
+        console.print(f"{i}. {stamp(c.start)} – {stamp(c.end)} ({c.duration:.1f} s, score {c.score:.2f}): «{c.text}»")
+        for w in c.warnings:
+            console.print(f"   [yellow]⚠ {w}[/]")
+    if list_only:
+        raise typer.Exit(0)
+    if pick > len(found):
+        console.print(f"[red]Only {len(found)} stretches were found.[/]")
+        raise typer.Exit(2)
+    chosen = found[pick - 1]
+    console.print("Take only a voice you own or have permission to use, and listen to the result: "
+                  "one speaker, no music behind.")
+    return search.cut(audio, chosen, tmp / "found.wav"), chosen.text
+
+
+def _voices_add_sample(voice_id: str, audio: Path, text: str | None, name: str, gender: str, lang: str,
+                       license: str, force: bool, denoise: bool) -> None:
     from folivox import voices as catalog
     from folivox.tts.voice import load_voice
 
-    lang = _check_lang(lang)
     transcribe = None
     if not text and not audio.with_suffix(".txt").exists():
         from folivox.qa.asr import Transcriber

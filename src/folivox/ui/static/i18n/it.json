@@ -83,7 +83,7 @@
  "btn.close": "Chiudi",
  "s4.add.rules": "{lo}–{hi} s di parlato pulito: senza musica né rumore, a un ritmo calmo e regolare",
  "av.drop": "<b>Trascina un file audio</b> o fai clic per sceglierlo",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "oppure",
  "av.rec": "● Registra con il microfono",
  "av.start": "● Avvia",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "Clone di {name}",
  "mk.fish.made": "Nuova voce: {d}",
  "mk.fish.design": "Descrivi una nuova voce…",
- "mk.fish.ask": "Descrivi la voce in poche parole (età, sesso, timbro, modo di parlare):"
+ "mk.fish.ask": "Descrivi la voce in poche parole (età, sesso, timbro, modo di parlare):",
+ "av.find.busy": "Cerco un passaggio di parlato pulito… un video lungo può richiedere alcuni minuti"
 }

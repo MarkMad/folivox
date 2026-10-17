@@ -83,7 +83,7 @@
  "btn.close": "Zamknij",
  "s4.add.rules": "{lo}–{hi} s czystej mowy: bez muzyki i szumów, równe spokojne tempo",
  "av.drop": "<b>Upuść plik audio</b> albo kliknij, aby wybrać",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "lub",
  "av.rec": "● Nagraj mikrofonem",
  "av.start": "● Start",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "Klon głosu {name}",
  "mk.fish.made": "Nowy głos: {d}",
  "mk.fish.design": "Opisz nowy głos…",
- "mk.fish.ask": "Opisz głos w kilku słowach (wiek, płeć, barwa, sposób mówienia):"
+ "mk.fish.ask": "Opisz głos w kilku słowach (wiek, płeć, barwa, sposób mówienia):",
+ "av.find.busy": "Szukam czystego fragmentu mowy… długie wideo może potrwać kilka minut"
 }

@@ -83,7 +83,7 @@
  "btn.close": "Funga",
  "s4.add.rules": "Sekunde {lo}–{hi} za sauti safi: bila muziki, bila kelele, kasi sawa na tulivu",
  "av.drop": "<b>Dondosha faili ya sauti</b> au bofya ili kuchagua",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "au",
  "av.rec": "● Rekodi kwa maikrofoni",
  "av.start": "● Anza",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "Nakala ya sauti ya {name}",
  "mk.fish.made": "Sauti mpya: {d}",
  "mk.fish.design": "Elezea sauti mpya…",
- "mk.fish.ask": "Elezea sauti kwa maneno machache (umri, jinsia, sauti, mtindo):"
+ "mk.fish.ask": "Elezea sauti kwa maneno machache (umri, jinsia, sauti, mtindo):",
+ "av.find.busy": "Inatafuta kipande safi cha hotuba… video ndefu inaweza kuchukua dakika kadhaa"
 }

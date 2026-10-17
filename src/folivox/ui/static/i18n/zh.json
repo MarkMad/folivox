@@ -83,7 +83,7 @@
  "btn.close": "关闭",
  "s4.add.rules": "{lo}–{hi} 秒清晰的语音：无音乐、无噪音，语速平稳从容",
  "av.drop": "<b>拖入音频文件</b>，或点击选择",
- "av.formats": "WAV、FLAC、MP3、M4A、OGG",
+ "av.formats": "WAV、FLAC、MP3、M4A、OGG、MP4、MKV、MOV",
  "av.or": "或",
  "av.rec": "● 用麦克风录音",
  "av.start": "● 开始",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "克隆「{name}」",
  "mk.fish.made": "新声音：{d}",
  "mk.fish.design": "描述新声音……",
- "mk.fish.ask": "用几个词描述声音（年龄、性别、音色、风格）："
+ "mk.fish.ask": "用几个词描述声音（年龄、性别、音色、风格）：",
+ "av.find.busy": "正在寻找清晰的语音片段… 较长的视频可能需要几分钟"
 }

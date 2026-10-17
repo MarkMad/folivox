@@ -83,7 +83,7 @@
  "btn.close": "Luk",
  "s4.add.rules": "{lo}–{hi} s ren tale: ingen musik, ingen støj, et jævnt roligt tempo",
  "av.drop": "<b>Slip en lydfil</b> eller klik for at vælge",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "eller",
  "av.rec": "● Optag med mikrofonen",
  "av.start": "● Start",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "Klon af {name}",
  "mk.fish.made": "Ny stemme: {d}",
  "mk.fish.design": "Beskriv en ny stemme …",
- "mk.fish.ask": "Beskriv stemmen med få ord (alder, køn, klang, væremåde):"
+ "mk.fish.ask": "Beskriv stemmen med få ord (alder, køn, klang, væremåde):",
+ "av.find.busy": "Leder efter et rent stykke tale … en lang video kan tage et par minutter"
 }

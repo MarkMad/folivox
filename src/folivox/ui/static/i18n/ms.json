@@ -83,7 +83,7 @@
  "btn.close": "Tutup",
  "s4.add.rules": "{lo}–{hi} s pertuturan bersih: tiada muzik, tiada bunyi bising, rentak tenang dan sekata",
  "av.drop": "<b>Seret fail audio</b> atau klik untuk memilih",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "atau",
  "av.rec": "● Rakam dengan mikrofon",
  "av.start": "● Mula",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "Klon {name}",
  "mk.fish.made": "Suara baharu: {d}",
  "mk.fish.design": "Huraikan suara baharu…",
- "mk.fish.ask": "Huraikan suara dalam beberapa perkataan (umur, jantina, nada, gaya):"
+ "mk.fish.ask": "Huraikan suara dalam beberapa perkataan (umur, jantina, nada, gaya):",
+ "av.find.busy": "Mencari petikan pertuturan yang bersih… video yang panjang mungkin mengambil masa beberapa minit"
 }

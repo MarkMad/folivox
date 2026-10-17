@@ -83,7 +83,7 @@
  "btn.close": "Loka",
  "s4.add.rules": "{lo}–{hi} sek. af hreinu tali: engin tónlist, enginn hávaði, jafn og rólegur hraði",
  "av.drop": "<b>Slepptu hljóðskrá</b> eða smelltu til að velja",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "eða",
  "av.rec": "● Taka upp með hljóðnema",
  "av.start": "● Byrja",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "Klón af {name}",
  "mk.fish.made": "Ný rödd: {d}",
  "mk.fish.design": "Lýsa nýrri rödd…",
- "mk.fish.ask": "Lýstu röddinni í fáum orðum (aldur, kyn, tónn, framkoma):"
+ "mk.fish.ask": "Lýstu röddinni í fáum orðum (aldur, kyn, tónn, framkoma):",
+ "av.find.busy": "Leita að hreinum talkafla… langt myndband getur tekið nokkrar mínútur"
 }

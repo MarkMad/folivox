@@ -83,7 +83,7 @@
  "btn.close": "Zavřít",
  "s4.add.rules": "{lo}–{hi} s čisté řeči: bez hudby, bez šumu, vyrovnané klidné tempo",
  "av.drop": "<b>Přetáhněte audiosoubor</b> nebo klikněte a vyberte",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "nebo",
  "av.rec": "● Nahrát mikrofonem",
  "av.start": "● Začít",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "Klon hlasu {name}",
  "mk.fish.made": "Nový hlas: {d}",
  "mk.fish.design": "Popsat nový hlas…",
- "mk.fish.ask": "Popište hlas několika slovy (věk, pohlaví, barva, způsob mluvy):"
+ "mk.fish.ask": "Popište hlas několika slovy (věk, pohlaví, barva, způsob mluvy):",
+ "av.find.busy": "Hledám čistý úsek řeči… dlouhé video může trvat několik minut"
 }

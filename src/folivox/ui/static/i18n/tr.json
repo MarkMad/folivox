@@ -83,7 +83,7 @@
  "btn.close": "Kapat",
  "s4.add.rules": "{lo}–{hi} sn temiz konuşma: müzik yok, gürültü yok, eşit ve sakin tempo",
  "av.drop": "<b>Bir ses dosyası bırakın</b> ya da seçmek için tıklayın",
- "av.formats": "WAV, FLAC, MP3, M4A, OGG",
+ "av.formats": "WAV, FLAC, MP3, M4A, OGG, MP4, MKV, MOV",
  "av.or": "veya",
  "av.rec": "● Mikrofonla kaydet",
  "av.start": "● Başlat",
@@ -747,5 +747,6 @@
  "mk.fish.clone": "{name} klonu",
  "mk.fish.made": "Yeni ses: {d}",
  "mk.fish.design": "Yeni bir ses tanımla…",
- "mk.fish.ask": "Sesi birkaç kelimeyle anlatın (yaş, cinsiyet, tını, tarz):"
+ "mk.fish.ask": "Sesi birkaç kelimeyle anlatın (yaş, cinsiyet, tını, tarz):",
+ "av.find.busy": "Temiz bir konuşma bölümü aranıyor… uzun bir video birkaç dakika sürebilir"
 }
