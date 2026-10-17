@@ -19,7 +19,7 @@ from platformdirs import user_data_dir
 
 CATALOG_FILE = Path(__file__).with_name("catalog.json")
 IGNORE_MEMORY_ENV = "FOLIVOX_IGNORE_MEMORY"  # skip the free-memory check (at your own risk)
-WEIGHT_SUFFIXES = (".safetensors",)
+WEIGHT_SUFFIXES = (".safetensors", ".gguf")  # tensor containers, no pickle and no code
 # Files a build may contain besides safetensors: plain text/config. Anything else (pickle, scripts) is refused.
 TEXT_SUFFIXES = (".json", ".md", ".txt", ".jinja", ".gitattributes")
 TEXT_NAMES = ("LICENSE", "NOTICE", ".gitattributes")
@@ -149,16 +149,38 @@ def _validate(b: Build, licences: dict, runtimes: dict) -> None:
         if name.startswith("/") or ".." in name.split("/"):
             raise CatalogError(f"{where}: unsafe file name {name!r}")
         if not (name.endswith(WEIGHT_SUFFIXES) or name.endswith(TEXT_SUFFIXES) or base in TEXT_NAMES):
-            raise CatalogError(f"{where}: {name!r} is not a safetensors/text file (pickle and scripts are refused)")
+            raise CatalogError(f"{where}: {name!r} is not a safetensors, gguf or text file "
+                               "(pickle and scripts are refused)")
         if name.endswith(WEIGHT_SUFFIXES) and not f.get("sha256"):
             raise CatalogError(f"{where}: {name} has no sha256")
     if not any(f["path"].endswith(WEIGHT_SUFFIXES) for f in b.files):
-        raise CatalogError(f"{where}: no safetensors weights")
+        raise CatalogError(f"{where}: no safetensors or gguf weights")
 
 
 @lru_cache(maxsize=1)
 def load() -> Catalog:
     return parse(json.loads(CATALOG_FILE.read_text(encoding="utf-8")))
+
+
+def measured_rtf(b: Build) -> float | None:
+    """Real-time factor (synthesis time / audio time) of our own run of this build, if there is one."""
+    for t in b.tested_on:
+        if t.get("rtf"):
+            return float(t["rtf"])
+    return None
+
+
+def speed_note(b: Build, cat: Catalog | None = None) -> str:
+    """A native build that was measured slower than the MLX build of the same engine says so (our runs, same Mac)."""
+    if b.backend != "native":
+        return ""
+    mine = measured_rtf(b)
+    for other in (cat or load()).for_engine(b.engine):
+        theirs = measured_rtf(other)
+        if other.backend == "mlx" and mine and theirs and mine > theirs * 1.1:
+            return (f"In our test on Apple Silicon the MLX build was faster (real-time factor {theirs:g} against "
+                    f"{mine:g}); the native build is meant for computers without MLX.")
+    return ""
 
 
 def is_trusted_org(repo: str, cat: Catalog | None = None) -> bool:
@@ -293,8 +315,12 @@ def is_fish_engine(name: str) -> bool:
     return name in load().engines()
 
 
-def build_for(engine: str, build_id: str | None = None, hw: Hardware | None = None) -> Build:
-    """The build a Fish engine runs: the one named, else the best installed build of that engine that fits."""
+def build_for(engine: str, build_id: str | None = None, hw: Hardware | None = None,
+              runtime: str | None = None) -> Build:
+    """The build a Fish engine runs: the one named, else the best installed build of that engine that fits.
+
+    ``runtime="native"`` (the inference switch, see :mod:`folivox.tts.runtime`) picks among the native GGUF builds,
+    tested or not; any other value never picks one automatically (name the build to use it)."""
     cat = load()
     if build_id and build_id != "auto":
         b = cat.build(build_id)
@@ -302,7 +328,14 @@ def build_for(engine: str, build_id: str | None = None, hw: Hardware | None = No
             raise CatalogError(f"Build {build_id} belongs to the engine {b.engine}, not {engine}")
         return b
     hw = hw or detect_hardware()
-    pool = [b for b in candidates(hw, cat) if b.engine == engine]
+    if runtime == "native":
+        pool = sorted((b for b in cat.builds if b.engine == engine and b.backend == "native"
+                       and supported_here(b, hw, cat) and fit(b, hw).level != "no"), key=lambda b: -b.rank)
+        if not pool:
+            raise CatalogError(f"No native {engine} build fits this computer. `folivox engines` lists what is "
+                               "available; use `--runtime pytorch` for the default build.")
+    else:
+        pool = [b for b in candidates(hw, cat) if b.engine == engine and b.backend != "native"]
     for b in pool:
         if is_installed(b):
             return b

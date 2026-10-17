@@ -30,7 +30,7 @@ gets a banner telling the user to restart it. Bump `API_LEVEL` in `ui/app.py` wh
 
 ## Fish Audio engines (implemented)
 
-On Apple Silicon, *4 · Reading engine* also lists the optional Fish Audio engines. Choosing one shows a
+On Apple Silicon, *3 · Reading engine* also lists the optional Fish Audio engines. Choosing one shows a
 card with the build (automatic or a specific one), its download size and memory need, a warning when
 free memory is below the measured peak, and: *Read and accept the licence…* (a dialog with the main
 points, a button for the full text, a checkbox, then *Accept*; the accepted version is stored in
@@ -51,7 +51,7 @@ See [Native runtime](native-runtime.md).
 
 ## Markup editor (implemented)
 
-*3 · Voice* (before the engine) starts with a choice between *One voice* and *Several voices*; with several voices it shows the **Characters** box: the state of the characters (found, which chapters are processed, who has which voice) and one button that opens the editor
+*4 · Voice* (after the engine) starts with a choice between *One voice* and *Several voices*; with several voices it shows the **Characters** box: the state of the characters (found, which chapters are processed, who has which voice) and one button that opens the editor
 (find the characters, mark who speaks, show how many voices are needed and who still needs one). The full-screen
 editor puts the *Mark automatically* button, with the estimated time before and during the run, at the top of its side panel, with
 the model and other choices under *Options*; the manual tools (speakers and voices, tag picker, listen to a passage,
@@ -159,7 +159,7 @@ A book's id comes from its **content**, so uploading the same file again (even u
 its markup, characters, pronunciations, cover and details are all still there. *1 · Book* lists the earlier books
 under **Recent books** (the one used last first, with the number of characters set up); a click opens one without
 uploading it again (`GET /api/books`, `POST /api/books/{id}/open`). If the text of a chapter changed since it was
-marked (another edition), the Characters box in step 3 says which chapters are affected: their markup is ignored and
+marked (another edition), the Characters box in step 4 says which chapters are affected: their markup is ignored and
 the narrator reads them (`stale_chapters` in `GET /api/books/{id}/llm/estimate`). Books uploaded by an older version
 keep working under their old ids. A ✕ on a row (not on the open book) removes the book from the list and deletes the
 uploaded copy with its markup, characters, pronunciations, details and cached model replies (`DELETE /api/books/{id}`);

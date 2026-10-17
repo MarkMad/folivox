@@ -29,7 +29,9 @@ def bundled_voices_allowed() -> bool:
 def check(opts, events) -> builds.Build:
     """Raise a clear error when the engine cannot be used; report warnings through ``events``."""
     try:
-        build = builds.build_for(opts.tts, opts.tts_build)
+        from folivox.tts import runtime
+
+        build = builds.build_for(opts.tts, opts.tts_build, runtime=runtime.resolve(opts.tts, opts.runtime or None))
     except builds.CatalogError as e:
         raise ProviderError(str(e)) from None
     licences.require(build)
@@ -50,6 +52,9 @@ def check(opts, events) -> builds.Build:
         events.warning(f.message)
     if build.status != "verified":
         events.warning(f"{build.title} has not been tested by the Folivox project yet; the result may be poor.")
+    note = builds.speed_note(build)
+    if note and hw.platform_tag == "darwin-arm64":
+        events.warning(note)
     lic = builds.load().licences[build.licence]
     if not lic.commercial:
         events.warning(f"{lic.name}: audiobooks made with {build.title} are for personal and research use only. "

@@ -7,6 +7,7 @@ error then ends only that line of the table, and the next device starts with an 
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -14,6 +15,7 @@ import time
 from folivox.lang.bench_texts import TEXTS
 
 MARK = "BENCH_RESULT "
+ENGINE_ENV = "FOLIVOX_BENCH_ENGINE"  # {"tts", "build", "runtime"} for a Fish engine; unset = CosyVoice 3
 
 
 def sample_text(lang: str) -> str:
@@ -45,7 +47,11 @@ def worker(device: str, voice_wav: str, voice_text: str | None, text: str) -> di
 
     voice = load_voice(voice_wav, voice_text)
     t0 = time.time()
-    if device == "native":  # the audio.cpp runtime (`folivox runtime install`); PyTorch is not imported
+    spec = json.loads(os.environ.get(ENGINE_ENV) or "{}")
+    if spec.get("tts") and spec["tts"] != "cosyvoice3":  # a Fish engine: its own build, native or MLX
+        engine = ENGINES.create(spec["tts"], build=spec.get("build") or "auto", runtime=spec.get("runtime") or None)
+        engine.start(voice)  # loads the model and warms it up with the voice, as a render does
+    elif device == "native":  # the audio.cpp runtime (`folivox runtime install`); PyTorch is not imported
         from folivox import config
         from folivox.tts.native import NativeCosyVoiceEngine
 
@@ -61,7 +67,8 @@ def worker(device: str, voice_wav: str, voice_text: str | None, text: str) -> di
     res = {"device": device, "actual": engine.device, "load_s": load_s, "warmup_s": warm_s, "synth_s": r.seconds,
            "audio_s": audio_s, "chars": len(text), "chars_per_s": len(text) / r.seconds if r.seconds else 0,
            "rtf": r.seconds / audio_s if audio_s else 0, "peak_vram_gb": None}
-    if device == "native":
+    res["actual"] = engine.device
+    if hasattr(engine, "close") and (device == "native" or spec.get("tts")):
         engine.close()
     if device.startswith("cuda"):
         import torch
@@ -70,10 +77,12 @@ def worker(device: str, voice_wav: str, voice_text: str | None, text: str) -> di
     return res
 
 
-def run_device(device: str, voice_wav: str, voice_text: str | None, text: str, timeout: float) -> dict:
+def run_device(device: str, voice_wav: str, voice_text: str | None, text: str, timeout: float,
+               engine: dict | None = None) -> dict:
     cmd = [sys.executable, "-m", "folivox.bench", device, voice_wav, voice_text or "", text]
+    env = {**os.environ, ENGINE_ENV: json.dumps(engine)} if engine else None
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env)
     except subprocess.TimeoutExpired:
         return {"device": device, "error": f"no result within {timeout:.0f} s"}
     for line in reversed(r.stdout.splitlines()):
@@ -90,3 +99,27 @@ if __name__ == "__main__":
     except Exception as e:  # noqa: BLE001 — out of memory, no weights, …: report, do not traceback
         out = {"device": dev, "error": f"{type(e).__name__}: {str(e)[:200]}"}
     print(MARK + json.dumps(out), flush=True)
+
+
+def report_text(rows: list[dict], what: str, lang: str) -> str:
+    """A block to paste into an issue: the computer, the runtime and the table, nothing private."""
+    import platform
+
+    from folivox import __version__, diag
+    from folivox.tts import native_setup
+
+    hw = diag.hardware()
+    lines = ["Folivox speed report", f"folivox {__version__} · {platform.system()} {platform.release()} "
+             f"({platform.machine()}) · Python {platform.python_version()}",
+             f"{hw['cores']} cores, {hw['ram_gb']} GB RAM, GPU: {hw['gpu'] or 'none'}"
+             f"{' ' + str(hw['vram_gb']) + ' GB' if hw['vram_gb'] else ''}",
+             f"audio.cpp release {native_setup.load().release} · engine: {what} · test text language: {lang}", ""]
+    for r in rows:
+        if "error" in r:
+            lines.append(f"{r['device']}: FAILED {r['error']}")
+        else:
+            lines.append(f"{r['device']} ({r.get('actual', '')}): RTF {r['rtf']:.2f} · "
+                         f"{r['chars_per_s']:.1f} chars/s · load {r['load_s']:.0f} s · warm-up {r['warmup_s']:.0f} s")
+    lines.append("Quality was not checked by `folivox bench`: say what you heard, or run a preview with the quality "
+                 "check on and add its score.")
+    return "\n".join(lines)

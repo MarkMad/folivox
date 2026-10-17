@@ -37,7 +37,8 @@ def build_info(b: builds.Build, hw: builds.Hardware, cat: builds.Catalog) -> dic
             "installed": fish_setup.is_ready(b), "verified": b.status == "verified", "fit": f.level,
             "fit_message": f.message, "supported": hw.platform_tag in b.platforms, "repo": b.repo,
             "trusted_org": builds.is_trusted_org(b.repo, cat), "notes": b.notes,
-            "tested_on": list(b.tested_on)}
+            "tested_on": list(b.tested_on), "native": b.backend == "native",
+            "speed_note": builds.speed_note(b, cat) if hw.platform_tag == "darwin-arm64" else ""}
 
 
 def state_payload() -> dict:

@@ -799,7 +799,9 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         from folivox.tts import fish_check, fish_setup, licences
 
         try:
-            b = fb.build_for(tts, build_id)
+            from folivox.tts import runtime as tts_runtime
+
+            b = fb.build_for(tts, build_id, runtime=tts_runtime.resolve(tts, None))
         except fb.CatalogError as e:
             raise ApiError(str(e)) from None
         if not licences.is_accepted(fb.load().licences[b.licence]):
@@ -1254,7 +1256,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                             "fish": True, "blurb": "", "models": [], "per_hour": 0,
                             "builds": [b.id for b in bs]})
         order = ["cosyvoice3", "fish-drama3", "fish-s2", "gemini", "cartesia", "elevenlabs", "openai"]  # free first
-        tags = {"gemini": "cheap and best", "openai": "low quality for non-English"}
+        tags = {"gemini": "cheap and best", "openai": "low quality for non-English",
+                "fish-drama3": "best"}
         for e in out:
             e["tag"] = tags.get(e["name"], "")
         out.sort(key=lambda e: order.index(e["name"]) if e["name"] in order else len(order))

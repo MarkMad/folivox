@@ -81,7 +81,9 @@ class Catalog:
     binaries: list[Binary]
     weights: dict[str, WeightFile] = field(default_factory=dict)  # by key (q8_0, f32)
     licence: dict = field(default_factory=dict)
-
+    measurements: list[dict] = field(default_factory=list)  # our own runs, see runtime.advice
+    sources: dict = field(default_factory=dict)  # where everything comes from and how to build it
+    recheck: dict = field(default_factory=dict)
 
 @lru_cache(maxsize=1)
 def load() -> Catalog:
@@ -91,7 +93,24 @@ def load() -> Catalog:
     w = raw["weights"]["cosyvoice3"]
     files = {k: WeightFile(k, w["repo"], w["revision"], f["path"], f["size"], f["sha256"])
              for k, f in w["files"].items()}
-    return Catalog(raw["release"], raw["download_base"], raw.get("auto_ok", []), bins, files, raw.get("licence", {}))
+    return Catalog(raw["release"], raw["download_base"], raw.get("auto_ok", []), bins, files, raw.get("licence", {}),
+                   raw.get("measurements", []), raw.get("sources", {}), raw.get("recheck", {}))
+
+
+def sources() -> dict:
+    return load().sources
+
+
+def own_server_for(family: str | None) -> Path | None:
+    """A server you built yourself or that Folivox built from a pinned fork, for the families a release lacks."""
+    if family != "fish_drama3":
+        return None
+    env = os.environ.get(SERVER_ENV)
+    if env and Path(env).expanduser().is_file():
+        return Path(env).expanduser()
+    from folivox.tts import native_build
+
+    return native_build.own_server("drama3")
 
 
 # ---- where things live ---------------------------------------------------------------------------------
@@ -282,9 +301,10 @@ class Plan:
     lines: list[str]
 
 
-def plan(weights: str = "q8_0", backend: str = "auto") -> Plan:
-    """What an install would download now (items already installed are left out). Asks nothing, downloads nothing."""
-    if weights not in WEIGHT_CHOICES:
+def plan(weights: str | None = "q8_0", backend: str = "auto") -> Plan:
+    """What an install would download now (items already installed are left out). Asks nothing, downloads nothing.
+    ``weights=None`` plans the engine only (the Fish models bring their own GGUF files)."""
+    if weights is not None and weights not in WEIGHT_CHOICES:
         raise NativeError(f"weights must be one of {', '.join(WEIGHT_CHOICES)}")
     lines, total = [], 0
     b = None
@@ -301,7 +321,7 @@ def plan(weights: str = "q8_0", backend: str = "auto") -> Plan:
             total += b.size
             lines.append(f"engine audio.cpp {load().release} ({b.backend}): {b.size / 1e6:.0f} MB from GitHub")
     w = None
-    if model_path(weights) is None:
+    if weights is not None and model_path(weights) is None:
         w = load().weights[weights]
         total += w.size
         lines.append(f"CosyVoice 3 model ({weights}): {w.size / 1e9:.1f} GB from huggingface.co/{w.repo}")
@@ -445,7 +465,7 @@ def install_weights(w: WeightFile, progress: Progress | None, log: Callable[[str
 def remove(engine: bool = True, models: bool = True) -> int:
     """Delete the installed engine and/or model files. Returns bytes freed. Files the user brought are untouched."""
     freed = 0
-    for sub in (["bin", "downloads"] if engine else []) + (["models"] if models else []):
+    for sub in (["bin", "downloads", "own", "build"] if engine else []) + (["models"] if models else []):
         d = root() / sub
         if d.exists():
             freed += sum(f.stat().st_size for f in d.rglob("*") if f.is_file() and not f.is_symlink())
@@ -464,3 +484,20 @@ def disk_problem(need: int, where: Path | None = None) -> str | None:
     if free < need * 1.15:
         return f"Not enough disk space: {need / 1e9:.1f} GB needed, {free / 1e9:.1f} GB free on {probe}"
     return None
+
+
+def ensure_engine(backend: str = "auto", progress: Progress | None = None,
+                  log: Callable[[str], None] = print) -> Path:
+    """The ``audiocpp_server`` executable, downloading the pinned release first when it is missing."""
+    srv = server_path(backend)
+    if srv is not None:
+        return srv
+    p = plan(None, backend)
+    problem = disk_problem(p.todo_bytes)
+    if problem:
+        raise NativeError(problem)
+    install(p, progress, log)
+    srv = server_path(backend)
+    if srv is None:
+        raise NativeError("The native engine could not be installed")
+    return srv

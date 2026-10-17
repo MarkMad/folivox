@@ -21,8 +21,39 @@ folivox render book.epub --tts fish-drama3 --voice my-voice.wav
 folivox engines remove drama3-mlx-4bit
 ```
 
-In the studio: **4 · Reading engine** → pick the Fish engine → *Read and accept the licence…* →
+In the studio: **3 · Reading engine** → pick the Fish engine → *Read and accept the licence…* →
 *Download and install*.
+
+## Native builds (audio.cpp, any platform, experimental)
+
+The MLX builds above run on Apple Silicon only. The same two engines also have **native GGUF builds** that run on the
+[audio.cpp](native-runtime.md) engine (Metal, CUDA or Vulkan, so also Windows and Linux). They are never picked
+automatically: choose them with the inference switch (`--runtime native`, or *Advanced settings → Inference runtime*)
+or name the build.
+
+| Build | Download | Notes |
+|---|---|---|
+| `s2pro-native-q8` | 6.3 GB | S2 Pro, Q8_0, official audio.cpp GGUF package |
+| `s2pro-native-bf16` | 10.2 GB | S2 Pro, bf16: slower and larger, closest to the original |
+| `drama3-native-q2` / `q3` / `q4` | 17.1 / 20.3 / 24.6 GB | Drama 3 GGUF from `Jmica/Drama-3-GGUF` (a personal repository: the files are checked against the pinned sha256) |
+
+```bash
+folivox engines install s2pro-native-q8       # also downloads the audio.cpp engine (asks for the licence first)
+folivox render book.epub --tts fish-s2 --runtime native --voice my-voice.wav
+```
+
+Same licences and notices as the MLX builds (S2 Pro: Research License, personal use only; Drama 3: Fish Community
+License). The engine and the model run in a separate `audiocpp_server` process like the other native models.
+**Drama 3 needs a server built from source**: it was merged into audio.cpp `main` on 2026-10-16 but no release
+contains it yet. On Apple Silicon `folivox runtime build drama3` compiles the pinned commit (after asking: it is
+third-party code); elsewhere `folivox runtime build-help` lists the steps and `FOLIVOX_NATIVE_SERVER` points at the
+result. The install refuses without it.
+Memory figures for native builds are estimates. The builds keep the status `untested` (the project's standard test
+has not been run on them), but each was run once on the test fragment (M3 Pro 36 GB, Metal, voice `gemini-2`, 73 s of
+audio, no retakes): `s2pro-native-q8` RTF 2.52 (MLX build: 2.3), mean Whisper QA score 0.004; `drama3-native-q2` with a
+a server built by `folivox runtime build drama3` from the pinned audio.cpp commit RTF 1.97 (the first fork build: 2.11; MLX build: about 1.0), score 0.003, model load 70 s. So on Apple Silicon the native
+builds are not faster than MLX; the reason to use them is a computer without MLX (Windows, Linux), which has not
+been tested. See [Native runtime](native-runtime.md).
 
 ## Licences, and what they mean for your audiobooks
 

@@ -208,6 +208,7 @@ h1 { padding-right:140px; }
 .mk-autocard { padding:12px; border:1px solid var(--accent); border-radius:12px; margin-bottom:12px; } .mk-autocard > .primary { width:100%; padding:10px 14px; font-size:15px; } .mk-autocard > .primary + .chip { margin-top:6px; }
 .mk-prevbtn { width:100%; padding:7px 12px; border:1px solid var(--line); border-radius:8px; background:none; cursor:pointer; font:inherit; } .mk-autocard > .primary small { font-weight:400; opacity:.9; } .mk-prevbtn small { color:var(--mute); }
 .mk-scope { margin-top:8px; } .mk-scope .consent { margin:2px 0; } #mk-fine h4:first-child { margin-top:12px; } .mk-top .ic { width:34px; padding:6px 0; text-align:center; font-size:16px; line-height:1; }
+.vm.off { opacity:.5; cursor:not-allowed; }
 .vmode { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
 .vm { display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border:1px solid var(--line); border-radius:12px; cursor:pointer; } .vm.on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
 .vm b { display:block; font-size:15px; } .vm small { display:block; color:var(--mute); font-size:13px; line-height:1.4; margin-top:2px; } .vm input { margin-top:4px; } .vm:has(input:disabled) { opacity:.55; cursor:not-allowed; }
@@ -387,10 +388,31 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
   <div class="chapters" style="margin-top:10px"><table id="chapters"></table></div>
 </section>
 
+<section id="s-engine" class="disabled"><h2 data-i18n="s3.h">4 · Reading engine</h2>
+  <div class="grid">
+    <label class="f"><span data-i18n="s3.who">Who reads the book</span><select id="o-tts"></select></label>
+    <label class="f eng-cloud" hidden><span data-i18n="s3.model">Model</span><select id="o-tts_model"></select></label>
+    <label class="f eng-cloud" hidden><span data-i18n="s3.cap">Spending cap, $ (optional)</span><input id="o-max_cost" type="number" min="0.5" step="0.5" placeholder="no cap" data-i18n-attr="placeholder:s3.cap.ph"></label>
+  </div>
+  <small class="mute" id="eng-blurb"></small>
+  <div id="eng-fish" class="costcard" hidden>
+    <label class="f"><span data-i18n="fish.build">Build</span><select id="o-tts_build"></select></label>
+    <div id="fish-info" class="mute" style="margin-top:8px"></div>
+    <div id="fish-measured" class="mute" style="margin-top:4px"></div>
+    <div id="fish-warn" class="warn" style="margin-top:6px"></div>
+    <div class="row"><button type="button" id="fish-licence" class="primary" data-i18n="fish.licence.btn">Read and accept the licence…</button>
+      <button type="button" id="fish-install" class="primary" hidden></button><button type="button" id="fish-remove" hidden data-i18n="fish.remove">Remove</button>
+      <span id="fish-state" class="mute"></span></div>
+    <small class="mute" id="fish-hint" data-i18n="fish.hint" style="display:block;margin-top:6px">Folivox first looks for these files on this computer (Hugging Face cache, LM Studio) and downloads only what is missing.</small>
+    <progress id="fish-progress" max="100" value="0" hidden></progress>
+    <small class="mute" id="fish-attrib" style="display:block;margin-top:8px"></small>
+  </div>
+</section>
+
 <section id="s-voice" class="disabled"><h2 data-i18n="s4.h">3 · Voice</h2>
   <div class="vmode" role="radiogroup" aria-label="Voice mode" data-i18n-attr="aria-label:vm.aria">
     <label class="vm on"><input type="radio" name="vmode" value="one" checked><span><b data-i18n="vm.one">One voice</b><small data-i18n="vm.one.sub">One voice reads the whole book. The simplest choice, right for most books.</small></span></label>
-    <label class="vm"><input type="radio" name="vmode" value="multi"><span><b data-i18n="vm.multi">Several voices</b><small data-i18n="vm.multi.sub">A narrator and a separate voice for each character, like a radio play.</small></span></label>
+    <label class="vm"><input type="radio" name="vmode" value="multi"><span><b data-i18n="vm.multi">Several voices</b> <span class="vbadge" id="vm-unsup" hidden data-i18n="vm.unsup">not supported by engine</span><small data-i18n="vm.multi.sub">A narrator and a separate voice for each character, like a radio play.</small></span></label>
   </div>
   <div id="mk-box" class="mk-card" hidden>
     <div class="row"><b class="mk-boxh grow" style="margin:0" data-i18n="mk.h">Characters</b><button type="button" id="mk-open2" class="primary" data-i18n="mk.adv">Characters and voices…</button></div>
@@ -536,27 +558,6 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
     <small class="mute" data-i18n="s1.pron.note">Saved automatically for this book. Only the fragments with changed words are read again.</small>
   </details>
 </section>
-
-<section id="s-engine" class="disabled"><h2 data-i18n="s3.h">4 · Reading engine</h2>
-  <div id="vm-cloud" class="mute" hidden style="margin:-4px 0 10px" data-i18n="vm.cloud">Several voices need a local engine (step 3): an online engine reads the whole book in one voice.</div>
-  <div class="grid">
-    <label class="f"><span data-i18n="s3.who">Who reads the book</span><select id="o-tts"></select></label>
-    <label class="f eng-cloud" hidden><span data-i18n="s3.model">Model</span><select id="o-tts_model"></select></label>
-    <label class="f eng-cloud" hidden><span data-i18n="s3.cap">Spending cap, $ (optional)</span><input id="o-max_cost" type="number" min="0.5" step="0.5" placeholder="no cap" data-i18n-attr="placeholder:s3.cap.ph"></label>
-  </div>
-  <small class="mute" id="eng-blurb"></small>
-  <div id="eng-fish" class="costcard" hidden>
-    <label class="f"><span data-i18n="fish.build">Build</span><select id="o-tts_build"></select></label>
-    <div id="fish-info" class="mute" style="margin-top:8px"></div>
-    <div id="fish-warn" class="warn" style="margin-top:6px"></div>
-    <div class="row"><button type="button" id="fish-licence" class="primary" data-i18n="fish.licence.btn">Read and accept the licence…</button>
-      <button type="button" id="fish-install" class="primary" hidden></button><button type="button" id="fish-remove" hidden data-i18n="fish.remove">Remove</button>
-      <span id="fish-state" class="mute"></span></div>
-    <small class="mute" id="fish-hint" data-i18n="fish.hint" style="display:block;margin-top:6px">Folivox first looks for these files on this computer (Hugging Face cache, LM Studio) and downloads only what is missing.</small>
-    <progress id="fish-progress" max="100" value="0" hidden></progress>
-    <small class="mute" id="fish-attrib" style="display:block;margin-top:8px"></small>
-  </div>
-</section>
 <dialog id="fish-dlg" aria-labelledby="fish-dlg-h">
   <h3 id="fish-dlg-h" style="margin:0 0 6px"></h3>
   <div class="mute" data-i18n="fish.licence.intro">Fish Audio models are not part of Folivox. You download them from Hugging Face under the vendor's licence. The main points:</div>
@@ -629,6 +630,7 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
       <button type="button" id="rt-install" class="primary" hidden></button><button type="button" id="rt-remove" hidden data-i18n="rt.remove">Remove</button></div>
     <progress id="rt-progress" max="100" value="0" hidden style="width:100%;height:8px;margin-top:8px"></progress>
     <p class="mute" style="margin:8px 0 0"><small id="rt-status"></small></p>
+    <p class="mute" style="margin:4px 0 0"><small id="rt-advice"></small></p>
     <p class="warn" style="margin:4px 0 0"><small id="rt-warn"></small></p>
   </div>
   <div id="s-engines" class="adv-block"><h3 data-i18n="adv.helpers">Helper programs</h3>
@@ -854,14 +856,13 @@ const mkHasSpans = () => !!MK.data && Object.values(MK.data.chapters).some(c => 
 const vmodeKey = () => "folivox.vmode." + (book ? book.book_id : "");
 const vmode = () => { const c = document.querySelector('input[name="vmode"]:checked'); return c ? c.value : "one"; };
 function vmodeSync() {
+  // online engines read the whole book in one voice: "Several voices" is unavailable while one is chosen
+  const cloud = !!(ENG.list.length && ENG.cloud());
+  const multi = document.querySelector('input[name="vmode"][value="multi"]');
+  multi.disabled = cloud; multi.closest(".vm").classList.toggle("off", cloud);
+  if (cloud && multi.checked) document.querySelector('input[name="vmode"][value="one"]').checked = true;
+  $("#vm-unsup").hidden = !cloud;
   const m = vmode() === "multi";
-  // online engines read the whole book in one voice: not offered while several voices are on
-  document.querySelectorAll("#o-tts option").forEach(o => { const e = ENG.list.find(x => x.name === o.value); o.disabled = m && !!e && !!e.cloud; });
-  $("#vm-cloud").hidden = !m;
-  if (m && ENG.list.length && ENG.cloud()) {
-    const local = ENG.list.find(e => e.name === "cosyvoice3" && !e.cloud) || ENG.list.find(e => !e.cloud);
-    if (local) { $("#o-tts").value = local.name; engChange(); return; }
-  }
   $("#mk-box").hidden = !m; $("#vlabel").textContent = t(m ? "vm.narr" : "vm.voice");
   document.querySelectorAll(".vm").forEach(l => l.classList.toggle("on", l.querySelector("input").checked));
   if (m) mkSummary();
@@ -2248,7 +2249,7 @@ function engOptions() {
 }
 // engine texts come from the server in English; the catalog has them per engine name ("engine.<name>.label|blurb|tag")
 const engText = (e, f) => { const k = "engine." + e.name + "." + f; return (k in CAT || k in CAT_EN) ? t(k) : (e[f] || ""); };
-const engTtsOptions = (list) => list.map(e => `<option value="${esc(e.name)}"${e.cloud && vmode() === "multi" ? " disabled" : ""}>${esc(engText(e, "label"))}${" — " + (e.cloud ? t("eng.paid") : t("eng.free"))}${e.tag ? " (" + esc(engText(e, "tag")) + ")" : ""}</option>`).join("");
+const engTtsOptions = (list) => list.map(e => `<option value="${esc(e.name)}">${esc(engText(e, "label"))}${" — " + (e.cloud ? t("eng.paid") : t("eng.free"))}${e.tag ? " (" + esc(engText(e, "tag")) + ")" : ""}</option>`).join("");
 const engBlurb = (e) => esc(engText(e, "blurb")) + (e.cloud ? ` <span class="warn">${esc(t("eng.paidper", { p: e.per_hour != null ? "$" + dec(e.per_hour, 2) : "?" }))}</span>` : "");
 const engModelOptions = (e) => `<option value="auto">${esc(t("eng.autonew"))}</option>` + e.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${e.prices[m.id] != null ? ` (≈ $${dec(e.prices[m.id], 2)}/${t("u.h")})` : ""}${m.note ? " — " + esc(m.note) : ""}</option>`).join("");
 function engRelabel() {  // after a UI language switch: same selections, new labels
@@ -2274,6 +2275,10 @@ function fishRender() {
   $("#o-tts_build").value = bs.some(b => b.id === keep) ? keep : "auto";
   const b = fishCur(); if (!b) { box.hidden = true; return; }
   $("#fish-info").textContent = t("fish.size", { gb: b.size_gb, peak: b.peak_gb, ram: b.min_total_gb });
+  const m = (b.tested_on || [])[0], mlx = bs.find(x => x.engine === b.engine && !x.native && (x.tested_on || [])[0] && x.tested_on[0].rtf);
+  $("#fish-measured").textContent = [m ? t("fish.measured", { hw: m.hardware, date: m.date, rtf: m.rtf, cer: m.cer }) : t("fish.unmeasured", { cmd: "folivox bench --tts " + b.engine + (b.native ? " --runtime native" : "") }),
+    b.native && m && mlx && FISH.st.hardware.platform === "darwin-arm64" && m.rtf > mlx.tested_on[0].rtf * 1.1 ? t("fish.nativeslower", { mlx: mlx.tested_on[0].rtf, native: m.rtf }) : "",
+    b.native && b.kind === "drama3" ? t("fish.ownserver", { cmd: "folivox runtime build drama3" }) : ""].filter(Boolean).join(" ");
   const warn = [b.fit !== "ok" ? b.fit_message : "", !b.commercial ? t("fish.noncommercial") : ""];
   const v = VOICES.find(x => x.id === voice);
   if (v && v.bundled && !FISH.st.bundled_voices_allowed) warn.push(t("fish.bundledvoice"));
@@ -2808,6 +2813,9 @@ function rtRender() {
   $("#rt-status").textContent = !s.build && !s.server ? t("rt.st.nobuild", { platform: s.platform }) : s.installed ? t("rt.st.ready", { backend: (s.build && s.build.backend) || "custom" }) : t("rt.st.none");
   const warn = [s.build && !s.build.verified ? t("rt.st.untested", { platform: s.platform }) : "", s.selected === "native" && !s.installed ? t("rt.needinstall") : "", rtNative() ? t("rt.device") : ""];
   $("#rt-warn").textContent = warn.filter(Boolean).join(" ");
+  const a = s.advice;
+  $("#rt-advice").textContent = !a ? "" : [a.level === "try" ? t("rt.adv.try", { hw: a.hardware, date: a.date, lo: a.speedup[0], hi: a.speedup[1], qn: a.qa_native, qp: a.qa_pytorch }) : t("rt.adv.unknown", { platform: a.platform }),
+    a.stale ? t("rt.adv.stale", { days: a.age_days }) : "", t("rt.adv.measure", { cmd: a.bench })].filter(Boolean).join(" ");
   if (typeof optionsVisibility === "function") optionsVisibility();
 }
 async function rtPoll() {

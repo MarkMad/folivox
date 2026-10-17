@@ -108,5 +108,96 @@
     }
    }
   }
+ },
+ "measurements": [
+  {
+   "platform": "darwin-arm64",
+   "hardware": "Apple M3 Pro, 36 GB",
+   "date": "2026-10-16",
+   "engine": "cosyvoice3",
+   "backend": "metal",
+   "release": "v0.9.2",
+   "weights": "q8_0, converted to f16 while loading",
+   "fragment": "ru-hard, 6 fragments, voice russlib, no retakes",
+   "native": {
+    "rtf": [
+     0.6,
+     0.67
+    ],
+    "load_s": 14,
+    "qa_mean": 0.012
+   },
+   "pytorch": {
+    "rtf": [
+     1.4,
+     1.93
+    ],
+    "qa_mean": 0.004
+   },
+   "note": "one fragment lost its last clause natively; the quality check normally catches that and retakes it"
+  }
+ ],
+ "recheck": {
+  "after_days": 60,
+  "command": "python tools/native_catalog.py watch",
+  "why": "audio.cpp is a young project: releases, packages, speed and the Drama 3 port change quickly. Measurements older than this are shown as possibly outdated."
+ },
+ "sources": {
+  "upstream": {
+   "repo": "https://github.com/0xShug0/audio.cpp",
+   "docs": "https://github.com/0xShug0/audio.cpp#build-yourself",
+   "release": "v0.9.2",
+   "gguf": "https://huggingface.co/audio-cpp/audio.cpp-gguf",
+   "note": "Apache-2.0 code; every model keeps its own licence (docs/model_licenses.md in the repository)"
+  },
+  "drama3_fork": {
+   "repo": "https://github.com/JarodMica/audio.cpp.git",
+   "branch": "drama-3-native",
+   "commit": "48e7e708259dce828b9ce4e669dbf5629d4fda73",
+   "docs": "https://github.com/JarodMica/audio.cpp/blob/drama-3-native/docs/models/fish_drama3.md",
+   "gguf": "https://huggingface.co/Jmica/Drama-3-GGUF",
+   "note": "Where the Drama 3 port lived before it was merged upstream; the first measurements were made with this commit. Kept as a fallback."
+  },
+  "build": {
+   "macos": [
+    "xcode-select --install   (Xcode or the Command Line Tools; the Metal compiler must be reachable through xcrun)",
+    "uv venv build-tools && uv pip install --python build-tools/bin/python cmake ninja   (or brew install cmake ninja)",
+    "export PATH=\"$PWD/build-tools/bin:$PATH\"",
+    "scripts/build_metal.sh --build-type Release --model-set custom --models MODELS --target audiocpp_server   (MODELS: cosyvoice3 or fish_audio or fish_drama3; several separated by commas)",
+    "the server is build/macos-metal-release/bin/audiocpp_server; then: export FOLIVOX_NATIVE_SERVER=<that file>"
+   ],
+   "linux-cuda": [
+    "GCC 13+, CMake, CUDA Toolkit 12+ (the toolkit's own nvcc, not the distro's)",
+    "cmake -S . -B build -DENGINE_ENABLE_CUDA=ON -DCUDAToolkit_ROOT=/usr/local/cuda-12.9 -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.9/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES=native",
+    "cmake --build build -j --target audiocpp_server   (check: readelf -d build/bin/audiocpp_server | grep NEEDED | grep cuda shows libcudart.so.12)",
+    "export FOLIVOX_NATIVE_SERVER=$PWD/build/bin/audiocpp_server"
+   ],
+   "linux-vulkan": [
+    "GCC 13+, CMake, the Vulkan SDK (glslc)",
+    "cmake -S . -B build -DENGINE_ENABLE_VULKAN=ON && cmake --build build -j --target audiocpp_server",
+    "export FOLIVOX_NATIVE_SERVER=$PWD/build/bin/audiocpp_server"
+   ],
+   "windows-cuda": [
+    "Visual Studio Build Tools 2022 (C++ workload), CMake, Ninja, the CUDA Toolkit, Git",
+    "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\build_windows.ps1 -Preset windows-cuda-release -ModelSet custom -Models MODELS -Target audiocpp_server",
+    "the server is build\\windows-cuda-release\\bin\\audiocpp_server.exe; then: setx FOLIVOX_NATIVE_SERVER <that file>"
+   ],
+   "windows-vulkan": [
+    "Visual Studio Build Tools 2022, CMake, Ninja, the LunarG Vulkan SDK (glslc), Git",
+    "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\build_windows.ps1 -Preset windows-vulkan-release -ModelSet custom -Models MODELS -Target audiocpp_server",
+    "setx FOLIVOX_NATIVE_SERVER <build\\windows-vulkan-release\\bin\\audiocpp_server.exe>"
+   ],
+   "amd-hip": [
+    "AMD GPUs on Windows: community packages with the ROCm runtime built in are published at https://github.com/IIIIIllllIIIIIlllll/audio.cpp/releases (not checked by Folivox); on Linux see docs/build/HIP.md in the audio.cpp repository"
+   ]
+  },
+  "drama3": {
+   "repo": "https://github.com/0xShug0/audio.cpp.git",
+   "branch": "main",
+   "commit": "2d832de9c69fef5e179523c1ca870d6d7c046a9a",
+   "docs": "https://github.com/0xShug0/audio.cpp/blob/main/docs/models/fish_drama3.md",
+   "gguf": "https://huggingface.co/Jmica/Drama-3-GGUF",
+   "note": "Drama 3 was merged into upstream audio.cpp main on 2026-10-16, after release v0.9.2: there are no release binaries yet, so it is built from this pinned commit. Replace by the release binaries once a release contains it."
+  }
  }
 }

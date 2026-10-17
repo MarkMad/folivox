@@ -45,7 +45,8 @@ def engines_list(ctx: typer.Context):
         if not licences.is_accepted(lic):
             state += ", licence not accepted"
         t.add_row(b.id, f"{b.size_gb:.1f} GB", f"{b.peak_gb:.0f} GB", lic.name,
-                  "yes" if b.status == "verified" else "[yellow]not yet[/]", here, state)
+                  ("yes" if b.status == "verified" else "[yellow]not yet[/]")
+                  + (f", RTF {builds.measured_rtf(b):g}" if builds.measured_rtf(b) else ""), here, state)
     console.print(t)
     rec = builds.recommend(hw)
     console.print(f"Default engine now: [bold]{rec.engine if rec else 'cosyvoice3'}[/]"

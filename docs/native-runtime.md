@@ -72,6 +72,53 @@ AMD HIP on Windows (community builds in a fork; not pinned by Folivox), Intel Ma
 **Your own build.** `FOLIVOX_NATIVE_SERVER=/path/to/audiocpp_server` and `FOLIVOX_NATIVE_MODEL=/path/to/cosyvoice3.gguf`
 are used instead of the installed files (a CUDA or HIP build from source, for example); `folivox runtime` shows them.
 
+## Where everything comes from, and how to build it
+
+`folivox runtime build-help [macos|linux-cuda|linux-vulkan|windows-cuda|windows-vulkan|amd-hip]` prints this from the
+catalog (`src/folivox/tts/native_catalog.json`, section `sources`):
+
+* engine: <https://github.com/0xShug0/audio.cpp> (release `v0.9.2`, Apache-2.0); prebuilt archives are listed above
+* models: <https://huggingface.co/audio-cpp/audio.cpp-gguf> (CosyVoice 3, Fish S2 Pro); every model keeps its own licence
+* Drama 3: merged into audio.cpp `main` on 2026-10-16, after the last release, so there are no release binaries yet;
+  weights are in `Jmica/Drama-3-GGUF` (pinned commit and sha256 in the catalog). The earlier home of the port,
+  `JarodMica/audio.cpp` branch `drama-3-native`, is kept in the catalog as a fallback.
+* build recipes for macOS (Metal), Linux (CUDA, Vulkan), Windows (CUDA, Vulkan) and AMD (community HIP packages) are
+  data in the catalog and are the steps the upstream documentation gives; only the macOS one is automated.
+
+`folivox runtime build drama3` (Apple Silicon): fetches the pinned commit, gets CMake and Ninja through `uv` if they are
+missing, compiles `audiocpp_server` with the project's `scripts/build_metal.sh` (several minutes, about 1 GB
+of temporary space) and keeps the server in the Folivox data folder. It asks first: the source is third-party code that
+Folivox has not reviewed. On other systems build it by hand and set `FOLIVOX_NATIVE_SERVER`.
+
+## Re-checking (audio.cpp changes fast)
+
+audio.cpp is a young project. Releases, packages, speed and model support change within days (Drama 3 appeared in
+`main` while this was being written). Every measurement here carries its date, the studio and `folivox runtime` mark
+those older than 60 days, and `python tools/native_catalog.py watch` (read-only) reports a newer release, a moved
+fork or Drama 3 branch, changed model repositories, whether Drama 3 reached a release, and which measurements are old.
+Run it every month or two; after a change worth adopting, update the catalog pins, run `folivox bench` and record the
+numbers.
+
+## What the measurements change in the product
+
+* `folivox runtime` and *Advanced settings → Inference runtime* show what our own runs found on your platform (speed-up,
+  quality-check score, date) and suggest the native runtime where it was clearly faster; where nothing was measured they
+  say so and show the command to measure. A suggestion never switches anything on by itself: `auto` stays PyTorch until
+  the quality gate below is met.
+* `folivox setup` shows the same facts when it offers the download.
+* The Fish card in the studio and `folivox engines` show the measured speed of each build, and warn when the native
+  build was slower than the MLX build of the same engine (render warning too).
+* `folivox bench` measures any engine and runtime (`--tts fish-drama3 --runtime native`) and prints a report to
+  paste into an issue, without private data.
+
+## Fish Audio models (S2 Pro, Drama 3)
+
+`--runtime native` also selects the native GGUF builds of the Fish engines (`s2pro-native-q8`, `drama3-native-q*`;
+see [Fish Audio engines](fish-engines.md#native-builds-audiocpp-any-platform-experimental)). Measured once on the M3 Pro (see the Fish page): S2 Pro Q8 RTF 2.52, Drama 3 Q2 RTF 1.97, QA scores 0.004 and
+0.003; both slower than the MLX builds there. Without the switch
+Fish keeps using its MLX builds on Apple Silicon. S2 Pro uses the stock audio.cpp release. Drama 3 is in the audio.cpp source but not in a release yet, so it runs on a
+server built from a pinned commit (`folivox runtime build drama3`, see above).
+
 ## Licences
 
 audio.cpp is Apache-2.0 (the engine only; the downloaded release carries its LICENSE). Weights keep their own licence:

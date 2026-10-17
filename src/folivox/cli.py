@@ -1260,15 +1260,36 @@ def bench(devices: str = typer.Option("", "--devices", help="Comma-separated: cp
                                       "`auto` would skip it."),
           voice: str = typer.Option("", "--voice", "-v", show_default="by language", help="Voice for the test."),
           lang: str = typer.Option("ru", "--lang", help="Language of the test text (ru or en)."),
-          timeout: int = typer.Option(1800, "--timeout", help="Seconds one device may take before it is given up.")):
+          timeout: int = typer.Option(1800, "--timeout", help="Seconds one device may take before it is given up."),
+          tts: str = typer.Option("cosyvoice3", "--tts", help="Engine to measure: cosyvoice3, fish-s2 or fish-drama3 "
+                                  "(Fish needs your own voice, not a bundled one)."),
+          tts_build: str = typer.Option("auto", "--tts-build", help="Fish build id from `folivox engines`."),
+          runtime: str | None = typer.Option(None, "--runtime", help="For Fish: native picks the native GGUF builds.")):
     """One short fragment per device, each in its own process, so a crash on one device does not stop the rest."""
     from folivox import bench as b
     from folivox.tts import weights
 
-    if weights.needs_download(None, "rl"):
+    fish = tts != "cosyvoice3"
+    if not fish and weights.needs_download(None, "rl"):
         console.print("[red]The model is not downloaded yet.[/] Run `folivox setup` first.")
         raise typer.Exit(1)
     wav, vtext, _ = _resolve_voice(voice, None, lang)
+    spec = None
+    if fish:
+        from folivox.tts import builds, fish_check
+        from folivox.tts import runtime as tts_runtime
+
+        if fish_check.is_bundled_voice(wav) and not fish_check.bundled_voices_allowed():
+            console.print(f"[red]{fish_check.BUNDLED_VOICES_NOTE}[/]")
+            raise typer.Exit(2)
+        mode = tts_runtime.resolve(tts, runtime)
+        try:
+            bld = builds.build_for(tts, tts_build, runtime=mode)
+        except builds.CatalogError as e:
+            console.print(f"[red]{e}[/]")
+            raise typer.Exit(2) from None
+        spec = {"tts": tts, "build": bld.id, "runtime": mode}
+        devices = devices or bld.backend
     devs = [d.strip() for d in devices.split(",") if d.strip()] or b.available_devices()
     text = b.sample_text(lang)
     console.print(f"Test fragment: {len(text)} characters. Devices: {', '.join(devs)}. "
@@ -1276,7 +1297,7 @@ def bench(devices: str = typer.Option("", "--devices", help="Comma-separated: cp
     rows = []
     for d in devs:
         with console.status(f"{d}: loading the model and synthesising…"):
-            rows.append(b.run_device(d, str(wav), vtext, text, timeout))
+            rows.append(b.run_device(d, str(wav), vtext, text, timeout, spec))
     table = Table("device", "chars/s", "RTF", "load, s", "warm-up, s", "peak VRAM, GB", "result")
     for r in rows:
         if "error" in r:
@@ -1288,8 +1309,11 @@ def bench(devices: str = typer.Option("", "--devices", help="Comma-separated: cp
     console.print(table)
     console.print("[dim]chars/s: characters of text per second of synthesis (more is faster). RTF: synthesis time / "
                   "audio length (below 1 is faster than real time). Whisper's quality check is not included.[/]")
+    what = f"{tts} {spec['build']}" if spec else "cosyvoice3"
+    console.print("\n[bold]To share the result[/] (paste this into an issue or a message; it holds no private data):")
+    console.print(b.report_text(rows, what, lang), markup=False, highlight=False)
     ok = [r for r in rows if "error" not in r]
-    if len(ok) > 1:
+    if len(ok) > 1 and not fish:
         best = max(ok, key=lambda r: r["chars_per_s"])
         console.print(f"Fastest: [bold]{best['device']}[/]. Use it with `--device {best['device']}`.")
 

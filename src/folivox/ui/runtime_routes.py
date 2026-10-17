@@ -10,6 +10,7 @@ from starlette.routing import Route
 
 from folivox import config
 from folivox.tts import native_setup as ns
+from folivox.tts import runtime as tts_runtime
 from folivox.ui.fish_routes import Install
 
 
@@ -27,7 +28,7 @@ def state_payload(install: Install) -> dict:
                       "mb": round(b.size / 1e6)} if b else None,
             "installed": st.server is not None and st.problem == "", "server": st.server is not None,
             "problem": st.problem, "auto": st.auto, "todo": todo, "release": ns.load().release,
-            "install": install.snapshot()}
+            "install": install.snapshot(), "advice": tts_runtime.advice()}
 
 
 def routes(api_error, install: Install) -> list[Route]:
