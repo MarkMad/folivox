@@ -163,7 +163,8 @@ class CloudGenerator(VoiceGenerator):
         return {"name": cls.name, "label": cls.label or cls.name, "modes": list(cls.modes),
                 "languages": list(cls.languages), "key_env": cls.key_env, "price_note": cls.price_note,
                 "terms_url": cls.terms_url, "docs_url": cls.docs_url, "commercial": cls.commercial,
-                "max_chars": cls.max_chars, "blurb": cls.blurb, "voices_note": cls.voices_note,
+                "max_chars": cls.max_chars, "blurb": cls.blurb, "alt_note": cls.alt_note,
+                "voices_note": cls.voices_note,
                 "models": list(cls.models), "style": cls.style, "voice_scopes": list(getattr(cls, "scopes", ())),
                 "voice_langs": list(getattr(cls, "voice_languages", ())),
                 "mode_labels": dict(cls.mode_labels)}
@@ -184,6 +185,7 @@ class CloudGenerator(VoiceGenerator):
 
     names: dict[str, str] = {}  # voice id → display name, when the id is not readable
     details: dict[str, dict] = {}  # voice id → {"traits", "description", "preview_url"} for the voice picker
+    alt_note = ""  # a separate line under the engine text, e.g. that a free local alternative exists
     voices_note = ""  # shown under the voice list (e.g. where free samples can be heard)
 
     # ---- HTTP ------------------------------------------------------------------------------------

@@ -181,6 +181,7 @@ h1 { padding-inline-end:140px; }
 .gp-readonly { background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px 14px; line-height:1.55; } .gp-readonly p { margin:0 0 8px; } .gp-readonly p:last-child { margin:0; }
 .cover-box { display:flex; gap:16px; align-items:center; margin-top:12px; padding:10px 12px; border:1px dashed var(--line); border-radius:12px; } .cover-box.over { border-color:var(--accent); background:var(--glow); }
 .cover-thumb { width:84px; height:84px; flex:none; border-radius:8px; background:var(--bg); display:grid; place-items:center; overflow:hidden; } .cover-thumb img { width:100%; height:100%; object-fit:cover; } .fish-note { font-size:13px; line-height:1.45; }
+.eng-alt { margin-top:8px; padding:8px 12px; border-inline-start:3px solid var(--warn); background:var(--card); border-radius:6px; font-size:13.5px; line-height:1.45; font-weight:600; }
 .cover-thumb span { text-align:center; padding:0 6px; line-height:1.25; }
 .sec-sub { margin:2px 0 14px; color:var(--mute); font-size:14px; line-height:1.5; max-width:78ch; }
 .eng-list, .key-list { display:flex; flex-direction:column; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
@@ -407,6 +408,7 @@ dialog ul { padding-inline-start:18px; margin:10px 0; } dialog li { margin:6px 0
     <label class="f eng-cloud" hidden><span data-i18n="s3.cap">Spending cap, $ (optional)</span><input id="o-max_cost" type="number" min="0.5" step="0.5" placeholder="no cap" data-i18n-attr="placeholder:s3.cap.ph"></label>
   </div>
   <small class="mute" id="eng-blurb"></small>
+  <div class="eng-alt" id="eng-alt" hidden></div>
   <div id="eng-fish" class="costcard" hidden>
     <label class="f"><span data-i18n="fish.build">Build</span><select id="o-tts_build"></select></label>
     <div id="fish-info" class="mute fish-note" style="margin-top:8px"></div>
@@ -2383,11 +2385,14 @@ const engBlurb = (e) => {  // the engine's text, then the chosen model's own sen
   const hour = m && e.prices && e.prices[m.id] != null ? e.prices[m.id] : e.per_hour;
   return esc(engText(e, "blurb")) + (m && m.blurb ? " " + esc(m.blurb) : "") + (e.cloud ? ` <span class="warn">${esc(t("eng.paidper", { p: hour != null ? "$" + dec(hour, 2) : "?" }))}</span>` : "");
 };
+const engBlurbShow = (e) => {  // the blurb, and the "also available locally" note on its own line
+  $("#eng-blurb").innerHTML = engBlurb(e); const a = $("#eng-alt"); a.textContent = e.alt_note || ""; a.hidden = !e.alt_note;
+};
 const engModelOptions = (e) => `<option value="auto">${esc(t("eng.autonew"))}</option>` + e.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${e.prices[m.id] != null ? ` (≈ $${dec(e.prices[m.id], 2)}/${t("u.h")})` : ""}${m.note ? " — " + esc(m.note) : ""}</option>`).join("");
 function engRelabel() {  // after a UI language switch: same selections, new labels
   const e = ENG.cur(); if (!e) return; const keep = $("#o-tts").value;
   $("#o-tts").innerHTML = engTtsOptions(ENG.list); $("#o-tts").value = keep; vmodeSync();
-  $("#o-takes").parentElement.title = e.cloud ? t("eng.retakebilled") : ""; $("#eng-blurb").innerHTML = engBlurb(e);
+  $("#o-takes").parentElement.title = e.cloud ? t("eng.retakebilled") : ""; engBlurbShow(e);
   if (e.cloud) { const m = $("#o-tts_model").value; $("#o-tts_model").innerHTML = engModelOptions(e); $("#o-tts_model").value = m; engMode(); engSaved(); if (ENG.vlist) engRenderVoices(); else engVoices(); renderEst(); }
   runSummary();
 }
@@ -2518,7 +2523,7 @@ function engChange() {
   $("#o-qa").value = e.cloud ? "0" : "1";  // an online voice rarely misreads; the check costs a retake each time and loads a local model
   optionsVisibility(); ENG.est = null; $("#eng-est").textContent = ""; runSummary();
   $("#o-takes").parentElement.title = e.cloud ? t("eng.retakebilled") : "";
-  $("#eng-blurb").innerHTML = engBlurb(e);
+  engBlurbShow(e);
   if (book) fillLangs($("#lang").value || book.lang);
   if (e.fish) fishRefresh(); else $("#eng-fish").hidden = true;
   if (!e.cloud) return;
@@ -2706,7 +2711,7 @@ function runSummary() {
 $("#o-output_dir").addEventListener("input", runSummary);
 $("#o-tts").onchange = () => { engChange(); addRules(); if (av) showSample(); }; 
 ["#o-tts_model", "#o-takes", "#o-qa"].forEach(i => $(i).addEventListener("change", engEstimate));
-$("#o-tts_model").addEventListener("change", () => { const e = ENG.cur(); if (e && e.cloud) $("#eng-blurb").innerHTML = engBlurb(e); });
+$("#o-tts_model").addEventListener("change", () => { const e = ENG.cur(); if (e && e.cloud) engBlurbShow(e); });
 document.addEventListener("change", (ev) => { if (ev.target.closest && ev.target.closest("#chapters, .chap, #chlist")) engEstimate(); });
 
 // -- generate a reference voice with a cloud provider -----------------------------------------------------------

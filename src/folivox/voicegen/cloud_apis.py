@@ -518,8 +518,9 @@ class FishAudio(CloudGenerator):
     style = True  # Drama 3 / S2 read a bracketed note before the words as direction: "[calm, warm narration] …"
     blurb = (
         "Thousands of library voices in dozens of languages, a new voice from a description, or a clone of your own "
-        "recording. Drama 3 also runs on this computer (Apple Silicon, 32+ GB)."
+        "recording."
     )
+    alt_note = "Drama 3 also runs on this computer (Apple Silicon, 32+ GB): choose Fish Audio Drama 3 in this list."
     key_env = "FISH_API_KEY"
     price_note = ("Billed per UTF-8 byte of text, so Cyrillic costs about twice and Chinese/Japanese/Korean about "
                   "three times as much per character as English. S2 models: $15 per million bytes. Drama 3 is not "
