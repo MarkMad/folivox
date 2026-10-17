@@ -1343,6 +1343,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                         "voice_modes": list(voice_modes_of(cls)), "per_hour": prices.get(cls.models[0]["id"])
                         if cls.models else None, "prices": prices})
         from folivox.tts import builds as fb
+        from folivox.voicegen.cloud_apis import FishAudio
 
         hw = fb.detect_hardware()
         for name in fb.load().engines():  # Fish engines show only where one of their builds can run
@@ -1350,6 +1351,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             if bs:
                 out.append({"name": name, "label": bs[0].title.split(",")[0], "local": True, "cloud": False,
                             "fish": True, "blurb": "", "models": [], "per_hour": 0,
+                            "voice_langs": list(FishAudio.voice_languages),  # the local models read the same 80+
                             "builds": [b.id for b in bs],
                             # named native builds run under any runtime; "auto" picks them only with runtime=native
                             "native_builds": [b.id for b in bs if b.backend == "native"]})

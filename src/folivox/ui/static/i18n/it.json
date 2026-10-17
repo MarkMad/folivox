@@ -53,7 +53,7 @@
  "s1.pron.listen": "▶ Ascolta",
  "s1.pron.listen.t": "Legge il testo qui sopra con le tue pronunce",
  "s2.lang": "Lingua",
- "s2.lang_other": "Altre lingue (motori online)",
+ "s2.lang_other": "Altre lingue",
  "s2.lang_hint": "Folivox non ha regole per {lang}: il modello vocale legge da solo numeri e abbreviazioni. Controlla a orecchio importi, numeri romani e abbreviazioni.",
  "s2.lang_weak": "Folivox non ha regole per {lang} e il modello vocale qui legge i numeri in modo meno affidabile. Ascolta numeri, date e importi prima di generare l'intero libro.",
  "s2.lang_local": "Il motore locale legge solo ru, en, de, fr, es, it, zh, ja e ko. Scegli un motore online (per esempio Fish Audio) per {lang}.",

@@ -53,7 +53,7 @@
  "s1.pron.listen": "▶ Poslechnout",
  "s1.pron.listen.t": "Přečte text výše s použitím vaší výslovnosti",
  "s2.lang": "Jazyk",
- "s2.lang_other": "Další jazyky (online enginy)",
+ "s2.lang_other": "Další jazyky",
  "s2.lang_hint": "Pro {lang} nemá Folivox žádná pravidla: hlasový model čte čísla a zkratky sám. Částky, římské číslice a zkratky si ověřte poslechem.",
  "s2.lang_weak": "Pro {lang} nemá Folivox žádná pravidla a hlasový model zde čte čísla méně spolehlivě. Před renderem celé knihy si poslechněte čísla, data a částky.",
  "s2.lang_local": "Lokální engine čte jen ru, en, de, fr, es, it, zh, ja a ko. Pro {lang} zvolte online engine (například Fish Audio).",

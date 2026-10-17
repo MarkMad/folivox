@@ -53,7 +53,7 @@
  "s1.pron.listen": "▶ Dëgjo",
  "s1.pron.listen.t": "Lexon tekstin më sipër me shqiptimet tuaja të aplikuara",
  "s2.lang": "Gjuha",
- "s2.lang_other": "Gjuhë të tjera (motorë në linjë)",
+ "s2.lang_other": "Gjuhë të tjera",
  "s2.lang_hint": "Për {lang} Folivox nuk ka rregulla: modeli i zërit i lexon vetë numrat dhe shkurtesat. Kontrolloni me vesh shumat, numrat romakë dhe shkurtesat.",
  "s2.lang_weak": "Për {lang} Folivox nuk ka rregulla dhe modeli i zërit këtu i lexon numrat më pak besueshëm. Dëgjoni numrat, datat dhe shumat para se të gjeneroni gjithë librin.",
  "s2.lang_local": "Motori lokal lexon vetëm ru, en, de, fr, es, it, zh, ja dhe ko. Për {lang} zgjidhni një motor në linjë (për shembull Fish Audio).",

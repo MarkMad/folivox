@@ -53,7 +53,7 @@
  "s1.pron.listen": "▶ Klausyti",
  "s1.pron.listen.t": "Perskaito aukščiau esantį tekstą pritaikius jūsų tarimą",
  "s2.lang": "Kalba",
- "s2.lang_other": "Kitos kalbos (internetiniai varikliai)",
+ "s2.lang_other": "Kitos kalbos",
  "s2.lang_hint": "{lang} kalbai Folivox taisyklių neturi: balso modelis skaičius ir santrumpas skaito pats. Sumas, romėniškus skaičius ir santrumpas patikrinkite ausimi.",
  "s2.lang_weak": "{lang} kalbai Folivox taisyklių neturi, o balso modelis čia skaičius skaito mažiau patikimai. Prieš generuodami visą knygą, paklausykite skaičių, datų ir sumų.",
  "s2.lang_local": "Vietinis variklis skaito tik ru, en, de, fr, es, it, zh, ja ir ko. Kalbai {lang} pasirinkite internetinį variklį (pavyzdžiui, Fish Audio).",

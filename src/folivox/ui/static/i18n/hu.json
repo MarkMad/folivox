@@ -53,7 +53,7 @@
  "s1.pron.listen": "▶ Meghallgatás",
  "s1.pron.listen.t": "Felolvassa a fenti szöveget a megadott kiejtésekkel",
  "s2.lang": "Nyelv",
- "s2.lang_other": "További nyelvek (online motorok)",
+ "s2.lang_other": "További nyelvek",
  "s2.lang_hint": "A(z) {lang} nyelvhez a Folivoxban nincsenek szabályok: a hangmodell maga olvassa a számokat és a rövidítéseket. Az összegeket, római számokat és rövidítéseket hallás után ellenőrizd.",
  "s2.lang_weak": "A(z) {lang} nyelvhez a Folivoxban nincsenek szabályok, és a hangmodell itt kevésbé megbízhatóan olvassa a számokat. A teljes könyv renderelése előtt hallgasd meg a számokat, dátumokat és összegeket.",
  "s2.lang_local": "A helyi motor csak a ru, en, de, fr, es, it, zh, ja és ko nyelvet olvassa. A(z) {lang} nyelvhez válassz online motort (például Fish Audio).",

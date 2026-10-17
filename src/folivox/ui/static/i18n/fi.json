@@ -53,7 +53,7 @@
  "s1.pron.listen": "▶ Kuuntele",
  "s1.pron.listen.t": "Lukee yllä olevan tekstin ääntämyksesi käyttäen",
  "s2.lang": "Kieli",
- "s2.lang_other": "Muut kielet (verkkomoottorit)",
+ "s2.lang_other": "Muut kielet",
  "s2.lang_hint": "Kielelle {lang} ei ole Folivoxissa sääntöjä: ääni­malli lukee numerot ja lyhenteet itse. Tarkista summat, roomalaiset numerot ja lyhenteet korvakuulolta.",
  "s2.lang_weak": "Kielelle {lang} ei ole Folivoxissa sääntöjä, ja ääni­malli lukee numerot tässä epävarmemmin. Kuuntele numerot, päivämäärät ja summat ennen koko kirjan renderöintiä.",
  "s2.lang_local": "Paikallinen moottori lukee vain kielet ru, en, de, fr, es, it, zh, ja ja ko. Valitse kielelle {lang} verkkomoottori (esimerkiksi Fish Audio).",

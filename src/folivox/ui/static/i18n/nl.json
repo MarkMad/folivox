@@ -53,7 +53,7 @@
  "s1.pron.listen": "▶ Beluisteren",
  "s1.pron.listen.t": "Leest de tekst hierboven voor met jouw uitspraak",
  "s2.lang": "Taal",
- "s2.lang_other": "Andere talen (online engines)",
+ "s2.lang_other": "Andere talen",
  "s2.lang_hint": "Folivox heeft geen regels voor {lang}: het stemmodel leest getallen en afkortingen zelf. Controleer bedragen, Romeinse cijfers en afkortingen op het gehoor.",
  "s2.lang_weak": "Folivox heeft geen regels voor {lang}, en het stemmodel leest getallen hier minder betrouwbaar. Luister naar getallen, data en bedragen voordat je het hele boek rendert.",
  "s2.lang_local": "De lokale engine leest alleen ru, en, de, fr, es, it, zh, ja en ko. Kies voor {lang} een online engine (bijvoorbeeld Fish Audio).",

@@ -53,7 +53,7 @@
  "s1.pron.listen": "▶ Poslušaj",
  "s1.pron.listen.t": "Prebere zgornje besedilo z vašimi izgovorjavami",
  "s2.lang": "Jezik",
- "s2.lang_other": "Drugi jeziki (spletni pogoni)",
+ "s2.lang_other": "Drugi jeziki",
  "s2.lang_hint": "Za {lang} Folivox nima pravil: glasovni model številke in okrajšave bere sam. Zneske, rimske številke in okrajšave preverite na posluh.",
  "s2.lang_weak": "Za {lang} Folivox nima pravil, glasovni model pa tu številke bere manj zanesljivo. Pred upodobitvijo cele knjige poslušajte številke, datume in zneske.",
  "s2.lang_local": "Lokalni pogon bere samo ru, en, de, fr, es, it, zh, ja in ko. Za {lang} izberite spletni pogon (na primer Fish Audio).",

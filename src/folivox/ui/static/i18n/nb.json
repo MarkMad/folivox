@@ -53,7 +53,7 @@
  "s1.pron.listen": "▶ Lytt",
  "s1.pron.listen.t": "Leser teksten ovenfor med uttalen din brukt",
  "s2.lang": "Språk",
- "s2.lang_other": "Andre språk (nettmotorer)",
+ "s2.lang_other": "Andre språk",
  "s2.lang_hint": "Folivox har ingen regler for {lang}: stemmemodellen leser tall og forkortelser selv. Sjekk beløp, romertall og forkortelser på gehør.",
  "s2.lang_weak": "Folivox har ingen regler for {lang}, og stemmemodellen leser tall mindre pålitelig her. Lytt til tall, datoer og beløp før du renderer hele boken.",
  "s2.lang_local": "Den lokale motoren leser bare ru, en, de, fr, es, it, zh, ja og ko. Velg en nettmotor (for eksempel Fish Audio) for {lang}.",
