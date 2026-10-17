@@ -24,8 +24,9 @@ Folivox turns a whole book, many hours of it, into a finished audiobook. Out of 
 [CosyVoice 3](https://github.com/FunAudioLLM/CosyVoice), an open model that clones a voice from a short sample,
 running entirely on your machine: no account, no subscription, no per-character fee, nothing uploaded.
 
-It is one application with many engines behind it. The book can be read by the free local model or by
-ElevenLabs, OpenAI, Gemini, Cartesia or Fish Audio (Drama 3, 80+ languages) with your own API key. A narrator voice can come from the bundled
+It is one application with many engines behind it. The book can be read by the free local CosyVoice 3, by the
+local [Fish Audio Drama 3](docs/fish-engines.md) (80+ languages, several voices in one scene; needs a Mac with enough memory),
+or by ElevenLabs, OpenAI, Gemini, Cartesia or Fish Audio online with your own API key. A narrator voice can come from the bundled
 catalog, from your own recording, or be designed for this particular book. Everything around the voice,
 from text clean-up to quality control, chapters and a crash-safe journal, is the same whichever engine you choose.
 
@@ -199,7 +200,7 @@ epigraphs are kept; PDF headers, footers and page numbers are removed and hyphen
 
 **9 languages with full rules, 80+ with Drama 3**<br>
 Russian, English, German, French, Spanish, Italian, Chinese, Japanese, Korean get their own text rules. Any other
-language an online engine reads (Fish Audio Drama 3: 84 in all, e.g. Polish, Portuguese, Arabic, Hindi, Thai) works
+language Fish Audio Drama 3 reads, also locally (84 in all, e.g. Polish, Portuguese, Arabic, Hindi, Thai), works
 too. Detected from the book's text; `--lang` overrides it. Books with passages in other languages are read
 fragment by fragment in the right language.
 
@@ -300,8 +301,8 @@ redacted support bundle. Pluggable providers via entry points.
 <td valign="top">
 
 **Fish Audio Drama 3**<br>
-Directed in plain words (`[calm, warm narration]`), 80+ languages, several speakers in one scene. Online with
-your key, or local on a Mac with enough memory. [Details](docs/fish-engines.md).
+Directed in plain words (`[calm, warm narration]`), 80+ languages, several speakers in one scene. Runs locally on
+a Mac with enough memory; an online variant with your key is optional. [Details](docs/fish-engines.md).
 
 </td>
 <td valign="top">
