@@ -75,17 +75,6 @@ powershell -ExecutionPolicy Bypass -File scripts\install.ps1
 
 </details>
 
-<details>
-<summary><b>From a ZIP</b> (no terminal commands to download)</summary>
-
-1. On this page click **Code → Download ZIP** and unpack it.
-2. macOS: open **Terminal**, type `cd ` (with a space), drag the unpacked folder into the window, press Enter,
-   then run `bash scripts/install.sh`. Linux: open a terminal in the folder and run the same.
-3. Windows: open the unpacked folder in Explorer, type `powershell` in the address bar and press Enter, then run
-   `powershell -ExecutionPolicy Bypass -File scripts\install.ps1`.
-
-</details>
-
 ### 2. Start
 
 Open a new terminal window and run:
