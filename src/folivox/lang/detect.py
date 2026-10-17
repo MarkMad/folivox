@@ -115,10 +115,12 @@ def detect(text: str, default: str = "ru") -> str:
         return "ko"
     if script in ("kana", "han"):
         return "ja" if counts["kana"] > 0.05 * (counts["han"] + counts["kana"]) else "zh"
+    if script == "ar":
+        return _arabic_script_lang(sample)
     if script != "lat":
         return script
-    # Latin script: function words and accents; "en" when nothing says (never the Cyrillic default)
-    return latin_lang(sample, "en")
+    # Latin script: ~30 languages by telltale letters and function words; "en" when nothing says
+    return latin_book_lang(sample, "en")
 
 
 _UK = set("іїєґІЇЄҐ")
@@ -143,3 +145,29 @@ def unsupported_cyrillic(text: str) -> str | None:
     if uk >= 0.02 * cyr:
         return "uk"
     return None
+
+
+_PERSIAN, _URDU = set("پچژگ"), set("ٹڈڑںےھ")
+
+
+def _arabic_script_lang(text: str) -> str:
+    """"ar", or "fa" / "ur" when their extra letters (پ چ ژ گ / ٹ ڈ ڑ ں ے) are common."""
+    letters = sum(1 for ch in text if "\u0600" <= ch <= "\u06ff" and ch.isalpha()) or 1
+    fa, ur = sum(ch in _PERSIAN for ch in text), sum(ch in _URDU for ch in text)
+    if ur >= 0.01 * letters and ur > fa // 2:
+        return "ur"
+    return "fa" if fa >= 0.01 * letters else "ar"
+
+
+def latin_book_lang(text: str, default: str = "en") -> str:
+    """The language of a long Latin-script text among ~30 (``wordlists``): function-word hits plus half a point
+    per telltale letter. Meant for a whole book or a long passage; ``default`` when nothing says."""
+    from folivox.lang.wordlists import LETTER_WEIGHT, LETTERS, WORDS
+
+    words = Counter(re.findall(r"[^\W\d_]+", text.lower()))
+    low = text.lower()
+    scores = {code: sum(words[w] for w in set(ws.split()))
+              + LETTER_WEIGHT * sum(low.count(c) for c in LETTERS.get(code, ""))
+              for code, ws in WORDS.items()}
+    best = max(scores, key=lambda k: (scores[k], k == default))
+    return best if scores[best] > 0 else default

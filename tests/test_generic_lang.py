@@ -56,8 +56,8 @@ def test_metadata_language_beats_latin_guess(tmp_path):
     from folivox.readers import read_book
 
     f = tmp_path / "b.fb2"
-    f.write_text('<?xml version="1.0" encoding="utf-8"?><FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">'
-                 '<description><title-info><genre>prose</genre><author><first-name>A</first-name><last-name>B</last-name>'
+    f.write_text('<?xml version="1.0" encoding="utf-8"?><FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">'  # noqa: E501
+                 '<description><title-info><genre>prose</genre><author><first-name>A</first-name><last-name>B</last-name>'  # noqa: E501
                  '</author><book-title>T</book-title><lang>pl</lang></title-info></description><body><section>'
                  '<p>The cat is on the mat and the dog is in the house with the man.</p>'
                  '</section></body></FictionBook>',
@@ -92,3 +92,27 @@ def test_fish_request_never_normalizes_and_always_names_language(tmp_path, code)
     make(FishAudio, fake).generate([job(tmp_path, speaker="vid", lang=code, text="Tekst 1250.")])
     sent = fake.calls[0]["json"]
     assert sent["normalize"] is False and sent["language"] == code
+
+
+# --- the language of a whole Latin-script book (lang/wordlists.py) -------------------------------------------
+
+_SAMPLES = {
+    "pt": "O governo anunciou ontem que as escolas vão reabrir na próxima segunda-feira, depois de várias semanas fechadas. Os alunos não têm muita vontade de voltar, mas os pais estão contentes com a decisão.",  # noqa: E501
+    "pl": "Rząd ogłosił wczoraj, że szkoły zostaną otwarte w przyszły poniedziałek, po kilku tygodniach przerwy. Uczniowie nie są zadowoleni, ale rodzice się cieszą.",  # noqa: E501
+    "nl": "De regering heeft gisteren aangekondigd dat de scholen volgende maandag weer opengaan, na enkele weken sluiting. De leerlingen zijn niet blij, maar de ouders wel.",  # noqa: E501
+    "tr": "Hükümet dün okulların gelecek pazartesi yeniden açılacağını duyurdu. Öğrenciler pek memnun değil ama aileler sevindi ve bir şey söylemediler.",  # noqa: E501
+    "cs": "Vláda včera oznámila, že školy se po několika týdnech znovu otevřou příští pondělí. Žáci nejsou nadšení, ale rodiče jsou spokojeni s jejím rozhodnutím.",  # noqa: E501
+    "sv": "Regeringen meddelade igår att skolorna öppnar igen nästa måndag efter flera veckors stängning. Eleverna är inte glada, men föräldrarna är nöjda med beslutet.",  # noqa: E501
+    "da": "Regeringen meddelte i går, at skolerne åbner igen på mandag efter flere ugers lukning. Eleverne er ikke glade, men forældrene er tilfredse med det.",  # noqa: E501
+}
+
+
+@pytest.mark.parametrize("code", sorted(_SAMPLES))
+def test_latin_book_language_is_told_among_many(code):
+    assert detect(_SAMPLES[code] * 5) == code
+
+
+def test_arabic_script_tells_persian_and_urdu():
+    assert detect("دولت دیروز اعلام کرد که مدرسه ها از هفته آینده دوباره باز می شوند و پدر و مادرها گفتند که چای را دوست دارند") == "fa"  # noqa: E501
+    assert detect("حکومت نے کل اعلان کیا کہ اسکول اگلے ہفتے دوبارہ کھلیں گے اور بچے ٹھیک ہیں ڑ") == "ur"
+    assert detect("أعلنت الحكومة أمس أن المدارس ستعيد فتح أبوابها يوم الاثنين المقبل") == "ar"
