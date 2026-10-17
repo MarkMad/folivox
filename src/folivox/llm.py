@@ -125,6 +125,13 @@ class Ollama(LLM):
         except OSError as e:
             raise PullError(f"Ollama could not remove {model}: {e}") from None
 
+    def unload(self) -> None:
+        """Ask Ollama to drop this model from memory now instead of after its keep-alive period. Best effort."""
+        try:
+            _post(f"{self.host}/api/generate", {"model": self.model, "keep_alive": 0}, timeout=15)
+        except (OSError, ValueError, KeyError):
+            pass
+
     def installed(self) -> list[str]:
         """Models already pulled into this Ollama (empty when it is not running)."""
         try:

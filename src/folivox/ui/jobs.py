@@ -85,6 +85,7 @@ class Job:
         self.events: list[dict] = []
         self.cond = threading.Condition()
         self.cancel_requested = threading.Event()
+        self.proc = None  # the render child process while it runs
 
     def emit(self, type_: str, **data) -> None:
         with self.cond:
@@ -143,6 +144,10 @@ class JobManager:
             if job.state == "running":
                 job.error = str(e) or type(e).__name__
                 job.finish("error", "error", message=job.error)
+        finally:
+            from folivox import memory
+
+            memory.release()  # whatever the parent picked up (the child's models went with the child)
 
     def _run_process_inner(self, job: Job, book) -> None:
         from folivox import diag
@@ -159,6 +164,7 @@ class JobManager:
         diag.event("job started", job=job.id, kind=job.kind, options=diag.options_summary(job.opts), process=True)
         t0 = time.time()
         proc.start()
+        job.proc = proc
         child_end.close()  # only the child holds the write end, so its death shows up as EOF
         final = None
         while final is None:
@@ -237,6 +243,27 @@ class JobManager:
             from folivox import memory
 
             memory.release()  # a paused studio should not keep the models (~20 GB) in memory
+
+    def running_jobs(self) -> list[Job]:
+        return [j for j in (self.current, self.gen_current) if j is not None and j.state == "running"]
+
+    def cancel_all(self) -> None:
+        """Ask every running job to stop; returns at once (safe in a signal handler)."""
+        for job in self.running_jobs():
+            job.cancel_requested.set()
+
+    def stop_all(self, wait: float = 8.0) -> None:
+        """Cancel every running job and, for a render process that does not stop in ``wait`` seconds, kill it:
+        a studio that exits must not leave a child holding the models. The journal keeps the work resumable."""
+        self.cancel_all()
+        end = time.time() + wait
+        for job in list(self.jobs.values()):
+            while job.state == "running" and time.time() < end:
+                time.sleep(0.05)
+            proc = job.proc
+            if proc is not None and proc.is_alive():
+                proc.terminate()
+                proc.join(timeout=5)
 
     def start_task(self, job: Job, fn: Callable[[Job], str | None]) -> Job:
         """Run ``fn(job)`` in a worker thread as the current voice-generation job (events and cancel as a render)."""

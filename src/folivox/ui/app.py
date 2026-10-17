@@ -26,7 +26,7 @@ from folivox import voices as catalog
 from folivox.book import BlockKind
 from folivox.pipeline import QA_LEVELS, RenderOptions
 from folivox.text import pronounce as pronunciations
-from folivox.ui import fish_routes, markup_routes, runtime_routes
+from folivox.ui import fish_routes, lifecycle, markup_routes, runtime_routes
 from folivox.ui.jobs import JobManager, chapter_files
 
 STATIC = Path(__file__).parent / "static"
@@ -130,6 +130,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     state = State(data_dir or Path(user_data_dir("folivox", appauthor=False)) / "ui", render)
     fish_install = fish_routes.Install()
     native_install = fish_routes.Install()
+    state.installs = [fish_install, native_install]
+    presence = lifecycle.Presence()
     services = services or {}
     # what the cookie holds: derived from the token, so it survives restarts but the token itself never sits in it
     session = (hmac.new(token.encode(), b"folivox-ui-cookie", "sha256").hexdigest() if token
@@ -156,7 +158,11 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         from folivox import __version__
 
         return JSONResponse({"app": "folivox-studio", "api": API_LEVEL, "version": __version__, "pid": os.getpid(),
-                             "busy": state.manager.busy()})
+                             "busy": state.manager.busy() or bool(lifecycle.activity(state)["markup"])})
+
+    async def get_activity(request: Request):
+        """The long work the server is doing, so the page can warn before it closes and show it again on reopening."""
+        return JSONResponse({**lifecycle.activity(state), "orphan_minutes": int(lifecycle.ORPHAN_SECONDS // 60)})
 
     async def changelog(request: Request):
         """Version history shown in the footer dialog (``static/changelog.json``, English only)."""
@@ -169,7 +175,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         from starlette.background import BackgroundTask
 
         body = await request.json() if request.headers.get("content-length", "0") != "0" else {}
-        if state.manager.busy() and not (isinstance(body, dict) and body.get("force")):
+        working = state.manager.busy() or bool(lifecycle.activity(state)["markup"])
+        if working and not (isinstance(body, dict) and body.get("force")):
             raise ApiError("A render is running; stopping the studio would interrupt it", 409, busy=True)
         request_exit = getattr(app.state, "request_exit", None)
         if request_exit is None:
@@ -1663,6 +1670,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/", index),
         Route("/i18n/{code}.json", i18n_catalog),
         Route("/api/ping", ping),
+        Route("/api/activity", get_activity),
         Route("/api/changelog", changelog),
         Route("/api/shutdown", shutdown, methods=["POST"]),
         Route("/api/books", upload_book, methods=["POST"]),
@@ -1730,20 +1738,46 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     ]
     app = Starlette(routes=routes, exception_handlers={ApiError: api_error, ValueError: bad_request,
                                                       TypeError: bad_request, KeyError: bad_request})
-    app.add_middleware(_Guard, check=check)
+    app.add_middleware(_Guard, check=check, presence=presence)
     app.state.ui = state
     app.state.request_exit = None  # set by `folivox ui`: asks uvicorn to stop
+    app.state.watchdog = lifecycle.Watchdog(state, presence)
+
+    def cancel_all() -> None:
+        """Non-blocking: ask every running job to stop (called from the signal handler)."""
+        state.manager.cancel_all()
+        for t in getattr(state, "markup_tasks", {}).values():
+            if t.state == "running":
+                t.release = True
+                t.cancel.set()
+        pull = getattr(state, "pull", None)
+        if pull is not None:
+            pull.cancel.set()
+
+    def shutdown() -> None:
+        """Stop everything the server started: render children, markup threads (and their model), generation."""
+        app.state.watchdog.stop()
+        cancel_all()
+        state.manager.stop_all()
+        end = time.time() + 8
+        for t in getattr(state, "markup_tasks", {}).values():
+            while t.state == "running" and time.time() < end:
+                time.sleep(0.05)
+
+    app.state.cancel_all, app.state.shutdown = cancel_all, shutdown
     return app
 
 
 class _Guard:
     """Pure-ASGI middleware (keeps SSE streaming intact): Host and token checks before routing."""
 
-    def __init__(self, app, check):
-        self.app, self.check = app, check
+    def __init__(self, app, check, presence=None):
+        self.app, self.check, self.presence = app, check, presence
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
+            if self.presence is not None and scope.get("path") != "/api/ping":  # `folivox ui` pings; it is no browser
+                self.presence.touch()
             denied = self.check(Request(scope, receive))
             if denied is not None:
                 return await denied(scope, receive, send)

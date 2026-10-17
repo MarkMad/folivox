@@ -24,6 +24,8 @@ class Task:
         self.stage, self.done, self.total, self.message = "", 0, 0, ""
         self.stats: dict = {}
         self.cancel = threading.Event()
+        self.llm = None
+        self.release = False  # unload the model when the run ends (the person stopped it, or nobody is watching)
 
     def snapshot(self) -> dict:
         return {"state": self.state, "task": self.task, "stage": self.stage, "done": self.done, "total": self.total,
@@ -48,9 +50,19 @@ class Pull:
                 "message": self.message, "elapsed": round(time.time() - self.started, 1) if self.started else 0}
 
 
+def unload(t: Task) -> None:
+    """Free the model a stopped run used (Ollama would keep it for minutes); a hosted endpoint has nothing to free."""
+    fn = getattr(t.llm, "unload", None)
+    if t.release or t.cancel.is_set():
+        t.release = False
+        if callable(fn):
+            fn()
+
+
 def routes(api_error, state, services: dict) -> list[Route]:
     tasks: dict[str, Task] = {}
     pull = Pull()
+    state.markup_tasks, state.pull = tasks, pull
 
     def files(bid: str) -> tuple[Path, Path, Path]:
         name = Path(bid).name
@@ -277,6 +289,7 @@ def routes(api_error, state, services: dict) -> list[Route]:
         bp, mp, cp = files(bid)
         for f in (bp, mp, cp):
             f.parent.mkdir(parents=True, exist_ok=True)
+        t.llm, t.release = llm, False
         t.state, t.task, t.message, t.stats = "running", what, "", {}
         t.done = t.total = 0
         t.cancel.clear()
@@ -303,6 +316,8 @@ def routes(api_error, state, services: dict) -> list[Route]:
                 t.state, t.message = "done", f"{n} characters described"
             except Exception as e:  # noqa: BLE001
                 t.state, t.message = "error", str(e)
+            finally:
+                unload(t)
 
         def work_mode() -> None:
             """The two ways the page offers: a preview (a sample, minutes) or the best that can be done (every
@@ -345,6 +360,7 @@ def routes(api_error, state, services: dict) -> list[Route]:
                 t.state, t.message = "error", str(e)
             finally:
                 cache.close()
+                unload(t)
 
         def work() -> None:
             if what == "prompts":
@@ -380,6 +396,7 @@ def routes(api_error, state, services: dict) -> list[Route]:
                 t.state, t.message = "error", str(e)
             finally:
                 cache.close()
+                unload(t)
 
         threading.Thread(target=work, daemon=True, name="folivox-llm-markup").start()
         return JSONResponse(t.snapshot(), status_code=202)
