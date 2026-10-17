@@ -1763,6 +1763,11 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         for t in getattr(state, "markup_tasks", {}).values():
             while t.state == "running" and time.time() < end:
                 time.sleep(0.05)
+        for t in getattr(state, "markup_tasks", {}).values():  # a finished run leaves its model to the keep-alive
+            fn = getattr(t.llm, "unload", None)
+            if callable(fn):
+                fn()
+                t.llm = None
 
     app.state.cancel_all, app.state.shutdown = cancel_all, shutdown
     return app
