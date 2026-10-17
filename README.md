@@ -25,7 +25,7 @@ Folivox turns a whole book, many hours of it, into a finished audiobook. Out of 
 running entirely on your machine: no account, no subscription, no per-character fee, nothing uploaded.
 
 It is one application with many engines behind it. The book can be read by the free local model or by
-ElevenLabs, OpenAI, Gemini, Cartesia or Fish Audio with your own API key. A narrator voice can come from the bundled
+ElevenLabs, OpenAI, Gemini, Cartesia or Fish Audio (Drama 3, 80+ languages) with your own API key. A narrator voice can come from the bundled
 catalog, from your own recording, or be designed for this particular book. Everything around the voice,
 from text clean-up to quality control, chapters and a crash-safe journal, is the same whichever engine you choose.
 
@@ -127,11 +127,11 @@ Details, options, manual install and troubleshooting: [docs/install.md](docs/ins
 | | Free, on your computer | With an online engine (your API key) |
 |---|---|---|
 | **Who reads** | CosyVoice 3, local and offline | ElevenLabs, OpenAI, Gemini, Cartesia or Fish Audio |
-| **Voice** | Clones any sample: bundled, recorded, uploaded or generated | The provider's voices, or a voice designed or localised for the book |
+| **Voice** | Clones any sample: bundled, recorded, uploaded, cut from a video or generated | The provider's voices, or a voice designed or localised for the book |
 | **Cost** | Free | Estimated before you start, confirmed by you, with an optional spending cap |
 | **Your text** | Never leaves your computer | Sent to that provider |
 
-Paste a key for any of the four providers in the studio (it is stored in your OS keychain) and they appear
+Paste a key for any of the five providers in the studio (it is stored in your OS keychain) and they appear
 next to the local engine. With the model set to `auto`, Folivox asks the provider which models your key can
 use and takes the newest one, so new releases are picked up without updating Folivox.
 
@@ -143,6 +143,9 @@ use and takes the newest one, so new releases are picked up without updating Fol
 - **Designed for this book:** describe the narrator, or press **Suggest from my book** and a text LLM writes
   the description from the book itself. An online provider (or the local Qwen3 voice-design model) reads a short
   text, Whisper ranks the takes, and you keep the best one as a cloning prompt for the free local engine.
+- **From a video or a long recording:** drop an MP4 or a long audio file on **Add your own voice** and Folivox
+  finds the cleanest 6–15 s stretches (single speaker, no music), shows them with their text and lets you pick one.
+  The studio also checks the recognised text of a sample and warns when it does not fit the recording.
 - **Your library:** every voice you add is kept on your computer, with its source and licence, searchable by
   name and language; star your favourites.
 
@@ -179,7 +182,7 @@ estimate before you start and can stop at a spending cap:
 folivox render book.epub --tts gemini --tts-mode design --tts-describe "calm, warm audiobook narrator" --max-cost 10
 ```
 
-Prices, limits and terms of all four engines: [docs/cloud-engines.md](docs/cloud-engines.md).
+Prices, limits and terms of all five engines: [docs/cloud-engines.md](docs/cloud-engines.md).
 
 ## Features
 
@@ -194,9 +197,11 @@ epigraphs are kept; PDF headers, footers and page numbers are removed and hyphen
 </td>
 <td width="33%" valign="top">
 
-**9 book languages**<br>
-Russian, English, German, French, Spanish, Italian, Chinese, Japanese, Korean. Detected from the book's
-metadata or its text; `--lang` overrides it.
+**9 languages with full rules, 80+ with Drama 3**<br>
+Russian, English, German, French, Spanish, Italian, Chinese, Japanese, Korean get their own text rules. Any other
+language an online engine reads (Fish Audio Drama 3: 84 in all, e.g. Polish, Portuguese, Arabic, Hindi, Thai) works
+too. Detected from the book's text; `--lang` overrides it. Books with passages in other languages are read
+fragment by fragment in the right language.
 
 </td>
 <td width="33%" valign="top">
@@ -236,6 +241,13 @@ one `.mp3` per chapter. Loudness-normalised (−18 LUFS).
 <tr>
 <td valign="top">
 
+**Several voices in one book**<br>
+A narrator and characters, each with their own voice and expression tags (`[sighs]`). A local LLM can mark the
+speakers automatically; check and fix them in the studio's markup editor. [Details](docs/markup.md).
+
+</td>
+<td valign="top">
+
 **Built for 10-hour books**<br>
 Every finished fragment is journalled. Stop, crash or lose power, then run again and it continues. Edit the
 text and only changed fragments are redone. The previous file is never replaced until the new one is complete.
@@ -248,10 +260,13 @@ Chapter lanes, the fragment being read, elapsed and remaining time, retakes, pla
 a quick preview before the long run. Local only, token-protected.
 
 </td>
+</tr>
+<tr>
 <td valign="top">
 
 **Runs on what you have**<br>
-Apple Silicon (GPU via Metal, Whisper via MLX), NVIDIA CUDA, or a plain CPU. If the GPU fails, the CPU takes
+Apple Silicon (GPU via Metal, Whisper via MLX), NVIDIA CUDA, or a plain CPU; an optional faster native runtime
+for CosyVoice 3 (`folivox runtime`, [details](docs/native-runtime.md)). If the GPU fails, the CPU takes
 over. `folivox doctor` reviews your hardware and gives advice; `folivox bench` measures the real speed.
 
 </td>
@@ -282,6 +297,20 @@ Early ffmpeg and disk checks, resumable downloads, retries with backoff, waiting
 redacted support bundle. Pluggable providers via entry points.
 
 </td>
+<td valign="top">
+
+**Fish Audio Drama 3**<br>
+Directed in plain words (`[calm, warm narration]`), 80+ languages, several speakers in one scene. Online with
+your key, or local on a Mac with enough memory. [Details](docs/fish-engines.md).
+
+</td>
+<td valign="top">
+
+**A voice from any recording**<br>
+Drop a video or a long recording: Folivox finds clean 6–15 s stretches and shows them with their text.
+[Details](docs/voices.md).
+
+</td>
 </tr>
 </table>
 
@@ -295,6 +324,10 @@ redacted support bundle. Pluggable providers via entry points.
 <tr>
 <td width="50%"><img src="docs/img/studio-done.png" alt="The audiobook is ready card"><br><sub>Done: the file, its length and how long it took.</sub></td>
 <td width="50%"><img src="docs/img/studio-gallery.png" alt="Voice gallery with 64 bundled voices filtered by language"><br><sub>The bundled voice library: filter by language and sex, audition, star favourites.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/img/studio-markup.png" alt="Markup editor: a short story with dialogue highlighted by character, speakers with their voices"><br><sub>Several voices: the program finds the characters and gives each their lines; check, fix and listen in the editor. The Russian lullaby line is tagged <code>RU</code> and read in its own language.</sub></td>
+<td width="50%"><img src="docs/img/studio-languages.png" alt="Book card showing the language shares en 95% and ru 5%"><br><sub>Books with several languages: the card shows each language's share, and every fragment is read in its own language.</sub></td>
 </tr>
 </table>
 
@@ -370,6 +403,7 @@ Your books, audiobooks, ffmpeg and anything you had before are never touched. De
 | [docs/cloud-engines.md](docs/cloud-engines.md) | Online reading engines: prices, limits, terms, spending cap |
 | [docs/markup.md](docs/markup.md) | Several voices in one book, expression tags, text/JSON markup |
 | [docs/fish-engines.md](docs/fish-engines.md) | Optional Fish Audio engines (S2 Pro, Drama 3): licences, memory, catalog |
+| [docs/native-runtime.md](docs/native-runtime.md) | Optional native (audio.cpp) runtime for faster local reading |
 | [docs/providers.md](docs/providers.md) | Pluggable providers and `config.toml` |
 | [docs/ui.md](docs/ui.md) | The web studio: design, screens and API |
 | [docs/ui-languages.md](docs/ui-languages.md) | The 49 interface languages, right-to-left support, translations |
