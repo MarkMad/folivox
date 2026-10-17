@@ -43,7 +43,7 @@ heteronyms in English, and noun gender in French/German beyond common words and 
 ## Languages without rules
 
 The nine languages above have their own rules. Any other language that an online engine can read (Fish Audio
-lists about 50 voice languages: Polish, Portuguese, Arabic, Hindi, Thai and so on) is handled by a rule-less
+reads 84 languages in all: Polish, Portuguese, Arabic, Hindi, Thai and so on) is handled by a rule-less
 language: only whitespace, quotes and dashes are cleaned, and numbers, dates, units and abbreviations stay as they
 are, because the voice model reads them itself. Sentences are split on the terminators of every script
 (`. ! ? … 。 ؟ ۔ । ॥ ։ ።`, the Greek `;`), and Thai, Lao, Khmer and Burmese on runs of spaces. Fish's own

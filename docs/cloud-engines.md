@@ -51,8 +51,8 @@ needs no 32 GB Mac and is faster, the local one is free.
 - **Fragment size.** Fish cuts text into chunks of at most 300 characters itself (`chunk_length`, 100–300) and
   conditions each chunk on the previous one. Folivox already sends sentence-packed fragments of 300 characters, so
   one request is one chunk and the voice stays steady; longer fragments (`--max-chars`) only save requests.
-- **Languages and normalisation.** The book can be in any language Fish has voices for (about 50 in the studio's
-  *Other languages* list, for example Polish, Portuguese, Dutch, Turkish, Arabic, Hindi, Thai). For the nine languages
+- **Languages and normalisation.** The book can be in any language Fish has voices for (84 in all: the nine below plus 75 in
+  the studio's *Other languages* list, for example Polish, Portuguese, Dutch, Turkish, Arabic, Hindi, Thai, Welsh, Kazakh). For the nine languages
   with Folivox rules (ru, en, de, fr, es, it, zh, ja, ko) numbers and abbreviations are expanded before sending; for
   every other language the text is sent as it is. Fish's own text normalisation (`normalize`) is **off on purpose**
   and the fragment's `language` is always sent: in a test of Drama 3 on the live API, Fish's normaliser added nothing
