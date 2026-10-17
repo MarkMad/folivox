@@ -127,9 +127,9 @@ Details, options, manual install and troubleshooting: [docs/install.md](docs/ins
 
 | | Free, on your computer | With an online engine (your API key) |
 |---|---|---|
-| **Who reads** | CosyVoice 3, local and offline | ElevenLabs, OpenAI, Gemini, Cartesia or Fish Audio |
-| **Voice** | Clones any sample: bundled, recorded, uploaded, cut from a video or generated | The provider's voices, or a voice designed or localised for the book |
-| **Cost** | Free | Estimated before you start, confirmed by you, with an optional spending cap |
+| **Who reads** | CosyVoice 3 or Fish Audio Drama 3 (80+ languages), local and offline | ElevenLabs, OpenAI, Gemini, Cartesia or Fish Audio |
+| **Voice** | Clones any sample: bundled, recorded, uploaded, cut from a video or generated; several voices in one book | The provider's voices, or a voice designed or localised for the book |
+| **Cost** | Free (Drama 3 needs a Mac with enough memory) | Estimated before you start, confirmed by you, with an optional spending cap |
 | **Your text** | Never leaves your computer | Sent to that provider |
 
 Paste a key for any of the five providers in the studio (it is stored in your OS keychain) and they appear
