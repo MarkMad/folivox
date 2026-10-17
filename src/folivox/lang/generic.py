@@ -36,6 +36,10 @@ NAMES: dict[str, tuple[str, str]] = {
     "eu": ("Basque", "Euskara"), "gl": ("Galician", "Galego"), "cy": ("Welsh", "Cymraeg"),
     "ga": ("Irish", "Gaeilge"), "mt": ("Maltese", "Malti"), "lb": ("Luxembourgish", "Lëtzebuergesch"),
     "bs": ("Bosnian", "Bosanski"), "yi": ("Yiddish", "ייִדיש"), "ps": ("Pashto", "پښتو"),
+    "jv": ("Javanese", "Basa Jawa"), "yo": ("Yoruba", "Yorùbá"), "nn": ("Norwegian", "Nynorsk"),
+    "bo": ("Tibetan", "བོད་སྐད་"), "sn": ("Shona", "chiShona"), "mi": ("Maori", "Te Reo Māori"),
+    "sd": ("Sindhi", "سنڌي"), "br": ("Breton", "Brezhoneg"), "ht": ("Haitian Creole", "Kreyòl ayisyen"),
+    "sa": ("Sanskrit", "संस्कृतम्"), "as": ("Assamese", "অসমীয়া"), "fo": ("Faroese", "Føroyskt"),
 }
 
 # Terminators of every script: . ! ? … (Latin, Greek question mark handled below), 。！？ (CJK),
