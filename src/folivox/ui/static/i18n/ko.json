@@ -504,7 +504,7 @@
  "rv.where": "{c}장 · #{i}",
  "rv.play": "조각 재생",
  "fish.build": "빌드",
- "fish.auto": "자동(설치된 것 중 최선)",
+ "fish.auto": "자동",
  "fish.noncommercial": "개인 및 연구 용도로만 사용할 수 있습니다. 이 빌드로 만든 오디오북을 판매하거나 수익화하면 안 됩니다.",
  "fish.bundledvoice": "기본 제공 음성은 실제 낭독자의 녹음이므로 Fish 엔진에서는 사용하지 않습니다. 본인 음성, 생성한 음성 또는 동의한 사람의 음성을 선택하세요.",
  "fish.size": "다운로드 {gb} GB · 낭독 중 최대 {peak} GB 메모리 · {ram} GB 이상 메모리 필요",
@@ -725,5 +725,13 @@
  "fish.measured": "{hw}({date})에서의 우리 테스트: 속도 {rtf}(1 = 실시간, 작을수록 빠름), 품질 검사 {cer}.",
  "fish.unmeasured": "프로젝트에서 아직 테스트하지 않았습니다. 본인 책임으로 사용하세요. {cmd}로 측정할 수 있습니다.",
  "fish.nativeslower": "Apple Silicon에서는 우리 테스트에서 MLX 빌드가 더 빨랐습니다(속도 {mlx} 대 {native}). 네이티브 빌드는 MLX가 없는 컴퓨터용입니다.",
- "fish.ownserver": "Drama 3에는 소스에서 빌드한 서버가 필요합니다(아직 릴리스에 포함되지 않음). {cmd}(Apple Silicon)를 실행하거나 문서의 빌드 단계를 보세요."
+ "fish.ownserver": "Drama 3에는 소스에서 빌드한 서버가 필요합니다(아직 릴리스에 포함되지 않음). {cmd}(Apple Silicon)를 실행하거나 문서의 빌드 단계를 보세요.",
+ "fish.fit.tight": "{title}은(는) 작동 중 최대 {peak} GB가 필요한데 지금 여유 메모리는 {free} GB뿐입니다. 다른 무거운 앱을 닫으세요. 그렇지 않으면 디스크 스왑이 시작되어 낭독이 매우 느려지거나 멈춥니다.",
+ "fish.fit.total": "{title}은(는) 메모리 {ram} GB 이상인 컴퓨터가 필요합니다(이 컴퓨터는 {have} GB).",
+ "fish.fit.platform": "{title}은(는) {platforms}에서 작동하며 {here}에서는 작동하지 않습니다.",
+ "fish.cer": "Whisper 기준 {min}–{max}",
+ "fish.cer.mean": "Whisper 기준 {min}–{max} (평균 {mean})",
+ "fish.cer.strip": "Whisper 기준 {min}–{max} (일반적인 환각어 제거 후 {clean})",
+ "fish.auto.have": "자동({title}, 설치됨)",
+ "fish.auto.get": "자동({title}, 다운로드 필요)"
 }

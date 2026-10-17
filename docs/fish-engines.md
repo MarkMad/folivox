@@ -4,7 +4,7 @@ Besides CosyVoice 3, Folivox can read with two optional local engines from [Fish
 
 | Engine | Builds | What it is |
 |---|---|---|
-| `fish-drama3` | `drama3-mlx-4bit` (23.8 GB download, up to ~33 GB of memory), `drama3-mlx-3bit` (about 19.8 GB) | Fish Audio Drama 3: the most capable local engine, built for several speakers in one scene |
+| `fish-drama3` | `drama3-mlx-4bit` (23.8 GB download, up to ~33 GB of memory), `drama3-mlx-3bit` (19.8 GB, RTF 1.08 on the test fragment, about the same as 4-bit) | Fish Audio Drama 3: the most capable local engine, built for several speakers in one scene |
 | `fish-s2` | `s2pro-mlx-8bit` (6.7 GB download, up to ~18 GB of memory) | Fish Audio S2 Pro: natural single-voice reading |
 
 They are **not part of Folivox and are never shipped with it**. You download them from Hugging Face
@@ -26,7 +26,7 @@ In the studio: **3 · Reading engine** → pick the Fish engine → *Read and ac
 
 ## Native builds (audio.cpp, any platform, experimental)
 
-The MLX builds above run on Apple Silicon only. The same two engines also have **native GGUF builds** that run on the
+The MLX builds above run on Apple Silicon only. S2 Pro also has **native GGUF builds** that run on the
 [audio.cpp](native-runtime.md) engine (Metal, CUDA or Vulkan, so also Windows and Linux). They are never picked
 automatically: choose them with the inference switch (`--runtime native`, or *Advanced settings → Inference runtime*)
 or name the build.
@@ -35,7 +35,6 @@ or name the build.
 |---|---|---|
 | `s2pro-native-q8` | 6.3 GB | S2 Pro, Q8_0, official audio.cpp GGUF package |
 | `s2pro-native-bf16` | 10.2 GB | S2 Pro, bf16: slower and larger, closest to the original |
-| `drama3-native-q2` / `q3` / `q4` | 17.1 / 20.3 / 24.6 GB | Drama 3 GGUF from `Jmica/Drama-3-GGUF` (a personal repository: the files are checked against the pinned sha256) |
 
 ```bash
 folivox engines install s2pro-native-q8       # also downloads the audio.cpp engine (asks for the licence first)
@@ -44,14 +43,11 @@ folivox render book.epub --tts fish-s2 --runtime native --voice my-voice.wav
 
 Same licences and notices as the MLX builds (S2 Pro: Research License, personal use only; Drama 3: Fish Community
 License). The engine and the model run in a separate `audiocpp_server` process like the other native models.
-**Drama 3 needs a server built from source**: it was merged into audio.cpp `main` on 2026-10-16 but no release
-contains it yet. On Apple Silicon `folivox runtime build drama3` compiles the pinned commit (after asking: it is
-third-party code); elsewhere `folivox runtime build-help` lists the steps and `FOLIVOX_NATIVE_SERVER` points at the
-result. The install refuses without it.
+**Drama 3 has no native build yet.** It is in the audio.cpp source (merged 2026-10-16) but not in a release, so Folivox
+offers only its MLX builds until a release exists (`folivox runtime build-help` still lists how to compile it yourself).
 Memory figures for native builds are estimates. The builds keep the status `untested` (the project's standard test
 has not been run on them), but each was run once on the test fragment (M3 Pro 36 GB, Metal, voice `gemini-2`, 73 s of
-audio, no retakes): `s2pro-native-q8` RTF 2.52 (MLX build: 2.3), mean Whisper QA score 0.004; `drama3-native-q2` with a
-a server built by `folivox runtime build drama3` from the pinned audio.cpp commit RTF 1.97 (the first fork build: 2.11; MLX build: about 1.0), score 0.003, model load 70 s. So on Apple Silicon the native
+audio, no retakes): `s2pro-native-q8` RTF 2.52 (MLX build: 2.3), mean Whisper QA score 0.004; `s2pro-native-bf16` RTF 4.03, score 0.002, peak 20.4 GB resident, model load 36 s (slower than Q8, no audible gain). So on Apple Silicon the native
 builds are not faster than MLX; the reason to use them is a computer without MLX (Windows, Linux), which has not
 been tested. See [Native runtime](native-runtime.md).
 
@@ -97,8 +93,12 @@ allow_bundled_voices = true
 
 ## Which build is used
 
-`--tts-build auto` (default) takes the most capable tested build that fits the computer and is
-installed. With no `--tts` option, no `[providers] tts` and no `FOLIVOX_TTS`, Folivox picks the best
+`--tts-build auto` (default) takes the most capable tested build that has room to spare on this computer:
+its memory peak is at most 75% of the *total* memory, i.e. what is left when the heavy applications are
+closed (the memory that happens to be free right now plays no part). Installed builds are preferred; if none is
+installed, the studio shows which build will be downloaded, for example *Automatic (Drama 3, MLX mixed 3-bit,
+19.8 GB, will need downloading)*. On a 36 GB Mac that is the 3-bit Drama 3 (4-bit peaks at 92% of the memory); an
+installed 4-bit build is kept, with the usual warning. With no `--tts` option, no `[providers] tts` and no `FOLIVOX_TTS`, Folivox picks the best
 installed build **whose licence you accepted** (Drama 3 4-bit > Drama 3 3-bit > S2 Pro 8-bit), and
 falls back to CosyVoice 3 otherwise, or when the chosen voice is a bundled one.
 

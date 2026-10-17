@@ -49,7 +49,7 @@ def test_bundled_catalog_is_valid_and_pinned():
         assert sum(f["size"] for f in b.files) == b.size_bytes
         assert cat.licences[b.licence].text_sha256
     # a build nobody ran on the standard fragment must not be recommended
-    assert cat.build("drama3-mlx-3bit").status == "untested"
+    assert cat.build("drama3-mlx-3bit").status == "verified"  # run on the standard fragment 2026-10-17
 
 
 def test_catalog_refuses_unsafe_entries():
@@ -91,7 +91,7 @@ def test_memory_gate_blocks_only_when_weights_do_not_fit(monkeypatch):
 
 def test_candidates_are_verified_and_ranked():
     ids = [b.id for b in builds.candidates(MAC_64)]
-    assert ids == ["drama3-mlx-4bit", "s2pro-mlx-8bit"]  # the untested 3-bit build stays out
+    assert ids == ["drama3-mlx-4bit", "drama3-mlx-3bit", "s2pro-mlx-8bit"]
     assert [b.id for b in builds.candidates(Hardware("darwin", "arm64", 24.0, 20.0))] == ["s2pro-mlx-8bit"]
     assert builds.candidates(LINUX) == []
 
@@ -428,3 +428,19 @@ def test_render_with_the_fake_worker(fake_worker, tmp_path, monkeypatch):
     j = Journal(tmp_path / "w")
     assert j.meta("settings").startswith("fish-s2|fish-1|s2pro-mlx-8bit@")
     j.close()
+
+
+def test_automatic_pick_is_reliable_and_sounds_good():
+    cat = builds.load()
+    nothing, everything, only4 = (lambda b: False), (lambda b: True), (lambda b: b.id == "drama3-mlx-4bit")  # noqa: E731
+
+    def drama(total, installed, free=1.0):  # the free memory right now never matters
+        return builds.auto_build("fish-drama3", Hardware("darwin", "arm64", total, free), cat, installed).id
+
+    assert drama(64.0, nothing) == "drama3-mlx-4bit"  # plenty of room: the most capable build
+    assert drama(36.0, nothing) == "drama3-mlx-3bit"  # 4-bit would peak at 92% of the memory: not for a newcomer
+    assert drama(36.0, everything) == "drama3-mlx-3bit"
+    assert drama(36.0, only4) == "drama3-mlx-4bit"  # installed and tight: kept, the render warns
+    assert drama(36.0, everything, free=30.0) == drama(36.0, everything, free=2.0)
+    assert builds.auto_build("fish-drama3", Hardware("darwin", "arm64", 24.0, 20.0), cat) is None
+    assert builds.auto_build("fish-s2", Hardware("darwin", "arm64", 16.0, 9.0), cat) is None

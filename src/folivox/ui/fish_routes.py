@@ -35,7 +35,8 @@ def build_info(b: builds.Build, hw: builds.Hardware, cat: builds.Catalog) -> dic
             "licence": b.licence, "licence_name": lic.name, "licence_version": lic.version,
             "commercial": lic.commercial, "accepted": licences.is_accepted(lic),
             "installed": fish_setup.is_ready(b), "verified": b.status == "verified", "fit": f.level,
-            "fit_message": f.message, "supported": hw.platform_tag in b.platforms, "repo": b.repo,
+            "fit_message": f.message, "supported": hw.platform_tag in b.platforms, "platforms": list(b.platforms),
+            "repo": b.repo,
             "trusted_org": builds.is_trusted_org(b.repo, cat), "notes": b.notes,
             "tested_on": list(b.tested_on), "native": b.backend == "native",
             "speed_note": builds.speed_note(b, cat) if hw.platform_tag == "darwin-arm64" else ""}
@@ -46,7 +47,12 @@ def state_payload() -> dict:
     hw = builds.detect_hardware()
     infos = [build_info(b, hw, cat) for b in sorted(cat.builds, key=lambda x: -x.rank)]
     rec = builds.recommend(hw, cat=cat)
-    return {"builds": infos, "recommended": rec.id if rec else None,
+    auto = {}
+    for engine in cat.engines():
+        b = builds.auto_build(engine, hw, cat)
+        if b:
+            auto[engine] = {"id": b.id, "installed": fish_setup.is_ready(b)}
+    return {"builds": infos, "recommended": rec.id if rec else None, "auto": auto,
             "hardware": {"platform": hw.platform_tag, "total_gb": hw.total_gb, "available_gb": hw.available_gb},
             "licences": {k: licences.summary(k) for k in cat.licences},
             "bundled_voices_allowed": fish_check.bundled_voices_allowed(),

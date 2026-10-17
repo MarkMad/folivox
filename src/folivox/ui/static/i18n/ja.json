@@ -504,7 +504,7 @@
  "rv.where": "第{c}章 · #{i}",
  "rv.play": "断片を再生",
  "fish.build": "ビルド",
- "fish.auto": "自動（インストール済みで最良）",
+ "fish.auto": "自動",
  "fish.noncommercial": "個人・研究目的のみ：このビルドで作ったオーディオブックを販売・収益化してはいけません。",
  "fish.bundledvoice": "同梱の声は実在の朗読者の録音なので、Fish エンジンでは使いません。自分の声、生成した声、または本人が同意した声を選んでください。",
  "fish.size": "ダウンロード {gb} GB · 読み上げ中に最大 {peak} GB のメモリ · {ram} GB 以上のメモリが必要",
@@ -725,5 +725,13 @@
  "fish.measured": "{hw}（{date}）での私たちのテスト：速度 {rtf}（1 が実時間、小さいほど速い）、品質チェック {cer}。",
  "fish.unmeasured": "プロジェクトでは未検証です。自己責任でお使いください。{cmd} で測定できます。",
  "fish.nativeslower": "Apple Silicon では私たちのテストで MLX 版の方が速く（速度 {mlx} 対 {native}）、ネイティブ版は MLX のないコンピューター向けです。",
- "fish.ownserver": "Drama 3 にはソースからビルドしたサーバーが必要です（まだリリースに含まれていません）：{cmd}（Apple Silicon）を実行するか、ドキュメントのビルド手順を参照してください。"
+ "fish.ownserver": "Drama 3 にはソースからビルドしたサーバーが必要です（まだリリースに含まれていません）：{cmd}（Apple Silicon）を実行するか、ドキュメントのビルド手順を参照してください。",
+ "fish.fit.tight": "{title} は動作中に最大 {peak} GB 必要ですが、現在の空きは {free} GB だけです。他の重いアプリを閉じてください。そうしないとディスクへのスワップが始まり、読み上げが極端に遅くなるか止まります。",
+ "fish.fit.total": "{title} には {ram} GB 以上のメモリを持つコンピューターが必要です（このコンピューターは {have} GB）。",
+ "fish.fit.platform": "{title} は {platforms} で動作し、{here} では動作しません。",
+ "fish.cer": "Whisper で {min}–{max}",
+ "fish.cer.mean": "Whisper で {min}–{max}（平均 {mean}）",
+ "fish.cer.strip": "Whisper で {min}–{max}（通常の幻覚語除去後は {clean}）",
+ "fish.auto.have": "自動（{title}、インストール済み）",
+ "fish.auto.get": "自動（{title}、ダウンロードが必要）"
 }

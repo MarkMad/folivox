@@ -113,11 +113,10 @@ numbers.
 
 ## Fish Audio models (S2 Pro, Drama 3)
 
-`--runtime native` also selects the native GGUF builds of the Fish engines (`s2pro-native-q8`, `drama3-native-q*`;
-see [Fish Audio engines](fish-engines.md#native-builds-audiocpp-any-platform-experimental)). Measured once on the M3 Pro (see the Fish page): S2 Pro Q8 RTF 2.52, Drama 3 Q2 RTF 1.97, QA scores 0.004 and
-0.003; both slower than the MLX builds there. Without the switch
-Fish keeps using its MLX builds on Apple Silicon. S2 Pro uses the stock audio.cpp release. Drama 3 is in the audio.cpp source but not in a release yet, so it runs on a
-server built from a pinned commit (`folivox runtime build drama3`, see above).
+`--runtime native` also selects the native GGUF builds of the Fish engines (`s2pro-native-q8`, `s2pro-native-bf16`;
+see [Fish Audio engines](fish-engines.md#native-builds-audiocpp-any-platform-experimental)). Measured once on the M3 Pro (see the Fish page): S2 Pro Q8 RTF 2.52 and bf16 RTF 4.03, QA scores 0.004 and
+0.002; both slower than the MLX builds there. Without the switch
+Fish keeps using its MLX builds on Apple Silicon. S2 Pro uses the stock audio.cpp release. Drama 3 is in the audio.cpp source but not in a release yet, so Folivox offers no native Drama 3 build until one exists.
 
 ## Licences
 

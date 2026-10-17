@@ -172,7 +172,8 @@ def runtime_build(target: str = typer.Argument("drama3", help="drama3"),
     except ns.NativeError as e:
         console.print(f"[red]Build stopped:[/] {e}")
         raise typer.Exit(1) from None
-    console.print(f"[green]✓[/] Built {path}. Next: folivox engines install drama3-native-q2 (asks for the licence)")
+    console.print(f"[green]✓[/] Built {path}. No Folivox build uses it yet: "
+                  "native Drama 3 builds wait for an audio.cpp release")
 
 
 @runtime_app.command("remove", help="Delete the downloaded native engine and model (PyTorch files are not touched).")

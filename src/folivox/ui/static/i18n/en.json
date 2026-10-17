@@ -504,7 +504,7 @@
  "rv.where": "ch. {c} · #{i}",
  "rv.play": "Play the fragment",
  "fish.build": "Build",
- "fish.auto": "Automatic (best installed)",
+ "fish.auto": "Automatic",
  "fish.noncommercial": "Personal and research use only: do not sell or monetise audiobooks made with this build.",
  "fish.bundledvoice": "The bundled voices are real readers, so Fish engines do not use them. Pick your own voice, a generated one, or a voice of someone who agreed.",
  "fish.size": "Download {gb} GB · up to {peak} GB of memory while reading · needs a computer with {ram} GB or more",
@@ -725,5 +725,13 @@
  "fish.measured": "Our test on {hw} ({date}): speed {rtf} (1 = real time, lower is faster), quality check {cer}.",
  "fish.unmeasured": "Not tested by the project yet: use it at your own risk. You can measure it with {cmd}.",
  "fish.nativeslower": "On Apple Silicon the MLX build was faster in our test (speed {mlx} against {native}); the native build is meant for computers without MLX.",
- "fish.ownserver": "Drama 3 needs a server built from source: run {cmd} (Apple Silicon) or see the build steps in the docs."
+ "fish.ownserver": "Drama 3 needs a server built from source: run {cmd} (Apple Silicon) or see the build steps in the docs.",
+ "fish.fit.tight": "{title} needs up to {peak} GB while it works and only {free} GB is free now: close other heavy applications, otherwise the computer starts swapping and the render crawls or stalls.",
+ "fish.fit.total": "{title} needs a computer with at least {ram} GB of memory (this one has {have} GB).",
+ "fish.fit.platform": "{title} runs on {platforms}, not on {here}.",
+ "fish.cer": "{min}–{max} with Whisper",
+ "fish.cer.mean": "{min}–{max} with Whisper (mean {mean})",
+ "fish.cer.strip": "{min}–{max} with Whisper ({clean} after the standard hallucination strip)",
+ "fish.auto.have": "Automatic ({title}, installed)",
+ "fish.auto.get": "Automatic ({title}, will need downloading)"
 }

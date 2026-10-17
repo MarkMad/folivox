@@ -282,13 +282,39 @@ def candidates(hw: Hardware | None = None, cat: Catalog | None = None) -> list[B
     return sorted(ok, key=lambda b: -b.rank)
 
 
+ROOM = 0.75  # "automatic" counts on this share of the total memory: what is left when heavy applications are closed
+
+
+def roomy(b: Build, hw: Hardware) -> bool:
+    """The build's peak is at most ``ROOM`` of the total memory. The memory free right now plays no part: on a
+    working computer it is mostly taken, while a render is meant to run with the heavy applications closed."""
+    return hw.total_gb is None or b.peak_gb <= hw.total_gb * ROOM
+
+
+def pick(pool: list[Build], hw: Hardware, installed=None) -> Build | None:
+    """What "automatic" chooses from ``pool`` (most capable first): the most capable build with room to spare on
+    this computer. Among the installed builds when there are any (none roomy: the lightest, the render warns);
+    otherwise the one to download (none roomy: the first)."""
+    installed = installed or is_installed
+    have = [b for b in pool if installed(b)]
+    if have:
+        return next((b for b in have if roomy(b, hw)), min(have, key=lambda b: b.peak_gb))
+    return next((b for b in pool if roomy(b, hw)), pool[0] if pool else None)
+
+
+def auto_build(engine: str, hw: Hardware | None = None, cat: Catalog | None = None, installed=None) -> Build | None:
+    """The build ``build_id=auto`` runs for an engine (never a native one), or None when nothing fits."""
+    cat = cat or load()
+    hw = hw or detect_hardware()
+    return pick([b for b in candidates(hw, cat) if b.engine == engine and b.backend != "native"], hw, installed)
+
+
 def recommend(hw: Hardware | None = None, accepted: dict[str, str] | None = None, installed=None,
               cat: Catalog | None = None) -> Build | None:
     """The default Fish build for this computer, or None (then the default engine stays CosyVoice 3).
 
-    The most capable build that fits the memory, whose licence the user accepted and that is installed:
-    Drama 3 4-bit > Drama 3 3-bit > S2 Pro 8-bit. Free memory right now does not veto the choice (the render
-    warns instead); the total memory does.
+    Among the builds that fit the total memory, whose licence the user accepted and that are installed:
+    the most capable one with room to spare (Drama 3 4-bit > Drama 3 3-bit > S2 Pro 8-bit), else the lightest.
     """
     from folivox.tts import licences
 
@@ -296,10 +322,8 @@ def recommend(hw: Hardware | None = None, accepted: dict[str, str] | None = None
     hw = hw or detect_hardware()
     accepted = licences.accepted() if accepted is None else accepted
     installed = installed or is_installed
-    for b in candidates(hw, cat):
-        if licences.is_accepted(cat.licences[b.licence], accepted) and installed(b):
-            return b
-    return None
+    ready = [b for b in candidates(hw, cat) if licences.is_accepted(cat.licences[b.licence], accepted) and installed(b)]
+    return next((b for b in ready if roomy(b, hw)), min(ready, key=lambda b: b.peak_gb) if ready else None)
 
 
 def default_engine(hw: Hardware | None = None) -> str:
@@ -336,9 +360,7 @@ def build_for(engine: str, build_id: str | None = None, hw: Hardware | None = No
                                "available; use `--runtime pytorch` for the default build.")
     else:
         pool = [b for b in candidates(hw, cat) if b.engine == engine and b.backend != "native"]
-    for b in pool:
-        if is_installed(b):
-            return b
-    if pool:
-        return pool[0]
+    b = pick(pool, hw)
+    if b:
+        return b
     raise CatalogError(f"No tested {engine} build fits this computer. `folivox engines` lists what is available.")

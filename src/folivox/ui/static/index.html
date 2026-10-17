@@ -176,7 +176,8 @@ h1 { padding-right:140px; }
 .gp-vinfo { background:var(--bg); border-radius:10px; padding:8px 12px; font-size:14px; line-height:1.45; }
 .gp-readonly { background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px 14px; line-height:1.55; } .gp-readonly p { margin:0 0 8px; } .gp-readonly p:last-child { margin:0; }
 .cover-box { display:flex; gap:16px; align-items:center; margin-top:12px; padding:10px 12px; border:1px dashed var(--line); border-radius:12px; } .cover-box.over { border-color:var(--accent); background:var(--glow); }
-.cover-thumb { width:84px; height:84px; flex:none; border-radius:8px; background:var(--bg); display:grid; place-items:center; overflow:hidden; } .cover-thumb img { width:100%; height:100%; object-fit:cover; }
+.cover-thumb { width:84px; height:84px; flex:none; border-radius:8px; background:var(--bg); display:grid; place-items:center; overflow:hidden; } .cover-thumb img { width:100%; height:100%; object-fit:cover; } .fish-note { font-size:13px; line-height:1.45; }
+.cover-thumb span { text-align:center; padding:0 6px; line-height:1.25; }
 .sec-sub { margin:2px 0 14px; color:var(--mute); font-size:14px; line-height:1.5; max-width:78ch; }
 .eng-list, .key-list { display:flex; flex-direction:column; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
 .eng, .keyrow { display:grid; grid-template-columns:minmax(200px,5fr) minmax(220px,6fr); gap:6px 24px; align-items:center; padding:12px 16px; background:var(--card); } .eng + .eng, .keyrow + .keyrow { border-top:1px solid var(--line); }
@@ -397,9 +398,10 @@ dialog ul { padding-left:18px; margin:10px 0; } dialog li { margin:6px 0; } dial
   <small class="mute" id="eng-blurb"></small>
   <div id="eng-fish" class="costcard" hidden>
     <label class="f"><span data-i18n="fish.build">Build</span><select id="o-tts_build"></select></label>
-    <div id="fish-info" class="mute" style="margin-top:8px"></div>
-    <div id="fish-measured" class="mute" style="margin-top:4px"></div>
-    <div id="fish-warn" class="warn" style="margin-top:6px"></div>
+    <div id="fish-info" class="mute fish-note" style="margin-top:8px"></div>
+    <div id="fish-measured" class="mute fish-note" style="margin-top:4px"></div>
+    <div id="fish-warn" class="warn fish-note" style="margin-top:6px"></div>
+    <div id="fish-lic" class="mute" style="margin-top:6px"></div>
     <div class="row"><button type="button" id="fish-licence" class="primary" data-i18n="fish.licence.btn">Read and accept the licence…</button>
       <button type="button" id="fish-install" class="primary" hidden></button><button type="button" id="fish-remove" hidden data-i18n="fish.remove">Remove</button>
       <span id="fish-state" class="mute"></span></div>
@@ -2250,6 +2252,18 @@ function engOptions() {
 // engine texts come from the server in English; the catalog has them per engine name ("engine.<name>.label|blurb|tag")
 const engText = (e, f) => { const k = "engine." + e.name + "." + f; return (k in CAT || k in CAT_EN) ? t(k) : (e[f] || ""); };
 const engTtsOptions = (list) => list.map(e => `<option value="${esc(e.name)}">${esc(engText(e, "label"))}${" — " + (e.cloud ? t("eng.paid") : t("eng.free"))}${e.tag ? " (" + esc(engText(e, "tag")) + ")" : ""}</option>`).join("");
+function fishAutoLabel(bs, engine) {  // say which build "automatic" will use, and whether it is already here
+  const a = FISH.st.auto[engine], b = a && bs.find(x => x.id === a.id);
+  return b ? t(a.installed ? "fish.auto.have" : "fish.auto.get", { title: b.title }) : t("fish.auto");
+}
+const fishCer = (m) => m.cer_min == null ? m.cer : m.cer_clean != null ? t("fish.cer.strip", { min: m.cer_min, max: m.cer_max, clean: m.cer_clean })
+  : m.cer_mean != null ? t("fish.cer.mean", { min: m.cer_min, max: m.cer_max, mean: m.cer_mean }) : t("fish.cer", { min: m.cer_min, max: m.cer_max });
+function fishFit(b) {  // the server's fit_message is English: build the sentence from the numbers instead
+  const hw = FISH.st.hardware, title = b.title;
+  if (!b.supported) return t("fish.fit.platform", { title, platforms: b.platforms.join(", "), here: hw.platform });
+  if (hw.total_gb != null && hw.total_gb < b.min_total_gb) return t("fish.fit.total", { title, ram: Math.round(b.min_total_gb), have: Math.round(hw.total_gb) });
+  return t("fish.fit.tight", { title, peak: Math.round(b.peak_gb), free: Math.round(hw.available_gb) });
+}
 const engBlurb = (e) => esc(engText(e, "blurb")) + (e.cloud ? ` <span class="warn">${esc(t("eng.paidper", { p: e.per_hour != null ? "$" + dec(e.per_hour, 2) : "?" }))}</span>` : "");
 const engModelOptions = (e) => `<option value="auto">${esc(t("eng.autonew"))}</option>` + e.models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}${e.prices[m.id] != null ? ` (≈ $${dec(e.prices[m.id], 2)}/${t("u.h")})` : ""}${m.note ? " — " + esc(m.note) : ""}</option>`).join("");
 function engRelabel() {  // after a UI language switch: same selections, new labels
@@ -2265,24 +2279,25 @@ const FISH_POINTS = { "fish-research": ["research_only", "no_selling", "voices",
 async function fishRefresh() { try { FISH.st = await api("/api/engines/fish"); } catch (e) { FISH.st = null; } fishRender(); if (!FISH.probed) { FISH.probed = true; fishPoll(); } }  // pick up an install already running (started earlier or in another tab)
 function fishCur() {  // the build the choice resolves to (the server applies the same rule when it renders)
   const e = ENG.cur(); if (!e || !e.fish || !FISH.st) return null;
-  const bs = FISH.st.builds.filter(b => b.engine === e.name), id = $("#o-tts_build").value;
-  return bs.find(b => b.id === id) || bs.find(b => b.installed) || bs.find(b => b.verified && b.fit !== "no") || bs[0] || null;
+  const bs = FISH.st.builds.filter(b => b.engine === e.name), id = $("#o-tts_build").value, auto = FISH.st.auto[e.name];
+  return bs.find(b => b.id === id) || (auto && bs.find(b => b.id === auto.id)) || bs.find(b => b.installed) || bs.find(b => b.verified && b.fit !== "no") || bs[0] || null;
 }
 function fishRender() {
   const e = ENG.cur(), box = $("#eng-fish"); box.hidden = !(e && e.fish && FISH.st); if (box.hidden) return;
   const bs = FISH.st.builds.filter(b => b.engine === e.name), keep = $("#o-tts_build").value;
-  $("#o-tts_build").innerHTML = `<option value="auto">${esc(t("fish.auto"))}</option>` + bs.map(b => `<option value="${esc(b.id)}">${esc(b.title)}</option>`).join("");
+  $("#o-tts_build").innerHTML = `<option value="auto">${esc(fishAutoLabel(bs, e.name))}</option>` + bs.map(b => `<option value="${esc(b.id)}">${esc(b.title)}</option>`).join("");
   $("#o-tts_build").value = bs.some(b => b.id === keep) ? keep : "auto";
   const b = fishCur(); if (!b) { box.hidden = true; return; }
   $("#fish-info").textContent = t("fish.size", { gb: b.size_gb, peak: b.peak_gb, ram: b.min_total_gb });
   const m = (b.tested_on || [])[0], mlx = bs.find(x => x.engine === b.engine && !x.native && (x.tested_on || [])[0] && x.tested_on[0].rtf);
-  $("#fish-measured").textContent = [m ? t("fish.measured", { hw: m.hardware, date: m.date, rtf: m.rtf, cer: m.cer }) : t("fish.unmeasured", { cmd: "folivox bench --tts " + b.engine + (b.native ? " --runtime native" : "") }),
+  $("#fish-measured").textContent = [m ? t("fish.measured", { hw: m.hardware, date: m.date, rtf: m.rtf, cer: fishCer(m) }) : t("fish.unmeasured", { cmd: "folivox bench --tts " + b.engine + (b.native ? " --runtime native" : "") }),
     b.native && m && mlx && FISH.st.hardware.platform === "darwin-arm64" && m.rtf > mlx.tested_on[0].rtf * 1.1 ? t("fish.nativeslower", { mlx: mlx.tested_on[0].rtf, native: m.rtf }) : "",
     b.native && b.kind === "drama3" ? t("fish.ownserver", { cmd: "folivox runtime build drama3" }) : ""].filter(Boolean).join(" ");
-  const warn = [b.fit !== "ok" ? b.fit_message : "", !b.commercial ? t("fish.noncommercial") : ""];
+  const warn = [b.fit !== "ok" ? fishFit(b) : ""];
   const v = VOICES.find(x => x.id === voice);
   if (v && v.bundled && !FISH.st.bundled_voices_allowed) warn.push(t("fish.bundledvoice"));
   $("#fish-warn").textContent = warn.filter(Boolean).join(" ");
+  $("#fish-lic").textContent = !b.commercial ? t("fish.noncommercial") : "";
   const running = FISH.inst && FISH.inst.state === "running";
   $("#fish-licence").hidden = b.accepted; $("#fish-install").hidden = !b.accepted || b.installed || running;
   $("#fish-install").textContent = t("fish.install", { gb: b.size_gb }); $("#fish-remove").hidden = !b.installed || running;

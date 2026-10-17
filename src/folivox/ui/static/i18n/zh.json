@@ -504,7 +504,7 @@
  "rv.where": "第 {c} 章 · #{i}",
  "rv.play": "播放片段",
  "fish.build": "版本",
- "fish.auto": "自动（已安装中最好的）",
+ "fish.auto": "自动",
  "fish.noncommercial": "仅限个人和研究用途：不得出售或变现用此版本制作的有声书。",
  "fish.bundledvoice": "内置声音来自真实朗读者，因此 Fish 引擎不使用它们。请选择您自己的声音、生成的声音或已获同意者的声音。",
  "fish.size": "下载 {gb} GB · 朗读时最多占用 {peak} GB 内存 · 需要 {ram} GB 或更多内存的电脑",
@@ -725,5 +725,13 @@
  "fish.measured": "我们在 {hw}（{date}）上的测试：速度 {rtf}（1 为实时，越小越快），质量检查 {cer}。",
  "fish.unmeasured": "项目尚未测试：请自担风险使用。可用 {cmd} 测量。",
  "fish.nativeslower": "在 Apple Silicon 上，我们的测试中 MLX 版本更快（速度 {mlx} 对 {native}）；原生版本面向没有 MLX 的电脑。",
- "fish.ownserver": "Drama 3 需要从源码编译的服务器（尚未包含在发行版中）：运行 {cmd}（Apple Silicon），或查看文档中的构建步骤。"
+ "fish.ownserver": "Drama 3 需要从源码编译的服务器（尚未包含在发行版中）：运行 {cmd}（Apple Silicon），或查看文档中的构建步骤。",
+ "fish.fit.tight": "{title} 运行时最多需要 {peak} GB，而现在只有 {free} GB 空闲：请关闭其他占内存的应用，否则电脑会开始使用硬盘当内存，朗读会变得很慢甚至卡住。",
+ "fish.fit.total": "{title} 需要至少 {ram} GB 内存的电脑（这台只有 {have} GB）。",
+ "fish.fit.platform": "{title} 运行在 {platforms}，不支持 {here}。",
+ "fish.cer": "Whisper 检测 {min}–{max}",
+ "fish.cer.mean": "Whisper 检测 {min}–{max}（平均 {mean}）",
+ "fish.cer.strip": "Whisper 检测 {min}–{max}（常规去除幻觉词后为 {clean}）",
+ "fish.auto.have": "自动（{title}，已安装）",
+ "fish.auto.get": "自动（{title}，需要下载）"
 }
