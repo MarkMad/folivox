@@ -58,7 +58,8 @@ spelled out or read with a Russian accent). So each fragment carries its languag
   language label on every stretch that will be read in another language, found by script or marked.
 
 Each such fragment is planned with the text rules of its language (numbers, abbreviations, sentence splitting;
-Russian stress marks only for Russian), tells the engine its language, and is checked by speech recognition in
+Russian stress marks only for Russian; a language without Folivox rules, such as Polish, is only cleaned and split
+into sentences and its numbers are left to the voice, so it needs an online engine that lists the language), tells the engine its language, and is checked by speech recognition in
 that language. The language is part of the fragment's cache key (only when it is not the book's), so a book in
 one language keeps its cache. A word covered by your [pronunciation list](pronunciation.md) stays in the book's
 language, as the entry says how to read it there.

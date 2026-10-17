@@ -116,3 +116,11 @@ def test_arabic_script_tells_persian_and_urdu():
     assert detect("دولت دیروز اعلام کرد که مدرسه ها از هفته آینده دوباره باز می شوند و پدر و مادرها گفتند که چای را دوست دارند") == "fa"  # noqa: E501
     assert detect("حکومت نے کل اعلان کیا کہ اسکول اگلے ہفتے دوبارہ کھلیں گے اور بچے ٹھیک ہیں ڑ") == "ur"
     assert detect("أعلنت الحكومة أمس أن المدارس ستعيد فتح أبوابها يوم الاثنين المقبل") == "ar"
+
+
+def test_qa_threshold_is_relaxed_without_rules():
+    from folivox.qa import threshold_for
+
+    text = "To jest dość długie zdanie, które ma więcej niż czterdzieści liter."
+    assert threshold_for(text, 0.10, "pl") == pytest.approx(0.15)
+    assert threshold_for(text, 0.10, "ru") == 0.10

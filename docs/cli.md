@@ -16,7 +16,7 @@ longer explanations (`voices`, `providers`, `config`, `languages`, `resuming`, `
 
 | Group | Option | Default | |
 |---|---|---|---|
-| Input | `--lang` | from the book | `ru en de fr es it zh ja ko` |
+| Input | `--lang` | from the book | `ru en de fr es it zh ja ko`; online engines (Fish Audio) also take other ISO 639-1 codes (`pl`, `pt`, `ar`, …), read without Folivox's number rules |
 | | `--chapters`, `-c` | all | `1-3,5` |
 | | `--depth` | 2 | how deep to split the book into chapters |
 | | `--preview N` | off | only the first N characters of each chapter (quick test) |

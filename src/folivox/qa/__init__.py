@@ -49,6 +49,8 @@ def threshold_for(reference: str, base: float, lang: str = "ru") -> float:
     """Short colloquial lines («Не-а.», «Покажь.») are where Whisper itself errs most:
     one wrong letter is already 20–30 % CER, so retakes would only burn time."""
     n = len(canonical(reference, lang))
+    if not languages.has_rules(lang):
+        base *= 1.5  # digits and abbreviations are left to the voice, Whisper writes them its own way
     if lang in ("zh", "ja", "ko"):
         n *= 3  # one CJK character carries about as much as three letters
     if n < 15:

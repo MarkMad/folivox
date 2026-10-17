@@ -51,8 +51,19 @@ needs no 32 GB Mac and is faster, the local one is free.
 - **Fragment size.** Fish cuts text into chunks of at most 300 characters itself (`chunk_length`, 100–300) and
   conditions each chunk on the previous one. Folivox already sends sentence-packed fragments of 300 characters, so
   one request is one chunk and the voice stays steady; longer fragments (`--max-chars`) only save requests.
-  Folivox turns Fish's own text normalisation off, since numbers and abbreviations are already expanded for the
-  fragment's language, and sends the fragment's language.
+- **Languages and normalisation.** The book can be in any language Fish has voices for (about 50 in the studio's
+  *Other languages* list, for example Polish, Portuguese, Dutch, Turkish, Arabic, Hindi, Thai). For the nine languages
+  with Folivox rules (ru, en, de, fr, es, it, zh, ja, ko) numbers and abbreviations are expanded before sending; for
+  every other language the text is sent as it is. Fish's own text normalisation (`normalize`) is **off on purpose**
+  and the fragment's `language` is always sent: in a test of Drama 3 on the live API, Fish's normaliser added nothing
+  in pt, pl, nl, tr, ar, cs, sv, uk and hi (it has no rules for most of them), made Russian worse ("1250" came
+  out as "тысяч двести пятьдесят") and rewrote a 24-hour time in English; with `language` left out its automatic
+  detection mislabelled Turkish and Czech as Spanish and Ukrainian as Russian. Without any help the model reads
+  years, ordinals, percentages, times, km/kg and common abbreviations correctly in pt, pl, nl, tr, ar and mostly
+  uk. It is weaker in cs, sv and hi (numbers such as 1250 failed in about half of the draws), with amounts with
+  decimals ("1250,50 zł") and with Roman numerals in some languages: listen to those before rendering a whole
+  book. The studio shows a hint under the language field. Quality control (the retake gate) is more tolerant in
+  such languages, since Whisper writes digits its own way.
 - **Concurrency.** Starter accounts (< $100 prepaid) run 5 simultaneous requests; Folivox uses 3.
 - **Not used yet.** Fish can pin pronunciation: phoneme tags in the text (`<|phoneme_start|>…<|phoneme_end|>`;
   CMU Arpabet for English, tone-numbered pinyin for Chinese, pitch-annotated romaji for Japanese) and
