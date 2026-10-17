@@ -79,13 +79,19 @@ class Qwen3TTS(VoiceGenerator):
             f.seek(0)
             proc = subprocess.Popen([self.python, str(worker)], stdin=f, stdout=subprocess.PIPE, text=True, env=env)
             by_out = {str(j.out): j for j in jobs}
-            for line in proc.stdout:
-                try:
-                    msg = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if progress and msg.get("out") in by_out:
-                    progress(by_out[msg["out"]], msg["seconds"])
+            try:
+                for line in proc.stdout:
+                    try:
+                        msg = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if progress and msg.get("out") in by_out:
+                        progress(by_out[msg["out"]], msg.get("seconds", 0.0))
+            except BaseException:
+                # progress() raises to cancel: stop the worker instead of leaving it running on the GPU
+                proc.kill()
+                proc.wait()
+                raise
             if proc.wait():
                 raise ProviderError(f"{self.name}: worker failed (exit {proc.returncode}); is qwen-tts installed "
                                     f"for {self.python}?")

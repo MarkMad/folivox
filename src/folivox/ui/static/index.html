@@ -679,7 +679,7 @@ async function api(url, opts = {}) {
   opts.headers = { "X-Folivox-Token": TOKEN, ...(opts.headers || {}) };
   const r = await fetch(url, opts);
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.error || r.statusText);
+  if (!r.ok) throw Object.assign(new Error(data.error || r.statusText), { code: data.code });
   return data;
 }
 const LANGS = {ru:"Русский",en:"English",de:"Deutsch",fr:"Français",es:"Español",it:"Italiano",zh:"中文",ja:"日本語",ko:"한국어"};
@@ -1609,13 +1609,15 @@ function langGapText(id) {
 }
 const langGapHtml = (id) => langGapText(id) ? `<div class="lang-gap">${esc(langGapText(id))}</div>` : "";
 function langGapNote() { const el = $("#vgap"), tx = langGapText(0); el.hidden = !tx; el.textContent = tx; }
+const BOOK_WARN = { lang_uk: "book.warn.lang_uk", lang_be: "book.warn.lang_be" };  // reader warning codes; others shown raw
 function renderBookInfo() {
   const b = book, chip = (x, title) => `<span class="bk-chip"${title ? ` title="${esc(title)}"` : ""}>${x}</span>`;
   const sh = LANGINFO && LANGINFO.lang === b.lang ? Object.entries(LANGINFO.shares) : [];
   const several = sh.length > 1 && sh[1][1] >= 0.02 ? sh.filter(([, v]) => v >= 0.02) : [];
   $("#s-book").classList.add("loaded");
   $("#book-info").innerHTML = `<div class="bk-title">${esc(b.title)}</div><div class="bk-author">${esc(b.author || t("book.noauthor"))}</div>`
-    + `<div class="bk-chips">${[chip(esc(b.lang_name)), several.length ? chip(esc(several.map(([c, v]) => c + " " + Math.max(1, Math.round(v * 100)) + "%").join(" · ")), t("book.langs", { list: several.map(([c]) => lname(c)).join(", ") })) : "", chip(esc(b.format.toUpperCase())), b.year ? chip(esc(b.year)) : "", chip(t("book.chars", { n: num(b.chars) })), chip("≈ " + fmt(b.estimated_seconds))].join("")}</div>`;
+    + `<div class="bk-chips">${[chip(esc(b.lang_name)), several.length ? chip(esc(several.map(([c, v]) => c + " " + Math.max(1, Math.round(v * 100)) + "%").join(" · ")), t("book.langs", { list: several.map(([c]) => lname(c)).join(", ") })) : "", chip(esc(b.format.toUpperCase())), b.year ? chip(esc(b.year)) : "", chip(t("book.chars", { n: num(b.chars) })), chip("≈ " + fmt(b.estimated_seconds))].join("")}</div>`
+    + (b.warnings || []).map(w => `<div class="warn"><small>${esc(BOOK_WARN[w] ? t(BOOK_WARN[w]) : w)}</small></div>`).join("");
 }
 function setBook(b, keep, lang) {
   if (!book || book.book_id !== b.book_id) LANGINFO = null;
@@ -2350,7 +2352,7 @@ $("#fish-install").addEventListener("click", async () => {
 $("#fish-remove").addEventListener("click", async () => {
   const b = fishCur(); if (!b || !confirm(t("fish.confirmrm", { name: b.title }))) return;
   try { FISH.st = await api("/api/engines/fish/remove", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ build: b.id }) }); fishRender(); }
-  catch (e) { $("#fish-warn").textContent = e.message; }
+  catch (e) { $("#fish-warn").textContent = e.code === "job_busy" ? t("eng.jobBusy") : e.message; }
 });
 $("#fish-licence").addEventListener("click", () => {
   const b = fishCur(); if (!b) return; const L = FISH.st.licences[b.licence];
@@ -2873,7 +2875,7 @@ $("#rt-install").addEventListener("click", async () => {
 $("#rt-remove").addEventListener("click", async () => {
   if (!confirm(t("rt.confirmrm"))) return;
   try { RT.st = await api("/api/runtime/remove", { method: "POST" }); rtRender(); }
-  catch (e) { $("#rt-warn").textContent = e.message; }
+  catch (e) { $("#rt-warn").textContent = e.code === "job_busy" ? t("eng.jobBusy") : e.message; }
 });
 // ---- settings ---------------------------------------------------------------------------------
 const ENGINES = new Proxy({}, { get: (_, k) => ["tts", "asr", "llm", "voicegen"].includes(k) ? [t(`kind.${k}.h`), t(`kind.${k}.s`)] : undefined });

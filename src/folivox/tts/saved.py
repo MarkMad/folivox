@@ -7,6 +7,8 @@ lives in the provider's account until the user deletes it. No audio and no keys 
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 import time
 from pathlib import Path
 
@@ -20,7 +22,10 @@ def _path() -> Path:
 def _read() -> list[dict]:
     try:
         data = json.loads(_path().read_text(encoding="utf-8"))
-        return data if isinstance(data, list) else []
+        # skip malformed entries (hand edits, older formats) instead of crashing every lookup on v["id"]
+        if not isinstance(data, list):
+            return []
+        return [v for v in data if isinstance(v, dict) and isinstance(v.get("id"), str)]
     except (OSError, ValueError):
         return []
 
@@ -53,9 +58,15 @@ def remove(provider: str, voice_id: str) -> None:
 def _write(items: list[dict]) -> None:
     p = _path()
     p.parent.mkdir(parents=True, exist_ok=True)
-    tmp = p.with_suffix(".tmp")
-    tmp.write_text(json.dumps(items, ensure_ascii=False, indent=1), encoding="utf-8")
-    tmp.replace(p)
+    # a unique temp name: two writers (UI and CLI) never clobber each other's half-written file
+    fd, name = tempfile.mkstemp(prefix=p.name + ".", suffix=".tmp", dir=p.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(json.dumps(items, ensure_ascii=False, indent=1))
+        os.replace(name, p)
+    except BaseException:
+        Path(name).unlink(missing_ok=True)
+        raise
 
 
 def rename(provider: str, voice_id: str, name: str) -> bool:

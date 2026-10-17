@@ -22,6 +22,14 @@ def _model(id_: str, label: str, note: str = "") -> dict:
     return {"id": id_, "label": label, "note": note}
 
 
+def audio(body: bytes, who: str) -> bytes:
+    """Reject an empty reply: a header-only WAV or no bytes at all would become a silent take. Not retried
+    (``bad_request``) because the request was probably billed."""
+    if len(body) < 64:
+        raise CloudError(f"{who} returned no audio for the text", "bad_request")
+    return body
+
+
 class Gemini(CloudGenerator):
     """Gemini API speech generation: 30 preset voices, or a voice designed from a description (3.8 models)."""
 
@@ -137,6 +145,7 @@ class Gemini(CloudGenerator):
         except (KeyError, IndexError, TypeError):
             raise CloudError("Gemini returned no audio (the text may have been blocked by its safety filters)",
                              "bad_request") from None
+        audio(raw, self.label)
         if raw[:4] == b"RIFF":
             return raw
         m = re.search(r"rate=(\d+)", str(inline.get("mimeType", "")))
@@ -210,7 +219,7 @@ class OpenAIVoice(CloudGenerator):
         payload = {"model": self.model, "input": job.text, "voice": voice, "response_format": "wav"}
         if job.description and self.model.startswith("gpt-"):  # tts-1 rejects `instructions`
             payload["instructions"] = job.description
-        return self.call("POST", f"{self.base_url}/audio/speech", payload).body
+        return audio(self.call("POST", f"{self.base_url}/audio/speech", payload).body, self.label)
 
 
 class ElevenLabs(CloudGenerator):
@@ -235,7 +244,8 @@ class ElevenLabs(CloudGenerator):
               _model("eleven_multilingual_v2", "Multilingual v2", "29 languages, stable"),
               _model("eleven_flash_v2_5", "Flash v2.5", "fast and cheap"))
     DESIGN_MODELS = ("eleven_ttv_v3", "eleven_multilingual_ttv_v2")
-    PRICE_PER_1K = {"eleven_v4": 0.08, "eleven_v4_turbo": 0.04, "eleven_v3": 0.08, "eleven_multilingual_v2": 0.08}
+    PRICE_PER_1K = {"eleven_v4": 0.08, "eleven_v4_turbo": 0.04, "eleven_v3": 0.08, "eleven_multilingual_v2": 0.08,
+                    "eleven_flash_v2_5": 0.04}
     LIMITS = {"eleven_v4": 10000, "eleven_v4_turbo": 10000, "eleven_v3": 5000, "eleven_multilingual_v2": 10000,
               "eleven_flash_v2_5": 40000}
 
@@ -259,7 +269,7 @@ class ElevenLabs(CloudGenerator):
     @classmethod
     def estimate_for(cls, chars, takes=1, mode="preset", model=""):
         n = chars * (math.ceil(takes / 3) if mode == "design" else takes)
-        return {"chars": n, "usd": round(n / 1000 * cls.PRICE_PER_1K.get(model, 0.08 if not model else 0.04), 3),
+        return {"chars": n, "usd": round(n / 1000 * cls.PRICE_PER_1K.get(model, 0.08), 3),
                 "note": cls.price_note}
 
     def check_text(self, text):
@@ -290,12 +300,19 @@ class ElevenLabs(CloudGenerator):
     def synth(self, job: Job) -> bytes:
         if not job.speaker:
             raise CloudError("ElevenLabs: pick a voice (preset mode needs a voice id)", "bad_request")
-        text = job.text
-        if job.description and re.fullmatch(r"eleven_v[34]\w*", self.model):
-            text = f"[{job.description.strip('[] ')}] {job.text}"
+        text = self.billed_text(job)
         payload = {"text": text, "model_id": self.model, "seed": job.seed % 4294967295}
         url = f"{self.BASE}/v1/text-to-speech/{urllib.parse.quote(job.speaker, safe='')}?output_format=pcm_24000"
-        return pcm_to_wav(self.call("POST", url, payload).body, 24000)
+        return pcm_to_wav(audio(self.call("POST", url, payload).body, self.label), 24000)
+
+    def billed_text(self, job: Job) -> str:
+        """The text actually sent: eleven_v3 / v4 get the style note as a leading audio tag (billed too)."""
+        if job.description and re.fullmatch(r"eleven_v[34]\w*", self.model):
+            return f"[{job.description.strip('[] ')}] {job.text}"
+        return job.text
+
+    def billed_chars(self, job):
+        return len(self.billed_text(job))
 
     def setup_voices(self, jobs):
         """Design mode for a whole book: design a voice (3 previews, the first is kept) and save it in the
@@ -392,6 +409,10 @@ class Cartesia(CloudGenerator):
     models = (_model("sonic-3.6", "Sonic 3.6", "newest, 44 languages"), _model("sonic-3.5", "Sonic 3.5"),
               _model("sonic-3", "Sonic 3"), _model("sonic-latest", "Sonic latest", "alias that moves with releases"))
 
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.names, self.details = {}, {}  # per instance: never fill the base class's shared dicts
+
     def headers(self):
         return {"Authorization": f"Bearer {self.key}", "Cartesia-Version": self.VERSION}
 
@@ -481,7 +502,7 @@ class Cartesia(CloudGenerator):
         payload = {"model_id": self.model, "transcript": job.text, "voice": {"id": job.speaker},
                    "language": job.lang,
                    "output_format": {"container": "wav", "encoding": "pcm_s16le", "sample_rate": 24000}}
-        return self.call("POST", f"{self.BASE}/tts/bytes", payload).body
+        return audio(self.call("POST", f"{self.BASE}/tts/bytes", payload).body, self.label)
 
 
 class FishAudio(CloudGenerator):

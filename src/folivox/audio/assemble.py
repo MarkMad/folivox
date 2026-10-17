@@ -80,7 +80,10 @@ def build_chapter(parts: list[tuple[Path, float]], out: Path, sample_rate: int, 
             tmp_out.replace(out)
         finally:
             tmp_out.unlink(missing_ok=True)
-    return len(audio) / sample_rate
+    from folivox.audio import audio_seconds
+
+    # the length of the file as written (loudnorm may resample internally), used for chapter marks
+    return audio_seconds(out) or len(audio) / sample_rate
 
 
 def _concat_path(p: Path) -> str:

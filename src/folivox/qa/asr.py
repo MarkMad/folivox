@@ -183,10 +183,30 @@ def _multipart(fields: dict, file: tuple[str, str, bytes]) -> tuple[bytes, str]:
     return out.getvalue(), f"multipart/form-data; boundary={boundary}"
 
 
+_rosetta_logged = False
+
+
+def _warn_rosetta() -> None:
+    """Log once that an x86_64 Python under Rosetta cannot use mlx-whisper (falls back to faster-whisper)."""
+    global _rosetta_logged
+    if _rosetta_logged or sys.platform != "darwin":
+        return
+    _rosetta_logged = True
+    from folivox.tts.native_setup import under_rosetta
+
+    if under_rosetta():
+        import logging
+
+        logging.getLogger("folivox").warning(
+            "Python runs under Rosetta (x86_64); reinstall with the arm64 installer to use Metal/MLX. "
+            "Speech recognition falls back to faster-whisper on the CPU.")
+
+
 def auto(language: str = "ru", device: str | None = None, **kwargs) -> ASR:
     """mlx-whisper on Apple Silicon, faster-whisper elsewhere (``device="cpu"`` keeps it off the GPU)."""
     if sys.platform == "darwin" and platform.machine() == "arm64" and not os.environ.get("FOLIVOX_NO_MLX"):
         return MLXWhisper(language, **kwargs)
+    _warn_rosetta()
     return FasterWhisper(language, device=device, **kwargs)
 
 

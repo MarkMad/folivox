@@ -111,7 +111,10 @@ def test_engine_list_has_fish_engines_on_this_platform(client):
     names = [e["name"] for e in client.get("/api/tts/engines").json()["engines"]]
     assert names[0] == "cosyvoice3" and {"fish-s2", "fish-drama3"} <= set(names)
     e = next(e for e in client.get("/api/tts/engines").json()["engines"] if e["name"] == "fish-s2")
-    assert e["fish"] is True and e["local"] and not e["cloud"] and e["builds"] == ["s2pro-mlx-8bit"]
+    assert e["fish"] is True and e["local"] and not e["cloud"] and e["builds"][0] == "s2pro-mlx-8bit"
+    # native GGUF builds are listed (a named build runs under any runtime) but marked as native
+    assert set(e["builds"]) - set(e["native_builds"]) == {"s2pro-mlx-8bit"}
+    assert all(builds.load().build(i).backend == "native" for i in e["native_builds"])
 
 
 def upload(client):

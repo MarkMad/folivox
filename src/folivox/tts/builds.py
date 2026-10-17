@@ -310,19 +310,23 @@ def auto_build(engine: str, hw: Hardware | None = None, cat: Catalog | None = No
 
 
 def recommend(hw: Hardware | None = None, accepted: dict[str, str] | None = None, installed=None,
-              cat: Catalog | None = None) -> Build | None:
+              cat: Catalog | None = None, runtime: str | None = None) -> Build | None:
     """The default Fish build for this computer, or None (then the default engine stays CosyVoice 3).
 
     Among the builds that fit the total memory, whose licence the user accepted and that are installed:
     the most capable one with room to spare (Drama 3 4-bit > Drama 3 3-bit > S2 Pro 8-bit), else the lightest.
+    Only builds the current inference runtime can run, as :func:`build_for` would pick them: native builds when the
+    runtime resolves to native for that engine, the others otherwise. ``runtime``: requested mode (None → config).
     """
     from folivox.tts import licences
+    from folivox.tts import runtime as tts_runtime
 
     cat = cat or load()
     hw = hw or detect_hardware()
     accepted = licences.accepted() if accepted is None else accepted
     installed = installed or is_installed
-    ready = [b for b in candidates(hw, cat) if licences.is_accepted(cat.licences[b.licence], accepted) and installed(b)]
+    ready = [b for b in candidates(hw, cat) if licences.is_accepted(cat.licences[b.licence], accepted) and installed(b)
+             and (b.backend == "native") == (tts_runtime.resolve(b.engine, runtime) == "native")]
     return next((b for b in ready if roomy(b, hw)), min(ready, key=lambda b: b.peak_gb) if ready else None)
 
 

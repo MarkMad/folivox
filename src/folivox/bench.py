@@ -31,12 +31,15 @@ def available_devices() -> list[str]:
             out.append("cuda")
         if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
             out.append("mps")
-    except ImportError:
+    except Exception:  # noqa: BLE001 — not installed, or a broken install (DLL load OSError)
         pass
-    from folivox.tts import native_setup
+    try:
+        from folivox.tts import native_setup
 
-    if native_setup.status().ready:
-        out.append("native")
+        if native_setup.status().ready:
+            out.append("native")
+    except Exception:  # noqa: BLE001 — an unreadable native manifest must not stop the CPU/GPU lines
+        pass
     return out
 
 
@@ -82,12 +85,18 @@ def run_device(device: str, voice_wav: str, voice_text: str | None, text: str, t
     cmd = [sys.executable, "-m", "folivox.bench", device, voice_wav, voice_text or "", text]
     env = {**os.environ, ENGINE_ENV: json.dumps(engine)} if engine else None
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env)
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=timeout, env=env)
     except subprocess.TimeoutExpired:
         return {"device": device, "error": f"no result within {timeout:.0f} s"}
+    except OSError as e:
+        return {"device": device, "error": f"could not start: {e}"}
     for line in reversed(r.stdout.splitlines()):
         if line.startswith(MARK):
-            return json.loads(line[len(MARK):])
+            try:
+                return json.loads(line[len(MARK):])
+            except ValueError:
+                break
     tail = (r.stderr or r.stdout).strip().splitlines()
     return {"device": device, "error": f"crashed (exit {r.returncode})" + (f": {tail[-1][:200]}" if tail else "")}
 
@@ -113,13 +122,20 @@ def report_text(rows: list[dict], what: str, lang: str) -> str:
              f"({platform.machine()}) · Python {platform.python_version()}",
              f"{hw['cores']} cores, {hw['ram_gb']} GB RAM, GPU: {hw['gpu'] or 'none'}"
              f"{' ' + str(hw['vram_gb']) + ' GB' if hw['vram_gb'] else ''}",
-             f"audio.cpp release {native_setup.load().release} · engine: {what} · test text language: {lang}", ""]
+             f"audio.cpp release {_native_release(native_setup)} · engine: {what} · test text language: {lang}", ""]
     for r in rows:
         if "error" in r:
-            lines.append(f"{r['device']}: FAILED {r['error']}")
+            lines.append(f"{r['device']}: FAILED {diag.redact(str(r['error']))}")
         else:
             lines.append(f"{r['device']} ({r.get('actual', '')}): RTF {r['rtf']:.2f} · "
                          f"{r['chars_per_s']:.1f} chars/s · load {r['load_s']:.0f} s · warm-up {r['warmup_s']:.0f} s")
     lines.append("Quality was not checked by `folivox bench`: say what you heard, or run a preview with the quality "
                  "check on and add its score.")
     return "\n".join(lines)
+
+
+def _native_release(native_setup) -> str:
+    try:
+        return str(native_setup.load().release)
+    except Exception:  # noqa: BLE001 — the report must print even with a broken native manifest
+        return "unknown"

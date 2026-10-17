@@ -99,10 +99,15 @@ class Server:
             self.proc = subprocess.Popen(cmd, stdout=out, stderr=out, stdin=subprocess.DEVNULL,  # noqa: S603
                                          cwd=str(sp.server.parent), creationflags=flags)
         except OSError as e:
+            self.stop()  # removes the temporary config folder
             raise NativeError(f"Could not start the native engine {sp.server}: {e}") from e
         finally:
             out.close()
-        self._wait_ready()
+        try:
+            self._wait_ready()
+        except BaseException:
+            self.stop()  # reap a crashed or half-loaded server and remove its temporary folder
+            raise
 
     def _wait_ready(self) -> None:
         deadline = time.time() + LOAD_TIMEOUT

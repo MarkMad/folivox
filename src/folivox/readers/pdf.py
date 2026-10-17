@@ -68,7 +68,18 @@ def _join_lines(lines: list[str]) -> str:
 def read_pdf(path: Path) -> Book:
     import pymupdf
 
-    doc = pymupdf.open(str(path))
+    from folivox.readers import UnreadableBook
+
+    with pymupdf.open(str(path)) as doc:  # closes the file handle (Windows keeps it locked otherwise)
+        if doc.needs_pass and not doc.authenticate(""):
+            raise UnreadableBook(f"{path.name}: the PDF is password-protected; remove the password and try again.")
+        book = _read(doc)
+    if not any(b.text.strip() for s in book.sections for sec in s.walk() for b in sec.blocks):
+        raise UnreadableBook(f"{path.name}: the PDF has no text layer (a scan?); run it through OCR first.")
+    return book
+
+
+def _read(doc) -> Book:
     book = Book()
     meta = doc.metadata or {}
     book.title = one_line(meta.get("title") or "")

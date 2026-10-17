@@ -38,7 +38,8 @@ def normalize_code(code: str | None) -> str:
     """'ru-RU' / 'RUS' / 'zh_Hans' → 'ru' / 'ru' / 'zh'."""
     code = (code or "").strip().lower().replace("_", "-").split("-")[0]
     return {"rus": "ru", "eng": "en", "deu": "de", "ger": "de", "fra": "fr", "fre": "fr", "spa": "es",
-            "ita": "it", "zho": "zh", "chi": "zh", "cmn": "zh", "jpn": "ja", "kor": "ko"}.get(code, code)
+            "ita": "it", "zho": "zh", "chi": "zh", "cmn": "zh", "jpn": "ja", "kor": "ko",
+            "ukr": "uk", "bel": "be"}.get(code, code)
 
 
 def get(code: str | None) -> Language:

@@ -23,7 +23,9 @@ import json
 import os
 import re
 import sqlite3
+import time
 import unicodedata
+import urllib.error
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -277,9 +279,59 @@ def extract_json(text: str) -> dict:
 class Runner:
     """Calls the model with caching, JSON extraction and a few retries (a warmer second try)."""
 
-    def __init__(self, llm, model: str, cache: Cache, tries: int = 2):
+    BUSY_TRIES = 5  # attempts in all when the server is busy (429, 5xx) or the connection drops
+    BUSY_WAIT_CAP = 60.0  # seconds, the longest single wait
+
+    def __init__(self, llm, model: str, cache: Cache, tries: int = 2,
+                 cancelled: Callable[[], bool] = lambda: False, sleep: Callable[[float], None] = time.sleep):
         self.llm, self.model, self.cache, self.tries = llm, model, cache, tries
+        self.cancelled, self.sleep = cancelled, sleep
         self.calls = self.cached = self.failures = 0
+
+    def _wait(self, seconds: float) -> None:
+        """Sleep in short steps so a cancel is noticed."""
+        while seconds > 0 and not self.cancelled():
+            step = min(1.0, seconds)
+            self.sleep(step)
+            seconds -= step
+
+    def _complete(self, prompt: str, system: str, temperature: float) -> str:
+        """One model reply; waits out a busy server, fails at once on a wrong key, model name or URL.
+
+        A request the server refuses for its content (400, 413, 422: too long a window, say) raises ValueError,
+        so the caller's retries and fallbacks handle it like a bad reply."""
+        for attempt in range(self.BUSY_TRIES):
+            try:
+                return self.llm.complete_json(prompt, system=system, temperature=temperature)
+            except urllib.error.HTTPError as e:
+                code = e.code
+                if code in (401, 403):
+                    raise LLMError(f"The language model server refused the request (HTTP {code}): "
+                                   "check the API key.") from None
+                if code == 404:
+                    raise LLMError("The language model server answered HTTP 404: check the model name and "
+                                   "the server address.") from None
+                if code in (400, 413, 422):
+                    raise ValueError(f"the server refused this request (HTTP {code})") from None
+                if code != 429 and code < 500:
+                    raise LLMError(f"The language model did not answer: HTTP {code}") from None
+                retry_after = e.headers.get("Retry-After") if e.headers is not None else None
+                last: Exception = LLMError(f"The language model did not answer: HTTP {code}")
+            except (ConnectionError, TimeoutError, urllib.error.URLError) as e:
+                retry_after = None
+                last = LLMError(f"The language model did not answer: {e}")
+            except OSError as e:
+                raise LLMError(f"The language model did not answer: {e}") from None
+            if attempt == self.BUSY_TRIES - 1 or self.cancelled():
+                break
+            try:
+                delay = float(retry_after) if retry_after else 2.0 * 2 ** attempt
+            except ValueError:  # an HTTP date: not worth parsing
+                delay = 2.0 * 2 ** attempt
+            self._wait(max(0.0, min(delay, self.BUSY_WAIT_CAP)))
+            if self.cancelled():
+                break
+        raise last
 
     def ask(self, system: str, prompt: str, validate: Callable[[dict], dict]) -> dict:
         """Reply parsed and checked by ``validate`` (which raises ValueError on a bad one)."""
@@ -297,13 +349,11 @@ class Runner:
             self.calls += 1
             extra = "" if attempt == 0 else "\n\nYour previous answer was not valid. Answer with the JSON object only."
             try:
-                reply = self.llm.complete_json(prompt + extra, system=system, temperature=0.1 + 0.2 * attempt)
+                reply = self._complete(prompt + extra, system, 0.1 + 0.2 * attempt)
                 out = validate(extract_json(reply))
-            except (ValueError, KeyError, TypeError) as e:
+            except (ValueError, KeyError, TypeError, AttributeError) as e:
                 last = e
                 continue
-            except OSError as e:  # the model server is gone: not worth retrying every window
-                raise LLMError(f"The language model did not answer: {e}") from None
             self.cache.put(key, reply)
             return out
         self.failures += 1
@@ -416,13 +466,15 @@ def analyse(chapters: list, lang: str, runner: Runner, bible: Bible | None = Non
     bible = bible or Bible()
     bible.lang, bible.model = lang, runner.model
     wins = windows(chapters, window_chars, only_speech=False)
-    if bible.sampled and not max_windows:  # a full reading after a preview starts over (the characters are kept)
-        bible.done_windows = bible.total_windows = 0
-    bible.sampled = False
-    if max_windows and len(wins) > max_windows:  # spread a sample over the whole book
+    full_done = not bible.sampled and 0 < bible.total_windows <= bible.done_windows
+    # a preview after a completed full reading has nothing to add: the full reading stays
+    sampled = bool(max_windows and len(wins) > max_windows and not full_done)
+    if sampled:  # spread a sample over the whole book
         step = len(wins) / max_windows
         wins = [wins[int(i * step)] for i in range(max_windows)]
-        bible.sampled = True
+    if bible.sampled != sampled:  # a full reading after a preview, or a preview after a full one, starts over
+        bible.done_windows = bible.total_windows = 0  # (the characters are kept); the window lists differ
+    bible.sampled = sampled
     bible.total_windows = len(wins)
     recent: list[str] = []
     narr: dict[str, int] = {}
@@ -446,6 +498,8 @@ def analyse(chapters: list, lang: str, runner: Runner, bible: Bible | None = Non
             if progress:
                 progress("analyse", n + 1, len(wins), f"window {n + 1} skipped: {e}")
             bible.done_windows = n + 1
+            if save:
+                save(bible)
             continue
         narr[str(out.get("narration_person", ""))] = narr.get(str(out.get("narration_person", "")), 0) + 1
         recent = []
@@ -929,7 +983,7 @@ def second_opinion(chapters: list, lang: str, bible: Bible, runner: Runner, mark
             out = runner.ask(PARTS_SYSTEM, prompt, check)
             item = next(x for x in out["blocks"] if int(str(x.get("b")).lstrip("B")) == b)
             parts, ids = part_speakers(b, text, item.get("who"))
-        except (ValueError, StopIteration, KeyError, TypeError, mk.MarkupError):
+        except (ValueError, StopIteration, KeyError, TypeError, AttributeError, mk.MarkupError):
             continue
         valid = {c.id for c in bible.characters if c.id} | {0}
         if any(x not in valid for x in ids) or check_paragraph(text, parts, ids, bible, lang):
@@ -1018,7 +1072,8 @@ def annotate(chapters: list, lang: str, bible: Bible, runner: Runner, markup: mk
                 progress("annotate", n + 1, len(wins), f"window {n + 1}: the narrator reads it")
             continue
         # characters the model met for the first time
-        for e in list(out.get("new_characters") or []) + list(out.get("updates") or []):
+        found = [x for k in ("new_characters", "updates") if isinstance(out.get(k), list) for x in out[k]]
+        for e in found:
             if isinstance(e, dict):
                 before = len(bible.characters)
                 bible.merge({**e, "lines": 0}, w.chapter)

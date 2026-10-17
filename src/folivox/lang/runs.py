@@ -62,6 +62,8 @@ def _word_script(word: str) -> str:
     """The script of the word's letters when they are all of one script, else ``""`` (mixed words are skipped)."""
     seen = {script_of(c) for c in word if c.isalpha()}
     seen.discard("")
+    if seen == {"han", "kana"}:  # Japanese mixes kanji and kana inside one unspaced stretch
+        return "kana"
     return seen.pop() if len(seen) == 1 else ""
 
 

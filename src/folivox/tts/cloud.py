@@ -143,9 +143,11 @@ class CloudTTS(TTSEngine):
         from folivox.voicegen.cloud import CloudError
 
         self.gen.check_text(text)
-        self.check_budget(len(text))
-        with self._lock:  # counted when sent: an in-flight request is already billed
-            self.chars_sent += len(text)
+        billed = self.gen.billed_chars(self.job(text, voice, seed, lang)) if hasattr(self.gen, "billed_chars") \
+            else len(text)
+        with self._lock:  # checked and counted atomically: parallel workers must not overshoot the cap together
+            self.check_budget(billed)
+            self.chars_sent += billed  # counted when sent: an in-flight request is already billed
             self.requests += 1
         t0 = time.time()
         # A fragment is paid for once: retries below re-send the same request, so the characters are counted
@@ -158,8 +160,12 @@ class CloudTTS(TTSEngine):
             except CloudError as e:
                 if e.kind in ("auth", "quota", "bad_request"):
                     with self._lock:
-                        self.chars_sent -= len(text)
+                        self.chars_sent -= billed
                     raise
+                if e.kind == "server":
+                    # a 5xx was already re-sent twice with growing pauses; going on could bill the fragment again
+                    raise CloudError(f"{e} Progress is saved, run the same command again to continue.",
+                                     e.kind, e.retry_after) from None
                 if waited >= self.outage_seconds:
                     raise CloudError(f"{e} The provider or the network was unreachable for "
                                      f"{int(waited // 60)} min; progress is saved, run the same command again to "

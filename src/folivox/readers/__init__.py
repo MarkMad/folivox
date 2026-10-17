@@ -14,6 +14,10 @@ class UnsupportedFormat(ValueError):
     pass
 
 
+class UnreadableBook(UnsupportedFormat):
+    """The file is in a supported format but has no readable text (encrypted, scanned PDF, ...)."""
+
+
 def detect_format(path: Path) -> str:
     name = path.name.lower()
     if name.endswith(".fb2.zip"):
@@ -77,7 +81,7 @@ def read_book(path: str | Path) -> Book:
     _drop_title_page(book)
     from folivox.lang import get, normalize_code
 
-    book.lang = normalize_code(book.lang)
+    book.lang = meta_lang = normalize_code(book.lang)
     try:
         get(book.lang)
     except ValueError:  # missing or unusable metadata («und», «xx»): detect from the text
@@ -88,7 +92,30 @@ def read_book(path: str | Path) -> Book:
         chapters = book.chapters(1)[:5]
         book.lang = detect(" ".join([book.title, *(c.title for c in chapters),
                                      *(b.text for ch in chapters for b in ch.blocks[:200])]))
+    _warn_unsupported_cyrillic(book, meta_lang)
     return book
+
+
+_LANG_NAMES = {"uk": "Ukrainian", "be": "Belarusian"}
+# Book.warnings holds machine codes (the UI localises them); English text for the CLI and logs.
+WARNING_TEXT = {f"lang_{code}": f"The book looks {name}, which is not supported; it will be read with Russian rules."
+                for code, name in _LANG_NAMES.items()}
+
+
+def _warn_unsupported_cyrillic(book: Book, meta_lang: str) -> None:
+    """Ukrainian / Belarusian are not supported: read them with Russian rules, but say so."""
+    variant = meta_lang if meta_lang in _LANG_NAMES else None
+    if variant is None and book.lang == "ru":
+        from folivox.lang.detect import unsupported_cyrillic
+
+        chapters = book.chapters(1)[:5]
+        variant = unsupported_cyrillic(" ".join(b.text for ch in chapters for b in ch.blocks[:200]))
+    if variant is None:
+        return
+    if book.lang in ("", "uk", "be"):
+        book.lang = "ru"
+    if book.lang == "ru":
+        book.warnings.append(f"lang_{variant}")
 
 
 def _drop_title_page(book: Book) -> None:

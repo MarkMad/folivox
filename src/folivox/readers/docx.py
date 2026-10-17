@@ -36,6 +36,33 @@ def _is_title_style(paragraph) -> bool:
     return (paragraph.style.name or "").strip().lower() in ("title", "название")
 
 
+_W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+
+
+def _body_paragraphs(doc):
+    """Body paragraphs in document order, including the paragraphs of table cells (row by row, each
+    merged cell once)."""
+    from docx.text.paragraph import Paragraph
+
+    def walk(element):
+        for child in element.iterchildren():
+            if child.tag == _W + "p":
+                yield Paragraph(child, doc)
+            elif child.tag == _W + "tbl":
+                for tr in child.iterchildren(_W + "tr"):
+                    for tc in tr.iterchildren(_W + "tc"):
+                        vmerge = tc.find(f"{_W}tcPr/{_W}vMerge")
+                        if vmerge is not None and vmerge.get(_W + "val") in (None, "continue"):
+                            continue  # continuation of a vertically merged cell: empty
+                        yield from walk(tc)
+            elif child.tag == _W + "sdt":  # content controls wrap ordinary paragraphs
+                content = child.find(_W + "sdtContent")
+                if content is not None:
+                    yield from walk(content)
+
+    yield from walk(doc.element.body)
+
+
 def read_docx(path: Path) -> Book:
     import docx
 
@@ -50,7 +77,7 @@ def read_docx(path: Path) -> Book:
 
     texts: list[str] = []
     levels: list[int] = []
-    for p in doc.paragraphs:
+    for p in _body_paragraphs(doc):
         text = one_line(p.text)
         if not text:
             continue

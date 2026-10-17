@@ -211,7 +211,8 @@ def test_error_mapping(tmp_path, status, body, kind, words):
         make(OpenAIVoice, fake).generate([job(tmp_path, speaker="coral")])
     assert e.value.kind == kind and words in str(e.value)
     assert KEY not in str(e.value) and "SECRET" not in str(e.value)
-    assert len(fake.calls) == (5 if kind in ("rate_limit", "server") else 1)  # transient errors are retried
+    # a rate limit is retried freely (nothing was billed); a 5xx is re-sent at most twice (it may have been billed)
+    assert len(fake.calls) == {"rate_limit": 5, "server": 3}.get(kind, 1)
 
 
 def test_retry_then_success_and_network_error(tmp_path):

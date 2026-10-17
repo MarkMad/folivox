@@ -59,7 +59,20 @@ def state_payload() -> dict:
             "bundled_voices_note": fish_check.BUNDLED_VOICES_NOTE}
 
 
-def routes(api_error, install: Install) -> list[Route]:
+async def json_object(request: Request, api_error) -> dict:
+    """The request's JSON body, which must be an object; anything else is the client's mistake (400, not 500)."""
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise api_error("The request body must be a JSON object")
+    return body
+
+
+JOB_BUSY = "Finish or stop the current job first"
+
+
+def routes(api_error, install: Install, busy=lambda: False) -> list[Route]:
+    """``busy()`` tells whether a render, preview or voice generation is running (removal would break it)."""
+
     def known_build(build_id: str) -> builds.Build:
         try:
             return builds.load().build(str(build_id))
@@ -79,7 +92,7 @@ def routes(api_error, install: Install) -> list[Route]:
             return JSONResponse({"id": lic.id, "text": "", "page": lic.page, "error": str(e)})
 
     async def accept(request: Request):
-        body = await request.json()
+        body = await json_object(request, api_error)
         if body.get("confirm") is not True:
             raise api_error("The licence must be confirmed explicitly")
         lic = builds.load().licences.get(str(body.get("licence", "")))
@@ -89,14 +102,14 @@ def routes(api_error, install: Install) -> list[Route]:
         return JSONResponse(state_payload())
 
     async def revoke(request: Request):
-        licences.revoke(str((await request.json()).get("licence", "")))
+        licences.revoke(str((await json_object(request, api_error)).get("licence", "")))
         return JSONResponse(state_payload())
 
     async def install_status(request: Request):
         return JSONResponse(install.snapshot())
 
     async def install_start(request: Request):
-        b = known_build((await request.json()).get("build", ""))
+        b = known_build((await json_object(request, api_error)).get("build", ""))
         hw = builds.detect_hardware()
         f = builds.fit(b, hw)
         if f.level == "no":
@@ -129,9 +142,12 @@ def routes(api_error, install: Install) -> list[Route]:
         return JSONResponse(install.snapshot(), status_code=202)
 
     async def remove(request: Request):
-        b = known_build((await request.json()).get("build", ""))
-        if install.state == "running":
-            raise api_error("An engine is being installed; wait for it", 409)
+        b = known_build((await json_object(request, api_error)).get("build", ""))
+        with install.lock:
+            if install.state == "running":
+                raise api_error("An engine is being installed; wait for it", 409)
+            if busy():
+                raise api_error(JOB_BUSY, 409, code="job_busy")
         fish_setup.remove(b)
         return JSONResponse(state_payload())
 

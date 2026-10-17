@@ -264,7 +264,7 @@ class Markup:
                     [{str(k): (int(v) if k == "b" else str(v)) for k, v in r.items()}
                      for r in c.get("review", []) if isinstance(r, dict) and "b" in r])
             return m
-        except (KeyError, TypeError, ValueError) as e:
+        except (AttributeError, KeyError, TypeError, ValueError) as e:  # AttributeError: a list where a dict goes
             if isinstance(e, MarkupError):
                 raise
             raise MarkupError(f"Malformed markup: {e}") from None
@@ -324,7 +324,7 @@ def bind(markup: Markup, chapters: list) -> tuple[Markup, list[str]]:
     out = Markup(speakers=[Speaker(**s.__dict__) for s in markup.speakers], expression_tags=markup.expression_tags,
                  depth=markup.depth)
     for idx, cm in sorted(markup.chapters.items()):
-        if idx >= len(chapters):
+        if not 0 <= idx < len(chapters):  # a negative key would index chapters from the end
             problems.append(f"Markup for chapter {idx + 1} ignored: the book has {len(chapters)} chapters")
             continue
         ch = chapters[idx]

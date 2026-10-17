@@ -22,9 +22,11 @@ Progress = Callable[[str, int, int], None]
 def hf_cache_roots() -> list[Path]:
     roots = []
     if os.environ.get("HF_HUB_CACHE"):
-        roots.append(Path(os.environ["HF_HUB_CACHE"]))
+        roots.append(Path(os.environ["HF_HUB_CACHE"]).expanduser())
     if os.environ.get("HF_HOME"):
-        roots.append(Path(os.environ["HF_HOME"]) / "hub")
+        roots.append(Path(os.environ["HF_HOME"]).expanduser() / "hub")
+    if os.environ.get("XDG_CACHE_HOME"):  # huggingface_hub's default HF_HOME follows it
+        roots.append(Path(os.environ["XDG_CACHE_HOME"]).expanduser() / "huggingface" / "hub")
     roots.append(Path.home() / ".cache" / "huggingface" / "hub")
     return roots
 
@@ -39,8 +41,11 @@ def source_dirs(b: Build) -> list[Path]:
     out: list[Path] = []
     for root in hf_cache_roots():
         snaps = root / f"models--{org}--{name}" / "snapshots"
-        if snaps.is_dir():
-            out += sorted((p for p in snaps.iterdir() if p.is_dir()), key=lambda p: -p.stat().st_mtime)
+        try:
+            if snaps.is_dir():
+                out += sorted((p for p in snaps.iterdir() if p.is_dir()), key=lambda p: -p.stat().st_mtime)
+        except OSError:  # unreadable cache, or a snapshot removed while we look
+            continue
     for root in lmstudio_roots():
         out += [root / org / name]
     for other in builds.load().builds:
@@ -90,7 +95,11 @@ def _place(src: Path, dst: Path) -> str:
         os.link(src.resolve(), tmp)
         kind = "linked"
     except OSError:  # another volume, or a file system without hard links
-        shutil.copyfile(src, tmp)
+        try:
+            shutil.copyfile(src, tmp)
+        except OSError:
+            tmp.unlink(missing_ok=True)  # do not leave a half copy of a multi-GB file behind
+            raise
         kind = "copied"
     os.replace(tmp, dst)
     return kind

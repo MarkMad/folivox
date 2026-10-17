@@ -61,6 +61,7 @@ def setup_logging(path: Path | None = None) -> logging.Logger:
         return log
     log.setLevel(logging.INFO)
     log.propagate = False
+    remember_secrets(keychain=False)  # keys named by a custom api_key_env; the keychain is read for the bundle
     try:
         target = path or log_file()
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -88,16 +89,80 @@ def event(msg: str, level: int = logging.INFO, exc_info=None, **fields) -> None:
         pass
 
 
+_KNOWN_SECRETS: set[str] = set()  # values of the configured API keys (environment and keychain), by value
+
+
+def _secret_names(providers: bool = True) -> set[str]:
+    """Env var / keychain names that hold API keys: provider defaults plus every ``api_key_env`` in the config."""
+    names: set[str] = set()
+    try:
+        if not providers:  # cheap mode for logging setup: no provider imports (defaults all match the env regex)
+            raise LookupError
+        from folivox.llm import LLMS
+        from folivox.qa.asr import ASR_PROVIDERS
+        from folivox.tts import ENGINES
+        from folivox.voicegen import GENERATORS
+
+        for reg in (ENGINES, ASR_PROVIDERS, GENERATORS, LLMS):
+            names.update(p.needs for p in reg.providers() if not p.local and p.needs.isupper())
+    except Exception:  # noqa: BLE001 — a diagnostic must never fail
+        pass
+    try:
+        from folivox import config
+
+        def walk(d):
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    walk(v)
+                elif k == "api_key_env" and isinstance(v, str) and v:
+                    names.add(v)
+
+        walk(config.load())
+    except Exception:  # noqa: BLE001
+        pass
+    return names
+
+
+def remember_secrets(keychain: bool = True) -> None:
+    """Collect the values of every configured key so :func:`redact` removes them whatever their format.
+
+    Keychain-only keys (saved in the web UI) never appear in the environment and may not look like a key."""
+    names = _secret_names(providers=keychain)
+    for n in names:
+        if value := os.environ.get(n):
+            _KNOWN_SECRETS.add(value)
+    if keychain:
+        try:
+            from folivox import config
+
+            for n in names:
+                if value := config.keychain_get(n):
+                    _KNOWN_SECRETS.add(value)
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def redact(text: str) -> str:
     """Remove API keys, tokens and the values of key environment variables; shorten the home directory."""
+    values = {v for v in _KNOWN_SECRETS if len(v.strip()) >= 4}
     for name, value in os.environ.items():
         if value and len(value) >= 8 and re.search(r"(?i)key|token|secret|password", name):
-            text = text.replace(value, "[redacted]")
+            values.add(value)
+    for value in sorted(values, key=len, reverse=True):  # longest first: one key may contain another
+        text = text.replace(value, "[redacted]")
+        escaped = json.dumps(value)[1:-1]  # the same key inside JSON (backslashes, quotes, non-ASCII)
+        if escaped != value:
+            text = text.replace(escaped, "[redacted]")
     for pattern, repl in _PATTERNS:
         text = pattern.sub(repl, text)
     home = str(Path.home())
     if len(home) > 3:
-        text = text.replace(home, "~").replace(home.replace("\\", "\\\\"), "~")
+        flags = re.IGNORECASE if os.name == "nt" else 0  # Windows paths are case-insensitive
+        for h in {home, home.replace("\\", "\\\\")}:
+            text = re.sub(re.escape(h), "~", text, flags=flags)
+        user = Path(home).name
+        if len(user) >= 3:  # the user name in other paths (another drive, /Users/<name> seen via a symlink)
+            text = re.sub(r"(?<=[/\\])" + re.escape(user) + r"(?=[/\\]|$|[\"'\s])", "<user>", text, flags=flags)
     return text
 
 
@@ -149,7 +214,7 @@ def ffmpeg_info() -> dict:
 def devices() -> dict:
     try:
         import torch
-    except ImportError:
+    except Exception:  # noqa: BLE001 — not installed, or a broken install (DLL load OSError)
         return {"torch": None}
     return {"cuda": bool(torch.cuda.is_available()), "mps": bool(getattr(torch.backends, "mps", None)
                                                                    and torch.backends.mps.is_available())}
@@ -178,7 +243,7 @@ def ram_gb() -> float | None:
 def hardware() -> dict:
     """What the machine offers: CPU cores, RAM, GPU (name, memory) and the device Folivox would use."""
     info: dict = {"cpu": platform.processor() or platform.machine(), "cores": os.cpu_count(),
-                  "ram_gb": round(ram_gb(), 1) if ram_gb() else None, "gpu": None, "vram_gb": None}
+                  "ram_gb": round(r, 1) if (r := ram_gb()) else None, "gpu": None, "vram_gb": None}
     try:
         import torch
 
@@ -194,8 +259,14 @@ def hardware() -> dict:
             info.update(gpu="Apple GPU (shared memory)", device="mps")
         else:
             info["device"] = "cpu"
-    except ImportError:
-        info["device"] = None
+    except Exception:  # noqa: BLE001 — not installed or broken (DLL load OSError, CUDA init RuntimeError)
+        info.setdefault("device", None)
+    try:
+        from folivox.tts.native_setup import under_rosetta
+
+        info["rosetta"] = under_rosetta()
+    except Exception:  # noqa: BLE001 — a diagnostic must not fail
+        info["rosetta"] = False
     info["advice"] = advice(info)
     return info
 
@@ -203,6 +274,8 @@ def hardware() -> dict:
 def advice(hw: dict) -> list[str]:
     """Plain-language recommendations derived from :func:`hardware`."""
     tips = []
+    if hw.get("rosetta"):
+        tips.append("Python runs under Rosetta (x86_64); reinstall with the arm64 installer to use Metal/MLX.")
     ram, device = hw.get("ram_gb"), hw.get("device")
     if device is None:
         tips.append("PyTorch is not installed: local voices need `pip install \"folivox[tts]\"` "
@@ -256,6 +329,7 @@ def journal_summary(work_dir: Path) -> dict | None:
 def report(work_dir: Path | None = None) -> dict:
     from folivox import config
 
+    remember_secrets()
     selected = {}
     try:
         for kind in ("tts", "asr", "generator", "llm"):
@@ -277,10 +351,13 @@ def report(work_dir: Path | None = None) -> dict:
         "disk_free_mb": _free_mb(work_dir or Path.home()),
         "log_file": str(log_file()),
     }
-    from folivox.tts import weights
+    try:
+        from folivox.tts import weights
 
-    data["model_dir"] = {"path": str(weights.default_model_dir()), "complete": weights.is_complete(
-        weights.default_model_dir())}
+        data["model_dir"] = {"path": str(weights.default_model_dir()), "complete": weights.is_complete(
+            weights.default_model_dir())}
+    except Exception as e:  # noqa: BLE001 — a broken config.toml must not hide the rest of the report
+        data["model_dir"] = {"path": f"check failed ({type(e).__name__}: {e})", "complete": False}
     data["native_runtime"] = native_summary()
     if work_dir is not None:
         data["journal"] = journal_summary(work_dir)

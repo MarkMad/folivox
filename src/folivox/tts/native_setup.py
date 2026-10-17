@@ -136,6 +136,19 @@ def log_file() -> Path:
     return root() / "logs" / "audiocpp_server.log"
 
 
+@lru_cache(maxsize=1)
+def under_rosetta() -> bool:
+    """True when this (x86_64) Python runs translated by Rosetta on Apple Silicon: no Metal / MLX then."""
+    if sys.platform != "darwin":
+        return False
+    try:
+        out = subprocess.run(["sysctl", "-n", "sysctl.proc_translated"], capture_output=True, text=True,
+                             timeout=5).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return out == "1"
+
+
 def platform_tag() -> str:
     machine = platform.machine().lower()
     arch = "arm64" if machine in ("arm64", "aarch64") else "x64" if machine in ("amd64", "x86_64") else machine

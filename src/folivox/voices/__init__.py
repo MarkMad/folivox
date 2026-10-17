@@ -59,8 +59,13 @@ def user() -> list[VoiceEntry]:
         for d in sorted(root.iterdir()):
             meta = d / "meta.json"
             if meta.exists():
-                v = json.loads(meta.read_text(encoding="utf-8"))
-                out.append(VoiceEntry(**v, path=d / "voice.flac"))
+                try:
+                    v = json.loads(meta.read_text(encoding="utf-8"))
+                    v.pop("bundled", None)
+                    v.pop("path", None)
+                    out.append(VoiceEntry(**v, path=d / "voice.flac"))
+                except (OSError, ValueError, TypeError, AttributeError):
+                    continue  # one broken or foreign meta.json must not hide every voice
     return out
 
 

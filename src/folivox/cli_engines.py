@@ -121,7 +121,7 @@ def engines_install(build_id: str = typer.Argument(..., help="Build id from `fol
     try:
         with weights.reporting(show):
             fish_setup.install(b, show, log=lambda m: console.print(m, markup=False))
-    except (fish_setup.InstallError, licences.LicenceError) as e:
+    except (fish_setup.InstallError, licences.LicenceError, RuntimeError, OSError) as e:  # network, disk
         console.print(f"\n[red]{e}[/]")
         raise typer.Exit(1) from None
     console.print(f"\n[green]Ready.[/] Use it:  folivox render BOOK --tts {b.engine} --tts-build {b.id} "

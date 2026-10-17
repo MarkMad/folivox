@@ -21,6 +21,7 @@ from folivox.tts import builds, licences, reuse
 from folivox.tts.builds import Build
 
 READY = "ready.json"
+RUN_TIMEOUT = 3600.0  # one environment step (venv, pip install)
 Progress = Callable[[str, int, int], None]
 
 
@@ -111,7 +112,13 @@ def verify_weights(b: Build, hook: Progress | None = None) -> list[str]:
 
 def _run(cmd: list[str], what: str, log: Callable[[str], None]) -> None:
     log(what)
-    r = subprocess.run(cmd, capture_output=True, text=True)  # noqa: S603 — argv built here, no shell
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True,  # noqa: S603 — argv built here, no shell
+                           timeout=RUN_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        raise InstallError(f"{what} did not finish in {RUN_TIMEOUT / 60:.0f} minutes and was stopped") from None
+    except OSError as e:
+        raise InstallError(f"{what} could not start: {e}") from e
     if r.returncode != 0:
         tail = "\n".join((r.stderr or r.stdout).strip().splitlines()[-12:])
         raise InstallError(f"{what} failed:\n{tail}")

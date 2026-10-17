@@ -146,20 +146,19 @@ def read_epub(path: Path) -> Book:
     import ebooklib
     from ebooklib import epub
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        eb = epub.read_epub(str(path), options={"ignore_ncx": False})
+    eb = _open_epub(path, epub)
 
     book = Book()
     titles = eb.get_metadata("DC", "title")
-    book.title = one_line(titles[0][0]) if titles else ""
-    book.authors = [one_line(a[0]) for a in eb.get_metadata("DC", "creator") if a[0].strip()]
+    # Empty elements (<dc:title/>) come back as None.
+    book.title = one_line(titles[0][0] or "") if titles else ""
+    book.authors = [one_line(a[0]) for a in eb.get_metadata("DC", "creator") if (a[0] or "").strip()]
     lang = eb.get_metadata("DC", "language")
-    book.lang = lang[0][0] if lang else ""
+    book.lang = (lang[0][0] or "") if lang else ""
     date = eb.get_metadata("DC", "date")
-    book.year = (date[0][0] if date else "")[:4]
+    book.year = ((date[0][0] if date else "") or "")[:4]
     desc = eb.get_metadata("DC", "description")
-    if desc:
+    if desc and desc[0][0]:
         book.annotation = one_line(_soup(desc[0][0]).get_text(" "))
     _read_cover(eb, book, ebooklib)
 
@@ -228,6 +227,34 @@ def read_epub(path: Path) -> Book:
     return book
 
 
+def _open_epub(path: Path, epub):
+    """ebooklib fails on a manifest entry whose file is missing from the archive; such files are
+    replaced by empty placeholders (in memory) and the book is read again."""
+    import io
+    import zipfile
+
+    src: str | io.BytesIO = str(path)
+    added: set[str] = set()
+    while True:
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                return epub.read_epub(src, options={"ignore_ncx": False})
+        except KeyError as e:
+            m = re.search(r"There is no item named '(.+)' in the archive", str(e))
+            if not m or m.group(1) in added or len(added) >= 200:
+                raise
+            added.add(m.group(1))
+            buf = io.BytesIO()
+            with zipfile.ZipFile(path) as zin, zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zout:
+                for info in zin.infolist():
+                    zout.writestr(info, zin.read(info))
+                for name in added:
+                    zout.writestr(name, b"")
+            buf.seek(0)
+            src = buf
+
+
 def _same(a: str, b: str) -> bool:
     norm = lambda s: re.sub(r"[\W_]+", "", s.lower())
     return norm(a) == norm(b) or (len(norm(b)) > 3 and norm(a).startswith(norm(b)))
@@ -261,6 +288,6 @@ def _read_cover(eb, book: Book, ebooklib) -> None:
                     it.get_type() == ebooklib.ITEM_IMAGE and "cover" in it.get_name().lower()):
                 item = it
                 break
-    if item is not None and getattr(item, "media_type", "").startswith("image/"):
+    if item is not None and (getattr(item, "media_type", None) or "").startswith("image/"):
         book.cover = item.get_content()
         book.cover_mime = item.media_type

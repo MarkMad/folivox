@@ -19,6 +19,7 @@ from pathlib import Path
 from folivox.tts import native_setup as ns
 from folivox.tts.native_setup import NativeError
 
+RUN_TIMEOUT = 3600.0  # one build step (fetch, tools, compile); a hung network must not block forever
 TARGETS = {"drama3": "fish_drama3"}  # build target -> audio.cpp model family list for --models
 
 
@@ -72,7 +73,13 @@ def can_build_here() -> str | None:
 
 def _run(cmd: list[str], cwd: Path | None, what: str, log: Callable[[str], None], env: dict | None = None) -> None:
     log(what)
-    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, env=env)  # noqa: S603 — argv built here
+    try:
+        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, env=env,  # noqa: S603 — argv built here
+                           timeout=RUN_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        raise NativeError(f"{what} did not finish in {RUN_TIMEOUT / 60:.0f} minutes and was stopped") from None
+    except OSError as e:
+        raise NativeError(f"{what} could not start: {e}") from e
     if r.returncode != 0:
         tail = "\n".join((r.stderr or r.stdout).strip().splitlines()[-12:])
         raise NativeError(f"{what} failed:\n{tail}")

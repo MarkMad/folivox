@@ -10,6 +10,15 @@ from folivox.readers.headings import heading_level, split_by_headings
 
 
 def decode(data: bytes) -> str:
+    # UTF-16 without a BOM: spaces and punctuation give a zero byte in every other position only
+    head = data[:4000]
+    if len(head) >= 8 and data[:2] not in (b"\xff\xfe", b"\xfe\xff") and b"\x00\x00" not in head:
+        odd, even = head[1::2].count(0), head[0::2].count(0)
+        if max(odd, even) > len(head) // 32 and min(odd, even) == 0:
+            try:
+                return data.decode("utf-16-le" if odd > even else "utf-16-be")
+            except UnicodeDecodeError:
+                pass
     for enc in ("utf-8-sig", "utf-16"):
         if enc == "utf-16" and data[:2] not in (b"\xff\xfe", b"\xfe\xff"):
             continue
@@ -28,6 +37,12 @@ def decode(data: bytes) -> str:
         sc = sum(text.count(ch) for ch in "оеаинт")
         if sc > score:
             best, score = text, sc
+    # Western single-byte text (cp1252) is mostly ASCII letters with a few accented
+    # bytes, Cyrillic single-byte text mostly high bytes
+    high = sum(1 for b in data if b >= 0x80)
+    ascii_letters = sum(1 for b in data if 65 <= b <= 90 or 97 <= b <= 122)
+    if high and high < 0.3 * (high + ascii_letters):
+        return data.decode("cp1252", errors="replace")
     return best
 
 

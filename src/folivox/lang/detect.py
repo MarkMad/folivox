@@ -109,7 +109,29 @@ def detect(text: str, default: str = "ru") -> str:
         return "ko"
     if script in ("kana", "han"):
         return "ja" if counts["kana"] > 0.05 * (counts["han"] + counts["kana"]) else "zh"
-    words = re.findall(r"[^\W\d_]+", sample.lower())
-    scores = {lang: sum(w in s for w in words) for lang, s in _SETS.items()}
-    best = max(scores, key=scores.get)
-    return best if scores[best] else default
+    # Latin script: function words and accents; "en" when nothing says (never the Cyrillic default)
+    return latin_lang(sample, "en")
+
+
+_UK = set("іїєґІЇЄҐ")
+_BE = set("ўЎ")
+
+
+def unsupported_cyrillic(text: str) -> str | None:
+    """"uk" or "be" when Cyrillic text looks Ukrainian / Belarusian rather than Russian, else None.
+    Cheap letter shares: і/ї/є/ґ (uk) or ў (be) among Cyrillic letters; Russian has none of them."""
+    cyr = uk = be = 0
+    for ch in text[:50000]:
+        if "\u0400" <= ch <= "\u04ff":
+            cyr += 1
+            if ch in _UK:
+                uk += 1
+            elif ch in _BE:
+                be += 1
+    if cyr < 200:
+        return None
+    if be >= 0.003 * cyr:
+        return "be"
+    if uk >= 0.02 * cyr:
+        return "uk"
+    return None

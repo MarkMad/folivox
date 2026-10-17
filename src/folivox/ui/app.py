@@ -83,7 +83,8 @@ def _book_summary(book_id: str, book, depth: int = 2, cover: str = "") -> dict:
     return {"book_id": book_id, "title": book.title, "author": book.author, "lang": book.lang,
             "lang_name": lang_name, "format": book.source_format, "year": book.year, "has_cover": bool(book.cover),
             "cover": cover,
-            "chars": book.chars, "estimated_seconds": book.estimated_seconds, "chapters": _chapters(book, depth)}
+            "chars": book.chars, "estimated_seconds": book.estimated_seconds, "chapters": _chapters(book, depth),
+            "warnings": list(getattr(book, "warnings", []) or [])}
 
 
 _PEAKS: dict[tuple[str, float], dict] = {}
@@ -200,7 +201,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         lib = library_read()
         lib[book_id] = {"title": book.title, "author": book.author, "lang": book.lang,
                         "chars": sum(len(b.text) for c in book.chapters(2) for b in c.blocks),
-                        "name": path.name, "used": time.time()}
+                        "name": path.name, "used": time.time(), "warnings": list(getattr(book, "warnings", []) or [])}
         state.data_dir.mkdir(parents=True, exist_ok=True)
         library_file().write_text(json.dumps(lib, ensure_ascii=False), encoding="utf-8")
 
@@ -703,7 +704,10 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         tmp.mkdir(parents=True)
         try:
             audio = tmp / (Path(f.filename or "voice.wav").name or "voice.wav")
-            audio.write_bytes(await f.read())
+            data = await f.read()
+            if len(data) > MAX_UPLOAD:
+                raise ApiError("File is too large", 413)
+            audio.write_bytes(data)
             transcribe = None
             text = str(form.get("transcript") or "").strip()
             if not text:
@@ -733,7 +737,10 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         f = form.get("file")
         if f is None or not hasattr(f, "read"):
             raise ApiError("No audio file in the request")
-        data, sr = sf.read(io.BytesIO(await f.read()), dtype="float32", always_2d=True)
+        try:
+            data, sr = sf.read(io.BytesIO(await f.read()), dtype="float32", always_2d=True)
+        except Exception as e:  # noqa: BLE001 — an unreadable upload is the client's error, not a server crash
+            raise ApiError(f"Cannot read the audio: {e}", 415) from None
         try:
             cleaned = await asyncio.to_thread(reduce_noise, data.mean(axis=1), sr)
         except RuntimeError as e:
@@ -1260,7 +1267,9 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             if bs:
                 out.append({"name": name, "label": bs[0].title.split(",")[0], "local": True, "cloud": False,
                             "fish": True, "blurb": "", "models": [], "per_hour": 0,
-                            "builds": [b.id for b in bs]})
+                            "builds": [b.id for b in bs],
+                            # named native builds run under any runtime; "auto" picks them only with runtime=native
+                            "native_builds": [b.id for b in bs if b.backend == "native"]})
         order = ["cosyvoice3", "fish-drama3", "fish-s2", "gemini", "cartesia", "fish", "elevenlabs",
                  "openai"]  # free first
         tags = {"gemini": "cheap and best", "openai": "low quality for non-English",
@@ -1538,6 +1547,15 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     def check(request: Request) -> JSONResponse | None:
         if allowed_hosts is not None and request.headers.get("host") not in allowed_hosts:
             return JSONResponse({"error": "Bad Host header"}, status_code=403)  # DNS-rebinding guard
+        # CSRF guard: a page on another site can still POST a form or multipart body to 127.0.0.1 (a "simple"
+        # request needs no CORS preflight), so a browser-sent Origin must be this server itself
+        origin = request.headers.get("origin")
+        if origin is not None:
+            scheme, _, rest = origin.partition("://")
+            if scheme not in ("http", "https") or rest.rstrip("/") != request.headers.get("host"):
+                return JSONResponse({"error": "Cross-site request refused"}, status_code=403)
+        if request.url.path.startswith("/api/") and request.headers.get("sec-fetch-site") == "cross-site":
+            return JSONResponse({"error": "Cross-site request refused"}, status_code=403)
         if token and request.url.path.startswith("/api/"):
             given = request.headers.get("x-folivox-token") or request.query_params.get("token") or ""
             cookie = request.cookies.get(cookie_name) or ""
@@ -1613,8 +1631,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         Route("/api/keys", get_keys),
         Route("/api/keys/{name}", put_key, methods=["PUT"]),
         Route("/api/keys/{name}", delete_key, methods=["DELETE"]),
-        *fish_routes.routes(ApiError, fish_install),
-        *runtime_routes.routes(ApiError, native_install),
+        *fish_routes.routes(ApiError, fish_install, lambda: state.manager.busy()),
+        *runtime_routes.routes(ApiError, native_install, lambda: state.manager.busy()),
         *markup_routes.routes(ApiError, state, services),
     ]
     app = Starlette(routes=routes, exception_handlers={ApiError: api_error, ValueError: bad_request,

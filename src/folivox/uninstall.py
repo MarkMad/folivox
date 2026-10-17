@@ -19,7 +19,9 @@ class Item:
 
 
 def _size(path: Path) -> int:
-    if path.is_file():
+    if path.is_symlink() or path.is_file():
+        if path.is_symlink():
+            return 0
         return path.stat().st_size
     return sum(p.stat().st_size for p in path.rglob("*") if p.is_file() and not p.is_symlink())
 
@@ -67,7 +69,8 @@ def remove(items: list[Item], everything: bool) -> list[str]:
     removed_repos = []
     for it in items:
         try:
-            shutil.rmtree(it.path) if it.path.is_dir() else it.path.unlink()
+            # A symlinked folder: remove the link, never what it points to (rmtree refuses links anyway).
+            shutil.rmtree(it.path) if it.path.is_dir() and not it.path.is_symlink() else it.path.unlink()
         except OSError as e:
             errors.append(f"{it.path}: {e}")
             continue

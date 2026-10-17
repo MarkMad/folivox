@@ -167,7 +167,7 @@ def load_markup(book: Book, opts: RenderOptions, events: Events):
 def speaker_voices(markup, main_voice, asr, opts: RenderOptions, events: Events) -> dict:
     """{speaker id: Voice} for the speakers that read something and have a voice of their own."""
     from folivox import voices as catalog
-    from folivox.tts.voice import load_voice
+    from folivox.tts.voice import VoiceError, load_voice
 
     out: dict = {}
     if markup is None:
@@ -182,7 +182,11 @@ def speaker_voices(markup, main_voice, asr, opts: RenderOptions, events: Events)
             wav, text = entry.path, entry.transcript
         else:
             wav, text = Path(ref).expanduser(), None
-        out[sid] = load_voice(wav, text, transcribe=asr.transcribe_file if asr else None)
+        try:
+            out[sid] = load_voice(wav, text, transcribe=asr.transcribe_file if asr else None)
+        except (VoiceError, OSError) as e:  # deleted catalog voice, moved or unreadable sample
+            events.warning(f"{sp.name}: the voice {ref} cannot be used ({e}); the narrator reads this character")
+            continue
         for w in out[sid].warnings:
             events.warning(f"{sp.name}: {w}")
     return out
@@ -505,6 +509,10 @@ def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions
                                                   events=events, voice=(voices or {}).get(chunk.speaker),
                                                   fragment_lang=chunk.lang)
             sr = engine.sample_rate
+            if not len(audio):
+                # an empty take (the model or the trimmer left nothing) would be written as a 0-byte file that
+                # never counts as done: re-synthesised (and billed) on every resume, its chapter never assembled
+                audio = np.zeros(max(1, int(sr * 0.05)), np.float32)
             dur = len(audio) / sr
             save(journal.audio_path(chunk.key), audio, sr)
             now = time.time()
@@ -522,6 +530,25 @@ def synthesize_pending(journal: Journal, engine, voice, asr, opts: RenderOptions
         raise
     finally:
         prefetch.close()
+
+
+def _cached_sample_rate(journal: Journal) -> int | None:
+    """Sample rate of the planned takes on disk. The journal's ``sample_rate`` is that of the last run, which
+    may have used another engine (Fish 44.1 kHz after CosyVoice 24 kHz) whose takes are not in this plan."""
+    import soundfile as sf
+
+    for c in journal.chunks():
+        try:
+            return int(sf.info(str(journal.audio_path(c.key))).samplerate)
+        except Exception:  # noqa: BLE001
+            continue
+    return None
+
+
+def _measured(path: Path, fallback: float) -> float:
+    from folivox.audio import audio_seconds
+
+    return audio_seconds(path) or fallback
 
 
 def _chapter_ok(path: Path, duration: float | None) -> bool:
@@ -624,6 +651,8 @@ def assemble(journal: Journal, book: Book, opts: RenderOptions, sample_rate: int
             events.stage("chapter", f"Building chapter {ci + 1}: {title}")
             dur = build_chapter([(journal.audio_path(c.key), c.pause) for c in chunks], path, sample_rate)
             journal.set_meta(**{f"chapter_sig_{ci}": sig, f"chapter_dur_{ci}": dur})
+        # chapter marks follow the file as written (older journals stored the pre-loudnorm length)
+        dur = _measured(path, dur)
         built.append(ChapterAudio(title, path, dur))
         events.chapter_built(ci, title, dur)
     if not built:
@@ -805,7 +834,7 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
             events.stage("device", f"Device: {device_label(engine)}")
             synthesize_pending(journal, engine, voice, asr, opts, events, voices)
         else:
-            sample_rate = journal.meta("sample_rate", 24000)
+            sample_rate = _cached_sample_rate(journal) or journal.meta("sample_rate", 24000)
         journal.set_meta(sample_rate=sample_rate)
         result = assemble(journal, book, opts, sample_rate, events)
         if cloud and owned and not opts.keep_voice:

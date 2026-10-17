@@ -7,6 +7,11 @@
 #>
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+# PowerShell 5.1 on older .NET defaults to TLS 1.0/1.1, which GitHub and astral.sh refuse
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
+# Keep this file pure ASCII: PS 5.1 reads a BOM-less file as ANSI, and a BOM can break irm | iex. Cyrillic is built from char codes.
+$CyrYes = "" + [char]0x434 + [char]0x414  # Cyrillic d / D ("da")
+$CyrNo  = "" + [char]0x43D + [char]0x41D  # Cyrillic n / N ("net")
 $Total = 5
 function Step($n, $t) { Write-Host "`n[$n/$Total] $t" -ForegroundColor White }
 function Ok($t)   { Write-Host "  v $t" -ForegroundColor Green }
@@ -46,8 +51,12 @@ Ok ((ffmpeg -version | Select-Object -First 1))
 Step 3 "Your computer"
 $extra = @()
 $torch = "torch<2.6"  # the tested version; RTX 50 cards need 2.7 (below)
-if ((Has nvidia-smi) -and ((nvidia-smi 2>$null) -ne $null)) {
-  Ok ("NVIDIA GPU found: " + (nvidia-smi --query-gpu=name --format=csv,noheader | Select-Object -First 1))
+$gpuOk = $false
+try { $gpuOk = (Has nvidia-smi) -and ($null -ne (nvidia-smi 2>$null)) } catch { }  # under Stop, PS 5.1 throws on native stderr
+if ($gpuOk) {
+  $gpuName = ""
+  try { $gpuName = "" + (nvidia-smi --query-gpu=name --format=csv,noheader 2>$null | Select-Object -First 1) } catch { }
+  Ok ("NVIDIA GPU found: " + $gpuName)
   # RTX 50 (Blackwell, compute capability 12.x / 10.x) has no kernels in builds before PyTorch 2.7 + CUDA 12.8:
   # "CUDA error: no kernel image is available". Older drivers lack compute_cap, so the name is the fallback.
   $caps = @(); $names = @()
@@ -95,6 +104,7 @@ Ok "folivox installed"
 Step 5 "Models and first check"
 $env:PYTHONIOENCODING = "utf-8"
 if ($env:FOLIVOX_SKIP_MODELS -eq "1") { folivox setup --skip-models } else { folivox setup }
+if ($LASTEXITCODE -ne 0) { Die "Folivox itself is installed, but setup (model download and checks) did not finish. Run  folivox setup  again (it needs the network), or  folivox doctor  to see what is wrong." }
 # Optional native C++ runtime (audio.cpp): only on request, FOLIVOX_NATIVE=1 (otherwise `folivox setup` asked, or: folivox runtime install)
 if ($env:FOLIVOX_NATIVE -eq "1") { folivox runtime install --yes; if ($LASTEXITCODE -ne 0) { Warn "Native runtime not installed. Later: folivox runtime install" } }
 # Optional Fish Audio engines (separate licences, 7-24 GB). Asked only of a person at a console, only where a tested build fits.
@@ -105,13 +115,14 @@ if ($fishBuild -and $env:FOLIVOX_NO_START -ne "1" -and -not $env:CI -and -not [C
   Write-Host "  They are not part of Folivox: a separate download from Hugging Face under the vendor's licence."
   Write-Host "  Personal use is free; selling audiobooks needs a commercial licence (details are shown before the download)."
   $fishAnswer = Read-Host "  Install $fishBuild now? You will see the licence first. [y/N]"
-  if ($fishAnswer -match '^[yYдД]') { folivox engines install $fishBuild; if ($LASTEXITCODE -ne 0) { Warn "Fish engine not installed. Later: folivox engines install $fishBuild" } }
+  if ($fishAnswer -match "^[yY$CyrYes]") { folivox engines install $fishBuild; if ($LASTEXITCODE -ne 0) { Warn "Fish engine not installed. Later: folivox engines install $fishBuild" } }
 }
 Write-Host "`nIf 'folivox' is not found in a new window: run  uv tool update-shell  and reopen PowerShell." -ForegroundColor White
 # Offer to open the studio, only for a person at a console (not agents, CI or redirected input). FOLIVOX_NO_START=1 skips it.
 if ($env:FOLIVOX_NO_START -ne "1" -and -not $env:CI -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected) {
   $answer = Read-Host "`nStart the studio now? [Y/n]"
-  if ($answer -notmatch '^[nNнН]') { folivox ui }
+  if ($answer -notmatch "^[nN$CyrNo]") { folivox ui }
 }
-if ($env:FOLIVOX_SELF_DELETE -eq "1" -and $MyInvocation.MyCommand.Path -and ((Split-Path -Leaf (Split-Path -Parent $MyInvocation.MyCommand.Path)) -like "folivox-update-*")) {  # only the temp folder `folivox update` made Remove-Item (Split-Path -Parent $MyInvocation.MyCommand.Path) -Recurse -Force -ErrorAction SilentlyContinue }
+if ($env:FOLIVOX_SELF_DELETE -eq "1" -and $MyInvocation.MyCommand.Path -and ((Split-Path -Leaf (Split-Path -Parent $MyInvocation.MyCommand.Path)) -like "folivox-update-*")) {  # only the temp folder `folivox update` made
+  Remove-Item (Split-Path -Parent $MyInvocation.MyCommand.Path) -Recurse -Force -ErrorAction SilentlyContinue }
 if ($env:FOLIVOX_WAIT_PID) { Read-Host "`nDone. Press Enter to close" | Out-Null }

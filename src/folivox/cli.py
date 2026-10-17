@@ -78,6 +78,11 @@ def _load(path: Path, lang: str | None = None) -> Book:
         raise typer.Exit(2) from None
     if lang:
         book.lang = _check_lang(lang)
+    else:
+        from folivox.readers import WARNING_TEXT
+
+        for w in book.warnings:
+            console.print(f"[yellow]⚠ {WARNING_TEXT.get(w, w)}[/]")
     return book
 
 
@@ -680,7 +685,13 @@ def voices_add(
         from folivox.qa.asr import Transcriber
 
         transcribe = Transcriber(language=lang).transcribe_file
-    v = load_voice(audio, text, transcribe=transcribe)
+    from folivox.tts.voice import VoiceError
+
+    try:
+        v = load_voice(audio, text, transcribe=transcribe)
+    except VoiceError as e:
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(2) from None
     for w in v.warnings:
         console.print(f"[yellow]⚠ {w}[/]")
     import tempfile
@@ -696,8 +707,12 @@ def voices_add(
             source = Path(tmp) / "denoised.wav"
             sf.write(str(source), reduce_noise(data.mean(axis=1), sr), sr)
             console.print("Background noise reduced.")
-        entry = catalog.add(voice_id, source, v.transcript, name=name, gender=gender, lang=lang, license=license,
-                            overwrite=force)
+        try:
+            entry = catalog.add(voice_id, source, v.transcript, name=name, gender=gender, lang=lang,
+                                license=license, overwrite=force)
+        except (ValueError, FileExistsError) as e:  # bad id, id taken
+            console.print(f"[red]{e}[/]")
+            raise typer.Exit(2) from None
     console.print(f"[green]Voice added:[/] {entry.id}: «{entry.transcript}»")
 
 
@@ -706,7 +721,11 @@ def voices_remove(voice_id: str = typer.Argument(..., help="Id of one of your vo
     """Remove one of your voices from the catalog."""
     from folivox import voices as catalog
 
-    catalog.remove(voice_id)
+    try:
+        catalog.remove(voice_id)
+    except FileNotFoundError as e:
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(2) from None
     console.print(f"Removed {voice_id}")
 
 
@@ -1150,11 +1169,15 @@ INSTALLER_URL = "https://raw.githubusercontent.com/vatavale/folivox/main/scripts
              epilog="[bold]Example[/]\n\n  [cyan]folivox update[/]   or, for a specific version, "
                     "[cyan]FOLIVOX_SOURCE=git+https://github.com/vatavale/folivox@<tag> folivox update[/]")
 def update(yes: bool = typer.Option(False, "--yes", "-y", help="Do not ask for confirmation.")):
-    """Runs the same installer you used the first time, whichever way that was."""
+    """Installs the latest Folivox release with the official installer (a source checkout is updated with git)."""
     import subprocess
     import tempfile
     import urllib.request
 
+    if _dev_checkout():
+        console.print("This Folivox runs from a development checkout, so the installer is not used. Update it with "
+                      "[cyan]git pull[/] and [cyan]uv sync[/] in the checkout. Nothing was changed.")
+        raise typer.Exit(1)
     windows = sys.platform == "win32"
     url = INSTALLER_URL.format(ext="ps1" if windows else "sh")
     console.print(f"Installed now: folivox {__version__}. The latest installer is fetched from [cyan]{url}[/]")
@@ -1174,8 +1197,12 @@ def update(yes: bool = typer.Option(False, "--yes", "-y", help="Do not ask for c
         path.write_bytes(script)
         env = {**os.environ, "FOLIVOX_NO_START": "1", "FOLIVOX_WAIT_PID": f"{os.getpid()},{os.getppid()}",
                "FOLIVOX_SELF_DELETE": "1"}
-        subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(path)],
-                         env=env, creationflags=subprocess.CREATE_NEW_CONSOLE)  # type: ignore[attr-defined]
+        try:
+            subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(path)],
+                             env=env, creationflags=subprocess.CREATE_NEW_CONSOLE)  # type: ignore[attr-defined]
+        except OSError as e:
+            console.print(f"[red]Could not start PowerShell to run the installer:[/] {e}. Nothing was changed.")
+            raise typer.Exit(1) from None
         console.print("The installer continues in a new window; this one closes so the files can be replaced. "
                       "Check the version afterwards with [cyan]folivox --version[/].")
         raise typer.Exit(0)
@@ -1185,11 +1212,30 @@ def update(yes: bool = typer.Option(False, "--yes", "-y", help="Do not ask for c
         env = {**os.environ, "FOLIVOX_NO_START": "1"}
         cmd = (["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(path)] if windows
                else ["bash", str(path)])
-        code = subprocess.call(cmd, env=env)
+        try:
+            code = subprocess.call(cmd, env=env)
+        except OSError as e:
+            console.print(f"[red]Could not start {cmd[0]} to run the installer:[/] {e}. Nothing was changed.")
+            raise typer.Exit(1) from None
     if code:
         console.print("[red]Update failed.[/] It is safe to run [cyan]folivox update[/] again.")
         raise typer.Exit(code)
     console.print("[green]✓[/] Updated. Check the version with [cyan]folivox --version[/].")
+
+
+def _dev_checkout() -> bool:
+    """True when Folivox runs from a source checkout or an editable install (the installer would not update it)."""
+    import json
+    from importlib import metadata
+
+    try:
+        raw = metadata.distribution("folivox").read_text("direct_url.json")
+        if raw and json.loads(raw).get("dir_info", {}).get("editable"):
+            return True
+    except (metadata.PackageNotFoundError, ValueError, AttributeError, OSError):
+        pass
+    pkg = Path(__file__).resolve().parent
+    return any((d / ".git").exists() for d in (pkg.parent, pkg.parent.parent))
 
 
 @app.command(help="Remove what Folivox downloaded (models; with --everything also voices and settings). "
@@ -1248,7 +1294,11 @@ def doctor(bundle: Path | None = typer.Option(None, "--bundle", "-b", help="Writ
     data = diag.report(work)
     console.print(diag.render_report_text(data), markup=False, highlight=False)
     if bundle:
-        path = diag.support_bundle(bundle, work)
+        try:
+            path = diag.support_bundle(bundle, work)
+        except OSError as e:
+            console.print(f"\nCould not write the support bundle to {bundle}: {e.strerror or e}", markup=False)
+            raise typer.Exit(1) from None
         console.print(f"\nSupport bundle: {path}\nIt holds no API keys and no book text; look inside before sharing.",
                       markup=False)
 

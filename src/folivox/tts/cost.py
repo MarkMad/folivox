@@ -7,16 +7,37 @@ from folivox.tts.cloud import CHARS_PER_SECOND, generator_class
 RETAKE_SHARE = 0.10  # expected share of fragments that fail QA once and are billed again
 
 
+SAMPLE_BLOCKS = 400  # blocks normalised to measure how much longer the sent text is than the raw text
+
+
 def book_chars(book, depth: int = 2, selected: list[int] | None = None, preview: int | None = None) -> int:
-    """Characters that would be sent: the text of the selected chapters (``selected`` 1-based)."""
-    chapters = book.chapters(depth)
+    """Characters that would be sent for the selected chapters (``selected`` 1-based): the raw text scaled by how
+    much the language's normalisation (numbers, dates, abbreviations spelled out) lengthens a sample of it."""
+    chosen = [ch for i, ch in enumerate(book.chapters(depth), 1) if not selected or i in selected]
+    ratio = _normalised_ratio([b.text for ch in chosen for b in ch.blocks if b.text],
+                              getattr(book, "lang", "") or "ru")
     total = 0
-    for i, ch in enumerate(chapters, 1):
-        if selected and i not in selected:
-            continue
-        n = sum(len(b.text) for b in ch.blocks)
-        total += min(n, preview) if preview else n
+    for ch in chosen:
+        n = int(round(sum(len(b.text) for b in ch.blocks) * ratio))
+        total += min(n, preview) if preview else n  # a preview is capped on the text as sent
     return total
+
+
+def _normalised_ratio(texts: list[str], lang: str) -> float:
+    """Normalised / raw length over an evenly spread sample of blocks; never below 1 (estimate errs high)."""
+    if not texts:
+        return 1.0
+    try:
+        from folivox import lang as languages
+
+        normalize = languages.get(lang).normalize
+        step = max(1, len(texts) // SAMPLE_BLOCKS)
+        sample = texts[::step][:SAMPLE_BLOCKS]
+        raw = sum(len(t) for t in sample)
+        sent = sum(len(normalize(t)) for t in sample)
+    except Exception:  # noqa: BLE001 — an estimate must not fail on a normaliser bug; fall back to the raw count
+        return 1.0
+    return max(1.0, sent / raw) if raw else 1.0
 
 
 def estimate(provider: str, chars: int, model: str, takes: int = 2, qa: bool = True, mode: str = "preset",

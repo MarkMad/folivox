@@ -6,6 +6,7 @@ llama.cpp / vLLM server…) with the user's own key.
 
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import urllib.request
@@ -49,8 +50,11 @@ def recommend_model(total_ram_gb: float | None) -> str:
 def _post(url: str, payload: dict, headers: dict | None = None, timeout: float = 600) -> dict:
     req = urllib.request.Request(url, data=json.dumps(payload).encode(), method="POST",
                                  headers={"Content-Type": "application/json", **(headers or {})})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read())
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read())
+    except http.client.HTTPException as e:  # a cut-off reply (IncompleteRead) is not an OSError
+        raise ConnectionError(f"the server broke off the reply: {e!r}") from None
 
 
 class Ollama(LLM):
@@ -145,7 +149,7 @@ class OpenAICompatible(LLM):
         msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
         r = _post(f"{self.base_url}/chat/completions", {"model": self.model, "messages": msgs},
                   {"Authorization": f"Bearer {self.key}"})
-        return r["choices"][0]["message"]["content"].strip()
+        return (r["choices"][0]["message"]["content"] or "").strip()  # null content: a refusal or a filtered reply
 
 
 LLMS: Registry = Registry("llm", default="ollama")

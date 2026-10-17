@@ -11,7 +11,7 @@ from starlette.routing import Route
 from folivox import config
 from folivox.tts import native_setup as ns
 from folivox.tts import runtime as tts_runtime
-from folivox.ui.fish_routes import Install
+from folivox.ui.fish_routes import JOB_BUSY, Install, json_object
 
 
 def state_payload(install: Install) -> dict:
@@ -31,12 +31,14 @@ def state_payload(install: Install) -> dict:
             "install": install.snapshot(), "advice": tts_runtime.advice()}
 
 
-def routes(api_error, install: Install) -> list[Route]:
+def routes(api_error, install: Install, busy=lambda: False) -> list[Route]:
+    """``busy()`` tells whether a render, preview or voice generation is running (removal would break it)."""
+
     async def get_state(request: Request):
         return JSONResponse(state_payload(install))
 
     async def put_state(request: Request):
-        value = str((await request.json()).get("inference", ""))
+        value = str((await json_object(request, api_error)).get("inference", ""))
         try:
             config.save_runtime(value)
         except ValueError as e:
@@ -78,8 +80,11 @@ def routes(api_error, install: Install) -> list[Route]:
         return JSONResponse(install.snapshot(), status_code=202)
 
     async def remove(request: Request):
-        if install.state == "running":
-            raise api_error("The native runtime is being installed; wait for it", 409)
+        with install.lock:
+            if install.state == "running":
+                raise api_error("The native runtime is being installed; wait for it", 409)
+            if busy():
+                raise api_error(JOB_BUSY, 409, code="job_busy")
         from folivox.tts import native
 
         native.shutdown_all()

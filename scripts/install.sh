@@ -24,6 +24,9 @@ if ! command -v uv >/dev/null 2>&1; then
   command -v curl >/dev/null 2>&1 || die "curl is needed to install uv. Install curl, or install uv yourself: https://docs.astral.sh/uv/"
   curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || die "Could not install uv (no network?). See https://docs.astral.sh/uv/"
   export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+  # The uv installer honours these overrides; without them a custom install dir looks like "not on PATH".
+  [ -n "${XDG_BIN_HOME:-}" ] && export PATH="$XDG_BIN_HOME:$PATH"
+  [ -n "${UV_INSTALL_DIR:-}" ] && export PATH="$UV_INSTALL_DIR:$UV_INSTALL_DIR/bin:$PATH"
 fi
 command -v uv >/dev/null 2>&1 || die "uv was installed but is not on PATH. Open a new terminal and run this script again."
 ok "uv $(uv --version | awk '{print $2}')"
@@ -33,14 +36,20 @@ step 2 "ffmpeg (builds the audiobook file)"
 if command -v ffmpeg >/dev/null 2>&1; then
   ok "$(ffmpeg -version | head -1 | cut -d' ' -f1-3)"
 else
+  # A fresh terminal may not have Homebrew on PATH yet (Apple Silicon: /opt/homebrew, Intel: /usr/local).
+  if [ "$OS" = Darwin ] && ! command -v brew >/dev/null 2>&1; then
+    for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "$b" ] && { eval "$("$b" shellenv)"; break; }; done
+  fi
   if [ "$OS" = Darwin ] && command -v brew >/dev/null 2>&1; then
     echo "  installing with Homebrew…"; brew install ffmpeg >/dev/null 2>&1 || die "brew could not install ffmpeg. Run: brew install ffmpeg"
   elif [ "$OS" = Linux ] && command -v apt-get >/dev/null 2>&1 && [ "$(id -u)" = 0 ]; then
-    apt-get install -y ffmpeg >/dev/null 2>&1 || die "apt could not install ffmpeg"
+    { apt-get update >/dev/null 2>&1 || true; DEBIAN_FRONTEND=noninteractive apt-get install -y ffmpeg >/dev/null 2>&1; } || die "apt could not install ffmpeg"
   else
     die "ffmpeg is missing. Install it, then run this script again:
      macOS:  brew install ffmpeg      (get Homebrew at https://brew.sh)
-     Debian/Ubuntu:  sudo apt install ffmpeg      Fedora:  sudo dnf install ffmpeg"
+     Debian/Ubuntu:  sudo apt install ffmpeg
+     Fedora:  sudo dnf install ffmpeg      (RHEL/Alma/Rocky: enable RPM Fusion first)
+     Arch:  sudo pacman -S ffmpeg      openSUSE:  sudo zypper install ffmpeg"
   fi
   ok "ffmpeg installed"
 fi
@@ -79,7 +88,7 @@ elif [ -f "$HERE/../pyproject.toml" ] && grep -q '^name = "folivox"' "$HERE/../p
 else SRC="https://github.com/vatavale/folivox/archive/refs/heads/main.zip"; fi  # run through curl | bash: install from the GitHub archive (no git needed)
 case "$SRC" in
   http*|git+*) SPEC="folivox[all] @ $SRC" ;;
-  *) if [ -e "$SRC/pyproject.toml" ]; then SPEC="$(cd "$SRC" && pwd)[all]"; else SPEC="$SRC[all]"; fi ;;
+  *) if [ -e "$SRC/pyproject.toml" ]; then SPEC="$(cd "$SRC" && pwd)[all]"; else SPEC="${SRC}[all]"; fi ;;
 esac
 uv tool install --force --refresh-package folivox --python ">=3.10,<3.13" ${EXTRA[@]+"${EXTRA[@]}"} "$SPEC" || die "Installation failed. Check the network and run this script again; it is safe to repeat."
 uv tool update-shell >/dev/null 2>&1 || true
@@ -89,7 +98,10 @@ ok "folivox $(folivox --version 2>/dev/null || true)"
 
 # -- 5. models + guide ---------------------------------------------------------------------------
 step 5 "Models and first check"
-if [ "${FOLIVOX_SKIP_MODELS:-0}" = 1 ]; then folivox setup --skip-models; else folivox setup; fi
+SETUP_RC=0
+if [ "${FOLIVOX_SKIP_MODELS:-0}" = 1 ]; then folivox setup --skip-models || SETUP_RC=$?; else folivox setup || SETUP_RC=$?; fi
+[ "$SETUP_RC" = 0 ] || die "Folivox itself is installed, but setup (model download and checks) did not finish.
+  Run  folivox setup  again (it needs the network), or  folivox doctor  to see what is wrong."
 # Optional native C++ runtime (audio.cpp): only on request, FOLIVOX_NATIVE=1 (otherwise `folivox setup` asked, or: folivox runtime install)
 if [ "${FOLIVOX_NATIVE:-0}" = 1 ]; then folivox runtime install --yes || warn "Native runtime not installed. Later: folivox runtime install"; fi
 # Optional Fish Audio engines (separate licences, 7-24 GB). Asked only of a person at a terminal, only where a tested build fits.
@@ -107,5 +119,5 @@ printf '\n%sIf the command is not found in a new terminal:%s run  %suv tool upda
 if [ "${FOLIVOX_NO_START:-0}" != 1 ] && [ -z "${CI:-}" ] && [ -t 1 ] && (: </dev/tty) 2>/dev/null; then
   printf '\n%sStart the studio now?%s [Y/n] ' "$B" "$N"
   read -r ANSWER </dev/tty || ANSWER=n
-  case "$ANSWER" in [nNнН]*) ;; *) exec folivox ui </dev/tty ;; esac
+  case "$ANSWER" in [nNнН]*) ;; *) rm -f "$CONSTRAINTS"; exec folivox ui </dev/tty ;; esac
 fi

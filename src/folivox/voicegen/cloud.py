@@ -112,6 +112,7 @@ class CloudGenerator(VoiceGenerator):
     docs_url = ""
     max_chars = 2000  # per request
     retries = 4
+    server_pauses = (3.0, 15.0)  # seconds before the 1st and 2nd re-send after a 5xx
 
     models: tuple[dict, ...] = ()  # {"id", "label", "note"}, best first; ids the provider accepts
     style = False  # preset voices accept a free-text style / narration note
@@ -197,7 +198,8 @@ class CloudGenerator(VoiceGenerator):
         if raw is not None:
             body, ctype = raw
         headers = {**self.headers(), **(headers or {}), **({"Content-Type": ctype} if body is not None else {})}
-        for attempt in range(self.retries + 1):
+        server_tries = 0
+        for attempt in range(self.retries + 1 + len(self.server_pauses)):
             try:
                 resp = self.transport(method, url, headers, body, timeout)
             except CloudError as e:
@@ -208,7 +210,14 @@ class CloudGenerator(VoiceGenerator):
             if resp.status < 300:
                 return resp
             err = self.map_error(resp)
-            if err.kind in ("rate_limit", "server") and attempt < self.retries:
+            if err.kind == "server":
+                # A 5xx may still have been billed, so a paid request is re-sent at most twice: after a short
+                # pause, then after a longer one (a provider's Retry-After wins, within the cap)
+                if server_tries < len(self.server_pauses):
+                    self._sleep(min(err.retry_after or self.server_pauses[server_tries], 60))
+                    server_tries += 1
+                    continue
+            elif err.kind == "rate_limit" and attempt < self.retries:  # refused before any work: not billed
                 self._sleep(min(err.retry_after or backoff(attempt + 1), 60))
                 continue
             raise err
@@ -221,6 +230,8 @@ class CloudGenerator(VoiceGenerator):
         try:
             retry = float(resp.headers.get("retry-after", ""))
         except ValueError:
+            retry = None
+        if retry is not None and not 0 <= retry < 86400:  # negative, NaN or absurd values would crash sleep()
             retry = None
         if s in (401, 403):
             return CloudError(f"{who} rejected the API key ({s}). Check {self.key_env} or save a new key{suffix}",
@@ -241,6 +252,10 @@ class CloudGenerator(VoiceGenerator):
     def is_quota(self, resp: Response, msg: str) -> bool:
         body = resp.body.lower().decode("utf-8", "replace")
         return any(t in body for t in self.QUOTA_TOKENS)
+
+    def billed_chars(self, job: Job) -> int:
+        """Characters the provider bills for one request (the text plus anything added to it)."""
+        return len(job.text)
 
     def check_text(self, text: str) -> None:
         if len(text) > self.max_chars:

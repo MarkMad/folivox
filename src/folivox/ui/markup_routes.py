@@ -116,7 +116,10 @@ def routes(api_error, state, services: dict) -> list[Route]:
         entry = state.book(bid)
         sid = int(request.path_params["speaker"])
         bp, mp, _ = files(bid)
-        bible = ml.Bible.load(bp) if bp.is_file() else ml.Bible()
+        try:
+            bible = ml.Bible.load(bp) if bp.is_file() else ml.Bible()
+        except ml.LLMError as e:
+            raise api_error(str(e)) from None
         c = next((x for x in bible.characters if x.id == sid), None)
         markup = mk.Markup.load(mp) if mp.is_file() else None
         depth = markup.depth if markup else 2
@@ -199,7 +202,10 @@ def routes(api_error, state, services: dict) -> list[Route]:
         picked = {int(x) - 1 for x in request.query_params.get("chapters", "").split(",") if x.strip().isdigit()}
         chapters = entry["book"].chapters(depth)
         bp = files(bid)[0]
-        bible = ml.Bible.load(bp) if bp.is_file() else ml.Bible()
+        try:
+            bible = ml.Bible.load(bp) if bp.is_file() else ml.Bible()
+        except ml.LLMError as e:
+            raise api_error(str(e)) from None
         every = ml.windows(chapters, ml.WINDOW_CHARS, only_speech=False)
         speech = [w for w in ml.windows(chapters, ml.WINDOW_CHARS, only_speech=True)
                   if (not chapter or w.chapter == int(chapter) - 1) and (not picked or w.chapter in picked)]
@@ -242,6 +248,8 @@ def routes(api_error, state, services: dict) -> list[Route]:
         bid = request.path_params["book_id"]
         entry = state.book(bid)
         body = await request.json()
+        if not isinstance(body, dict):
+            raise api_error("Expected a JSON object")
         what = body.get("task")
         if what not in ("analyse", "auto", "prompts", "preview", "best"):
             raise api_error("task must be analyse, auto, prompts, preview or best")
@@ -263,6 +271,8 @@ def routes(api_error, state, services: dict) -> list[Route]:
         expression = bool(body.get("expression_tags", False))
         sample = int(body["sample"]) if body.get("sample") else None
         only = body.get("chapters")
+        if only and not isinstance(only, list):  # a string "12" would be read digit by digit
+            raise api_error("chapters must be a list of chapter numbers")
         chapter_filter = {int(n) - 1 for n in only} if only else None
         bp, mp, cp = files(bid)
         for f in (bp, mp, cp):
@@ -298,7 +308,7 @@ def routes(api_error, state, services: dict) -> list[Route]:
             """The two ways the page offers: a preview (a sample, minutes) or the best that can be done (every
             chapter chosen, the whole book read, the characters looked at again, doubtful places asked about again)."""
             cache = ml.Cache(cp)
-            runner = ml.Runner(llm, model, cache)
+            runner = ml.Runner(llm, model, cache, cancelled=t.cancel.is_set)
             try:
                 bible = ml.Bible.load(bp) if bp.is_file() else ml.Bible()
                 markup = mk.Markup.load(mp) if mp.is_file() else mk.Markup(depth=depth)
@@ -342,10 +352,10 @@ def routes(api_error, state, services: dict) -> list[Route]:
             if what in ("preview", "best"):
                 return work_mode()
             cache = ml.Cache(cp)
-            runner = ml.Runner(llm, model, cache)
+            runner = ml.Runner(llm, model, cache, cancelled=t.cancel.is_set)
             try:
                 bible = ml.Bible.load(bp) if bp.is_file() and body.get("resume", True) else ml.Bible()
-                if what == "analyse" or bible.done_windows < max(bible.total_windows, 1):
+                if what == "analyse" or bible.sampled or bible.done_windows < max(bible.total_windows, 1):
                     bible = ml.analyse(chapters, book.lang, runner, bible, save=lambda b: b.save(bp),
                                        max_windows=sample if what == "analyse" else None, progress=progress,
                                        cancelled=t.cancel.is_set)

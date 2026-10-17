@@ -72,6 +72,8 @@ class Book:
     cover_mime: str | None = None
     sections: list[Section] = field(default_factory=list)
     source_format: str = ""
+    # Plain-language notes for the user about how the book will be read (e.g. an unsupported language).
+    warnings: list[str] = field(default_factory=list)
 
     @property
     def author(self) -> str:

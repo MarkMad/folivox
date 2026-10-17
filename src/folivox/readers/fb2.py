@@ -118,7 +118,9 @@ def _parse(path: Path):
     parser = etree.XMLParser(recover=True, huge_tree=True, resolve_entities=False, no_network=True)
     if zipfile.is_zipfile(path):
         with zipfile.ZipFile(path) as z:
-            name = next((n for n in z.namelist() if n.lower().endswith(".fb2")), None)
+            # skip macOS resource forks (__MACOSX/._book.fb2), which are not XML
+            name = next((n for n in z.namelist() if n.lower().endswith(".fb2") and "__macosx" not in n.lower()
+                         and not n.rsplit("/", 1)[-1].startswith(".")), None)
             if name is None:
                 raise ValueError(f"No .fb2 file inside the archive: {path}")
             data = z.read(name)

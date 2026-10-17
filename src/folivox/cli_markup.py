@@ -257,7 +257,11 @@ def markup_analyse(book_path: Path = typer.Argument(...), depth: int = typer.Opt
     book = cli._load(book_path)
     llm, model_name = _llm(llm_name, model)
     bp, cp = ml.bible_path(book_path), ml.cache_path(book_path)
-    bible = ml.Bible.load(bp) if bp.is_file() and not fresh else ml.Bible()
+    try:
+        bible = ml.Bible.load(bp) if bp.is_file() and not fresh else ml.Bible()
+    except ml.LLMError as e:
+        console.print(f"[red]{e}[/] Start over with --fresh.")
+        raise typer.Exit(2) from None
     if bible.model and bible.model != model_name:
         console.print(f"[yellow]The list was made with {bible.model}; continuing with {model_name}.[/]")
     cache = ml.Cache(cp)
@@ -325,7 +329,7 @@ def markup_auto(book_path: Path = typer.Argument(...), depth: int = typer.Option
     runner = ml.Runner(llm, model_name, cache)
     try:
         bible = ml.Bible.load(bp) if bp.is_file() else ml.Bible()
-        if bible.done_windows < max(bible.total_windows, 1):
+        if bible.sampled or bible.done_windows < max(bible.total_windows, 1):  # a preview is not a full reading
             console.print("Reading the book for its characters first…")
             bible = ml.analyse(chs, book.lang, runner, bible, save=lambda b: b.save(bp), progress=_progress())
         if best:
@@ -350,6 +354,9 @@ def markup_auto(book_path: Path = typer.Argument(...), depth: int = typer.Option
     except ml.LLMError as e:
         console.print(f"[red]{e}[/] Progress is saved: run the same command again to continue.")
         raise typer.Exit(1) from None
+    except mk.MarkupError as e:  # an unreadable markup file
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(2) from None
     finally:
         cache.close()
     markup.expression_tags = markup.expression_tags if not expression else True

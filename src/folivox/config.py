@@ -51,7 +51,10 @@ def load() -> dict:
     else:
         import tomli as tomllib
     with path.open("rb") as f:
-        data = tomllib.load(f)
+        try:
+            data = tomllib.load(f)
+        except tomllib.TOMLDecodeError as e:
+            raise ValueError(f"{path}: not valid TOML ({e})") from e
     _reject_keys(data)
     return data
 
@@ -101,7 +104,8 @@ def save_runtime(value: str) -> None:
         raise ValueError(f"Unknown inference runtime {value!r}; choose one of {', '.join(RUNTIMES)}")
     path = config_path()
     data = dict(load())
-    data["runtime"] = {**data.get("runtime", {}), "inference": value}
+    old = data.get("runtime")
+    data["runtime"] = {**(old if isinstance(old, dict) else {}), "inference": value}
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
         shutil.copy2(path, path.with_suffix(path.suffix + ".bak"))

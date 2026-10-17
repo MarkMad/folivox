@@ -14,7 +14,8 @@ from platformdirs import user_data_dir
 
 REPO_ID = "FunAudioLLM/Fun-CosyVoice3-0.5B-2512"
 REQUIRED = ["cosyvoice3.yaml", "llm.pt", "flow.pt", "hift.pt", "campplus.onnx", "speech_tokenizer_v3.onnx",
-            "CosyVoice-BlankEN/config.json"]
+            "CosyVoice-BlankEN/config.json", "CosyVoice-BlankEN/model.safetensors", "CosyVoice-BlankEN/vocab.json",
+            "CosyVoice-BlankEN/merges.txt", "CosyVoice-BlankEN/tokenizer_config.json"]
 # Skipped: TensorRT estimator export, batch tokenizer, the RL variant of the LLM (~4.3 GB together).
 ALLOW = ["cosyvoice3.yaml", "config.json", "configuration.json", "llm.pt", "flow.pt", "hift.pt", "campplus.onnx",
          "speech_tokenizer_v3.onnx", "CosyVoice-BlankEN/*", "README.md"]
@@ -72,10 +73,13 @@ def _downloaded(target: Path, patterns: list[str]) -> int:
         if not p.is_file():
             continue
         rel = p.relative_to(target).as_posix()
-        if rel.startswith(".cache/"):
-            done += _live_size(p) if rel.endswith(".incomplete") else 0
-        elif any(fnmatch.fnmatch(rel, pat) for pat in patterns):
-            done += p.stat().st_size
+        try:  # a part file renamed to its final name between the walk and the stat must not kill the watcher
+            if rel.startswith(".cache/"):
+                done += _live_size(p) if rel.endswith(".incomplete") else 0
+            elif any(fnmatch.fnmatch(rel, pat) for pat in patterns):
+                done += p.stat().st_size
+        except OSError:
+            continue
     return done
 
 
@@ -224,10 +228,23 @@ def with_retries(fn, what: str, attempts: int = DOWNLOAD_ATTEMPTS, sleep=None):
     import time
 
     sleep = sleep or time.sleep
+    try:  # permanent hub answers (wrong repo/file/revision, gated): retrying only wastes time
+        from huggingface_hub.errors import (
+            EntryNotFoundError,
+            GatedRepoError,
+            RepositoryNotFoundError,
+            RevisionNotFoundError,
+        )
+        permanent: tuple[type[BaseException], ...] = (RepositoryNotFoundError, EntryNotFoundError, GatedRepoError,
+                                                      RevisionNotFoundError)
+    except ImportError:
+        permanent = ()
     for attempt in range(1, attempts + 1):
         try:
             return fn()
         except (KeyboardInterrupt, FileNotFoundError, PermissionError):
+            raise
+        except permanent:
             raise
         except OSError as e:
             if getattr(e, "errno", None) == 28:  # ENOSPC
@@ -261,26 +278,50 @@ def resolve_model_dir(explicit: str | os.PathLike | None = None, download: bool 
 LLM_FILES = {"base": "llm.pt", "rl": "llm.rl.pt"}
 
 
+def _has(f: Path) -> bool:
+    try:
+        return f.is_file() and f.stat().st_size > 0
+    except OSError:
+        return False
+
+
 def needs_download(explicit: str | os.PathLike | None = None, llm: str = "rl") -> bool:
     """True when starting the engine would download weights (so the UI can say so up front)."""
-    if explicit or os.environ.get(ENV):
-        return False  # a user-provided folder is never downloaded into (an incomplete one is an error)
-    p = default_model_dir()
-    llm_file = p / LLM_FILES.get(llm, "llm.pt")
-    return not is_complete(p) or not llm_file.exists() or llm_file.stat().st_size == 0
+    name = LLM_FILES.get(llm, "llm.pt")
+    own = default_model_dir()
+    for cand in (explicit, os.environ.get(ENV)):
+        if cand:
+            # a user-provided folder is never downloaded into (an incomplete one is an error); a missing
+            # LLM file comes from Folivox's own model folder instead, see ensure_llm
+            p = Path(cand).expanduser()
+            return is_complete(p) and not _has(p / name) and not _has(own / name)
+    return not is_complete(own) or not _has(own / name)
 
 
 def ensure_llm(model_dir: Path, variant: str) -> str:
-    """Return the LLM weights file name for ``variant``, downloading the RL file on demand."""
+    """Return the LLM weights file for ``variant``, relative to ``model_dir``, downloading the RL file on demand.
+
+    Folivox downloads only into its own model folder: when a user-managed ``model_dir`` lacks the file, the copy
+    in ``default_model_dir()`` is used (and downloaded there if needed) and returned as a path relative to
+    ``model_dir``, because CosyVoice3 joins the two as ``f"{model_dir}/{llm_file}"``."""
     name = LLM_FILES[variant]
-    f = model_dir / name
-    if not f.exists() or f.stat().st_size == 0:
+    if _has(model_dir / name):
+        return name
+    own = default_model_dir()
+    if not _has(own / name):
         from huggingface_hub import hf_hub_download
 
-        print(f"Downloading {name} (~2 GB)…", flush=True)
-        with _watch(name, model_dir, [name]):
-            with_retries(lambda: hf_hub_download(REPO_ID, name, local_dir=str(model_dir)), name)
-    return name
+        own.mkdir(parents=True, exist_ok=True)
+        print(f"Downloading {name} (~2 GB) to {own}…", flush=True)
+        with _watch(name, own, [name]):
+            with_retries(lambda: hf_hub_download(REPO_ID, name, local_dir=str(own)), name)
+    try:
+        if own.resolve() == model_dir.resolve():
+            return name
+        return os.path.relpath(own.resolve() / name, model_dir.resolve())
+    except ValueError:  # Windows: different drives have no relative path
+        raise FileNotFoundError(f"{model_dir} has no {name} and Folivox's copy in {own} is on another drive. "
+                                f"Copy {own / name} into {model_dir}, or use the base model (llm=base)") from None
 
 
 def download_weights(target: Path) -> Path:

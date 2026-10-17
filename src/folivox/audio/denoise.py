@@ -30,7 +30,7 @@ def reduce_noise(audio: np.ndarray, sr: int, strength: float = 0.7) -> np.ndarra
         raise RuntimeError('Noise reduction needs the "noisereduce" package: pip install "folivox[denoise]"') from e
     audio = np.asarray(audio, dtype=np.float32)
     profile = quiet_profile(audio, sr)
-    if len(profile) < sr * 0.1 or float(np.abs(audio).max()) < 1e-4:
+    if len(profile) < sr * 0.1 or not len(audio) or float(np.abs(audio).max()) < 1e-4:
         return audio  # nothing to learn the noise from (or digital silence)
     out = noisereduce.reduce_noise(y=audio, sr=sr, y_noise=profile, stationary=True, prop_decrease=strength,
                                    n_std_thresh_stationary=1.5, freq_mask_smooth_hz=None, time_mask_smooth_ms=None)

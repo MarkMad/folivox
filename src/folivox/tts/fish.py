@@ -41,6 +41,7 @@ def to_reference_wav(src: Path, dst: Path) -> Path:
     r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(src), "-ac", "1", "-ar", "44100",
                         str(dst)], capture_output=True, text=True)  # noqa: S603, S607
     if r.returncode != 0:
+        dst.unlink(missing_ok=True)  # a partial file would be taken for a finished one next time
         raise FishError(f"Could not prepare the reference voice {src.name}: {r.stderr.strip()[-300:]}")
     return dst
 
@@ -155,12 +156,18 @@ class FishEngine(TTSEngine):
         if self._worker is not None:
             return
         python = fish_setup.venv_python(self.build.runtime)
-        self._worker = _Worker(python)
         ref = self._reference(voice)
+        self._worker = _Worker(python)
         t0 = time.time()
-        rep = self._worker.call({"cmd": "load", "model_dir": str(builds.weights_dir(self.build)),
-                                 "kind": self.build.kind, "warmup": {"wav": str(ref), "text": voice.transcript}},
-                                LOAD_TIMEOUT)
+        try:
+            rep = self._worker.call({"cmd": "load", "model_dir": str(builds.weights_dir(self.build)),
+                                     "kind": self.build.kind, "warmup": {"wav": str(ref), "text": voice.transcript}},
+                                    LOAD_TIMEOUT)
+        except BaseException:
+            # a failed load must not leave a model-less worker behind: the next start() would skip loading
+            self._worker.close()
+            self._worker = None
+            raise
         self.sample_rate = int(rep["sample_rate"])
         self.load_seconds = time.time() - t0
 
