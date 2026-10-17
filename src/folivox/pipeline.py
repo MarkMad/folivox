@@ -231,8 +231,8 @@ def plan(book: Book, opts: RenderOptions, journal: Journal, voice_id: str, event
             events.warning(f"Pronunciations: {w}")
         for w in copts.lexicon.unusable_here(not cloud):
             events.warning(f"Pronunciations: «{w}» is given as phonemes only; an online engine reads it as written")
-    tags_ok = markup is not None and is_fish(opts.tts) and opts.expression_tags
-    if markup is not None and opts.expression_tags and not is_fish(opts.tts) and any(
+    tags_ok = markup is not None and takes_tags(opts.tts) and opts.expression_tags
+    if markup is not None and opts.expression_tags and not takes_tags(opts.tts) and any(
             c.marks or any(s.tags for s in c.spans) for c in markup.chapters.values()):
         events.warning("Expression tags are written only for Fish engines; this engine reads the text without them")
 
@@ -685,6 +685,11 @@ def is_fish(name: str) -> bool:
     return builds.is_fish_engine(name)
 
 
+def takes_tags(name: str) -> bool:
+    """Engines that read ``[calm]`` style directions in the text: the local Fish builds and Fish Audio online."""
+    return is_fish(name) or name == "fish"
+
+
 def is_cloud(name: str) -> bool:
     from folivox.tts import ENGINES
 
@@ -736,6 +741,74 @@ def _cloud_voice(engine, opts: RenderOptions, journal: Journal, events: Events):
         saved.add(opts.tts, voice.speaker, name, opts.tts_mode, opts.tts_description, opts.lang)
         events.stage("voice", f"Voice “{name}” is kept in your account and listed for other books")
     return voice, True
+
+
+SPEAKER_VOICE_KINDS = {"fish:": "preset", "fish-design:": "design", "fish-clone:": "clone"}
+
+
+def cloud_speaker_voices(markup, engine, opts: RenderOptions, journal: Journal, events: Events):
+    """``({speaker id: CloudVoice}, [(speaker, voice)])`` for an online engine (Fish Audio only).
+
+    A speaker's voice is written ``fish:<voice id>`` (library or own voice), ``fish-design:<description>`` or
+    ``fish-clone:<catalog voice or recording>``; the last two create a voice in the account, remembered in the
+    journal so an interrupted run goes on with the same one. The second list holds the voices made for this run."""
+    out: dict = {}
+    made: list = []
+    if markup is None:
+        return out, made
+    used = sorted(markup.used_speakers() - {0})
+    if used and opts.tts != "fish":
+        raise RuntimeError("Several speakers need a local engine or Fish Audio; this online engine reads the whole "
+                           "book in one voice")
+    from folivox import voices as catalog
+
+    memory = dict(journal.meta("cloud_speaker_voices") or {})
+    for sid in used:
+        sp = markup.speaker(sid)
+        ref = (sp.voice if sp else "").strip()
+        prefix = next((p for p in SPEAKER_VOICE_KINDS if ref.startswith(p)), None)
+        if not ref:
+            continue
+        if prefix is None:
+            events.warning(f"{sp.name}: the voice {ref} is a local recording and cannot be used with Fish Audio; "
+                           "the narrator reads this character")
+            continue
+        value, mode = ref[len(prefix):].strip(), SPEAKER_VOICE_KINDS[prefix]
+        if not value:
+            continue
+        if mode == "preset":
+            out[sid] = engine.make_voice(value, opts.tts_style, opts.lang, "preset")
+            continue
+        reference, description = None, ""
+        if mode == "clone":
+            entry = catalog.find(value)
+            reference = str(entry.path if entry is not None else Path(value).expanduser())
+        else:
+            description = value
+        kind = f"{mode}|{value}|{opts.lang}"
+        entry = memory.get(str(sid)) or {}
+        remembered = entry.get("id", "") if entry.get("for") == kind else ""
+        voice = engine.make_voice("", opts.tts_style, opts.lang, mode, description, reference, remembered)
+        memory[str(sid)] = {"for": kind, "id": voice.speaker}
+        journal.set_meta(cloud_speaker_voices=memory)
+        if not remembered:
+            events.stage("voice", f"Created a voice for {sp.name} in your {type(engine.gen).label} account")
+        out[sid] = voice
+        made.append((sp, voice))
+    return out, made
+
+
+def _release_speaker_voices(engine, made: list, opts: RenderOptions, journal: Journal, events: Events) -> None:
+    from folivox.tts import saved
+
+    for sp, voice in made:
+        if opts.keep_voice:
+            saved.add(opts.tts, voice.speaker, f"{sp.name} ({opts.tts_voice_name or 'book'})".strip(), voice.mode,
+                      voice.description, opts.lang)
+            events.stage("voice", f"Voice for {sp.name} is kept in your account and listed for other books")
+        else:
+            engine.release(voice)
+    journal.set_meta(cloud_speaker_voices={})
 
 
 def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Path:
@@ -794,10 +867,12 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
             for w in voice.warnings:
                 events.warning(w)
         markup = load_markup(book, opts, events)
-        voices = speaker_voices(markup, voice, asr, opts, events) if not cloud else {}
-        if markup is not None and cloud and markup.used_speakers() - {0}:
-            raise RuntimeError("Several speakers need a local engine; a cloud engine reads the whole book in one voice")
-        if voices and is_fish(opts.tts):
+        made: list = []
+        if cloud:
+            voices, made = cloud_speaker_voices(markup, engine, opts, journal, events)
+        else:
+            voices = speaker_voices(markup, voice, asr, opts, events)
+        if voices and not cloud and is_fish(opts.tts):
             from folivox.tts import fish_check
 
             if not fish_check.bundled_voices_allowed():
@@ -840,6 +915,8 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
         if cloud and owned and not opts.keep_voice:
             engine.release(voice)  # only after a finished run: an interrupted one resumes with the same voice
             journal.set_meta(cloud_voice="", cloud_voice_for="")
+        if cloud and made:
+            _release_speaker_voices(engine, made, opts, journal, events)
         return result
     finally:
         closer = getattr(engine, "close", None)

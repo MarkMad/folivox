@@ -739,5 +739,9 @@
  "fish.auto.get": "Otomatiki ({title}, itahitaji kupakuliwa)",
  "foot.new": "Mapya",
  "foot.title": "Historia ya matoleo",
- "foot.close": "Funga"
+ "foot.close": "Funga",
+ "mk.fish.clone": "Nakala ya sauti ya {name}",
+ "mk.fish.made": "Sauti mpya: {d}",
+ "mk.fish.design": "Elezea sauti mpya…",
+ "mk.fish.ask": "Elezea sauti kwa maneno machache (umri, jinsia, sauti, mtindo):"
 }

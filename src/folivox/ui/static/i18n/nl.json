@@ -739,5 +739,9 @@
  "fish.auto.get": "Automatisch ({title}, moet nog worden gedownload)",
  "foot.new": "Wat is er nieuw",
  "foot.title": "Versiegeschiedenis",
- "foot.close": "Sluiten"
+ "foot.close": "Sluiten",
+ "mk.fish.clone": "Kloon van {name}",
+ "mk.fish.made": "Nieuwe stem: {d}",
+ "mk.fish.design": "Een nieuwe stem beschrijven…",
+ "mk.fish.ask": "Beschrijf de stem in enkele woorden (leeftijd, geslacht, timbre, manier van spreken):"
 }

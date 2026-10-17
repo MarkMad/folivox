@@ -739,5 +739,9 @@
  "fish.auto.get": "Automaticky ({title}, bude třeba stáhnout)",
  "foot.new": "Co je nového",
  "foot.title": "Historie verzí",
- "foot.close": "Zavřít"
+ "foot.close": "Zavřít",
+ "mk.fish.clone": "Klon hlasu {name}",
+ "mk.fish.made": "Nový hlas: {d}",
+ "mk.fish.design": "Popsat nový hlas…",
+ "mk.fish.ask": "Popište hlas několika slovy (věk, pohlaví, barva, způsob mluvy):"
 }

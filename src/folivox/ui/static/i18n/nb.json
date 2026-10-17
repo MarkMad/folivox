@@ -739,5 +739,9 @@
  "fish.auto.get": "Automatisk ({title}, må lastes ned)",
  "foot.new": "Nyheter",
  "foot.title": "Versjonshistorikk",
- "foot.close": "Lukk"
+ "foot.close": "Lukk",
+ "mk.fish.clone": "Klone av {name}",
+ "mk.fish.made": "Ny stemme: {d}",
+ "mk.fish.design": "Beskriv en ny stemme …",
+ "mk.fish.ask": "Beskriv stemmen med noen få ord (alder, kjønn, klang, væremåte):"
 }

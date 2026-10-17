@@ -739,5 +739,9 @@
  "fish.auto.get": "自动（{title}，需要下载）",
  "foot.new": "更新内容",
  "foot.title": "版本历史",
- "foot.close": "关闭"
+ "foot.close": "关闭",
+ "mk.fish.clone": "克隆「{name}」",
+ "mk.fish.made": "新声音：{d}",
+ "mk.fish.design": "描述新声音……",
+ "mk.fish.ask": "用几个词描述声音（年龄、性别、音色、风格）："
 }

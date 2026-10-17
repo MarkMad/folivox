@@ -739,5 +739,9 @@
  "fish.auto.get": "Automatisch ({title}, muss noch geladen werden)",
  "foot.new": "Neuigkeiten",
  "foot.title": "Versionsverlauf",
- "foot.close": "Schließen"
+ "foot.close": "Schließen",
+ "mk.fish.clone": "Klon von {name}",
+ "mk.fish.made": "Neue Stimme: {d}",
+ "mk.fish.design": "Neue Stimme beschreiben …",
+ "mk.fish.ask": "Beschreibe die Stimme in wenigen Worten (Alter, Geschlecht, Klangfarbe, Art):"
 }

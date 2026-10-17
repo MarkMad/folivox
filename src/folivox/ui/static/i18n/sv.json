@@ -739,5 +739,9 @@
  "fish.auto.get": "Automatiskt ({title}, måste laddas ner)",
  "foot.new": "Nyheter",
  "foot.title": "Versionshistorik",
- "foot.close": "Stäng"
+ "foot.close": "Stäng",
+ "mk.fish.clone": "Klon av {name}",
+ "mk.fish.made": "Ny röst: {d}",
+ "mk.fish.design": "Beskriv en ny röst …",
+ "mk.fish.ask": "Beskriv rösten med några ord (ålder, kön, klang, sätt att tala):"
 }

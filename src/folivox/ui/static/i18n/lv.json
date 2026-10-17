@@ -739,5 +739,9 @@
  "fish.auto.get": "Automātiski ({title}, būs jālejupielādē)",
  "foot.new": "Kas jauns",
  "foot.title": "Versiju vēsture",
- "foot.close": "Aizvērt"
+ "foot.close": "Aizvērt",
+ "mk.fish.clone": "{name} klons",
+ "mk.fish.made": "Jauna balss: {d}",
+ "mk.fish.design": "Aprakstīt jaunu balsi…",
+ "mk.fish.ask": "Aprakstiet balsi dažos vārdos (vecums, dzimums, tembrs, maniere):"
 }

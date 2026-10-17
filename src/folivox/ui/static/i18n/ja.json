@@ -739,5 +739,9 @@
  "fish.auto.get": "自動（{title}、ダウンロードが必要）",
  "foot.new": "新機能",
  "foot.title": "バージョン履歴",
- "foot.close": "閉じる"
+ "foot.close": "閉じる",
+ "mk.fish.clone": "{name} のクローン",
+ "mk.fish.made": "新しい声：{d}",
+ "mk.fish.design": "新しい声を説明する…",
+ "mk.fish.ask": "声を短い言葉で説明してください（年齢、性別、音色、話し方）："
 }

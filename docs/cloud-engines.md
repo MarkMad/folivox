@@ -41,6 +41,13 @@ needs no 32 GB Mac and is faster, the local one is free.
 - **Direction.** The *style note* is sent as a bracketed direction before every fragment, e.g.
   `[calm, warm audiobook narration] …`. Drama 3 and S2 read it as direction, not as words, in any language. No
   note is sent by default.
+- **Several voices.** Fish Audio is the one online engine that takes a [markup](markup.md) with several speakers.
+  Each fragment is sent with its speaker's own voice, so a character is a Fish voice: pick one in the studio's speaker
+  list (your own voices, the library list shown under *Voice*, a clone of a catalog voice, or *Describe a new voice…*),
+  or write it into the markup file as `fish:<voice id>`, `fish-design:<description>` or `fish-clone:<catalog voice or
+  recording>`. Voices made from a description or a clone live in your account only for the run (deleted at the end
+  unless `--keep-voice`; an interrupted run goes on with the same ones). The markup's expression tags are sent as
+  bracketed directions in front of the fragment (`[whispering] …`). Cost follows the text sent, as for one voice.
 - **Fragment size.** Fish cuts text into chunks of at most 300 characters itself (`chunk_length`, 100–300) and
   conditions each chunk on the previous one. Folivox already sends sentence-packed fragments of 300 characters, so
   one request is one chunk and the voice stays steady; longer fragments (`--max-chars`) only save requests.

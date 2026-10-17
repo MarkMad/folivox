@@ -739,5 +739,9 @@
  "fish.auto.get": "Otomatik ({title}, indirilmesi gerekecek)",
  "foot.new": "Yenilikler",
  "foot.title": "Sürüm geçmişi",
- "foot.close": "Kapat"
+ "foot.close": "Kapat",
+ "mk.fish.clone": "{name} klonu",
+ "mk.fish.made": "Yeni ses: {d}",
+ "mk.fish.design": "Yeni bir ses tanımla…",
+ "mk.fish.ask": "Sesi birkaç kelimeyle anlatın (yaş, cinsiyet, tını, tarz):"
 }

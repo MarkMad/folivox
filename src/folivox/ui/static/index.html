@@ -849,7 +849,10 @@ function mkState() {
   $("#mk-undo").disabled = !MK.undo.length; $("#mk-redo").disabled = !MK.redo.length;
 }
 // the state of the characters for the Voice step: what is found, which chapters are done, who has which voice
-const mkVoiceName = (id) => { if (!id) return t("mk.st.narr"); const v = VOICES.find(x => x.id === id); return v ? v.name : id.split("/").pop(); };
+const mkVoiceName = (id) => { if (!id) return t("mk.st.narr");
+  if (id.startsWith("fish-design:")) return t("mk.fish.made", { d: id.slice(12) });
+  if (id.startsWith("fish-clone:")) { const c = VOICES.find(x => x.id === id.slice(11)); return t("mk.fish.clone", { name: c ? c.name : id.slice(11).split("/").pop() }); }
+  if (id.startsWith("fish:")) { const f = (ENG.vlist || []).concat(ENG.savedList || []).find(x => x.id === id.slice(5)); return f ? (f.name || f.id).split(" - ")[0] : id.slice(5); } const v = VOICES.find(x => x.id === id); return v ? v.name : id.split("/").pop(); };
 function mkSummary() {
   if (!MK.data) return;
   const spans = Object.values(MK.data.chapters).reduce((n, c) => n + c.spans.filter(mkIsVoiced).length, 0);
@@ -881,8 +884,8 @@ const mkHasSpans = () => !!MK.data && Object.values(MK.data.chapters).some(c => 
 const vmodeKey = () => "folivox.vmode." + (book ? book.book_id : "");
 const vmode = () => { const c = document.querySelector('input[name="vmode"]:checked'); return c ? c.value : "one"; };
 function vmodeSync() {
-  // online engines read the whole book in one voice: "Several voices" is unavailable while one is chosen
-  const cloud = !!(ENG.list.length && ENG.cloud());
+  // most online engines read the whole book in one voice: "Several voices" is unavailable while one is chosen (Fish Audio takes it)
+  const cloud = !!(ENG.list.length && ENG.cloud() && !mkFish());
   const multi = document.querySelector('input[name="vmode"][value="multi"]');
   multi.disabled = cloud; multi.closest(".vm").classList.toggle("off", cloud);
   if (cloud && multi.checked) document.querySelector('input[name="vmode"][value="one"]').checked = true;
@@ -890,7 +893,7 @@ function vmodeSync() {
   const m = vmode() === "multi";
   $("#mk-box").hidden = !m; $("#vlabel").textContent = t(m ? "vm.narr" : "vm.voice");
   document.querySelectorAll(".vm").forEach(l => l.classList.toggle("on", l.querySelector("input").checked));
-  if (m) mkSummary();
+  if (m) { mkSummary(); mkSpeakersIdle(); }
 }
 function vmodeSet(v) { const r = document.querySelector(`input[name="vmode"][value="${v}"]`); if (r) r.checked = true; vmodeSync(); }
 document.querySelectorAll('input[name="vmode"]').forEach(r => r.addEventListener("change", () => {
@@ -1037,7 +1040,22 @@ function mkUndo(redo) {
   to.push(JSON.stringify(MK.data)); MK.data = JSON.parse(from.pop()); MK.dirty = true; mkRender();
 }
 // ---- speakers ---------------------------------------------------------------------------------------------------
+// Fish Audio reads each character in a voice of its own: a library or own voice ("fish:ID"), a voice described in words
+// ("fish-design:TEXT") or a clone of a catalog voice ("fish-clone:ID"); the engine's voice list is the one shown under "Voice"
+const mkFish = () => { const e = ENG.list.length && ENG.cloud() ? ENG.cur() : null; return e && e.name === "fish" ? e : null; };
+function mkSpeakersIdle() { if (MK.data && !document.activeElement.closest("#mk-speakers")) mkSpeakers(); }  // not under someone typing a name
+function mkFishOptions(cur) {
+  const seen = new Set(), opt = (v, label) => { seen.add(v); return `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(label)}</option>`; };
+  const head = `<option value="">${esc(t("mk.mainvoice"))}</option>`,
+    mine = (ENG.savedList || []).map(v => opt("fish:" + v.id, "✨ " + v.name)).join(""),
+    lib = (ENG.vlist || []).filter(v => v.id).map(v => opt("fish:" + v.id, (v.name || v.id).split(" - ")[0])).join(""),
+    clone = VOICES.map(v => opt("fish-clone:" + v.id, t("mk.fish.clone", { name: v.name }))).join(""),
+    made = cur && cur.startsWith("fish-design:") ? opt(cur, t("mk.fish.made", { d: cur.slice(12) })) : "",
+    extra = cur && !seen.has(cur) ? opt(cur, mkVoiceName(cur)) : "";
+  return head + mine + lib + clone + made + extra + `<option value="__design">${esc(t("mk.fish.design"))}</option>`;
+}
 function mkVoiceOptions(cur) {
+  if (mkFish()) return mkFishOptions(cur);
   const have = new Set(VOICES.map(v => v.id)), found = langsFound(), rank = (v) => { const i = found.indexOf(v.lang); return i < 0 ? found.length : i; };
   return `<option value="">${esc(t("mk.mainvoice"))}</option>` + VOICES.map((v, i) => [v, i]).sort((a, z) => rank(a[0]) - rank(z[0]) || a[1] - z[1]).map(x => x[0]).map(v => `<option value="${esc(v.id)}" ${v.id === cur ? "selected" : ""}>${esc(v.name)}${v.bundled ? " *" : ""}</option>`).join("")
     + (cur && !have.has(cur) ? `<option value="${esc(cur)}" selected>${esc(cur)}</option>` : "");
@@ -1100,7 +1118,7 @@ function mkSpeakers() {
     <input type="text" data-f="name" value="${esc(s.name)}" aria-label="${esc(t("mk.name"))}"><span class="mute">${used[s.id] || (s.id ? 0 : "")}</span>
     ${s.id && mkBibleChar(s.id) ? mkWhoRow(mkBibleChar(s.id)) : ""}
     ${s.id ? langGapHtml(s.id) : ""}
-    <div class="sub">${s.id ? `<select data-f="voice" aria-label="${esc(t("mk.voice"))}">${mkVoiceOptions(s.voice)}</select><button type="button" class="chip" data-vd="${s.id}" title="${esc(t("mk.vd.btn.title"))}">${esc(t("mk.vd.btn"))}</button><button type="button" class="chip" data-rm="${s.id}" title="${esc(t("mk.rmsp"))}">&#10005;</button>` : `<span class="mute">${esc(t("mk.narrator.note"))}</span>`}</div></div>`).join("");
+    <div class="sub">${s.id ? `<select data-f="voice" aria-label="${esc(t("mk.voice"))}">${mkVoiceOptions(s.voice)}</select>${mkFish() ? "" : `<button type="button" class="chip" data-vd="${s.id}" title="${esc(t("mk.vd.btn.title"))}">${esc(t("mk.vd.btn"))}</button>`}<button type="button" class="chip" data-rm="${s.id}" title="${esc(t("mk.rmsp"))}">&#10005;</button>` : `<span class="mute">${esc(t("mk.narrator.note"))}</span>`}</div></div>`).join("");
   $("#mk-exprtags").checked = MK.data.expression_tags !== false;
   mkAssignBar();
   mkResultPanel();
@@ -1139,7 +1157,13 @@ $("#mk-speakers").addEventListener("click", (ev) => {
 });
 $("#mk-speakers").addEventListener("change", (ev) => {
   const row = ev.target.closest(".mk-sp"), f = ev.target.dataset.f; if (!row || !f) return;
-  mkSnap(); mkSpeaker(+row.dataset.id)[f] = ev.target.value; MK.dirty = true; mkState(); mkResultPanel(); if (f === "name") mkRender();
+  let val = ev.target.value;
+  if (f === "voice" && val === "__design") {  // Fish: describe a new voice for this character
+    val = (prompt(t("mk.fish.ask"), "") || "").trim();
+    if (!val) { mkSpeakers(); return; }
+    val = "fish-design:" + val;
+  }
+  mkSnap(); mkSpeaker(+row.dataset.id)[f] = val; if (f === "voice") mkSpeakers(); MK.dirty = true; mkState(); mkResultPanel(); if (f === "name") mkRender();
 });
 $("#mk-addsp").onclick = () => {
   const id = [...Array(16).keys()].find(i => !mkSpeaker(i)); if (id === undefined) { mkHint(t("mk.max"), true); return; }
@@ -2464,7 +2488,7 @@ async function engSaved() {
     <span class="vplay" style="display:grid;place-items:center">✨</span>
     <div style="min-width:0"><div class="vname"><span class="n sv-name" title="${esc(t("eng.rename"))}" data-id="${esc(v.id)}">${esc(v.name)}</span><span class="vbadge mine">${t("eng.createdbyyou")}</span></div><div class="vmeta">${esc([KIND[v.mode] || v.mode, v.description].filter(Boolean).join(" · "))}</div></div>
     <button type="button" class="chip sv-del" data-del="${esc(v.id)}" title="${esc(t("eng.delvoice"))}" aria-label="${esc(t("eng.delvoicename", { name: v.name }))}">✕</button></div>`).join("");
-  engMode(); engEstimate();
+  mkSpeakersIdle(); engMode(); engEstimate();
 }
 $("#vc-saved-list").addEventListener("click", async (ev) => {
   const del = ev.target.closest("[data-del]"), card = ev.target.closest("[data-sid]"), nm = ev.target.closest(".sv-name");
@@ -2504,7 +2528,7 @@ async function engVoices() {
     ENG.vlist = (e.name === "elevenlabs" || e.name === "cartesia" || e.name === "fish" ? [] : [{ id: "", name: t("eng.default"), traits: t("eng.neutral"), gender: "" }]).concat(r.voices);
     ENG.vnote = r.note || ""; ENG.vname = e.name;
     if (!ENG.vlist.some(v => v.id === $("#o-tts_voice").value)) $("#o-tts_voice").value = ENG.vlist[0] ? ENG.vlist[0].id : "";
-    engRenderVoices();
+    engRenderVoices(); mkSpeakersIdle();
   } catch (x) { box.innerHTML = `<div class="err">${esc(x.message)}</div>`; }
 }
 function engRenderVoices() {

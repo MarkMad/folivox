@@ -739,5 +739,9 @@
  "fish.auto.get": "Otomatis ({title}, perlu diunduh)",
  "foot.new": "Yang baru",
  "foot.title": "Riwayat versi",
- "foot.close": "Tutup"
+ "foot.close": "Tutup",
+ "mk.fish.clone": "Klon dari {name}",
+ "mk.fish.made": "Suara baru: {d}",
+ "mk.fish.design": "Deskripsikan suara baru…",
+ "mk.fish.ask": "Gambarkan suara dengan beberapa kata (usia, jenis kelamin, warna suara, gaya):"
 }

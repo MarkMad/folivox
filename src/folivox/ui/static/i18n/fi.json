@@ -739,5 +739,9 @@
  "fish.auto.get": "Automaattinen ({title}, vaatii latauksen)",
  "foot.new": "Uutta",
  "foot.title": "Versiohistoria",
- "foot.close": "Sulje"
+ "foot.close": "Sulje",
+ "mk.fish.clone": "Klooni: {name}",
+ "mk.fish.made": "Uusi ääni: {d}",
+ "mk.fish.design": "Kuvaile uusi ääni…",
+ "mk.fish.ask": "Kuvaile ääni muutamalla sanalla (ikä, sukupuoli, sointi, tyyli):"
 }

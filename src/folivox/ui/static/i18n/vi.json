@@ -739,5 +739,9 @@
  "fish.auto.get": "Tự động ({title}, sẽ cần tải xuống)",
  "foot.new": "Có gì mới",
  "foot.title": "Lịch sử phiên bản",
- "foot.close": "Đóng"
+ "foot.close": "Đóng",
+ "mk.fish.clone": "Bản sao giọng {name}",
+ "mk.fish.made": "Giọng mới: {d}",
+ "mk.fish.design": "Mô tả một giọng mới…",
+ "mk.fish.ask": "Mô tả giọng bằng vài từ (tuổi, giới tính, âm sắc, phong cách):"
 }

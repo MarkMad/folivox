@@ -739,5 +739,9 @@
  "fish.auto.get": "Automàtic ({title}, caldrà baixar-lo)",
  "foot.new": "Novetats",
  "foot.title": "Historial de versions",
- "foot.close": "Tanca"
+ "foot.close": "Tanca",
+ "mk.fish.clone": "Clon de {name}",
+ "mk.fish.made": "Veu nova: {d}",
+ "mk.fish.design": "Descriu una veu nova…",
+ "mk.fish.ask": "Descriu la veu en poques paraules (edat, sexe, timbre, estil):"
 }

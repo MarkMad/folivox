@@ -739,5 +739,9 @@
  "fish.auto.get": "Automatikus ({title}, le kell tölteni)",
  "foot.new": "Újdonságok",
  "foot.title": "Verzióelőzmények",
- "foot.close": "Bezárás"
+ "foot.close": "Bezárás",
+ "mk.fish.clone": "{name} klónja",
+ "mk.fish.made": "Új hang: {d}",
+ "mk.fish.design": "Új hang leírása…",
+ "mk.fish.ask": "Írd le a hangot néhány szóval (kor, nem, hangszín, stílus):"
 }

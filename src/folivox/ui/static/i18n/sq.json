@@ -739,5 +739,9 @@
  "fish.auto.get": "Automatik ({title}, do të kërkojë shkarkim)",
  "foot.new": "Çfarë ka të re",
  "foot.title": "Historia e versioneve",
- "foot.close": "Mbyll"
+ "foot.close": "Mbyll",
+ "mk.fish.clone": "Klon i {name}",
+ "mk.fish.made": "Zë i ri: {d}",
+ "mk.fish.design": "Përshkruaj një zë të ri…",
+ "mk.fish.ask": "Përshkruani zërin me pak fjalë (mosha, gjinia, timbri, mënyra):"
 }

@@ -739,5 +739,9 @@
  "fish.auto.get": "Automatiškai ({title}, reikės atsisiųsti)",
  "foot.new": "Kas naujo",
  "foot.title": "Versijų istorija",
- "foot.close": "Uždaryti"
+ "foot.close": "Uždaryti",
+ "mk.fish.clone": "{name} klonas",
+ "mk.fish.made": "Naujas balsas: {d}",
+ "mk.fish.design": "Aprašyti naują balsą…",
+ "mk.fish.ask": "Aprašykite balsą keliais žodžiais (amžius, lytis, tembras, maniera):"
 }

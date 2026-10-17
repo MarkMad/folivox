@@ -739,5 +739,9 @@
  "fish.auto.get": "Automat ({title}, va trebui descărcat)",
  "foot.new": "Noutăți",
  "foot.title": "Istoricul versiunilor",
- "foot.close": "Închide"
+ "foot.close": "Închide",
+ "mk.fish.clone": "Clonă a vocii {name}",
+ "mk.fish.made": "Voce nouă: {d}",
+ "mk.fish.design": "Descrie o voce nouă…",
+ "mk.fish.ask": "Descrie vocea în câteva cuvinte (vârstă, sex, timbru, manieră):"
 }

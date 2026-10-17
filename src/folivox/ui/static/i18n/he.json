@@ -739,5 +739,9 @@
  "fish.auto.get": "אוטומטי ({title}, יידרש להוריד)",
  "foot.new": "מה חדש",
  "foot.title": "היסטוריית גרסאות",
- "foot.close": "סגירה"
+ "foot.close": "סגירה",
+ "mk.fish.clone": "שכפול של {name}",
+ "mk.fish.made": "קול חדש: {d}",
+ "mk.fish.design": "תיאור קול חדש…",
+ "mk.fish.ask": "תארו את הקול במילים ספורות (גיל, מין, גוון, סגנון):"
 }

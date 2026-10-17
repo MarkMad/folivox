@@ -739,5 +739,9 @@
  "fish.auto.get": "Automaatne ({title}, vajab allalaadimist)",
  "foot.new": "Mis on uut",
  "foot.title": "Versiooniajalugu",
- "foot.close": "Sulge"
+ "foot.close": "Sulge",
+ "mk.fish.clone": "{name} klooni",
+ "mk.fish.made": "Uus hääl: {d}",
+ "mk.fish.design": "Kirjelda uut häält…",
+ "mk.fish.ask": "Kirjelda häält mõne sõnaga (vanus, sugu, tämber, stiil):"
 }

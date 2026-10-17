@@ -739,5 +739,9 @@
  "fish.auto.get": "자동({title}, 다운로드 필요)",
  "foot.new": "새로운 기능",
  "foot.title": "버전 기록",
- "foot.close": "닫기"
+ "foot.close": "닫기",
+ "mk.fish.clone": "{name} 복제",
+ "mk.fish.made": "새 목소리: {d}",
+ "mk.fish.design": "새 목소리 설명하기…",
+ "mk.fish.ask": "목소리를 몇 마디로 설명하세요 (나이, 성별, 음색, 말투):"
 }

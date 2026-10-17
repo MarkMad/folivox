@@ -739,5 +739,9 @@
  "fish.auto.get": "Sjálfvalið ({title}, þarf að sækja)",
  "foot.new": "Hvað er nýtt",
  "foot.title": "Útgáfusaga",
- "foot.close": "Loka"
+ "foot.close": "Loka",
+ "mk.fish.clone": "Klón af {name}",
+ "mk.fish.made": "Ný rödd: {d}",
+ "mk.fish.design": "Lýsa nýrri rödd…",
+ "mk.fish.ask": "Lýstu röddinni í fáum orðum (aldur, kyn, tónn, framkoma):"
 }

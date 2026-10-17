@@ -739,5 +739,9 @@
  "fish.auto.get": "Automatski ({title}, trebat će preuzimanje)",
  "foot.new": "Što je novo",
  "foot.title": "Povijest verzija",
- "foot.close": "Zatvori"
+ "foot.close": "Zatvori",
+ "mk.fish.clone": "Klon glasa {name}",
+ "mk.fish.made": "Novi glas: {d}",
+ "mk.fish.design": "Opiši novi glas…",
+ "mk.fish.ask": "Opišite glas u nekoliko riječi (dob, spol, boja, način govora):"
 }

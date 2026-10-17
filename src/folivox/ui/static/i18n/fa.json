@@ -739,5 +739,9 @@
  "fish.auto.get": "خودکار ({title}، باید دانلود شود)",
  "foot.new": "تازه‌ها",
  "foot.title": "تاریخچهٔ نسخه‌ها",
- "foot.close": "بستن"
+ "foot.close": "بستن",
+ "mk.fish.clone": "کلون {name}",
+ "mk.fish.made": "صدای جدید: {d}",
+ "mk.fish.design": "توصیف صدای جدید…",
+ "mk.fish.ask": "صدا را در چند کلمه توصیف کنید (سن، جنسیت، طنین، لحن):"
 }

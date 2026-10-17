@@ -170,3 +170,95 @@ def test_library_scope_and_capabilities():
     fake = Fake(ok({"items": []}))
     make(FishAudio, fake).speakers("")  # every language: no language filter
     assert "language" not in fake.calls[1]["url"] and "licensed=true" in fake.calls[1]["url"]
+
+
+# ---- several voices: a markup speaker gets a Fish voice of their own -----------------------------------------
+
+def _two_speaker_book(tmp_path):
+    from folivox import markup as mk
+    from folivox.readers import read_book
+
+    p = tmp_path / "b.txt"
+    p.write_text("The lake was calm this morning, and nobody spoke.\n\n"
+                 "I will not go, she said. The road is long.\n", encoding="utf-8")
+    book = read_book(p)
+    m = mk.Markup()
+    m.ensure_speaker(1, "Anna").voice = "fish:anna-id"
+    m.ensure_speaker(2, "Boris").voice = "fish-design:a deep calm old man"
+    text = book.chapters(2)[0].blocks[1].text
+    m.assign(0, 1, 0, len(text), 1, ("whispering",))
+    mk.stamp(m, book.chapters(2))
+    return book, m
+
+
+def _engine(fake):
+    return CloudTTS("fish", generator=make(FishAudio, fake))
+
+
+def test_speakers_get_their_own_fish_voices_and_tags_go_in_brackets(tmp_path):
+    from folivox.journal import Journal
+    from folivox.pipeline import Events, RenderOptions, cloud_speaker_voices, plan, synthesize_pending
+
+    book, m = _two_speaker_book(tmp_path)
+    m.speaker(2).voice = "fish-design:a deep calm old man"
+    mpath = tmp_path / "b.markup.json"
+    m.save(mpath)
+    fake = Fake(ok(pcm()))
+    eng = _engine(fake)
+    opts = RenderOptions(output=tmp_path / "o.m4b", qa=False, lang="en", tts="fish", tts_voice="narr-id",
+                         markup=mpath, accept_cloud=True)
+    narrator = eng.make_voice("narr-id", None, "en", "preset")
+    j = Journal(tmp_path / "w")
+    from folivox.pipeline import load_markup
+
+    markup = load_markup(book, opts, Events())
+    voices, made = cloud_speaker_voices(markup, eng, opts, j, Events())
+    assert voices[1].speaker == "anna-id" and made == []  # a library voice is used as it is, never made or deleted
+    assert voices[1].id != narrator.id
+    assert eng.make_voice("", None, "en", "preset").id != voices[1].id
+    plan(book, opts, j, narrator.id, Events(), eng, markup, voices)
+    synthesize_pending(j, eng, narrator, None, opts, Events(), voices)
+    sent = [(c["json"]["reference_id"], c["json"]["text"]) for c in fake.calls if c["url"].endswith("/v1/tts")]
+    assert {r for r, _ in sent} == {"narr-id", "anna-id"}
+    assert any(r == "anna-id" and t.startswith("[whispering] ") for r, t in sent)
+    assert all(not t.startswith("[") for r, t in sent if r == "narr-id")
+
+
+def test_described_speaker_voice_is_made_remembered_and_released(tmp_path):
+    from folivox.journal import Journal
+    from folivox.pipeline import Events, RenderOptions, _release_speaker_voices, cloud_speaker_voices
+
+    book, m = _two_speaker_book(tmp_path)
+    m.ensure_speaker(1).voice = ""
+    m.assign(0, 0, 0, 5, 2)
+    cand = {"candidates": [{"audio_base64": base64.b64encode(wav_bytes()).decode(), "text": "hi"}]}
+    seen = []
+
+    def fake(method, url, headers, body, timeout):
+        seen.append((method, url))
+        if url.endswith("/v1/voice-design"):
+            return ok(cand)
+        return ok({"_id": "made-1", "state": "trained"}) if url.endswith("/model") and method == "POST" else ok(b"")
+
+    eng = _engine(fake)
+    opts = RenderOptions(output=tmp_path / "o.m4b", lang="en", tts="fish")
+    j = Journal(tmp_path / "w")
+    voices, made = cloud_speaker_voices(m, eng, opts, j, Events())
+    assert voices[2].speaker == "made-1" and voices[2].mode == "design" and len(made) == 1
+    n = len(seen)
+    again, _ = cloud_speaker_voices(m, _engine(fake), opts, j, Events())  # an interrupted run goes on with it
+    assert again[2].speaker == "made-1" and len(seen) == n
+    _release_speaker_voices(eng, made, opts, j, Events())
+    assert seen[-1][0] == "DELETE" and seen[-1][1].endswith("/model/made-1")
+    assert j.meta("cloud_speaker_voices") == {}
+
+
+def test_other_online_engines_still_refuse_several_speakers(tmp_path):
+    from folivox.journal import Journal
+    from folivox.pipeline import Events, RenderOptions, cloud_speaker_voices
+
+    _, m = _two_speaker_book(tmp_path)
+    m.assign(0, 1, 0, 5, 1)
+    opts = RenderOptions(output=tmp_path / "o.m4b", tts="openai")
+    with pytest.raises(RuntimeError, match="Several speakers"):
+        cloud_speaker_voices(m, None, opts, Journal(tmp_path / "w"), Events())
