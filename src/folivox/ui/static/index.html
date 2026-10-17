@@ -1226,7 +1226,12 @@ $("#mk-dlg").addEventListener("keydown", (ev) => {
 function mkListenEngines() {
   const sel = $("#mk-leng"), cloud = mkFish(), keep = sel.value || (ENG.cur() ? ENG.cur().name : "");
   const list = ENG.list.filter(e => !e.cloud || (cloud && e.name === cloud.name));
-  sel.innerHTML = list.map(e => `<option value="${esc(e.name)}">${esc(engText(e, "label"))}</option>`).join("");
+  const name = (e) => {  // an online engine says which model it will use and that it is paid
+    if (!e.cloud) return engText(e, "label");
+    const id = ($("#o-tts_model") || {}).value, m = (e.models || []).find(x => x.id === id) || (e.models || [])[0];
+    return engText(e, "label") + (m ? " · " + m.label : "") + " — " + t("eng.paid");
+  };
+  sel.innerHTML = list.map(e => `<option value="${esc(e.name)}">${esc(name(e))}</option>`).join("");
   sel.value = list.some(e => e.name === keep) ? keep : (list[0] ? list[0].name : "");
 }
 function mkListenOptions() {
@@ -1666,19 +1671,27 @@ function setBook(b, keep, lang) {
   loadVoices(); loadLangs();
 }
 const WEAK_RULELESS = new Set(["cs", "sv", "hi"]);  // measured: the online voice reads numbers less reliably in these
-function fillLangs(cur) {  // the nine languages with rules, then the ones online engines read as they are
-  const online = new Set(); (ENG.list || []).forEach(e => (e.voice_langs || []).forEach(c => online.add(c)));
-  if (cur && !LANGS[cur]) online.add(cur);
+const engReads = (e, c) => !e || !(e.languages || e.voice_langs) || (e.languages || []).includes(c) || (e.voice_langs || []).includes(c);
+const engFor = (c) => ENG.list.find(e => engReads(e, c));  // the first engine (free ones first) that reads the language
+function fillLangs(cur) {  // the nine languages with rules first, then the rest by name, in one list
+  const more = new Set(); (ENG.list || []).forEach(e => (e.voice_langs || []).forEach(c => more.add(c)));
+  if (cur && !LANGS[cur]) more.add(cur);
   const opt = (c, n) => `<option value="${c}" ${c === cur ? "selected" : ""}>${esc(n)}</option>`;
-  const other = [...online].filter(c => !LANGS[c]).sort((a, b) => lname(a).localeCompare(lname(b)));
-  $("#lang").innerHTML = Object.entries(LANGS).map(([c, n]) => opt(c, n)).join("")
-    + (other.length ? `<optgroup label="${esc(t("s2.lang_other"))}">${other.map(c => opt(c, lname(c))).join("")}</optgroup>` : "");
+  const other = [...more].filter(c => !LANGS[c]).sort((a, b) => lname(a).localeCompare(lname(b)));
+  $("#lang").innerHTML = Object.entries(LANGS).map(([c, n]) => opt(c, n)).join("") + other.map(c => opt(c, lname(c))).join("");
   langHint();
 }
-function langHint() {  // one line under the language field for a language without rules
-  const c = $("#lang").value, e = ENG.list.length ? ENG.cur() : null;
-  const key = LANGS[c] ? "" : e && e.name === "cosyvoice3" ? "s2.lang_local" : WEAK_RULELESS.has(c) ? "s2.lang_weak" : "s2.lang_hint";
-  $("#lang-hint").hidden = !key; $("#lang-hint").textContent = key ? t(key, { lang: lname(c) }) : "";
+function langHint() {  // one line under the language field: the engine cannot read it, or the language has no rules
+  const c = $("#lang").value, e = ENG.list.length ? ENG.cur() : null, h = $("#lang-hint"), alt = engFor(c);
+  if (e && !engReads(e, c)) {
+    h.hidden = false; h.className = "warn"; h.textContent = t("s2.lang_local", { engine: e.label, lang: lname(c) }) + " ";
+    if (alt) { const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = alt.label;
+      b.onclick = () => { $("#o-tts").value = alt.name; $("#o-tts").onchange(); }; h.appendChild(b); }
+    return;
+  }
+  h.className = "";
+  const key = LANGS[c] ? "" : WEAK_RULELESS.has(c) ? "s2.lang_weak" : "s2.lang_hint";
+  h.hidden = !key; h.textContent = key ? t(key, { lang: lname(c) }) : "";
 }
 function renderChapters(keep) {
   const tb = $("#chapters");
@@ -2710,6 +2723,7 @@ function runSummary() {
   if (!ch.length) warn.push(t("run.nochap"));
   if (cloud && !(e.key_in_env || e.key_saved)) warn.push(t("sum.w.nokey"));
   if (cloud && !$("#eng-ack").checked) warn.push(t("sum.w.ack"));
+  if (!engReads(e, book.lang)) warn.push(t("s2.lang_local", { engine: e.label, lang: lname(book.lang) }) + (engFor(book.lang) ? " " + engFor(book.lang).label : ""));
   $("#run-sum").innerHTML = parts.join(" · ") + warn.map(w => `<span class="warn">⚠ ${esc(w)}</span>`).join("");
 }
 ["#o-qa", "#o-mp3", "#o-output_dir", "#eng-ack", "#o-tts_voice", "#o-tts_mode"].forEach(i => { $(i).addEventListener("change", () => { renderEst(); runSummary(); }); });
@@ -2757,7 +2771,7 @@ function gpLangs() {  // the languages the chosen service reads: the nine first,
   const main = Object.keys(LANGS).filter(c => all.includes(c));
   const rest = all.filter(c => !LANGS[c]).sort((x, y) => lname(x).localeCompare(lname(y)));
   const sel = $("#gp-lang"), keep = GP.wantLang || sel.value;
-  sel.innerHTML = main.map(opt).join("") + (rest.length ? `<optgroup label="${esc(t("s2.lang_other"))}">${rest.map(opt).join("")}</optgroup>` : "");
+  sel.innerHTML = main.map(opt).join("") + rest.map(opt).join("");
   sel.value = all.includes(keep) ? keep : (all.includes("en") ? "en" : all[0]);
   GP.wantLang = ""; if (sel.value !== keep) GP.tx.builtin = null;
 }

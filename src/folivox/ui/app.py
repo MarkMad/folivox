@@ -1332,18 +1332,19 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         """Engines that can read the book: the local one and the paid cloud ones, with prices and limits."""
         from folivox.tts.cloud import CHARS_PER_SECOND, voice_modes_of
         from folivox.voicegen.cloud import COMMERCIAL_NOTICE, cloud_providers
+        from folivox.voicegen.cloud_apis import LANGS, FishAudio
 
         hour = CHARS_PER_SECOND * 3600
         out = [{"name": "cosyvoice3", "label": "CosyVoice 3 (0.5B)", "local": True, "cloud": False,
                 "blurb": "Free, private, works offline. Clones a voice from a short recording. Slower and "
-                         "the quality depends on your hardware.", "models": [], "per_hour": 0}]
+                         "the quality depends on your hardware.", "models": [], "per_hour": 0,
+                "languages": list(LANGS)}]  # the nine with Folivox rules
         for cls in cloud_providers().values():
             prices = {m["id"]: cls.estimate_for(hour, 1, "preset", m["id"]).get("usd") for m in cls.models}
             out.append({**cls.capabilities(), **key_state(cls), "local": False, "cloud": True,
                         "voice_modes": list(voice_modes_of(cls)), "per_hour": prices.get(cls.models[0]["id"])
                         if cls.models else None, "prices": prices})
         from folivox.tts import builds as fb
-        from folivox.voicegen.cloud_apis import FishAudio
 
         hw = fb.detect_hardware()
         for name in fb.load().engines():  # Fish engines show only where one of their builds can run
@@ -1352,6 +1353,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                 out.append({"name": name, "label": bs[0].title.split(",")[0], "local": True, "cloud": False,
                             "fish": True, "blurb": "", "models": [], "per_hour": 0,
                             "voice_langs": list(FishAudio.voice_languages),  # the local models read the same 80+
+                            "languages": list(FishAudio.languages),
                             "builds": [b.id for b in bs],
                             # named native builds run under any runtime; "auto" picks them only with runtime=native
                             "native_builds": [b.id for b in bs if b.backend == "native"]})
