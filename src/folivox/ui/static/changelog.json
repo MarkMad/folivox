@@ -1,5 +1,51 @@
 [
  {
+  "version": "0.1.0.287",
+  "date": "2026-10-18",
+  "items": [
+   {
+    "type": "new",
+    "text": "Fish Audio Drama 3 as an online engine (your own key) and as a local one: directed in plain words, several speakers in one scene, 80+ languages."
+   },
+   {
+    "type": "new",
+    "text": "Books in any of 80+ languages: the book language menu lists every language the chosen engine reads; the voice sample language menu does too."
+   },
+   {
+    "type": "new",
+    "text": "Several voices: a local LLM finds the characters and marks who speaks each line; check and fix it in the markup editor, give every character a voice."
+   },
+   {
+    "type": "new",
+    "text": "A voice from a video or a long recording: Folivox finds clean 6–15 s stretches, shows their text and lets you pick one (studio and `voices add`)."
+   },
+   {
+    "type": "new",
+    "text": "Adding a voice checks the recognised text and warns when it does not fit the recording or is in another script than the sample language."
+   },
+   {
+    "type": "new",
+    "text": "The recommended sample length follows the engine (CosyVoice 6–15 s, Fish 10–30 s)."
+   },
+   {
+    "type": "new",
+    "text": "Fish install in the studio shows live status, speed and time left; the download total is no longer stuck at 100%."
+   },
+   {
+    "type": "new",
+    "text": "Markup editor: an online engine can be used to listen to a sample; the list names its model and says it is paid."
+   },
+   {
+    "type": "fix",
+    "text": "Language detection tells about 30 Latin-script languages apart and recognises Persian and Urdu; sentences are split on the punctuation of every script."
+   },
+   {
+    "type": "fix",
+    "text": "Chinese ordinal floors read correctly (第2层 → 第二层)."
+   }
+  ]
+ },
+ {
   "version": "0.1.0.253",
   "date": "2026-10-17",
   "items": [
