@@ -198,7 +198,7 @@ Prices, limits and terms of all five engines: [docs/cloud-engines.md](docs/cloud
 - **A voice from any recording.** Drop a video or a long recording: Folivox finds clean 6–15 s stretches and shows them with their text. [Details](docs/voices.md).
 - **Built for 10-hour books.** Every finished fragment is journalled. Stop, crash or lose power, then run again and it continues. Edit the text and only changed fragments are redone. The previous file is never replaced until the new one is complete.
 - **Studio with live progress.** Chapter lanes, the fragment being read, elapsed and remaining time, retakes, playback of finished chapters, a quick preview before the long run. Local only, token-protected.
-- **Runs on what you have.** Apple Silicon (GPU via Metal, Whisper via MLX), NVIDIA CUDA, or a plain CPU; an optional faster native runtime for CosyVoice 3 (`folivox runtime`, [details](docs/native-runtime.md)). If the GPU fails, the CPU takes over. `folivox doctor` reviews your hardware and gives advice; `folivox bench` measures the real speed.
+- **Runs on what you have.** Apple Silicon (GPU via Metal, Whisper via MLX), NVIDIA CUDA, or a plain CPU; an optional faster native runtime for CosyVoice 3 with Metal, CUDA and Vulkan backends (`folivox runtime`, [details](docs/native-runtime.md); Vulkan, for AMD and Intel GPUs, is experimental). If the GPU fails, the CPU takes over. `folivox doctor` reviews your hardware and gives advice; `folivox bench` measures the real speed.
 - **Interface in 49 languages.** English, Russian, German, French, Spanish, Italian, Chinese, Japanese, Korean, Portuguese, Dutch, Catalan, Greek, Albanian, Swedish, Danish, Norwegian, Finnish, Icelandic, Estonian, Latvian, Lithuanian, Polish, Czech, Slovak, Hungarian, Romanian, Ukrainian, Bulgarian, Serbian, Croatian, Slovenian, Macedonian, Turkish, Arabic, Hebrew, Persian, Urdu, Hindi, Bengali, Marathi, Telugu, Tamil, Gujarati, Indonesian, Malay, Vietnamese, Thai and Swahili (menu in the header). Arabic, Hebrew, Persian and Urdu mirror the page right to left. [Full list](docs/ui-languages.md).
 - **Free, with no limits.** The local engine reads any number of books of any length at no cost. Only if you choose a paid online engine: a cost estimate first, your confirmation, a clean stop at `--max-cost`, no fragment paid for twice.
 - **Sturdy and open.** Early ffmpeg and disk checks, resumable downloads, retries with backoff, waiting out network outages, a redacted support bundle. Pluggable providers via entry points.
@@ -255,7 +255,9 @@ machines (`--devices cpu,cuda` picks devices; CUDA is tried even if `auto` would
 ## FAQ
 
 **What hardware do I need?** Python 3.10–3.12, ffmpeg and about 7.6 GB for the models. A Mac with Apple
-Silicon, or Windows/Linux with an NVIDIA GPU or just a CPU. The CPU works but is slower; `folivox setup` and
+Silicon, or Windows/Linux with an NVIDIA GPU or just a CPU. The CPU works but is slower. AMD and Intel graphics
+cards may work too through the optional native runtime, which has a Vulkan build, but we have not tested it on them
+yet: see [docs/native-runtime.md](docs/native-runtime.md) and tell us how it goes. `folivox setup` and
 `folivox doctor` look at your machine and tell you what to expect.
 
 **How long does a book take?** It depends on your hardware, so we do not quote a number. The studio shows the
