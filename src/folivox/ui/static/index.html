@@ -112,6 +112,8 @@ h1 { padding-inline-end:140px; }
 .mk-modelrow { display:flex; gap:8px; align-items:stretch; } .mk-modelrow select { flex:1; min-width:0; } .ic-del { flex:none; width:34px; display:grid; place-items:center; border:1px solid var(--err); border-radius:8px; background:transparent; color:var(--err); cursor:pointer; padding:0; } .ic-del:hover { background:color-mix(in srgb, var(--err) 12%, transparent); } .ic-del[hidden] { display:none; } .ic-del:disabled { opacity:.45; cursor:default; }
 #mk-listen { min-width:176px; font-variant-numeric:tabular-nums; white-space:nowrap; } #mk-listen.stop { color:var(--ink); border:1px solid var(--ink); background:linear-gradient(90deg, color-mix(in srgb, var(--accent) 30%, transparent) var(--p,0%), transparent var(--p,0%)); } #mk-listenmsg { min-height:1.5em; }
 .chip:hover { color:var(--ink); } .chip.danger { color:var(--err); border-color:var(--err); } .chip.danger:hover { color:var(--err); background:color-mix(in srgb, var(--err) 10%, transparent); } .chip.on { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); } .chip small { opacity:.7; margin-inline-start:3px; }
+.vc-bar { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; margin-bottom:8px; } .vc-bar > .chips:empty { display:none; } .vc-bar input[type=search] { flex:1 1 200px; min-width:160px; width:auto; }
+#vc-list .vmeta { white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 .vgrid { display:flex; flex-direction:column; gap:6px; max-height:440px; overflow:auto; padding:3px; margin:-3px; }
 .vcard { display:grid; grid-template-columns:34px minmax(0,1fr) minmax(90px,170px) 18px 28px; gap:12px; align-items:center; padding:7px 10px 7px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; transition:border-color .2s, box-shadow .2s, background .2s; }
 #vc-modes .chip { padding:8px 16px; font-size:14px; } #vc-modes .chip.hot:not(.on) { border-color:var(--accent); color:var(--accent); }
@@ -437,7 +439,7 @@ dialog ul { padding-inline-start:18px; margin:10px 0; } dialog li { margin:6px 0
       <label class="f eng-desc" hidden style="grid-column:1/-1"><span data-i18n="s4.desc">Describe the voice</span><input id="o-tts_description" type="text" placeholder="a calm, warm middle-aged woman, unhurried audiobook narrator" data-i18n-attr="placeholder:s4.desc.ph"></label>
       <div class="eng-keep" hidden style="grid-column:1/-1"><label class="consent"><input type="checkbox" id="vc-keep" checked><span data-i18n="s4.keep">Keep this voice for other books (otherwise it is deleted after this book)</span></label></div>
       <label class="f eng-style" style="grid-column:1/-1"><span data-i18n="s4.style">Narration note (optional)</span><input id="o-tts_style" type="text" placeholder="default: neutral, steady audiobook narration" data-i18n-attr="placeholder:s4.style.ph"></label>
-      <div class="eng-pick" style="grid-column:1/-1"><small class="mute" style="display:block;margin-bottom:6px" id="vc-note"></small><div class="chips" id="vc-lang" style="margin-bottom:6px"></div><div class="chips" id="vc-sex" style="margin-bottom:6px"></div><input id="vc-q" type="search" placeholder="Search voices — name, id, language, license" data-i18n-attr="placeholder:s4.search.ph" autocomplete="off" hidden style="margin-bottom:8px"><div class="vgrid" id="vc-list" role="radiogroup" aria-label="Voice" data-i18n-attr="aria-label:aria.voice"></div><input type="hidden" id="o-tts_voice"></div>
+      <div class="eng-pick" style="grid-column:1/-1"><small class="mute" style="display:block;margin-bottom:6px" id="vc-note"></small><div class="vc-bar"><div class="chips" id="vc-lang"></div><div class="chips" id="vc-sex"></div><input id="vc-q" type="search" placeholder="Search voices — name, id, language, license" data-i18n-attr="placeholder:s4.search.ph" autocomplete="off" hidden></div><div class="vgrid" id="vc-list" role="radiogroup" aria-label="Voice" data-i18n-attr="aria-label:aria.voice"></div><input type="hidden" id="o-tts_voice"></div>
     </div>
     <label class="consent eng-own" hidden style="margin-top:8px"><input type="checkbox" id="eng-own"><span data-i18n="s4.own">The voice I select in the list below is my own, or I have the speaker's permission to clone it. The clone exists in the provider's account while the book is made, then it is deleted.</span></label>
   </div>
@@ -2511,7 +2513,7 @@ function engRenderVoices() {
       + codes.map(c => `<option value="${esc(c)}" ${cur === c ? "selected" : ""}>${esc(langName(c))}</option>`).join("")
       + `<option value="" ${cur === "" ? "selected" : ""}>${esc(t("v.alllangs"))}</option></select>`; };
   const scopes = e.voice_scopes && e.voice_scopes.length && $("#o-tts_mode").value === "preset"  // which part of the library to list (server texts, English)
-    ? `<span class="mute" style="flex-basis:100%;height:0"></span>` + e.voice_scopes.map(x => `<button type="button" class="chip ${(ENG.vscope || e.voice_scopes[0].id) === x.id ? "on" : ""}" data-vscope="${esc(x.id)}">${esc(x.label)}</button>`).join("") : "";
+    ? e.voice_scopes.map(x => `<button type="button" class="chip ${(ENG.vscope || e.voice_scopes[0].id) === x.id ? "on" : ""}" data-vscope="${esc(x.id)}">${esc(x.label)}</button>`).join("") : "";
   $("#vc-lang").innerHTML = (many ? langMenu() : vlangOn(e) ? `<span class="mute" style="align-self:center;font-size:13px">${esc(t("eng.vlang"))}</span>` + langs.map(([c, n]) => `<button type="button" class="chip ${(ENG.vlang ?? (e.name === "fish" ? bl : "en")) === c ? "on" : ""}" data-vlang="${c}">${esc(n)}</button>`).join("") : "") + scopes;
   const sexes = [...new Set(all.map(v => v.gender).filter(Boolean))], cur = $("#o-tts_voice").value;
   if (ENG.vsex && !sexes.includes(ENG.vsex)) ENG.vsex = "";
@@ -2523,7 +2525,7 @@ function engRenderVoices() {
   $("#vc-list").innerHTML = list.map(v => `<div class="vcard pv ${v.id === cur ? "sel" : ""}" role="radio" tabindex="0" aria-checked="${v.id === cur}" data-id="${esc(v.id)}">
     <button type="button" class="vplay" data-url="${esc(v.preview_url || "")}" ${v.preview_url ? "" : "disabled"} title="${esc(v.preview_url ? t("eng.hear") : t("eng.nosample"))}" aria-label="${esc(t("eng.playsample"))}">${v.preview_url ? "▶" : "–"}</button>
     <div style="min-width:0"><div class="vname"><span class="n">${esc((v.name || v.id).split(" - ")[0])}</span><span class="vbadge warn">${t("eng.badge")}</span></div>
-      <div class="vmeta">${esc([GENDER[v.gender], v.traits, v.description].filter(Boolean).join(" · "))}</div></div>
+      <div class="vmeta" title="${esc([v.traits, v.description].filter(Boolean).join(" · "))}">${esc([GENDER[v.gender], v.traits, v.description].filter(Boolean).join(" · "))}</div></div>
     <span>${v.id === cur ? "✓" : ""}</span></div>`).join("") || `<div class="mute">${t("eng.novoices")}</div>`;
   $("#vc-note").innerHTML = linkify((all.some(v => v.preview_url) ? t("eng.freesamples") + " " : "") + (ENG.vnote || "") + " " + (e.per_hour != null ? t("eng.paidnote2", { label: e.label, p: "$" + dec(e.per_hour, 2) }) : t("eng.paidnote", { label: e.label })));
 }
