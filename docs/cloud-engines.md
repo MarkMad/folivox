@@ -36,7 +36,7 @@ needs no 32 GB Mac and is faster, the local one is free.
   filters the list. Listings are cached on disk for 12 hours. Never use a
   voice that imitates a real person without consent. *Describe a voice*: `/v1/voice-design` ($0.01 per request) makes one candidate, which is saved as a
   private model so the whole book has one voice. *Clone*: one of your own voices becomes a private model
-  (`enhance_audio_quality` on, Fish transcribes the sample itself; 10–30 s of clean speech works best). Made voices are
+  (`enhance_audio_quality` on, Fish transcribes the sample itself; 10–30 s of clean speech works best, not measured yet). Made voices are
   deleted when the book is finished unless you keep them (`--keep-voice`).
 - **Direction.** The *style note* is sent as a bracketed direction before every fragment, e.g.
   `[calm, warm audiobook narration] …`. Drama 3 and S2 read it as direction, not as words, in any language. No

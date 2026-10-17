@@ -118,8 +118,12 @@ the bundled catalog, and Folivox has no feature for imitating real people.
 
 ## The voice sample
 
-Use 6–15 seconds of **clean** speech (no music, no noise, no reverb), WAV or FLAC, with an exact
-transcript. The model copies everything about the sample — timbre, pace, microphone, room — so a
+Use **clean** speech (no music, no noise, no reverb), WAV or FLAC, with an exact transcript. How much
+depends on the engine: **6–15 seconds** for CosyVoice 3 (its sweet spot) and **10–30 seconds** for Fish Audio
+(S2 Pro, Drama 3 and the online engine), which uses a longer sample well. 30 seconds is the hard maximum for
+every engine. These ranges come from the engines' documentation and have not been measured with Folivox yet;
+the studio and `folivox voices add --engine …` warn when a sample is outside the range for the engine you chose.
+The model copies everything about the sample — timbre, pace, microphone, room — so a
 calm, evenly read sentence works best.
 
 Steady background noise (hiss, hum, a fan) can be reduced gently before the voice is added:

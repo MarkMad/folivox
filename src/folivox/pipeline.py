@@ -858,13 +858,13 @@ def render(book: Book, opts: RenderOptions, events: Events | None = None) -> Pat
             engine.should_stop = events.cancelled
             engine.on_wait = events.warning
             voice, owned = _cloud_voice(engine, opts, journal, events)
-            for w in voice.warnings:
+            for w in voice.warnings_for(opts.tts):
                 events.warning(w)
             events.stage("model", f"{type(engine.gen).label}, model {engine.model}")
         else:
             voice = load_voice(opts.voice_wav, opts.voice_text,
                                transcribe=asr.transcribe_file if asr else None)
-            for w in voice.warnings:
+            for w in voice.warnings_for(opts.tts):
                 events.warning(w)
         markup = load_markup(book, opts, events)
         made: list = []
