@@ -1,5 +1,27 @@
 [
  {
+  "version": "0.1.0.303",
+  "date": "2026-10-18",
+  "items": [
+   {
+    "type": "fix",
+    "text": "Windows installer: when Smart App Control blocks the Python that uv downloads (os error 4551), it uses the signed Python from python.org instead, installing it with winget if needed. The error no longer blames the network."
+   },
+   {
+    "type": "new",
+    "text": "The studio warns before you close the tab or the markup editor while work runs; a reopened editor picks up the running markup."
+   },
+   {
+    "type": "fix",
+    "text": "The markup model is unloaded when the studio stops, also after a finished run."
+   },
+   {
+    "type": "fix",
+    "text": "Switching the engine while saved voices were loading could break the engine menu."
+   }
+  ]
+ },
+ {
   "version": "0.1.0.287",
   "date": "2026-10-18",
   "items": [
