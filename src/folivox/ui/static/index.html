@@ -454,7 +454,7 @@ dialog ul { padding-inline-start:18px; margin:10px 0; } dialog li { margin:6px 0
   <div class="mute" id="vcount" hidden style="margin-top:6px"><small></small></div>
   <div class="lang-gap" id="vgap" hidden></div>
   <div id="addvoice" class="av" hidden>
-    <div class="av-head"><b data-i18n="s4.add.h">Add your own voice</b><span class="mute" id="av-sub" data-i18n="s4.add.rules">6–15 s of clean speech: no music, no noise, an even calm pace</span>
+    <div class="av-head"><b data-i18n="s4.add.h">Add your own voice</b><span class="mute" id="av-sub">6–15 s of clean speech: no music, no noise, an even calm pace</span>
       <button id="av-close" class="chip" style="margin-inline-start:auto" data-i18n="btn.close">Close</button></div>
     <div class="av-body">
       <div class="av-left">
@@ -468,7 +468,7 @@ dialog ul { padding-inline-start:18px; margin:10px 0; } dialog li { margin:6px 0
           <button type="button" id="av-play" class="vplay">▶</button>
           <div style="min-width:0;flex:1"><div id="av-fname" class="vname"></div><canvas id="av-wave" class="vwave" style="margin-top:2px"></canvas>
             <div id="av-dur" class="vmeta"></div></div>
-          <button type="button" id="av-trim" class="chip" hidden data-i18n="av.trim">Trim to 15 s</button><button type="button" id="av-clear" class="chip" data-i18n="av.remove">Remove</button></div>
+          <button type="button" id="av-trim" class="chip" hidden>Trim to 15 s</button><button type="button" id="av-clear" class="chip" data-i18n="av.remove">Remove</button></div>
         <label class="consent" id="av-dn-row" hidden><input type="checkbox" id="av-dn"><span><b data-i18n="av.dn.h">Reduce background noise</b> <span id="av-dn-state" class="mute"></span><br><small data-i18n="av.dn.sub">Gentle and for steady noise only (hiss, hum, fans). Play the sample with and without it and keep what sounds natural.</small></span></label>
       </div>
       <div class="av-right">
@@ -1681,8 +1681,12 @@ $("#depth").onchange = reflow; $("#lang").onchange = reflow;
 
 // ---- voices: a searchable, filterable gallery with waveform thumbnails -------------------------------
 let VOICES = [], AUTO = {}, FAV = new Set(), vf = { q: "", lang: null, gender: "", fav: false, manual: false }, vplayer = null;
+// recommended sample length per engine family; the server owns the numbers (tts/voice.py), these are the fallback
+let GOOD_RANGES = { default: [6, 15], fish: [10, 30] };
+const addRules = () => { const [lo, hi] = goodRange(); $("#av-sub").textContent = t("s4.add.rules", { lo, hi }); };
+const goodRange = () => GOOD_RANGES[($("#o-tts").value || "").split("-")[0]] || GOOD_RANGES.default;
 async function loadVoices() {
-  const r = await api("/api/voices"); VOICES = r.voices; AUTO = r.auto; FAV = new Set(r.favorites || []);
+  const r = await api("/api/voices"); VOICES = r.voices; AUTO = r.auto; FAV = new Set(r.favorites || []); if (r.good_ranges) GOOD_RANGES = r.good_ranges;
   if (!vf.manual || (vf.lang !== "all" && !VOICES.some(v => v.lang === vf.lang))) vf.lang = VOICES.some(v => v.lang === book.lang) ? book.lang : "all";
   if (!$("#av-lang").options.length) $("#av-lang").innerHTML = Object.entries(LANGS).map(([c, n]) => `<option value="${c}">${n}</option>`).join("");
   if (!avDirty) $("#av-lang").value = book.lang;
@@ -1796,7 +1800,7 @@ for (const [panel, btn] of [["#addvoice", "#add-card"], ["#genvoice", "#gen-card
   new MutationObserver(sync).observe($(panel), { attributes: true, attributeFilter: ["hidden"] }); sync();
 }
 function setVNote(text) { $("#vcount").firstChild.textContent = text; $("#vcount").hidden = !text; }  // only a note that matters; no voice counter
-function openAdd() { closeGen(); $("#addvoice").hidden = false; $("#addvoice").scrollIntoView({ behavior: "smooth", block: "nearest" }); $("#av-name").focus({ preventScroll: true }); }
+function openAdd() { addRules(); closeGen(); $("#addvoice").hidden = false; $("#addvoice").scrollIntoView({ behavior: "smooth", block: "nearest" }); $("#av-name").focus({ preventScroll: true }); }
 function closeAdd() { stopRec(true); resetAdd(); $("#addvoice").hidden = true; }
 function resetAdd() { av = null; avDirty = false; idTouched = false; abp.reset();
   ["#av-name", "#av-id", "#av-text"].forEach(i => $(i).value = ""); $("#av-consent").checked = false; $("#av-msg").textContent = ""; $("#av-file").value = "";
@@ -1837,8 +1841,9 @@ function setSample(mono, sr, name) {
   $("#av-drop").hidden = true; $("#av-rec-ui").hidden = true; $("#av-sample").hidden = false; $("#av-fname").textContent = name; avDirty = true; showSample(); checkAdd();
 }
 function showSample(progress = 0) {
-  const sec = av.mono.length / av.sr, d = $("#av-dur"); $("#av-trim").hidden = sec <= 15;
-  const [cls, msg] = sec < 3 ? ["stop", t("av.q.tooshort")] : sec > 30 ? ["stop", t("av.q.toolong")] : sec < 6 ? ["bad", t("av.q.short")] : sec > 15 ? ["bad", t("av.q.long")] : ["ok", t("av.q.good")];
+  const sec = av.mono.length / av.sr, d = $("#av-dur"), [lo, hi] = goodRange(); $("#av-trim").hidden = sec <= hi;
+  $("#av-trim").textContent = t("av.trim", { n: hi }); addRules();
+  const [cls, msg] = sec < 3 ? ["stop", t("av.q.tooshort")] : sec > 30 ? ["stop", t("av.q.toolong")] : sec < lo ? ["bad", t("av.q.short", { lo, hi })] : sec > hi ? ["bad", t("av.q.long", { lo, hi })] : ["ok", t("av.q.good")];
   const noise = av.silent ? ["stop", t("av.n.silent")] : av.snr < 15 ? ["bad", t("av.n.noisy")]
     : av.snr < 25 ? ["bad", t("av.n.some")] : ["ok", t("av.n.clean")];
   d.innerHTML = `${dec(sec)} ${t("u.s")} · <span class="${cls}">${msg}</span><br>${av.gain > 1.5 ? t("av.raised", { x: dec(av.gain) }) + " · " : ""}<span class="${noise[0]}">${noise[1]}</span>${av.snr < 25 && !av.silent && !$("#av-dn").checked ? ` · <a href="#" id="av-try-dn">${t("av.trydn")}</a>` : ""}`;
@@ -1898,7 +1903,17 @@ $("#av-dn").onchange = async (e) => {
 };
 $("#av-play").onclick = () => abp.toggle();
 $("#av-clear").onclick = () => { abp.reset(); av = null; $("#av-sample").hidden = true; $("#av-drop").hidden = false; $("#av-script").hidden = true; $("#av-file").value = ""; checkAdd(); };
-$("#av-trim").onclick = () => { setSample(av.mono.slice(0, Math.round(15 * av.sr)), av.sr, av.name); };
+// start of the window of `w` samples holding the most speech (50 ms frames above a fraction of the loud level)
+function densestWindow(x, sr, w) {
+  const fr = Math.round(sr * 0.05), n = Math.floor(x.length / fr); if (x.length <= w || n < 2) return 0;
+  const e = new Float32Array(n); for (let i = 0; i < n; i++) { let s = 0; for (let j = i * fr; j < (i + 1) * fr; j++) s += x[j] * x[j]; e[i] = Math.sqrt(s / fr); }
+  const loud = [...e].sort((a, b) => a - b)[Math.floor(n * 0.9)] || 0, v = Array.from(e, q => q > loud * 0.2 ? 1 : 0);
+  const k = Math.min(n, Math.floor(w / fr)); let cur = 0, best = -1, at = 0;
+  for (let i = 0; i < n; i++) { cur += v[i]; if (i >= k) cur -= v[i - k]; if (i >= k - 1 && cur > best) { best = cur; at = i - k + 1; } }
+  return Math.min(at * fr, x.length - w);
+}
+$("#av-trim").onclick = () => { const n = goodRange()[1], w = Math.round(n * av.sr), i = densestWindow(av.mono, av.sr, w);
+  setSample(av.mono.slice(i, i + w), av.sr, av.name); };
 function wavBlob(mono, sr) {
   const n = mono.length, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf), w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
   w(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); w(8, "WAVEfmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
@@ -1976,7 +1991,7 @@ $("#av-submit").onclick = async () => {
   }
   const fd = new FormData(); fd.append("id", $("#av-id").value); fd.append("name", $("#av-name").value.trim());
   fd.append("gender", document.querySelector("#av-gender .on").dataset.g); fd.append("lang", $("#av-lang").value);
-  fd.append("transcript", $("#av-text").value.trim()); fd.append("file", wavBlob(av.mono, av.sr), "voice.wav");
+  fd.append("transcript", $("#av-text").value.trim()); fd.append("engine", $("#o-tts").value || ""); fd.append("file", wavBlob(av.mono, av.sr), "voice.wav");
   try {
     const v = await api("/api/voices", { method: "POST", body: fd }); voice = v.id; vf.manual = true; vf.lang = v.lang; vf.q = ""; $("#vq").value = "";
     resetAdd(); $("#addvoice").hidden = true; await loadVoices(); saveSession();
@@ -2634,7 +2649,7 @@ function runSummary() {
 }
 ["#o-qa", "#o-mp3", "#o-output_dir", "#eng-ack", "#o-tts_voice", "#o-tts_mode"].forEach(i => { $(i).addEventListener("change", () => { renderEst(); runSummary(); }); });
 $("#o-output_dir").addEventListener("input", runSummary);
-$("#o-tts").onchange = engChange; 
+$("#o-tts").onchange = () => { engChange(); addRules(); if (av) showSample(); }; 
 ["#o-tts_model", "#o-takes", "#o-qa"].forEach(i => $(i).addEventListener("change", engEstimate));
 $("#o-tts_model").addEventListener("change", () => { const e = ENG.cur(); if (e && e.cloud) $("#eng-blurb").innerHTML = engBlurb(e); });
 document.addEventListener("change", (ev) => { if (ev.target.closest && ev.target.closest("#chapters, .chap, #chlist")) engEstimate(); });

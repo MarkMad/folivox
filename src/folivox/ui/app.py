@@ -675,10 +675,13 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         return JSONResponse({"ok": True})
 
     async def list_voices(request: Request):
+        from folivox.tts.voice import GOOD_RANGES
+
         lang = request.query_params.get("lang")
         voices = [v for v in catalog.all_voices() if not lang or v.lang == lang]
         auto = {code: catalog.default_for(code).id for code in sorted({v.lang for v in catalog.all_voices()})}
         return JSONResponse({"voices": [_voice_json(v) for v in voices], "auto": auto, "favorites": read_favorites(),
+                             "good_ranges": {k: list(r) for k, r in GOOD_RANGES.items()},
                              "user_dir": str(catalog.user_voices_dir())})
 
     async def voice_sample(request: Request):
@@ -724,7 +727,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
         return JSONResponse({**_voice_json(entry),
-                             "warnings": v.warnings + transcript_warnings(v.transcript, v.duration, code)})
+                             "warnings": v.warnings_for(str(form.get("engine") or ""))
+                             + transcript_warnings(v.transcript, v.duration, code)})
 
     async def transcribe_voice(request: Request):
         """Recognise the sample's text so the user can check it before the voice is saved."""

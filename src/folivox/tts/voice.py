@@ -8,7 +8,22 @@ from functools import cached_property
 from pathlib import Path
 
 MIN_SECONDS, MAX_SECONDS = 3.0, 30.0
-GOOD_RANGE = (6.0, 15.0)
+# Recommended sample length (s) per engine family. NOT MEASURED: the numbers come from the engines' own documentation
+# (CosyVoice 3 prompt audio: 6-15 s is its sweet spot and the frontend asserts <= 30 s; Fish Audio S2 Pro / Drama 3:
+# 10-30 s in the fish-speech docs). A clone-quality comparison (CER, by ear) on 10/20/30 s cuts is still to be done;
+# change this table, nothing else, when it shows a different optimum. MAX_SECONDS stays the hard limit for all.
+GOOD_RANGES = {"default": (6.0, 15.0), "fish": (10.0, 30.0)}
+GOOD_RANGE = GOOD_RANGES["default"]
+
+
+def good_range(engine: str | None = None) -> tuple[float, float]:
+    """Recommended sample length in seconds for a TTS engine id (``fish-s2``, ``fish``, ``cosyvoice3``…)."""
+    family = (engine or "").split("-")[0]
+    return GOOD_RANGES.get(family, GOOD_RANGES["default"])
+
+
+def _fmt(x: float) -> str:
+    return f"{x:g}"
 
 
 class VoiceError(ValueError):
@@ -29,10 +44,13 @@ class Voice:
 
     @property
     def warnings(self) -> list[str]:
-        out = []
-        if not GOOD_RANGE[0] <= self.duration <= GOOD_RANGE[1]:
-            out.append(f"The voice sample is {self.duration:.1f} s long; 6–15 s of clean speech works best.")
-        return out
+        return self.warnings_for(None)
+
+    def warnings_for(self, engine: str | None) -> list[str]:
+        lo, hi = good_range(engine)
+        if lo <= self.duration <= hi:
+            return []
+        return [f"The voice sample is {self.duration:.1f} s long; {_fmt(lo)}–{_fmt(hi)} s of clean speech works best."]
 
 
 # Letters per second of ordinary speech; far outside this the text is not what the recording says
@@ -99,9 +117,9 @@ def load_voice(wav: str | Path, transcript: str | None = None, transcribe=None) 
     except Exception as e:  # noqa: BLE001
         raise VoiceError(f"Cannot read audio {wav}: {e}") from e
     if duration < MIN_SECONDS:
-        raise VoiceError(f"The voice sample is too short ({duration:.1f} s); 6–15 s is needed.")
+        raise VoiceError(f"The voice sample is too short ({duration:.1f} s); at least {MIN_SECONDS:g} s is needed.")
     if duration > MAX_SECONDS:
-        raise VoiceError(f"The voice sample is too long ({duration:.1f} s); trim it to 6–15 s.")
+        raise VoiceError(f"The voice sample is too long ({duration:.1f} s); at most {MAX_SECONDS:g} s, trim it.")
 
     text = None
     if transcript:

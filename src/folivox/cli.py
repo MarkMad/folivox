@@ -664,7 +664,7 @@ def voices_list(ctx: typer.Context,
 @voices_app.command("add", help="Add your own voice to the catalog (stays on this computer).")
 def voices_add(
     voice_id: str = typer.Argument(..., help="Id: lowercase latin letters, digits, - and _."),
-    audio: Path = typer.Argument(..., help="WAV/FLAC/MP3 sample, 6–15 s of clean speech."),
+    audio: Path = typer.Argument(..., help="WAV/FLAC/MP3 sample of clean speech: 6–15 s (CosyVoice), 10–30 s (Fish)."),
     text: str | None = typer.Option(None, "--text", help="Transcript of the sample (text or a .txt file).",
                                   show_default=".txt next to sample, else Whisper"),
     name: str = typer.Option("", "--name", help="Human-readable name."),
@@ -672,6 +672,8 @@ def voices_add(
     lang: str = typer.Option("ru", "--lang", help="Language of the sample (ru en de …)."),
     license: str = typer.Option("", "--license", help="License / origin of the sample."),
     force: bool = typer.Option(False, "--force", help="Overwrite an existing voice with the same id."),
+    engine: str = typer.Option("cosyvoice3", "--engine", help="Engine the voice is meant for; sets the length that "
+                               "is recommended (cosyvoice3, fish-s2, fish-drama3…)."),
     denoise: bool = typer.Option(False, "--denoise/--no-denoise", show_default=False,
                                  help="Reduce steady background noise in the sample first (off)."),
 ):
@@ -694,7 +696,7 @@ def voices_add(
         raise typer.Exit(2) from None
     from folivox.tts.voice import transcript_warnings
 
-    for w in v.warnings + transcript_warnings(v.transcript, v.duration, lang):
+    for w in v.warnings_for(engine) + transcript_warnings(v.transcript, v.duration, lang):
         console.print(f"[yellow]⚠ {w}[/]")
     import tempfile
 
