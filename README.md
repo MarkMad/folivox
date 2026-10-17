@@ -187,133 +187,21 @@ Prices, limits and terms of all five engines: [docs/cloud-engines.md](docs/cloud
 
 ## Features
 
-<table>
-<tr>
-<td width="33%" valign="top">
-
-**Many formats in**<br>
-FB2 (also `.fb2.zip`), EPUB, DOCX, PDF (text layer, no OCR) and TXT. Chapters, nested sections, poems and
-epigraphs are kept; PDF headers, footers and page numbers are removed and hyphenation is undone.
-
-</td>
-<td width="33%" valign="top">
-
-**9 languages with full rules, 80+ with Drama 3**<br>
-Russian, English, German, French, Spanish, Italian, Chinese, Japanese, Korean get their own text rules. Any other
-language Fish Audio Drama 3 reads, also locally (84 in all, e.g. Polish, Portuguese, Arabic, Hindi, Thai), works
-too. Detected from the book's text; `--lang` overrides it. Books with passages in other languages are read
-fragment by fragment in the right language.
-
-</td>
-<td width="33%" valign="top">
-
-**Text prepared for speech**<br>
-Numbers, dates, times, money, units, roman numerals and abbreviations read in full, with case and gender
-agreement where the language has it (Russian cases, Spanish `veintiuna`, French `une`, German `eine`, Korean
-native counters, Chinese `两`); sentences split and packed into fragments; dialogue pauses.
-[Per-language table](docs/how-it-works.md#what-the-normaliser-reads-out-per-language).
-
-</td>
-</tr>
-<tr>
-<td valign="top">
-
-**Stress, `ё` and your own pronunciations**<br>
-For Russian, `ё` is restored automatically with ruaccent, and full stress marks are available
-(`--stress all`, experimental). Names and invented words: a plain-text dictionary next to the book
-(`Kvothe = Quothe`), also editable in the studio. [Details](docs/pronunciation.md).
-
-</td>
-<td valign="top">
-
-**Quality control**<br>
-Every fragment is listened back with Whisper. If it does not match the text it is read again, and the best
-take is kept (`--takes`, default 3).
-
-</td>
-<td valign="top">
-
-**Real audiobook files**<br>
-One `.m4b` with chapter markers, cover and metadata (title, author, narrator, year, description, series), or
-one `.mp3` per chapter. Loudness-normalised (−18 LUFS).
-
-</td>
-</tr>
-<tr>
-<td valign="top">
-
-**Several voices in one book**<br>
-A narrator and characters, each with their own voice and expression tags (`[sighs]`). A local LLM can mark the
-speakers automatically; check and fix them in the studio's markup editor. [Details](docs/markup.md).
-
-</td>
-<td valign="top">
-
-**Built for 10-hour books**<br>
-Every finished fragment is journalled. Stop, crash or lose power, then run again and it continues. Edit the
-text and only changed fragments are redone. The previous file is never replaced until the new one is complete.
-
-</td>
-<td valign="top">
-
-**Studio with live progress**<br>
-Chapter lanes, the fragment being read, elapsed and remaining time, retakes, playback of finished chapters,
-a quick preview before the long run. Local only, token-protected.
-
-</td>
-</tr>
-<tr>
-<td valign="top">
-
-**Runs on what you have**<br>
-Apple Silicon (GPU via Metal, Whisper via MLX), NVIDIA CUDA, or a plain CPU; an optional faster native runtime
-for CosyVoice 3 (`folivox runtime`, [details](docs/native-runtime.md)). If the GPU fails, the CPU takes
-over. `folivox doctor` reviews your hardware and gives advice; `folivox bench` measures the real speed.
-
-</td>
-</tr>
-<tr>
-<td valign="top">
-
-**Interface in 49 languages**<br>
-English, Russian, German, French, Spanish, Italian, Chinese, Japanese, Korean, Portuguese, Dutch, Catalan,
-Greek, Albanian, Swedish, Danish, Norwegian, Finnish, Icelandic, Estonian, Latvian, Lithuanian, Polish, Czech,
-Slovak, Hungarian, Romanian, Ukrainian, Bulgarian, Serbian, Croatian, Slovenian, Macedonian, Turkish, Arabic,
-Hebrew, Persian, Urdu, Hindi, Bengali, Marathi, Telugu, Tamil, Gujarati, Indonesian, Malay, Vietnamese, Thai
-and Swahili (menu in the header). Arabic, Hebrew, Persian and Urdu mirror the page right to left.
-[Full list](docs/ui-languages.md).
-
-</td>
-<td valign="top">
-
-**Free, with no limits**<br>
-The local engine reads any number of books of any length at no cost. Only if you choose a paid online
-engine: a cost estimate first, your confirmation, a clean stop at `--max-cost`, no fragment paid for twice.
-
-</td>
-<td valign="top">
-
-**Sturdy and open**<br>
-Early ffmpeg and disk checks, resumable downloads, retries with backoff, waiting out network outages, a
-redacted support bundle. Pluggable providers via entry points.
-
-</td>
-<td valign="top">
-
-**Fish Audio Drama 3**<br>
-Directed in plain words (`[calm, warm narration]`), 80+ languages, several speakers in one scene. Runs locally on
-a Mac with enough memory; an online variant with your key is optional. [Details](docs/fish-engines.md).
-
-</td>
-<td valign="top">
-
-**A voice from any recording**<br>
-Drop a video or a long recording: Folivox finds clean 6–15 s stretches and shows them with their text.
-[Details](docs/voices.md).
-
-</td>
-</tr>
-</table>
+- **Many formats in.** FB2 (also `.fb2.zip`), EPUB, DOCX, PDF (text layer, no OCR) and TXT. Chapters, nested sections, poems and epigraphs are kept; PDF headers, footers and page numbers are removed and hyphenation is undone.
+- **Fish Audio Drama 3.** Directed in plain words (`[calm, warm narration]`), 80+ languages, several speakers in one scene. Runs locally on a Mac with enough memory; an online variant with your key is optional. [Details](docs/fish-engines.md).
+- **9 languages with full rules, 80+ with Drama 3.** Russian, English, German, French, Spanish, Italian, Chinese, Japanese, Korean get their own text rules. Any other language Fish Audio Drama 3 reads, also locally (84 in all, e.g. Polish, Portuguese, Arabic, Hindi, Thai), works too. Detected from the book's text; `--lang` overrides it. Books with passages in other languages are read fragment by fragment in the right language.
+- **Text prepared for speech.** Numbers, dates, times, money, units, roman numerals and abbreviations read in full, with case and gender agreement where the language has it (Russian cases, Spanish `veintiuna`, French `une`, German `eine`, Korean native counters, Chinese `两`); sentences split and packed into fragments; dialogue pauses. [Per-language table](docs/how-it-works.md#what-the-normaliser-reads-out-per-language).
+- **Stress, `ё` and your own pronunciations.** For Russian, `ё` is restored automatically with ruaccent, and full stress marks are available (`--stress all`, experimental). Names and invented words: a plain-text dictionary next to the book (`Kvothe = Quothe`), also editable in the studio. [Details](docs/pronunciation.md).
+- **Quality control.** Every fragment is listened back with Whisper. If it does not match the text it is read again, and the best take is kept (`--takes`, default 3).
+- **Real audiobook files.** One `.m4b` with chapter markers, cover and metadata (title, author, narrator, year, description, series), or one `.mp3` per chapter. Loudness-normalised (−18 LUFS).
+- **Several voices in one book.** A narrator and characters, each with their own voice and expression tags (`[sighs]`). A local LLM can mark the speakers automatically; check and fix them in the studio's markup editor. [Details](docs/markup.md).
+- **A voice from any recording.** Drop a video or a long recording: Folivox finds clean 6–15 s stretches and shows them with their text. [Details](docs/voices.md).
+- **Built for 10-hour books.** Every finished fragment is journalled. Stop, crash or lose power, then run again and it continues. Edit the text and only changed fragments are redone. The previous file is never replaced until the new one is complete.
+- **Studio with live progress.** Chapter lanes, the fragment being read, elapsed and remaining time, retakes, playback of finished chapters, a quick preview before the long run. Local only, token-protected.
+- **Runs on what you have.** Apple Silicon (GPU via Metal, Whisper via MLX), NVIDIA CUDA, or a plain CPU; an optional faster native runtime for CosyVoice 3 (`folivox runtime`, [details](docs/native-runtime.md)). If the GPU fails, the CPU takes over. `folivox doctor` reviews your hardware and gives advice; `folivox bench` measures the real speed.
+- **Interface in 49 languages.** English, Russian, German, French, Spanish, Italian, Chinese, Japanese, Korean, Portuguese, Dutch, Catalan, Greek, Albanian, Swedish, Danish, Norwegian, Finnish, Icelandic, Estonian, Latvian, Lithuanian, Polish, Czech, Slovak, Hungarian, Romanian, Ukrainian, Bulgarian, Serbian, Croatian, Slovenian, Macedonian, Turkish, Arabic, Hebrew, Persian, Urdu, Hindi, Bengali, Marathi, Telugu, Tamil, Gujarati, Indonesian, Malay, Vietnamese, Thai and Swahili (menu in the header). Arabic, Hebrew, Persian and Urdu mirror the page right to left. [Full list](docs/ui-languages.md).
+- **Free, with no limits.** The local engine reads any number of books of any length at no cost. Only if you choose a paid online engine: a cost estimate first, your confirmation, a clean stop at `--max-cost`, no fragment paid for twice.
+- **Sturdy and open.** Early ffmpeg and disk checks, resumable downloads, retries with backoff, waiting out network outages, a redacted support bundle. Pluggable providers via entry points.
 
 ### A closer look
 
