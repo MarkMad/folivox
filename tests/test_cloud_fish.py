@@ -52,14 +52,19 @@ def test_insufficient_credit_is_a_quota_error(tmp_path):
 
 def test_voice_library_listing():
     page = {"items": [
+        {"_id": "z9", "type": "tts", "state": "trained", "title": "Community", "tags": ["male"], "languages": ["ru"],
+         "author": {"nickname": "someone"}},
         {"_id": "a1", "type": "tts", "state": "trained", "title": "Anna", "tags": ["female", "calm", "Russian"],
-         "languages": ["ru"], "description": "soft", "samples": [{"audio": "https://x/a.mp3"}]},
+         "languages": ["ru"], "description": "soft", "samples": [{"audio": "https://x/a.mp3"}],
+         "author": {"nickname": "Fish Official"}},
         {"_id": "b2", "type": "tts", "state": "created", "title": "Untrained", "tags": []},
         {"_id": "c3", "type": "svc", "state": "trained", "title": "Converter", "tags": []}]}
     fake = Fake(ok({"items": []}), ok(page))
     g = make(FishAudio, fake)
-    assert g.speakers("ru") == {"a1": ("ru", "f")}
-    assert "self=true" in fake.calls[0]["url"] and "language=ru" in fake.calls[1]["url"]
+    assert list(g.speakers("ru").items()) == [("a1", ("ru", "f")), ("z9", ("ru", "m"))]  # Fish's own voices first
+    assert "self=true" in fake.calls[0]["url"]
+    assert "licensed=true" in fake.calls[1]["url"] and "language=ru" in fake.calls[1]["url"]
+    assert g.details["a1"]["traits"].startswith("Fish Official")
     assert g.names["a1"] == "Anna" and g.details["a1"]["preview_url"] == "https://x/a.mp3"
     assert "female" not in g.details["a1"]["traits"]
 

@@ -532,8 +532,8 @@ class FishAudio(CloudGenerator):
                   "imitation without consent).")
     terms_url = "https://fish.audio/terms/"
     docs_url = "https://docs.fish.audio/features/text-to-speech/drama-3"
-    voices_note = ("Library voices are uploaded by users: use only voices you may use, and never one that imitates "
-                   "a real person without their consent.")
+    voices_note = ("The library voices Fish Audio has licensed, its own “Fish Official” voices first (the rest of the "
+                   "community library is not listed). Never use a voice that imitates a real person without consent.")
     max_chars = 3000  # not documented; the pipeline sends 300-character fragments (Fish's own chunk size)
     BASE = "https://api.fish.audio"
     models = (_model("drama-3", "Drama 3", "newest, directed in plain words"),
@@ -543,6 +543,7 @@ class FishAudio(CloudGenerator):
     PRICE_PER_M = {"drama-3": 50.0, "s2.1-pro": 15.0, "s2-pro": 15.0, "s2.1-pro-free": 0.0}
     BYTES_PER_CHAR = {"en": 1.0, "ru": 1.85, "zh": 3.0, "ja": 2.9, "ko": 2.7}  # UTF-8 bytes per character of prose
     DESIGN_MODEL = "voice-design-1"
+    OFFICIAL = "Fish Official"  # author name of the voices Fish itself publishes
     FEATURED = {"en": {"bf322df2096a46f18c579d0baa36f41d": ("Adrian", "m"),  # the Drama 3 page's example voices
                        "c70cfb98867a4bfb9ae20d2401257b92": ("Delia", "f"),
                        "f3a2b90078d54a65af4b95f63bc7798e": ("Sheila", "f")}}
@@ -575,11 +576,13 @@ class FishAudio(CloudGenerator):
                 out[vid] = (lang or "", sex)
                 self.names[vid] = name
                 self.details[vid] = {"traits": "Drama 3 example voice", "description": "", "preview_url": ""}
-            for own in (True, False):  # the account's own voices first, then the public library by popularity
-                q = {"page_size": 100, "sort_by": "task_count", **({"self": "true"} if own else {}),
-                     **({"language": lang} if lang and not own else {})}
+            for own in (True, False):  # the account's own voices first, then the library voices Fish has licensed
+                q = {"page_size": 100, "sort_by": "task_count",
+                     **({"self": "true"} if own else {"licensed": "true", **({"language": lang} if lang else {})})}
                 data = self.call("GET", f"{self.BASE}/model?{urllib.parse.urlencode(q)}").json()
-                for v in data.get("items", []):
+                items = data.get("items", [])
+                items.sort(key=lambda v: (v.get("author") or {}).get("nickname") != self.OFFICIAL)  # house voices first
+                for v in items:
                     if v.get("type") != "tts" or v.get("state") != "trained" or not v.get("_id"):
                         continue
                     tags = [str(t) for t in v.get("tags") or []]
@@ -588,8 +591,10 @@ class FishAudio(CloudGenerator):
                     out.setdefault(v["_id"], ((v.get("languages") or [""])[0], sex))
                     self.names.setdefault(v["_id"], v.get("title") or v["_id"])
                     sample = (v.get("samples") or [{}])[0]
+                    official = (v.get("author") or {}).get("nickname") == self.OFFICIAL
                     self.details.setdefault(v["_id"], {
-                        "traits": " · ".join(t for t in tags if t.lower() not in ("male", "female"))[:80],
+                        "traits": " · ".join((["Fish Official"] if official else []) + [
+                            t for t in tags if t.lower() not in ("male", "female")])[:90],
                         "description": (v.get("description") or "")[:300], "preview_url": sample.get("audio") or ""})
             cache[key] = out
         return cache[key]

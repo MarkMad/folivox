@@ -30,9 +30,10 @@ is deleted when the book is finished. A kept voice uses a slot of your provider 
 the API). The same Drama 3 model also runs [on this computer](how-it-works.md) (`fish-drama3`); the cloud engine
 needs no 32 GB Mac and is faster, the local one is free.
 
-- **Voices.** *Pick a voice*: your own voices first, then the public library of the book's language by popularity
-  (library voices are uploaded by users: use only ones you may use, never one that imitates a real person without
-  consent). *Describe a voice*: `/v1/voice-design` ($0.01 per request) makes one candidate, which is saved as a
+- **Voices.** *Pick a voice*: your own voices first, then the library voices Fish Audio has licensed (its own
+  "Fish Official" voices first; the rest of the community library is not listed). Chips above the list switch the
+  voice language (the book's language by default); a voice of another language can read the book too. Never use a
+  voice that imitates a real person without consent. *Describe a voice*: `/v1/voice-design` ($0.01 per request) makes one candidate, which is saved as a
   private model so the whole book has one voice. *Clone*: one of your own voices becomes a private model
   (`enhance_audio_quality` on, Fish transcribes the sample itself; 10–30 s of clean speech works best). Made voices are
   deleted when the book is finished unless you keep them (`--keep-voice`).
