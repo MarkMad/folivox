@@ -28,6 +28,8 @@ def private_config(tmp_path, monkeypatch):
     monkeypatch.setenv("FOLIVOX_CONFIG", str(tmp_path / "config.toml"))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
     monkeypatch.setattr(builds, "engines_root", lambda: tmp_path / "engines")
+    # Build selection depends on the machine; pin it so the tests give the same result on any CI runner.
+    monkeypatch.setattr(builds, "detect_hardware", lambda: MAC_64)
     config.load.cache_clear()
     yield
     config.load.cache_clear()
