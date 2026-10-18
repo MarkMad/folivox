@@ -16,6 +16,7 @@ Dockhand as a stack, or with plain `docker compose`. Nothing has to be typed in 
 ## Quick start
 
 1. Pick a password for the studio: at least 16 characters, for example the output of `openssl rand -hex 24`.
+   You can also run without a password on a trusted home network: see [Without a password](#without-a-password-trusted-network-only).
 2. Create a stack from [docker-compose.yml](../docker-compose.yml) (CPU) or
    [docker-compose.nvidia.yml](../docker-compose.nvidia.yml) (NVIDIA GPU). In Portainer: *Stacks → Add stack → Web
    editor*, paste the file, and under *Environment variables* add `FOLIVOX_UI_TOKEN` (and the optional ones below).
