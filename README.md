@@ -152,7 +152,7 @@ The best results we get come from combining one cheap online sample with the fre
    Gemini key this costs well under one cent (about $0.0023 per 10 s of audio on the paid tier); Google also has
    a free tier.
 2. **Keep the best take** (Whisper ranks them) as a voice in your library.
-3. **Render the whole book locally** with CosyVoice 3 cloning that voice: free, unlimited, offline.
+3. **Render the whole book locally** with CosyVoice (or Drama 3) cloning that voice: free, unlimited, offline.
 
 You pay once for about ten seconds of a top-quality voice, and the open model reads the remaining hours
 with it. CLI equivalent:
