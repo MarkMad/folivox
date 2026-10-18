@@ -56,6 +56,8 @@ To build one yourself: `docker build -f docker/Dockerfile --build-arg VARIANT=cp
 | `FOLIVOX_PORT` (compose) | 8765 | Port on the host. |
 | `FOLIVOX_AUDIOBOOKS` (compose) | volume `folivox-audiobooks` | Absolute host folder for finished audiobooks (for example `/srv/audiobooks`). Leave it unset to use a Docker volume. |
 | `FOLIVOX_UI_ALLOWED_HOSTS` | any | Comma-separated host names the studio answers to (see Security). |
+| `FOLIVOX_UI_AUTH` | token | `off`: run without a password, for a trusted home network only (see "Without a password"). |
+| `FOLIVOX_UI_ALLOWED_NETS` | private ranges | With `FOLIVOX_UI_AUTH=off`: the client networks that may connect (CIDR, comma-separated). |
 | `FOLIVOX_PRELOAD_MODELS` | 0 | `1`: download the models when the container starts. |
 | `FOLIVOX_TAG` (compose) | `cpu` / `cuda` | Image tag. |
 | `TZ` | UTC | Time zone of the log. |
@@ -106,6 +108,49 @@ page:
   drop every Linux capability except the three the start-up needs and set `no-new-privileges`.
 * Anyone who has the password can make the studio read and write anywhere the container user can (the output folder is
   a setting). Mount only the folders you want it to see.
+
+## Without a password (trusted network only)
+
+The password is the default and the safe choice. If the studio sits on a home network where you trust every device,
+you can turn it off on purpose: **remove** `FOLIVOX_UI_TOKEN` and set
+
+```yaml
+FOLIVOX_UI_AUTH: "off"
+```
+
+(in the compose file also delete the `FOLIVOX_UI_TOKEN: ${...:?...}` line, which makes the token required).
+Any other value, or no value, keeps the password. Setting a token **and** `FOLIVOX_UI_AUTH=off` stops the start:
+that combination would look protected without being so.
+
+What changes: no login page, no cookie; `/healthz` and everything else open directly. The log shows one loud warning
+at start. What stays: cross-site requests are still refused, and keys you saved are never sent back by the API (only
+whether one is set).
+
+What it means: **anyone who can reach the port** can start renders, spend money on your cloud API keys, and change the
+output folder and anything the container user can write. Not for Wi-Fi guests, shared flats or the internet.
+
+Guards that remain:
+
+* **Client address.** Only clients from private and local ranges are served: `10/8`, `172.16/12`, `192.168/16`,
+  `127/8`, `169.254/16`, IPv6 `fc00::/7`, `fe80::/10` and `::1`. Others get a 403 that says how to allow them. The
+  address is the TCP peer; `X-Forwarded-For` is **never** trusted. To narrow or widen the list set
+  `FOLIVOX_UI_ALLOWED_NETS` (it *replaces* the ranges above), for example `192.168.1.0/24` or, for Tailscale,
+  `100.64.0.0/10,192.168.1.0/24`.
+* **Host header** (against DNS-rebinding from a web page in your browser). Accepted: IP addresses, single-word
+  names (the host name from Portainer, `nas`), and `.local`, `.lan`, `.home.arpa`, `.internal` names. A public name
+  such as `studio.example.org` is refused unless you list it in `FOLIVOX_UI_ALLOWED_HOSTS` (which then decides alone).
+
+Limits, honestly:
+
+* **Docker Desktop, OrbStack, Podman rootless and the userland proxy** hide the real client: every connection reaches
+  the container from the Docker bridge gateway (a private `172.x`/`192.168.x` address), so the client filter cannot tell
+  your phone from a stranger. Checked on OrbStack: a request from the LAN was seen as the bridge gateway. On such
+  hosts the filter does not protect you; **your router must not forward the port**, and `ports:` should name your
+  LAN address (`"192.168.1.20:8765:8765"`) rather than all interfaces. On a native Linux Docker engine the source address is
+  preserved, so a port forward from the internet is seen as an outside address and refused.
+* **Behind a reverse proxy** every request comes from the proxy, a private address, so the filter allows everything the
+  proxy lets through. Do not combine the proxy with no password unless the proxy itself requires a login.
+* The connection is plain HTTP, as with the password.
 
 ## NVIDIA GPU (untested)
 

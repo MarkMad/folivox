@@ -1125,7 +1125,8 @@ def providers():
 def ui(port: int = typer.Option(8765, "--port", envvar="FOLIVOX_UI_PORT", help="Port to listen on."),
        host: str = typer.Option("127.0.0.1", "--host", envvar="FOLIVOX_UI_HOST",
                                 help="Address to listen on. Anything but 127.0.0.1 (for example 0.0.0.0 in Docker) "
-                                     "opens the studio to the network and requires FOLIVOX_UI_TOKEN."),
+                                     "opens the studio to the network and requires FOLIVOX_UI_TOKEN "
+                                     "(or FOLIVOX_UI_AUTH=off for a trusted home network, see docs/docker.md)."),
        open_browser: bool = typer.Option(True, "--open/--no-open", show_default=False,
                                          help="Open the browser automatically (on)."),
        restart: bool = typer.Option(False, "--restart", help="Stop the studio already running on this port, "

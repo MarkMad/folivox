@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.1.0.317",
+  "date": "2026-10-18",
+  "items": [
+   {
+    "type": "new",
+    "text": "Docker: the studio can run without a password on a trusted home network (FOLIVOX_UI_AUTH=off). Only clients from private networks are served, other sites are still refused, and the log warns at start. The password stays the default; see docs/docker.md."
+   }
+  ]
+ },
+ {
   "version": "0.1.0.310",
   "date": "2026-10-18",
   "items": [
