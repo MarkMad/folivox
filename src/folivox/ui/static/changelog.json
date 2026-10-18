@@ -1,5 +1,19 @@
 [
  {
+  "version": "0.1.0.305",
+  "date": "2026-10-18",
+  "items": [
+   {
+    "type": "new",
+    "text": "Docker: images for CPU (amd64, arm64) and NVIDIA GPU, with compose files for Portainer, Dockhand and docker compose (docs/docker.md). Models, voices and settings live in a volume."
+   },
+   {
+    "type": "new",
+    "text": "The studio can listen on the network (folivox ui --host 0.0.0.0, FOLIVOX_UI_HOST) only with a token you set (FOLIVOX_UI_TOKEN); it then shows a login page. The normal install still listens on this computer only."
+   }
+  ]
+ },
+ {
   "version": "0.1.0.303",
   "date": "2026-10-18",
   "items": [
