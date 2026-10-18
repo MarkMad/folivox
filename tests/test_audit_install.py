@@ -1,5 +1,7 @@
 import subprocess
+import sys
 
+import pytest
 from test_uninstall import _setup
 
 from folivox import uninstall
@@ -18,6 +20,7 @@ def test_symlinked_models_folder_removes_link_not_target(tmp_path, monkeypatch):
     assert not (data / "models").exists() and (real / "Fun-CosyVoice3-0.5B" / "llm.pt").exists()
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="install.sh is for macOS/Linux only")
 def test_install_sh_parses():
     assert subprocess.run(["bash", "-n", "scripts/install.sh"]).returncode == 0
 
