@@ -2,6 +2,7 @@
 # Container entry: fix volume ownership for PUID/PGID, then run the command as that user (never as root).
 # Started with `user:` (not root), it does nothing but run the command; volumes must then be writable for that user.
 set -eu
+COMMAND="${1:-}"
 
 if [ "$(id -u)" = 0 ]; then
   PUID="${PUID:-1000}"; PGID="${PGID:-1000}"
@@ -24,7 +25,7 @@ else
 fi
 
 # Optional: fetch the models before the first start instead of at the first render (progress goes to the log).
-if [ "${FOLIVOX_PRELOAD_MODELS:-0}" = 1 ] && [ "${1:-}" != "setup" ]; then
+if [ "${FOLIVOX_PRELOAD_MODELS:-0}" = 1 ] && [ "$COMMAND" != "setup" ]; then
   echo "folivox: downloading models (FOLIVOX_PRELOAD_MODELS=1)…"
   if [ "$(id -u)" = 0 ]; then setpriv --reuid "$PUID" --regid "$PGID" --init-groups folivox setup </dev/null || echo "folivox: model download failed; the studio will retry on the first render" >&2
   else folivox setup </dev/null || echo "folivox: model download failed; the studio will retry on the first render" >&2; fi

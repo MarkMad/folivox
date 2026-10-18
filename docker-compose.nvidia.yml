@@ -21,8 +21,12 @@ services:
     volumes:
       - folivox-data:/data                                    # models, voices, settings, studio state
       - folivox-work:/work                                    # unfinished books: takes and journals (resume after a stop)
-      - ${FOLIVOX_AUDIOBOOKS:-./audiobooks}:/audiobooks       # finished .m4b / .mp3 files
+      - ${FOLIVOX_AUDIOBOOKS:-folivox-audiobooks}:/audiobooks # finished .m4b / .mp3 files (a volume, or a folder: /srv/audiobooks)
     stop_grace_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID]   # all the entrypoint needs to hand the volumes to PUID/PGID and drop root
     deploy:
       resources:
         reservations:
@@ -34,3 +38,4 @@ services:
 volumes:
   folivox-data:
   folivox-work:
+  folivox-audiobooks:   # used unless FOLIVOX_AUDIOBOOKS names a folder

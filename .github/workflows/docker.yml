@@ -1,6 +1,6 @@
 name: Docker images
 
-# Publishes ghcr.io/vatavale/folivox on pushes to main and on v* tags; pull requests only build (cpu, amd64) to catch breakage.
+# Publishes ghcr.io/vatavale/folivox on pushes to main and on v* tags; pull requests and manual runs only build (cpu, amd64) to catch breakage.
 on:
   push:
     branches: [main]
@@ -19,7 +19,12 @@ on:
 
 permissions:
   contents: read
-  packages: write
+  packages: write   # only used when PUBLISH is true below; pull requests from forks get a read-only token anyway
+
+# One publish per ref at a time, so an older run can never move :latest back after a newer one.
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   image:
@@ -36,7 +41,8 @@ jobs:
           - variant: cuda128
             platforms: linux/amd64
     env:
-      PUBLISH: ${{ github.event_name != 'pull_request' }}
+      # only a push to main or a v* tag publishes: never a pull request, never a manual run of some other branch
+      PUBLISH: ${{ github.event_name == 'push' }}
     steps:
       - uses: actions/checkout@v4
         with:

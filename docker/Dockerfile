@@ -12,7 +12,6 @@ ENV UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1
 WORKDIR /src
 SHELL ["/bin/bash", "-c"]
 COPY pyproject.toml README.md LICENSE NOTICE ./
-COPY src ./src
 # The same torch pins as scripts/install.sh. cuda: the default PyPI wheels already carry their CUDA libraries.
 RUN set -eu; \
     case "$VARIANT" in \
@@ -23,7 +22,11 @@ RUN set -eu; \
     esac; \
     printf '%s\n%s\n' "$TORCH" "${TORCH/torch/torchaudio}" > /tmp/constraints.txt; \
     uv venv /opt/folivox; \
-    uv pip install --python /opt/folivox/bin/python $EXTRA --constraints /tmp/constraints.txt ".[all]"
+    uv pip install --python /opt/folivox/bin/python $EXTRA --constraints /tmp/constraints.txt \
+      -r pyproject.toml --extra tts --extra qa --extra ui --extra denoise
+# The heavy layer above depends on pyproject.toml only; a source change reinstalls just the package below.
+COPY src ./src
+RUN uv pip install --python /opt/folivox/bin/python --no-deps .
 
 FROM python:${PYTHON_VERSION}-slim-bookworm
 ARG VARIANT=cpu
