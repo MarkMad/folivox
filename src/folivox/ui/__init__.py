@@ -208,9 +208,9 @@ def stop_running(host: str, port: int, force: bool = False) -> dict:
 def access_needed_message(host: str) -> str:
     return (f"Listening on {host} makes the studio reachable from the network, which needs an access token "
             "(or an explicit choice to go without one). Set FOLIVOX_UI_TOKEN to a password of at least 4 "
-            "characters (longer is safer, e.g. openssl rand -hex 12; or FOLIVOX_UI_TOKEN_FILE), or, on a home network where you "
-            "trust every device, set FOLIVOX_UI_AUTH to off (see docs/docker.md, 'Without a password'). "
-            "Then start again. Without either the studio stays on 127.0.0.1.")
+            "characters (longer is safer, e.g. openssl rand -hex 12; or FOLIVOX_UI_TOKEN_FILE), or, on a home "
+            "network where you trust every device, set FOLIVOX_UI_AUTH to off (see docs/docker.md, 'Without a "
+            "password'). Then start again. Without either the studio stays on 127.0.0.1.")
 
 
 def serve_access_needed(host: str, port: int, message: str) -> None:
