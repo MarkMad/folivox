@@ -10,7 +10,8 @@ services:
     ports:
       - "${FOLIVOX_PORT:-8765}:8765"
     environment:
-      FOLIVOX_UI_TOKEN: ${FOLIVOX_UI_TOKEN:?Set FOLIVOX_UI_TOKEN to a password of at least 16 characters}
+      FOLIVOX_UI_TOKEN: ${FOLIVOX_UI_TOKEN:-}   # the password (16+ characters); without it the studio refuses to start unless AUTH is off
+      FOLIVOX_UI_AUTH: ${FOLIVOX_UI_AUTH:-}     # set to "off" instead of a password, trusted home network only (docs/docker.md)
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}

@@ -19,9 +19,9 @@ Dockhand as a stack, or with plain `docker compose`. Nothing has to be typed in 
    You can also run without a password on a trusted home network: see [Without a password](#without-a-password-trusted-network-only).
 2. Create a stack from [docker-compose.yml](../docker-compose.yml) (CPU) or
    [docker-compose.nvidia.yml](../docker-compose.nvidia.yml) (NVIDIA GPU). In Portainer: *Stacks → Add stack → Web
-   editor*, paste the file, and under *Environment variables* add `FOLIVOX_UI_TOKEN` set to your password (and the optional ones below). Without a password, skip the token and set
-   `FOLIVOX_UI_AUTH=off` instead.
-3. Deploy. Open `http://<server>:8765/`, enter the password, and use the studio as on a desktop.
+   editor*, paste the file, and under *Environment variables* add `FOLIVOX_UI_TOKEN` set to your password (and the optional ones below). Without a password, leave the token empty and set
+   `FOLIVOX_UI_AUTH` to `off` instead.
+3. Deploy. Open `http://<server>:8765/`, enter the password (if you set one), and use the studio as on a desktop.
 
 With plain Docker Compose:
 
@@ -114,13 +114,13 @@ page:
 ## Without a password (trusted network only)
 
 The password is the default and the safe choice. If the studio sits on a home network where you trust every device,
-you can turn it off on purpose: **remove** `FOLIVOX_UI_TOKEN` and set
+you can turn it off on purpose: leave `FOLIVOX_UI_TOKEN` empty and set
 
 ```yaml
 FOLIVOX_UI_AUTH: "off"
 ```
 
-(in the compose file also delete the `FOLIVOX_UI_TOKEN: ${...:?...}` line, which makes the token required).
+(in a Portainer stack: leave `FOLIVOX_UI_TOKEN` empty and add the variable `FOLIVOX_UI_AUTH` with the value `off`).
 Any other value, or no value, keeps the password. Setting a token **and** `FOLIVOX_UI_AUTH=off` stops the start:
 that combination would look protected without being so.
 
