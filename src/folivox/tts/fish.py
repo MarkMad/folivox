@@ -91,7 +91,10 @@ class _Worker:
         return rep
 
     def _died(self) -> str:
-        code = self.proc.poll()
+        try:
+            code = self.proc.wait(timeout=2)  # the pipe closes a moment before Windows reports the exit code
+        except subprocess.TimeoutExpired:
+            code = self.proc.poll()
         tail = "\n".join(list(self.stderr_tail)[-8:])
         hint = " It was probably killed for lack of memory: close heavy applications and try again." \
             if code in (-9, 137) else ""

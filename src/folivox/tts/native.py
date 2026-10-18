@@ -129,6 +129,13 @@ class Server:
     def alive(self) -> bool:
         return self.proc is not None and self.proc.poll() is None
 
+    def _exited_soon(self, grace: float = 2.0) -> bool:
+        """A dying server resets the connection a moment before the OS reports its exit (seen on Windows)."""
+        try:
+            return self.proc is not None and self.proc.wait(timeout=grace) is not None
+        except subprocess.TimeoutExpired:
+            return False
+
     def stop(self) -> None:
         p, self.proc = self.proc, None
         if p is not None and p.poll() is None:
@@ -176,7 +183,7 @@ class Server:
                 raise SynthTimeout(f"The native engine did not answer in {timeout:.0f} s and was stopped. Progress "
                                    "is saved: run the same command again to continue.") from None
             except (urllib.error.URLError, ConnectionError, OSError) as e:
-                if not self.alive():
+                if not self.alive() or self._exited_soon():
                     raise ServerGone(f"the native engine stopped ({e}). {self.log_tail()}") from None
                 raise NativeError(f"The native engine did not answer: {e}") from None
         if "audio" not in ctype and not data.startswith(b"RIFF"):
