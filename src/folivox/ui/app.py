@@ -148,21 +148,49 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     allowed_hosts = None if network or not port else {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
 
     # ---- handlers -------------------------------------------------------------------------------
-    def logged_in(request: Request) -> bool:
-        return secrets.compare_digest(request.cookies.get(cookie_name) or "", session)
+    def same(given: str, expected: str) -> bool:
+        """Constant-time comparison that also accepts non-ASCII input (``compare_digest`` raises on it for str)."""
+        return secrets.compare_digest(given.encode(), expected.encode())
 
-    def start_session() -> RedirectResponse:
+    guesses = _Throttle()  # network mode: wrong tokens in a row lock the token checks for a while
+
+    def logged_in(request: Request) -> bool:
+        return same(request.cookies.get(cookie_name) or "", session)
+
+    def start_session(request: Request) -> RedirectResponse:
         resp = RedirectResponse("/", status_code=303)
-        resp.set_cookie(cookie_name, session, httponly=True, samesite="strict", path="/", max_age=90 * 86400)
+        # behind an HTTPS reverse proxy the browser must never send the cookie over plain http
+        secure = request.url.scheme == "https" or (network and request.headers.get("x-forwarded-proto") == "https")
+        resp.set_cookie(cookie_name, session, httponly=True, samesite="strict", path="/", secure=secure,
+                        max_age=(30 if network else 90) * 86400)
         return resp
+
+    def token_ok(request: Request, given: str) -> bool | None:
+        """Is ``given`` the token? None: too many wrong guesses, nothing is checked now (network mode only)."""
+        if network and guesses.locked():
+            return None
+        if token and same(given, token):
+            return True
+        if network:
+            guesses.fail()
+        return False
+
+    def too_many(html: bool = False):
+        headers = {"Retry-After": str(_Throttle.LOCK)}
+        if html:
+            return HTMLResponse(LOGIN_PAGE.replace("<!--error-->", '<p class="err">Too many wrong tokens. '
+                                                   'Wait a few minutes.</p>'), status_code=429, headers=headers)
+        return JSONResponse({"error": "Too many wrong tokens, try again later"}, status_code=429, headers=headers)
 
     async def login(request: Request):
         """Network mode: trade the token typed into the login page for the session cookie."""
-        given = str((await request.form()).get("token") or "")
-        if not (token and secrets.compare_digest(given, token)):
+        ok = token_ok(request, str((await request.form()).get("token") or ""))
+        if ok is None:
+            return too_many(html=True)
+        if not ok:
             await asyncio.sleep(1.0)  # slows down guessing
             return HTMLResponse(LOGIN_PAGE.replace("<!--error-->", '<p class="err">Wrong token.</p>'), status_code=401)
-        return start_session()
+        return start_session(request)
 
     async def health(request: Request):
         """For container health checks: no token, and nothing but "the server answers"."""
@@ -171,9 +199,12 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     async def index(request: Request):
         given = request.query_params.get("token")
         if token and given is not None:  # the link printed by `folivox ui`: trade the token for a cookie, hide it
-            if not secrets.compare_digest(given, token):
+            ok = token_ok(request, given)
+            if ok is None:
+                return too_many()
+            if not ok:
                 return JSONResponse({"error": "Wrong token"}, status_code=401)
-            return start_session()
+            return start_session(request)
         if network and not logged_in(request):
             return HTMLResponse(LOGIN_PAGE.replace("<!--error-->", ""))
         return HTMLResponse((STATIC / "index.html").read_text(encoding="utf-8"))
@@ -1128,6 +1159,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         import subprocess
         import sys
 
+        if network:
+            raise ApiError("The studio runs on another machine: find the file in the output folder", 400)
         job = get_job(request)
         if job.state != "done" or not job.result or not Path(job.result).exists():
             raise ApiError("Nothing to show yet", 404)
@@ -1671,6 +1704,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     # ---- plumbing -------------------------------------------------------------------------------
     def check(request: Request) -> JSONResponse | None:
         host = request.headers.get("host") or ""
+        if request.url.path == "/healthz":
+            return None  # container health check: asks over 127.0.0.1 whatever the allowed names are, tells nothing
         if allowed_hosts is not None and host not in allowed_hosts:
             return JSONResponse({"error": "Bad Host header"}, status_code=403)  # DNS-rebinding guard
         bare = host[:host.index("]") + 1] if host.startswith("[") else host.partition(":")[0]
@@ -1687,9 +1722,12 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             return JSONResponse({"error": "Cross-site request refused"}, status_code=403)
         if token and request.url.path.startswith("/api/"):
             given = request.headers.get("x-folivox-token") or request.query_params.get("token") or ""
-            cookie = request.cookies.get(cookie_name) or ""
-            if not (secrets.compare_digest(given, token) or secrets.compare_digest(cookie, session)):
-                return JSONResponse({"error": "Missing or wrong token"}, status_code=401)
+            if not same(request.cookies.get(cookie_name) or "", session):  # a valid cookie is never throttled
+                ok = token_ok(request, given) if given else False
+                if ok is None:
+                    return too_many()
+                if not ok:
+                    return JSONResponse({"error": "Missing or wrong token"}, status_code=401)
         return None
 
     async def api_error(request: Request, exc: ApiError):
@@ -1805,6 +1843,27 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
 
     app.state.cancel_all, app.state.shutdown = cancel_all, shutdown
     return app
+
+
+class _Throttle:
+    """Wrong-token counter for the network mode: ``LIMIT`` misses within ``WINDOW`` seconds lock token checks for
+    ``LOCK`` seconds. One counter for everyone (behind a proxy every client has the proxy's address); a request with
+    a valid session cookie does not go through it, so the owner is only held up while someone is guessing."""
+
+    LIMIT, WINDOW, LOCK = 10, 60.0, 300
+
+    def __init__(self):
+        self.misses: list[float] = []
+        self.until = 0.0
+
+    def locked(self) -> bool:
+        return time.monotonic() < self.until
+
+    def fail(self) -> None:
+        now = time.monotonic()
+        self.misses = [t for t in self.misses if now - t < self.WINDOW] + [now]
+        if len(self.misses) >= self.LIMIT:
+            self.until, self.misses = now + self.LOCK, []
 
 
 LOGIN_PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport"

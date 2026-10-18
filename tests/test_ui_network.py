@@ -115,3 +115,92 @@ def test_work_dir_env(monkeypatch, tmp_path):
     assert opts.resolved_work_dir() == tmp_path / "out" / "Book.folivox"
     monkeypatch.setenv("FOLIVOX_WORK_DIR", str(tmp_path / "work"))
     assert opts.resolved_work_dir() == Path(tmp_path / "work" / "Book.folivox")
+
+
+def test_non_ascii_token_is_a_401_not_a_crash(tmp_path):
+    c = make(tmp_path)
+    assert c.get("/api/voices", headers={"X-Folivox-Token": "тест".encode()}
+                 ).status_code == 401
+    assert c.get("/?token=%D1%82%D0%B5%D1%81%D1%82").status_code == 401
+    assert c.post("/login", data={"token": "тест"}, headers={"Origin": "http://192.168.1.20:8765"}
+                  ).status_code == 401
+
+
+def test_guessing_locks_token_checks_but_not_the_cookie(tmp_path, monkeypatch):
+    monkeypatch.setattr("asyncio.sleep", lambda s: _noop())
+    c = make(tmp_path)
+    origin = {"Origin": "http://192.168.1.20:8765"}
+    ok = c.post("/login", data={"token": TOKEN}, headers=origin)
+    assert ok.status_code == 303
+    cookie = dict(c.cookies)
+    c.cookies.clear()
+    for _ in range(10):
+        assert c.get("/api/voices", headers={"X-Folivox-Token": "wrong-" + "x" * 20}).status_code == 401
+    # locked: even the right token is not looked at, over every door
+    locked = c.get("/api/voices", headers={"X-Folivox-Token": TOKEN})
+    assert locked.status_code == 429 and locked.headers["retry-after"]
+    assert c.post("/login", data={"token": TOKEN}, headers=origin).status_code == 429
+    assert c.get(f"/?token={TOKEN}").status_code == 429
+    # the owner's session keeps working
+    c.cookies.update(cookie)
+    assert c.get("/api/voices").status_code == 200
+
+
+def test_requests_without_credentials_do_not_count_as_guesses(tmp_path):
+    c = make(tmp_path)
+    for _ in range(30):
+        assert c.get("/api/voices").status_code == 401
+    assert c.get("/api/voices", headers={"X-Folivox-Token": TOKEN}).status_code == 200
+
+
+def test_session_cookie_flags(tmp_path, monkeypatch):
+    monkeypatch.setattr("asyncio.sleep", lambda s: _noop())
+    c = make(tmp_path)
+    origin = {"Origin": "http://192.168.1.20:8765"}
+    plain = c.post("/login", data={"token": TOKEN}, headers=origin).headers["set-cookie"].lower()
+    assert "httponly" in plain and "samesite=strict" in plain and "secure" not in plain
+    proxied = c.post("/login", data={"token": TOKEN}, headers={**origin, "X-Forwarded-Proto": "https"})
+    assert "secure" in proxied.headers["set-cookie"].lower()
+
+
+def test_loopback_cookie_is_unchanged(tmp_path):
+    app = create_app(token=TOKEN, port=8765, data_dir=tmp_path / "ui")
+    c = TestClient(app, base_url="http://127.0.0.1:8765", follow_redirects=False)
+    cookie = c.get(f"/?token={TOKEN}").headers["set-cookie"].lower()
+    assert "max-age=7776000" in cookie and "secure" not in cookie
+    c.cookies.clear()
+    for _ in range(15):  # no lock-out on the loopback
+        assert c.get("/api/voices", headers={"X-Folivox-Token": "x" * 20}).status_code == 401
+    assert c.get("/api/voices", headers={"X-Folivox-Token": TOKEN}).status_code == 200
+
+
+def test_healthz_ignores_allowed_hosts(tmp_path):
+    c = make(tmp_path, allowed_hosts={"studio.home"})
+    assert c.get("/healthz", headers={"Host": "127.0.0.1:8765"}).status_code == 200
+    assert c.get("/api/voices", headers={"X-Folivox-Token": TOKEN, "Host": "127.0.0.1:8765"}).status_code == 403
+
+
+def test_every_route_but_the_login_ones_needs_the_token(tmp_path):
+    """No page, download or stream is reachable without credentials (only /, /login, /healthz, /i18n)."""
+    c = make(tmp_path)
+    app_routes = c.app.routes
+    open_paths = {"/", "/healthz", "/login"}
+    for r in app_routes:
+        path = getattr(r, "path", "")
+        if path in open_paths or path.startswith("/i18n/"):
+            continue
+        assert path.startswith("/api/"), path
+        probe = path.split("{")[0] if "{" in path else path
+        for method in ("GET", "POST", "DELETE"):
+            if method in (getattr(r, "methods", None) or {"GET", "POST", "DELETE"}):
+                assert c.request(method, probe).status_code == 401, (method, path)
+
+
+def test_redact_removes_the_studio_token_read_from_a_file(monkeypatch, tmp_path):
+    from folivox import diag
+
+    f = tmp_path / "token"
+    f.write_text(TOKEN)
+    monkeypatch.delenv("FOLIVOX_UI_TOKEN", raising=False)
+    monkeypatch.setenv("FOLIVOX_UI_TOKEN_FILE", str(f))
+    assert TOKEN not in diag.redact(f"login with {TOKEN} ok")
