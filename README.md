@@ -112,25 +112,7 @@ It removes only what Folivox created. Your books, audiobooks, ffmpeg and uv are 
 
 Details, options, manual install and troubleshooting: [docs/install.md](docs/install.md).
 
-### Docker (home server or NAS)
-
-**Why.** A long book renders for hours. On a home server or NAS it can do that around the clock without tying up your
-laptop: you start a book from any computer on your network, close the tab, and the finished `.m4b` lands in a folder you
-choose, for example your Audiobookshelf library. Nothing is installed on the host except Docker, and removing it is one
-command. You can deploy it from Portainer or Dockhand without typing anything in a terminal on the server.
-
-**How.**
-
-1. Pick a password for the studio (at least 16 characters), for example `openssl rand -hex 24`.
-2. Create a stack from [docker-compose.yml](docker-compose.yml) (CPU) or
-   [docker-compose.nvidia.yml](docker-compose.nvidia.yml) (NVIDIA GPU) and set `FOLIVOX_UI_TOKEN` to that password.
-   With plain Docker: `docker compose up -d`.
-3. Open `http://<server>:8765/`, enter the password and use the studio as on a desktop. The first render downloads the
-   models (about 7.6 GB) into a volume, once.
-
-Don't expose the port to the internet without a reverse proxy with HTTPS. On a Mac, Docker cannot use the Apple GPU, so
-use the normal installer there. The CPU image has been tried on Linux arm64; the NVIDIA images and Windows are not tested
-yet. Everything else (variables, volumes, updates, API keys as Docker secrets): [docs/docker.md](docs/docker.md).
+**Own a home server or NAS?** There is also a Docker setup for it, optional and not needed on a normal computer: [docs/docker.md](docs/docker.md).
 
 ## Choose how your book is read
 
@@ -207,7 +189,7 @@ Prices, limits and terms of all five engines: [docs/cloud-engines.md](docs/cloud
 - **A voice from any recording.** Drop a video or a long recording: Folivox finds clean 6–15 s stretches and shows them with their text. [Details](docs/voices.md).
 - **Built for 10-hour books.** Every finished fragment is journalled. Stop, crash or lose power, then run again and it continues. Edit the text and only changed fragments are redone. The previous file is never replaced until the new one is complete.
 - **Studio with live progress.** Chapter lanes, the fragment being read, elapsed and remaining time, retakes, playback of finished chapters, a quick preview before the long run. Local only, token-protected.
-- **Runs on what you have.** Apple Silicon (GPU via Metal, Whisper via MLX), NVIDIA CUDA, or a plain CPU; an optional faster native runtime for CosyVoice 3 with Metal, CUDA and Vulkan backends (`folivox runtime`, [details](docs/native-runtime.md); Vulkan, for AMD and Intel GPUs, is experimental). If the GPU fails, the CPU takes over. `folivox doctor` reviews your hardware and gives advice; `folivox bench` measures the real speed.
+- **Runs on what you have.** Apple Silicon (GPU via Metal, Whisper via MLX), NVIDIA CUDA, or a plain CPU; If the GPU fails, the CPU takes over. `folivox doctor` reviews your hardware and gives advice; `folivox bench` measures the real speed.
 - **Interface in 49 languages.** English, Russian, German, French, Spanish, Italian, Chinese, Japanese, Korean, Portuguese, Dutch, Catalan, Greek, Albanian, Swedish, Danish, Norwegian, Finnish, Icelandic, Estonian, Latvian, Lithuanian, Polish, Czech, Slovak, Hungarian, Romanian, Ukrainian, Bulgarian, Serbian, Croatian, Slovenian, Macedonian, Turkish, Arabic, Hebrew, Persian, Urdu, Hindi, Bengali, Marathi, Telugu, Tamil, Gujarati, Indonesian, Malay, Vietnamese, Thai and Swahili (menu in the header). Arabic, Hebrew, Persian and Urdu mirror the page right to left. [Full list](docs/ui-languages.md).
 - **Free, with no limits.** The local engine reads any number of books of any length at no cost. Only if you choose a paid online engine: a cost estimate first, your confirmation, a clean stop at `--max-cost`, no fragment paid for twice.
 - **Sturdy and open.** Early ffmpeg and disk checks, resumable downloads, retries with backoff, waiting out network outages, a redacted support bundle. Pluggable providers via entry points.
@@ -264,10 +246,9 @@ machines (`--devices cpu,cuda` picks devices; CUDA is tried even if `auto` would
 ## FAQ
 
 **What hardware do I need?** Python 3.10–3.12, ffmpeg and about 7.6 GB for the models. A Mac with Apple
-Silicon, or Windows/Linux with an NVIDIA GPU or just a CPU. The CPU works but is slower. AMD and Intel graphics
-cards may work too through the optional native runtime, which has a Vulkan build, but we have not tested it on them
-yet: see [docs/native-runtime.md](docs/native-runtime.md) and tell us how it goes. `folivox setup` and
-`folivox doctor` look at your machine and tell you what to expect.
+Silicon, or Windows/Linux with an NVIDIA GPU or just a CPU. The CPU works but is slower. `folivox setup` and
+`folivox doctor` look at your machine and tell you what to expect. (AMD and Intel graphics cards: an experimental
+route exists, see [docs/native-runtime.md](docs/native-runtime.md).)
 
 **How long does a book take?** It depends on your hardware, so we do not quote a number. The studio shows the
 audio length before you start, estimates the render time from your own previous runs, and shows the remaining
@@ -295,7 +276,7 @@ Your books, audiobooks, ffmpeg and anything you had before are never touched. De
 | Page | What is in it |
 |---|---|
 | [docs/install.md](docs/install.md) | One-command install, starting the studio, update and removal |
-| [docs/docker.md](docs/docker.md) | Docker image and compose file for a home server or NAS (Portainer, Dockhand), NVIDIA GPU |
+| [docs/docker.md](docs/docker.md) | Optional: run the studio in Docker on a home server or NAS |
 | [docs/cli.md](docs/cli.md) | All `folivox render` options and examples |
 | [docs/pronunciation.md](docs/pronunciation.md) | Custom pronunciations: names, invented words, Russian stress, phonemes |
 | [docs/voices.md](docs/voices.md) | Voice library, your own voice, the voice sample, designing and generating voices |
