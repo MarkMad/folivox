@@ -1265,7 +1265,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         out = []
         for k in key_names():
             stored = config.keychain_get(k["name"])
-            out.append({**k, "env": bool(os.environ.get(k["name"])), "saved": bool(stored),
+            out.append({**k, "env": config.env_key_set(k["name"]), "saved": bool(stored),
                         "masked": mask(stored) if stored else ""})
         return JSONResponse({"keys": out})  # the full value never leaves the server
 
@@ -1324,7 +1324,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     def key_state(cls) -> dict:
         env = config.section(f"voicegen.{cls.name}").get("api_key_env", cls.key_env)
         stored = config.keychain_get(env)
-        return {"key_env": env, "key_in_env": bool(os.environ.get(env)), "key_saved": bool(stored),
+        return {"key_env": env, "key_in_env": config.env_key_set(env), "key_saved": bool(stored),
                 "key_masked": mask(stored) if stored else ""}
 
     def make_generator(name: str, model: str = ""):

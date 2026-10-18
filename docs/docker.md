@@ -61,8 +61,17 @@ To build one yourself: `docker build -f docker/Dockerfile --build-arg VARIANT=cp
 | `TZ` | UTC | Time zone of the log. |
 
 API keys for cloud engines: the container has no OS keychain, so keys typed into the studio cannot be saved there.
-Pass them as environment variables instead (`OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `FISH_API_KEY`, `CARTESIA_API_KEY`;
+Pass them as environment variables (or as files, below) instead (`OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `FISH_API_KEY`, `CARTESIA_API_KEY`;
 see [cloud-engines.md](cloud-engines.md)); the compose files have commented lines for them.
+
+### Docker secrets (`*_FILE`)
+
+Every API key variable also has a `_FILE` form: `OPENAI_API_KEY_FILE=/run/secrets/openai_api_key` reads the key from
+that file (surrounding whitespace and the final newline are cut). The same works for the studio password
+(`FOLIVOX_UI_TOKEN_FILE`). If both `OPENAI_API_KEY` and `OPENAI_API_KEY_FILE` are set, the plain variable wins. An empty or
+unreadable file is reported by name, never with its content. The studio lists such a key as coming from the environment
+and a key saved in the studio does not override it (the environment wins). The compose files contain a commented `secrets:` block as a starting point;
+in Portainer create the secrets in Swarm mode or mount the files into the stack folder.
 
 ## Volumes
 

@@ -73,6 +73,7 @@ needs no 32 GB Mac and is faster, the local one is free.
 
 ```bash
 export OPENAI_API_KEY=…                       # or save the key in `folivox ui`; keys: GEMINI/OPENAI/ELEVENLABS/CARTESIA_API_KEY
+# in a container: OPENAI_API_KEY_FILE=/run/secrets/openai_api_key reads it from a file (Docker secret); the plain variable wins if both are set
 folivox tts-voices openai                     # voices with sex and traits (Cartesia/ElevenLabs: ids and names)
 folivox render book.epub --tts openai --tts-voice coral --preview 600            # first step: ~1 minute for a few cents
 folivox render book.epub --tts elevenlabs --tts-voice Rachel --tts-model auto --max-cost 10 --yes
