@@ -19,7 +19,8 @@ Dockhand as a stack, or with plain `docker compose`. Nothing has to be typed in 
    You can also run without a password on a trusted home network: see [Without a password](#without-a-password-trusted-network-only).
 2. Create a stack from [docker-compose.yml](../docker-compose.yml) (CPU) or
    [docker-compose.nvidia.yml](../docker-compose.nvidia.yml) (NVIDIA GPU). In Portainer: *Stacks → Add stack → Web
-   editor*, paste the file, and under *Environment variables* add `FOLIVOX_UI_TOKEN` (and the optional ones below).
+   editor*, paste the file, and under *Environment variables* add `FOLIVOX_UI_TOKEN` set to your password (and the optional ones below). Without a password, skip the token and set
+   `FOLIVOX_UI_AUTH=off` instead.
 3. Deploy. Open `http://<server>:8765/`, enter the password, and use the studio as on a desktop.
 
 With plain Docker Compose:
