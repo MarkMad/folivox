@@ -32,6 +32,31 @@ def is_loopback(host: str) -> bool:
         return False  # a name or an unspecified address (0.0.0.0, ::): reachable from the network
 
 
+PRIVATE_NETS = ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "169.254.0.0/16",
+                "::1/128", "fc00::/7", "fe80::/10")
+
+
+def auth_off() -> bool:
+    """``FOLIVOX_UI_AUTH=off``: the owner chose to run the network studio without a password. Anything else
+    (or nothing) keeps the token required."""
+    import os
+
+    return os.environ.get("FOLIVOX_UI_AUTH", "").strip().lower() == "off"
+
+
+def configured_nets() -> list | None:
+    """``FOLIVOX_UI_ALLOWED_NETS`` (comma-separated CIDR or addresses): the client networks allowed without a
+    password, replacing the private ranges. None if unset; a bad entry stops the start."""
+    import ipaddress
+    import os
+
+    raw = [x.strip() for x in os.environ.get("FOLIVOX_UI_ALLOWED_NETS", "").split(",") if x.strip()]
+    try:
+        return [ipaddress.ip_network(x, strict=False) for x in raw] or None
+    except ValueError as e:
+        raise SystemExit(f"FOLIVOX_UI_ALLOWED_NETS: {e}. Use comma-separated CIDR, e.g. 192.168.1.0/24.") from None
+
+
 def configured_token() -> str | None:
     """A token chosen by the owner: ``FOLIVOX_UI_TOKEN``, or the file named by ``FOLIVOX_UI_TOKEN_FILE`` (Docker and
     Kubernetes secrets). None if neither is set; a value that is too short stops the start."""
@@ -192,8 +217,18 @@ def run(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True, re
     from folivox.ui.app import create_app
 
     network = not is_loopback(host)
+    open_access = auth_off()
+    nets = configured_nets() if open_access else None
+    if open_access and configured_token() is not None:
+        raise SystemExit("FOLIVOX_UI_AUTH=off and a token (FOLIVOX_UI_TOKEN / FOLIVOX_UI_TOKEN_FILE) are both set. "
+                         "That would look protected and not be. Remove one of them.")
+    if open_access and not network:
+        open_access = False  # on this computer only there is nothing to open: the usual cookie link keeps working
+        print("FOLIVOX_UI_AUTH=off only matters when listening beyond 127.0.0.1; ignored.", flush=True)
     if network:
-        if configured_token() is None:
+        if open_access:
+            pass
+        elif configured_token() is None:
             raise SystemExit(
                 f"Listening on {host} makes the studio reachable from the network, which needs an access token that "
                 "you choose. Set FOLIVOX_UI_TOKEN (at least 16 characters, e.g. openssl rand -hex 24) or "
@@ -215,14 +250,16 @@ def run(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True, re
         stop_running(probe, port, force)
         print(f"Stopped the previous studio (pid {info.get('pid', '?')}).", flush=True)
 
-    token = ui_token()
-    app = create_app(token=token, port=port, network=network, allowed_hosts=allowed_hosts)
+    token = None if open_access else ui_token()
+    app = create_app(token=token, port=port, network=network, allowed_hosts=allowed_hosts,
+                     open_access=open_access, allowed_nets=nets)
     class Server(uvicorn.Server):
         def handle_exit(self, sig, frame):  # Ctrl+C: stop the jobs first, or their open event streams hold the exit
             app.state.cancel_all()
             super().handle_exit(sig, frame)
 
-    server = Server(uvicorn.Config(app, host=host, port=port, log_level="warning"))
+    # open access judges clients by the TCP peer: X-Forwarded-For (uvicorn trusts it from 127.0.0.1) must not decide
+    server = Server(uvicorn.Config(app, host=host, port=port, log_level="warning", proxy_headers=not open_access))
 
     def request_exit() -> None:
         app.state.cancel_all()
@@ -230,7 +267,12 @@ def run(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True, re
 
     app.state.request_exit = request_exit
     url = f"http://{host}:{port}/?token={token}"
-    if network:
+    if open_access:
+        where = ", ".join(str(n) for n in nets) if nets else "private and local networks"
+        print("WARNING: Folivox studio runs WITHOUT A PASSWORD (FOLIVOX_UI_AUTH=off). Anyone who can reach "
+              f"{host}:{port} from {where} can start renders, spend money on your cloud API keys and change folders. "
+              "Use it only on a network you trust, and never publish the port to the internet.", flush=True)
+    elif network:
         scope = f" (only for Host: {', '.join(sorted(allowed_hosts))})" if allowed_hosts else ""
         print(f"Folivox studio listens on {host}:{port}: anyone who can reach this port and knows the token can use it "
               f"and your API keys{scope}. The token is the one you set in FOLIVOX_UI_TOKEN; open the address of this "

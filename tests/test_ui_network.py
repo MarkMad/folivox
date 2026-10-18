@@ -204,3 +204,139 @@ def test_redact_removes_the_studio_token_read_from_a_file(monkeypatch, tmp_path)
     monkeypatch.delenv("FOLIVOX_UI_TOKEN", raising=False)
     monkeypatch.setenv("FOLIVOX_UI_TOKEN_FILE", str(f))
     assert TOKEN not in diag.redact(f"login with {TOKEN} ok")
+
+
+# ---- FOLIVOX_UI_AUTH=off: no password, private clients only ------------------------------------------------
+
+def open_client(tmp_path, peer="192.168.1.50", base="http://192.168.1.20:8765", **kw):
+    app = create_app(port=8765, data_dir=tmp_path / "ui", network=True, open_access=True, **kw)
+    return TestClient(app, base_url=base, client=(peer, 50000), follow_redirects=False)
+
+
+def test_open_access_needs_network_and_no_token(tmp_path):
+    with pytest.raises(ValueError):
+        create_app(token=TOKEN, port=8765, data_dir=tmp_path / "ui", network=True, open_access=True)
+    with pytest.raises(ValueError):
+        create_app(port=8765, data_dir=tmp_path / "ui", open_access=True)
+
+
+@pytest.mark.parametrize("peer", ["10.1.2.3", "172.17.0.1", "192.168.1.50", "127.0.0.1", "169.254.1.1", "::1",
+                                  "fd12:3456::1", "fe80::1", "::ffff:192.168.1.5"])
+def test_open_access_takes_private_clients_without_login(tmp_path, peer):
+    c = open_client(tmp_path, peer)
+    assert c.get("/api/voices").status_code == 200
+    page = c.get("/")
+    assert page.status_code == 200 and "Enter the access token" not in page.text
+    assert "set-cookie" not in page.headers
+    assert c.get("/healthz").json() == {"ok": True}
+
+
+@pytest.mark.parametrize("peer", ["8.8.8.8", "100.64.0.1", "172.32.0.1", "2001:4860::1", "testclient", "",
+                                  "::ffff:8.8.8.8"])
+def test_open_access_refuses_public_and_unparsable_clients(tmp_path, peer):
+    c = open_client(tmp_path, peer)
+    for path in ("/", "/api/voices"):
+        r = c.get(path)
+        assert r.status_code == 403 and "FOLIVOX_UI_ALLOWED_NETS" in r.text
+    assert c.get("/healthz").status_code == 200  # the container health check is not a client
+
+
+def test_open_access_respects_allowed_nets(tmp_path):
+    import ipaddress
+
+    nets = [ipaddress.ip_network("100.64.0.0/10")]
+    assert open_client(tmp_path, "100.100.1.1", allowed_nets=nets).get("/api/voices").status_code == 200
+    assert open_client(tmp_path, "192.168.1.50", allowed_nets=nets).get("/api/voices").status_code == 403
+
+
+def test_open_access_ignores_x_forwarded_for(tmp_path):
+    c = open_client(tmp_path, "8.8.8.8")
+    assert c.get("/api/voices", headers={"X-Forwarded-For": "192.168.1.5"}).status_code == 403
+
+
+@pytest.mark.parametrize("host,code", [("192.168.1.20:8765", 200), ("[fd00::5]:8765", 200), ("nas:8765", 200),
+                                       ("studio.local:8765", 200), ("folivox.home.arpa", 200),
+                                       ("evil.example", 403), ("evil.example:8765", 403), ("a.b.c.com", 403)])
+def test_open_access_host_guard(tmp_path, host, code):
+    assert open_client(tmp_path).get("/api/voices", headers={"Host": host}).status_code == code
+
+
+def test_open_access_allowed_hosts_replace_the_defaults(tmp_path):
+    c = open_client(tmp_path, allowed_hosts={"studio.example.org"})
+    assert c.get("/api/voices", headers={"Host": "studio.example.org"}).status_code == 200
+    assert c.get("/api/voices", headers={"Host": "nas"}).status_code == 403
+
+
+def test_open_access_still_blocks_other_sites(tmp_path):
+    c = open_client(tmp_path)
+    assert c.post("/api/shutdown", headers={"Origin": "https://evil.example"}).status_code == 403
+    assert c.get("/api/voices", headers={"Sec-Fetch-Site": "cross-site"}).status_code == 403
+
+
+def test_open_access_keys_never_show_values(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-secret-value-123456")
+    body = open_client(tmp_path).get("/api/keys").text
+    assert "sk-secret-value-123456" not in body
+
+
+def test_default_network_mode_is_unchanged(tmp_path, monkeypatch):
+    monkeypatch.delenv("FOLIVOX_UI_AUTH", raising=False)
+    assert ui.auth_off() is False
+    c = make(tmp_path)  # a public peer is not filtered when a token is the protection
+    assert c.get("/api/voices").status_code == 401
+
+
+def test_auth_env(monkeypatch):
+    for v, expected in (("off", True), ("OFF", True), (" off ", True), ("on", False), ("", False), ("0", False)):
+        monkeypatch.setenv("FOLIVOX_UI_AUTH", v)
+        assert ui.auth_off() is expected
+
+
+def test_allowed_nets_env(monkeypatch):
+    monkeypatch.delenv("FOLIVOX_UI_ALLOWED_NETS", raising=False)
+    assert ui.configured_nets() is None
+    monkeypatch.setenv("FOLIVOX_UI_ALLOWED_NETS", "192.168.1.0/24, 10.0.0.7")
+    assert [str(n) for n in ui.configured_nets()] == ["192.168.1.0/24", "10.0.0.7/32"]
+    monkeypatch.setenv("FOLIVOX_UI_ALLOWED_NETS", "nonsense")
+    with pytest.raises(SystemExit, match="ALLOWED_NETS"):
+        ui.configured_nets()
+
+
+def test_run_refuses_token_together_with_auth_off(monkeypatch):
+    monkeypatch.setenv("FOLIVOX_UI_AUTH", "off")
+    monkeypatch.setenv("FOLIVOX_UI_TOKEN", TOKEN)
+    with pytest.raises(SystemExit, match="both set"):
+        ui.run(host="0.0.0.0", port=8765, open_browser=False)
+
+
+def test_run_warns_loudly_and_starts_without_a_token(monkeypatch, capsys):
+    import uvicorn
+
+    for k in ("FOLIVOX_UI_TOKEN", "FOLIVOX_UI_TOKEN_FILE", "FOLIVOX_UI_ALLOWED_NETS"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("FOLIVOX_UI_AUTH", "off")
+    seen = {}
+    monkeypatch.setattr(ui, "port_in_use", lambda h, p: False)
+    monkeypatch.setattr(uvicorn.Server, "run", lambda self: None)
+    from types import SimpleNamespace as NS
+
+    fake = NS(state=NS(watchdog=NS(start=lambda: None), shutdown=lambda: None, cancel_all=lambda: None))
+    monkeypatch.setattr("folivox.ui.app.create_app", lambda **kw: seen.update(kw=kw) or fake)
+    monkeypatch.setattr(uvicorn, "Config", lambda *a, **k: seen.update(config_kw=k) or object())
+    monkeypatch.setattr(uvicorn.Server, "__init__", lambda self, cfg: None)
+    ui.run(host="0.0.0.0", port=8765, open_browser=False)
+    out = capsys.readouterr().out
+    assert out.count("WITHOUT A PASSWORD") == 1 and "cloud API keys" in out
+    assert seen["kw"]["token"] is None and seen["kw"]["open_access"] is True
+    assert seen["config_kw"]["proxy_headers"] is False
+
+
+def test_open_access_on_loopback_is_ignored(monkeypatch, capsys):
+    monkeypatch.setenv("FOLIVOX_UI_AUTH", "off")
+    monkeypatch.delenv("FOLIVOX_UI_TOKEN", raising=False)
+    monkeypatch.delenv("FOLIVOX_UI_TOKEN_FILE", raising=False)
+    monkeypatch.setattr(ui, "port_in_use", lambda h, p: True)
+    monkeypatch.setattr(ui, "studio_on", lambda h, p: {"version": "x"})
+    with pytest.raises(SystemExit, match="already running"):
+        ui.run(host="127.0.0.1", port=8765, open_browser=False)
+    assert "ignored" in capsys.readouterr().out

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import ipaddress
 import json
 import os
 import re
@@ -26,7 +27,7 @@ from folivox import voices as catalog
 from folivox.book import BlockKind
 from folivox.pipeline import QA_LEVELS, RenderOptions
 from folivox.text import pronounce as pronunciations
-from folivox.ui import fish_routes, lifecycle, markup_routes, runtime_routes
+from folivox.ui import PRIVATE_NETS, fish_routes, lifecycle, markup_routes, runtime_routes
 from folivox.ui.jobs import JobManager, chapter_files
 
 STATIC = Path(__file__).parent / "static"
@@ -126,14 +127,21 @@ def _registries():
 
 def create_app(token: str | None = None, port: int | None = None, data_dir: Path | None = None,
                render=None, services: dict | None = None, network: bool = False,
-               allowed_hosts: set[str] | None = None) -> Starlette:
+               allowed_hosts: set[str] | None = None, open_access: bool = False,
+               allowed_nets: list | None = None) -> Starlette:
     """``services`` (tests): ``generator(name)``, ``llm(name)`` and ``asr(lang)`` factories replacing the real ones.
 
     ``network``: the server listens beyond this computer (Docker, a home server). It then refuses to run without a
     token, shows a login page instead of the studio until the token is entered, and accepts any ``Host`` (a LAN
-    address or a proxy name) unless ``allowed_hosts`` (bare host names, lower case) lists the ones to accept."""
-    if network and not token:
+    address or a proxy name) unless ``allowed_hosts`` (bare host names, lower case) lists the ones to accept.
+
+    ``open_access`` (network only, no token): the owner chose no password. Clients are then limited to the private
+    and local ``allowed_nets`` (the TCP peer, never X-Forwarded-For) and Host to IP literals and local-style names."""
+    if open_access and (token or not network):
+        raise ValueError("open access is for network mode without a token")
+    if network and not token and not open_access:
         raise ValueError("network mode needs an access token")
+    nets = allowed_nets or [ipaddress.ip_network(n) for n in PRIVATE_NETS]
     state = State(data_dir or Path(user_data_dir("folivox", appauthor=False)) / "ui", render)
     fish_install = fish_routes.Install()
     native_install = fish_routes.Install()
@@ -205,7 +213,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             if not ok:
                 return JSONResponse({"error": "Wrong token"}, status_code=401)
             return start_session(request)
-        if network and not logged_in(request):
+        if network and not open_access and not logged_in(request):
             return HTMLResponse(LOGIN_PAGE.replace("<!--error-->", ""))
         return HTMLResponse((STATIC / "index.html").read_text(encoding="utf-8"))
 
@@ -1701,11 +1709,39 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             raise ApiError(str(e)) from None
         return JSONResponse(_voice_json(entry))
 
-    # ---- plumbing -------------------------------------------------------------------------------
+    # ---- plumbing ---
+    def open_access_denied(request: Request, host: str) -> JSONResponse | None:
+        try:
+            ip = ipaddress.ip_address(request.client.host if request.client else "")
+            ip = ip.ipv4_mapped or ip if ip.version == 6 else ip
+        except ValueError:
+            ip = None
+        if ip is None or not any(ip in n for n in nets):
+            return JSONResponse({"error": "This studio runs without a password and only answers clients from "
+                                          "private networks. To allow yours set FOLIVOX_UI_ALLOWED_NETS "
+                                          "(comma-separated CIDR, e.g. 192.168.1.0/24), or set FOLIVOX_UI_TOKEN "
+                                          "and remove FOLIVOX_UI_AUTH=off."}, status_code=403)
+        if not host_names:  # no names chosen by the owner: refuse public-looking ones (DNS rebinding)
+            bare = (host[:host.index("]") + 1] if host.startswith("[") else host.partition(":")[0]).lower()
+            try:
+                ipaddress.ip_address(bare.strip("[]"))
+                return None
+            except ValueError:
+                pass
+            if "." in bare.rstrip(".") and not bare.rstrip(".").endswith(LOCAL_SUFFIXES):
+                return JSONResponse({"error": "Bad Host header: without a password only IP addresses and local "
+                                              "names (.local, .lan, .home.arpa) are accepted; set "
+                                              "FOLIVOX_UI_ALLOWED_HOSTS for another name."}, status_code=403)
+        return None
+
     def check(request: Request) -> JSONResponse | None:
         host = request.headers.get("host") or ""
         if request.url.path == "/healthz":
             return None  # container health check: asks over 127.0.0.1 whatever the allowed names are, tells nothing
+        if open_access:
+            denied = open_access_denied(request, host)
+            if denied is not None:
+                return denied
         if allowed_hosts is not None and host not in allowed_hosts:
             return JSONResponse({"error": "Bad Host header"}, status_code=403)  # DNS-rebinding guard
         bare = host[:host.index("]") + 1] if host.startswith("[") else host.partition(":")[0]
@@ -1874,6 +1910,9 @@ input,button{font:inherit;padding:.5rem;width:100%;box-sizing:border-box;margin:
 <body><h1>Folivox</h1><p>Enter the access token set for this server (FOLIVOX_UI_TOKEN).</p><!--error-->
 <form method="post" action="/login"><input type="password" name="token" autocomplete="current-password" autofocus
 required><button>Open the studio</button></form></body></html>"""
+
+
+LOCAL_SUFFIXES = (".local", ".lan", ".home.arpa", ".internal", ".localdomain", ".localhost")
 
 
 class _Guard:

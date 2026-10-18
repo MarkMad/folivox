@@ -14,6 +14,10 @@ services:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
+      # No password on a trusted home network (NOT the default; read "Without a password" in docs/docker.md first):
+      # delete the FOLIVOX_UI_TOKEN line above and uncomment
+      # FOLIVOX_UI_AUTH: "off"
+      # FOLIVOX_UI_ALLOWED_NETS: "192.168.1.0/24"   # optional: only these client networks (default: all private ranges)
       # FOLIVOX_PRELOAD_MODELS: "1"        # download the models (about 7.6 GB) at start instead of at the first render
       # FOLIVOX_UI_ALLOWED_HOSTS: "folivox.home.lan"   # answer only to these host names (behind a reverse proxy)
       # OPENAI_API_KEY: ""        # keys for cloud engines (the container has no keychain, so they go here)
