@@ -127,14 +127,17 @@ def remember_secrets(keychain: bool = True) -> None:
     """Collect the values of every configured key so :func:`redact` removes them whatever their format.
 
     Keychain-only keys (saved in the web UI) never appear in the environment and may not look like a key."""
+    from folivox import config
+
     names = _secret_names(providers=keychain)
     for n in names:
-        if value := os.environ.get(n):
-            _KNOWN_SECRETS.add(value)
+        try:
+            if value := config.env_key(n):  # the variable, or the file named by NAME_FILE
+                _KNOWN_SECRETS.add(value)
+        except ValueError:
+            pass
     if keychain:
         try:
-            from folivox import config
-
             for n in names:
                 if value := config.keychain_get(n):
                     _KNOWN_SECRETS.add(value)
@@ -145,6 +148,13 @@ def remember_secrets(keychain: bool = True) -> None:
 def redact(text: str) -> str:
     """Remove API keys, tokens and the values of key environment variables; shorten the home directory."""
     values = {v for v in _KNOWN_SECRETS if len(v.strip()) >= 4}
+    try:  # the studio token, also when it comes from FOLIVOX_UI_TOKEN_FILE (a file name is all the environment holds)
+        from folivox.ui import read_token
+
+        if studio_token := read_token():
+            values.add(studio_token)
+    except Exception:  # noqa: BLE001
+        pass
     for name, value in os.environ.items():
         if value and len(value) >= 8 and re.search(r"(?i)key|token|secret|password", name):
             values.add(value)

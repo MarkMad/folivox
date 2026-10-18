@@ -112,6 +112,8 @@ It removes only what Folivox created. Your books, audiobooks, ffmpeg and uv are 
 
 Details, options, manual install and troubleshooting: [docs/install.md](docs/install.md).
 
+**On a home server or NAS?** Run the studio in Docker (Portainer, Dockhand, `docker compose`), CPU or NVIDIA: see [docs/docker.md](docs/docker.md).
+
 ## Choose how your book is read
 
 | | Free, on your computer | With an online engine (your API key) |
@@ -275,6 +277,7 @@ Your books, audiobooks, ffmpeg and anything you had before are never touched. De
 | Page | What is in it |
 |---|---|
 | [docs/install.md](docs/install.md) | One-command install, starting the studio, update and removal |
+| [docs/docker.md](docs/docker.md) | Docker image and compose file for a home server or NAS (Portainer, Dockhand), NVIDIA GPU |
 | [docs/cli.md](docs/cli.md) | All `folivox render` options and examples |
 | [docs/pronunciation.md](docs/pronunciation.md) | Custom pronunciations: names, invented words, Russian stress, phonemes |
 | [docs/voices.md](docs/voices.md) | Voice library, your own voice, the voice sample, designing and generating voices |

@@ -1,0 +1,52 @@
+# Folivox studio, NVIDIA GPU (needs the NVIDIA Container Toolkit on the host). Paste this into a Portainer / Dockhand stack, or run: docker compose up -d
+# Set FOLIVOX_UI_TOKEN (the password of the studio, 16+ characters: openssl rand -hex 24) and, if you like,
+# FOLIVOX_AUDIOBOOKS (the folder for finished audiobooks, e.g. your Audiobookshelf library) and PUID/PGID.
+# Without a GPU use docker-compose.yml. RTX 50 series: set FOLIVOX_TAG=cuda128. Guide: docs/docker.md
+services:
+  folivox:
+    image: ghcr.io/vatavale/folivox:${FOLIVOX_TAG:-cuda}
+    container_name: folivox
+    restart: unless-stopped
+    ports:
+      - "${FOLIVOX_PORT:-8765}:8765"
+    environment:
+      FOLIVOX_UI_TOKEN: ${FOLIVOX_UI_TOKEN:?Set FOLIVOX_UI_TOKEN to a password of at least 16 characters}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-UTC}
+      # FOLIVOX_PRELOAD_MODELS: "1"        # download the models (about 7.6 GB) at start instead of at the first render
+      # FOLIVOX_UI_ALLOWED_HOSTS: "folivox.home.lan"   # answer only to these host names (behind a reverse proxy)
+      # OPENAI_API_KEY: ""        # keys for cloud engines (the container has no keychain, so they go here)
+      # FISH_API_KEY: ""
+      # Docker secrets instead: OPENAI_API_KEY_FILE: /run/secrets/openai_api_key  (any key name + _FILE; see the
+      # "secrets:" blocks below and docs/docker.md)
+    volumes:
+      - folivox-data:/data                                    # models, voices, settings, studio state
+      - folivox-work:/work                                    # unfinished books: takes and journals (resume after a stop)
+      - ${FOLIVOX_AUDIOBOOKS:-folivox-audiobooks}:/audiobooks # finished .m4b / .mp3 files (a volume, or a folder: /srv/audiobooks)
+    stop_grace_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID]   # all the entrypoint needs to hand the volumes to PUID/PGID and drop root
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  folivox-data:
+  folivox-work:
+  folivox-audiobooks:   # used unless FOLIVOX_AUDIOBOOKS names a folder
+
+# Keys and the studio password as Docker secrets (they then do not show up in `docker inspect`): uncomment, create
+# the files, and use FOLIVOX_UI_TOKEN_FILE / OPENAI_API_KEY_FILE in "environment:" instead of the plain variables.
+#   under the service:   secrets: [folivox_token, openai_api_key]
+# secrets:
+#   folivox_token:
+#     file: ./secrets/folivox_token        # becomes /run/secrets/folivox_token
+#   openai_api_key:
+#     file: ./secrets/openai_api_key

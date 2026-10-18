@@ -112,6 +112,11 @@ The installer may also have installed `uv` and `ffmpeg`. Remove them only if you
 
 For problems, see [support.md](support.md) (`folivox doctor --bundle`).
 
+## Docker (home server, NAS)
+
+The studio also runs in a container, for Portainer, Dockhand or plain `docker compose`, with CPU or an NVIDIA GPU. It is
+not the better route on a Mac (see the limits there). Guide: [Docker](docker.md).
+
 ## Optional: the native runtime
 
 `folivox setup` offers (default: no) to download the optional native C++ engine on computers where a build exists;

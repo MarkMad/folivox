@@ -17,9 +17,46 @@ def port_in_use(host: str, port: int) -> bool:
     return False
 
 
+MIN_TOKEN = 16
+
+
+def is_loopback(host: str) -> bool:
+    """True if ``host`` only accepts connections from this computer."""
+    import ipaddress
+
+    if host.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host.strip("[]")).is_loopback
+    except ValueError:
+        return False  # a name or an unspecified address (0.0.0.0, ::): reachable from the network
+
+
+def configured_token() -> str | None:
+    """A token chosen by the owner: ``FOLIVOX_UI_TOKEN``, or the file named by ``FOLIVOX_UI_TOKEN_FILE`` (Docker and
+    Kubernetes secrets). None if neither is set; a value that is too short stops the start."""
+    import os
+    from pathlib import Path
+
+    value = os.environ.get("FOLIVOX_UI_TOKEN", "").strip()
+    name = os.environ.get("FOLIVOX_UI_TOKEN_FILE", "").strip()
+    if not value and name:
+        try:
+            value = Path(name).read_text(encoding="utf-8").strip()
+        except OSError as e:
+            raise SystemExit(f"FOLIVOX_UI_TOKEN_FILE: cannot read {name} ({e.strerror or e}).") from None
+    if value and len(value) < MIN_TOKEN:
+        raise SystemExit(f"The studio token (FOLIVOX_UI_TOKEN) is too short: use at least {MIN_TOKEN} characters, "
+                         "for example the output of: openssl rand -hex 24")
+    return value or None
+
+
 def ui_token() -> str:
-    """The access token: created once, kept in a private file in the user data dir so every run (and every
-    bookmark or old tab) uses the same one."""
+    """The access token: the owner's (see :func:`configured_token`), else created once and kept in a private file
+    in the user data dir so every run (and every bookmark or old tab) uses the same one."""
+    chosen = configured_token()
+    if chosen:
+        return chosen
     import os
     import secrets
     from pathlib import Path
@@ -43,8 +80,15 @@ def ui_token() -> str:
 
 
 def read_token() -> str | None:
-    """The saved access token, or None if the studio never ran (unlike :func:`ui_token`, creates nothing)."""
+    """The access token, or None if the studio never ran (unlike :func:`ui_token`, creates nothing)."""
     from pathlib import Path
+
+    try:
+        chosen = configured_token()
+    except SystemExit:
+        chosen = None
+    if chosen:
+        return chosen
 
     from platformdirs import user_data_dir
 
@@ -137,7 +181,9 @@ def stop_running(host: str, port: int, force: bool = False) -> dict:
 
 
 def run(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True, restart: bool = False,
-        force: bool = False) -> None:
+        force: bool = False, allowed_hosts: set[str] | None = None) -> None:
+    """``host`` beyond this computer (0.0.0.0, a LAN address) is the network mode: it needs an owner-chosen token
+    (:func:`configured_token`), never prints it and never opens a browser."""
     import threading
     import webbrowser
 
@@ -145,21 +191,32 @@ def run(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True, re
 
     from folivox.ui.app import create_app
 
-    if port_in_use(host, port):
-        info = studio_on(host, port)
+    network = not is_loopback(host)
+    if network:
+        if configured_token() is None:
+            raise SystemExit(
+                f"Listening on {host} makes the studio reachable from the network, which needs an access token that "
+                "you choose. Set FOLIVOX_UI_TOKEN (at least 16 characters, e.g. openssl rand -hex 24) or "
+                "FOLIVOX_UI_TOKEN_FILE, then start again. Without a token the studio stays on 127.0.0.1.")
+        open_browser = False
+        probe = "127.0.0.1"  # the studio asks itself (is it running already, stop it) over the loopback
+    else:
+        probe = host
+    if port_in_use(probe, port):
+        info = studio_on(probe, port)
         if info is None:
-            raise SystemExit(older_studio(host, port) or f"Port {port} is used by another program. "
+            raise SystemExit(older_studio(probe, port) or f"Port {port} is used by another program. "
                              f"Choose another one: folivox ui --port {port + 1}")
         if not restart:
             state = ", rendering now" if info.get("busy") else ""
             raise SystemExit(f"The Folivox studio is already running at http://{host}:{port}/ "
                              f"(version {info.get('version', '?')}{state}). Open it, or replace it with this "
                              "version: folivox ui --restart")
-        stop_running(host, port, force)
+        stop_running(probe, port, force)
         print(f"Stopped the previous studio (pid {info.get('pid', '?')}).", flush=True)
 
     token = ui_token()
-    app = create_app(token=token, port=port)
+    app = create_app(token=token, port=port, network=network, allowed_hosts=allowed_hosts)
     class Server(uvicorn.Server):
         def handle_exit(self, sig, frame):  # Ctrl+C: stop the jobs first, or their open event streams hold the exit
             app.state.cancel_all()
@@ -173,7 +230,14 @@ def run(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True, re
 
     app.state.request_exit = request_exit
     url = f"http://{host}:{port}/?token={token}"
-    print(f"Folivox UI: {url}\nOpen this link once: the browser then keeps a cookie and you can use "
+    if network:
+        scope = f" (only for Host: {', '.join(sorted(allowed_hosts))})" if allowed_hosts else ""
+        print(f"Folivox studio listens on {host}:{port}: anyone who can reach this port and knows the token can use it "
+              f"and your API keys{scope}. The token is the one you set in FOLIVOX_UI_TOKEN; open the address of this "
+              "machine and enter it. Traffic is not encrypted: do not expose the port to the internet, put an HTTPS "
+              "reverse proxy in front of it.", flush=True)
+    else:
+        print(f"Folivox UI: {url}\nOpen this link once: the browser then keeps a cookie and you can use "
           f"http://{host}:{port}/ (bookmark it). Press Ctrl+C to stop.", flush=True)
     if open_browser:
         threading.Timer(1.0, webbrowser.open, args=(url,)).start()

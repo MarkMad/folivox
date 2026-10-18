@@ -1,0 +1,13 @@
+.git
+.github
+.claude
+.venv*
+internal
+docs
+tests
+**/__pycache__
+*.folivox
+.pytest_cache
+.ruff_cache
+dist
+build

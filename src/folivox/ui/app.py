@@ -125,8 +125,15 @@ def _registries():
 
 
 def create_app(token: str | None = None, port: int | None = None, data_dir: Path | None = None,
-               render=None, services: dict | None = None) -> Starlette:
-    """``services`` (tests): ``generator(name)``, ``llm(name)`` and ``asr(lang)`` factories replacing the real ones."""
+               render=None, services: dict | None = None, network: bool = False,
+               allowed_hosts: set[str] | None = None) -> Starlette:
+    """``services`` (tests): ``generator(name)``, ``llm(name)`` and ``asr(lang)`` factories replacing the real ones.
+
+    ``network``: the server listens beyond this computer (Docker, a home server). It then refuses to run without a
+    token, shows a login page instead of the studio until the token is entered, and accepts any ``Host`` (a LAN
+    address or a proxy name) unless ``allowed_hosts`` (bare host names, lower case) lists the ones to accept."""
+    if network and not token:
+        raise ValueError("network mode needs an access token")
     state = State(data_dir or Path(user_data_dir("folivox", appauthor=False)) / "ui", render)
     fish_install = fish_routes.Install()
     native_install = fish_routes.Install()
@@ -137,17 +144,69 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     session = (hmac.new(token.encode(), b"folivox-ui-cookie", "sha256").hexdigest() if token
                else secrets.token_urlsafe(24))
     cookie_name = f"folivox_session_{port or 0}"
-    allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"} if port else None
+    host_names = {h.lower().strip("[]") for h in allowed_hosts or ()}
+    allowed_hosts = None if network or not port else {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
 
     # ---- handlers -------------------------------------------------------------------------------
+    def same(given: str, expected: str) -> bool:
+        """Constant-time comparison that also accepts non-ASCII input (``compare_digest`` raises on it for str)."""
+        return secrets.compare_digest(given.encode(), expected.encode())
+
+    guesses = _Throttle()  # network mode: wrong tokens in a row lock the token checks for a while
+
+    def logged_in(request: Request) -> bool:
+        return same(request.cookies.get(cookie_name) or "", session)
+
+    def start_session(request: Request) -> RedirectResponse:
+        resp = RedirectResponse("/", status_code=303)
+        # behind an HTTPS reverse proxy the browser must never send the cookie over plain http
+        secure = request.url.scheme == "https" or (network and request.headers.get("x-forwarded-proto") == "https")
+        resp.set_cookie(cookie_name, session, httponly=True, samesite="strict", path="/", secure=secure,
+                        max_age=(30 if network else 90) * 86400)
+        return resp
+
+    def token_ok(request: Request, given: str) -> bool | None:
+        """Is ``given`` the token? None: too many wrong guesses, nothing is checked now (network mode only)."""
+        if network and guesses.locked():
+            return None
+        if token and same(given, token):
+            return True
+        if network:
+            guesses.fail()
+        return False
+
+    def too_many(html: bool = False):
+        headers = {"Retry-After": str(_Throttle.LOCK)}
+        if html:
+            return HTMLResponse(LOGIN_PAGE.replace("<!--error-->", '<p class="err">Too many wrong tokens. '
+                                                   'Wait a few minutes.</p>'), status_code=429, headers=headers)
+        return JSONResponse({"error": "Too many wrong tokens, try again later"}, status_code=429, headers=headers)
+
+    async def login(request: Request):
+        """Network mode: trade the token typed into the login page for the session cookie."""
+        ok = token_ok(request, str((await request.form()).get("token") or ""))
+        if ok is None:
+            return too_many(html=True)
+        if not ok:
+            await asyncio.sleep(1.0)  # slows down guessing
+            return HTMLResponse(LOGIN_PAGE.replace("<!--error-->", '<p class="err">Wrong token.</p>'), status_code=401)
+        return start_session(request)
+
+    async def health(request: Request):
+        """For container health checks: no token, and nothing but "the server answers"."""
+        return JSONResponse({"ok": True})
+
     async def index(request: Request):
         given = request.query_params.get("token")
         if token and given is not None:  # the link printed by `folivox ui`: trade the token for a cookie, hide it
-            if not secrets.compare_digest(given, token):
+            ok = token_ok(request, given)
+            if ok is None:
+                return too_many()
+            if not ok:
                 return JSONResponse({"error": "Wrong token"}, status_code=401)
-            resp = RedirectResponse("/", status_code=303)
-            resp.set_cookie(cookie_name, session, httponly=True, samesite="strict", path="/", max_age=90 * 86400)
-            return resp
+            return start_session(request)
+        if network and not logged_in(request):
+            return HTMLResponse(LOGIN_PAGE.replace("<!--error-->", ""))
         return HTMLResponse((STATIC / "index.html").read_text(encoding="utf-8"))
 
     async def ping(request: Request):
@@ -971,7 +1030,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             work = state.data_dir / "previews" / uuid.uuid4().hex[:8]
             return RenderOptions(output=work / "preview.m4b", work_dir=work / "work", chapters=str(first[0]),
                                  preview=int(o.get("preview_chars", PREVIEW_CHARS)), **common)
-        out_dir = Path(str(o.get("output_dir") or Path.home() / "Audiobooks")).expanduser()
+        out_dir = Path(str(o.get("output_dir") or config.output_dir())).expanduser()
         mp3 = bool(o.get("mp3", False))
         stem = Path(book_entry["path"]).stem
         return RenderOptions(output=out_dir / stem if mp3 else out_dir / f"{stem}.m4b", chapters=spec, mp3=mp3,
@@ -1100,6 +1159,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         import subprocess
         import sys
 
+        if network:
+            raise ApiError("The studio runs on another machine: find the file in the output folder", 400)
         job = get_job(request)
         if job.state != "done" or not job.result or not Path(job.result).exists():
             raise ApiError("Nothing to show yet", 404)
@@ -1185,7 +1246,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
                            "providers": [{"name": p.name, "description": p.description, "local": p.local,
                                           "needs": p.needs} for p in reg.providers()]}
         return JSONResponse({"kinds": kinds, "config_path": str(config.config_path()),
-                             "output_dir": str(Path.home() / "Audiobooks")})
+                             "output_dir": str(config.output_dir())})
 
     def key_names() -> list[dict]:
         """Env var names the cloud providers read: the defaults plus any ``api_key_env`` in the config."""
@@ -1204,7 +1265,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
         out = []
         for k in key_names():
             stored = config.keychain_get(k["name"])
-            out.append({**k, "env": bool(os.environ.get(k["name"])), "saved": bool(stored),
+            out.append({**k, "env": config.env_key_set(k["name"]), "saved": bool(stored),
                         "masked": mask(stored) if stored else ""})
         return JSONResponse({"keys": out})  # the full value never leaves the server
 
@@ -1263,7 +1324,7 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
     def key_state(cls) -> dict:
         env = config.section(f"voicegen.{cls.name}").get("api_key_env", cls.key_env)
         stored = config.keychain_get(env)
-        return {"key_env": env, "key_in_env": bool(os.environ.get(env)), "key_saved": bool(stored),
+        return {"key_env": env, "key_in_env": config.env_key_set(env), "key_saved": bool(stored),
                 "key_masked": mask(stored) if stored else ""}
 
     def make_generator(name: str, model: str = ""):
@@ -1642,8 +1703,14 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
 
     # ---- plumbing -------------------------------------------------------------------------------
     def check(request: Request) -> JSONResponse | None:
-        if allowed_hosts is not None and request.headers.get("host") not in allowed_hosts:
+        host = request.headers.get("host") or ""
+        if request.url.path == "/healthz":
+            return None  # container health check: asks over 127.0.0.1 whatever the allowed names are, tells nothing
+        if allowed_hosts is not None and host not in allowed_hosts:
             return JSONResponse({"error": "Bad Host header"}, status_code=403)  # DNS-rebinding guard
+        bare = host[:host.index("]") + 1] if host.startswith("[") else host.partition(":")[0]
+        if host_names and bare.lower().strip("[]") not in host_names:
+            return JSONResponse({"error": "Bad Host header"}, status_code=403)
         # CSRF guard: a page on another site can still POST a form or multipart body to 127.0.0.1 (a "simple"
         # request needs no CORS preflight), so a browser-sent Origin must be this server itself
         origin = request.headers.get("origin")
@@ -1655,9 +1722,12 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
             return JSONResponse({"error": "Cross-site request refused"}, status_code=403)
         if token and request.url.path.startswith("/api/"):
             given = request.headers.get("x-folivox-token") or request.query_params.get("token") or ""
-            cookie = request.cookies.get(cookie_name) or ""
-            if not (secrets.compare_digest(given, token) or secrets.compare_digest(cookie, session)):
-                return JSONResponse({"error": "Missing or wrong token"}, status_code=401)
+            if not same(request.cookies.get(cookie_name) or "", session):  # a valid cookie is never throttled
+                ok = token_ok(request, given) if given else False
+                if ok is None:
+                    return too_many()
+                if not ok:
+                    return JSONResponse({"error": "Missing or wrong token"}, status_code=401)
         return None
 
     async def api_error(request: Request, exc: ApiError):
@@ -1668,6 +1738,8 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
 
     routes = [
         Route("/", index),
+        Route("/healthz", health),
+        Route("/login", login, methods=["POST"]),
         Route("/i18n/{code}.json", i18n_catalog),
         Route("/api/ping", ping),
         Route("/api/activity", get_activity),
@@ -1771,6 +1843,37 @@ def create_app(token: str | None = None, port: int | None = None, data_dir: Path
 
     app.state.cancel_all, app.state.shutdown = cancel_all, shutdown
     return app
+
+
+class _Throttle:
+    """Wrong-token counter for the network mode: ``LIMIT`` misses within ``WINDOW`` seconds lock token checks for
+    ``LOCK`` seconds. One counter for everyone (behind a proxy every client has the proxy's address); a request with
+    a valid session cookie does not go through it, so the owner is only held up while someone is guessing."""
+
+    LIMIT, WINDOW, LOCK = 10, 60.0, 300
+
+    def __init__(self):
+        self.misses: list[float] = []
+        self.until = 0.0
+
+    def locked(self) -> bool:
+        return time.monotonic() < self.until
+
+    def fail(self) -> None:
+        now = time.monotonic()
+        self.misses = [t for t in self.misses if now - t < self.WINDOW] + [now]
+        if len(self.misses) >= self.LIMIT:
+            self.until, self.misses = now + self.LOCK, []
+
+
+LOGIN_PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport"
+content="width=device-width"><title>Folivox</title><style>
+body{font:16px system-ui,sans-serif;max-width:22rem;margin:18vh auto;padding:0 1rem}
+input,button{font:inherit;padding:.5rem;width:100%;box-sizing:border-box;margin:.4rem 0}
+.err{color:#b00020}</style></head>
+<body><h1>Folivox</h1><p>Enter the access token set for this server (FOLIVOX_UI_TOKEN).</p><!--error-->
+<form method="post" action="/login"><input type="password" name="token" autocomplete="current-password" autofocus
+required><button>Open the studio</button></form></body></html>"""
 
 
 class _Guard:

@@ -1117,12 +1117,15 @@ def providers():
     console.print(f"[dim]* selected. Config: {config.config_path()}[/]")
 
 
-@app.command("ui", help="Start the local web interface (127.0.0.1 only; needs folivox[ui]).",
+@app.command("ui", help="Start the local web interface (127.0.0.1 unless --host says otherwise; needs folivox[ui]).",
              rich_help_panel="Main commands",
              epilog="[bold]Examples[/]\n\n  [cyan]folivox ui --port 9000 --no-open[/]\n"
                     "  [cyan]folivox ui --restart[/]   replace the running studio (after an update)\n"
                     "  [cyan]folivox ui --stop[/]      stop the running studio")
-def ui(port: int = typer.Option(8765, "--port", help="Port to listen on (127.0.0.1 only)."),
+def ui(port: int = typer.Option(8765, "--port", envvar="FOLIVOX_UI_PORT", help="Port to listen on."),
+       host: str = typer.Option("127.0.0.1", "--host", envvar="FOLIVOX_UI_HOST",
+                                help="Address to listen on. Anything but 127.0.0.1 (for example 0.0.0.0 in Docker) "
+                                     "opens the studio to the network and requires FOLIVOX_UI_TOKEN."),
        open_browser: bool = typer.Option(True, "--open/--no-open", show_default=False,
                                          help="Open the browser automatically (on)."),
        restart: bool = typer.Option(False, "--restart", help="Stop the studio already running on this port, "
@@ -1143,7 +1146,8 @@ def ui(port: int = typer.Option(8765, "--port", help="Port to listen on (127.0.0
         info = stop_running("127.0.0.1", port, force)
         console.print(f"Stopped the Folivox studio on port {port} (pid {info.get('pid', '?')}).")
         return
-    run(port=port, open_browser=open_browser, restart=restart, force=force)
+    allowed = {h.strip().lower() for h in os.environ.get("FOLIVOX_UI_ALLOWED_HOSTS", "").split(",") if h.strip()}
+    run(host=host, port=port, open_browser=open_browser, restart=restart, force=force, allowed_hosts=allowed or None)
 
 
 GUIDE = """[bold green]Folivox is ready.[/]

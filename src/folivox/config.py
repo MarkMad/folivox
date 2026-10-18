@@ -146,14 +146,45 @@ def keychain_delete(name: str) -> None:
         pass
 
 
+def env_key(name: str) -> str | None:
+    """A key given through the environment: ``NAME`` itself, else the file named by ``NAME_FILE`` (Docker and
+    Kubernetes secrets, e.g. ``OPENAI_API_KEY_FILE=/run/secrets/openai``). An explicit ``NAME`` wins over ``NAME_FILE``.
+    The file's surrounding whitespace is cut. An unreadable or empty file raises ``ValueError`` (the value is never
+    part of a message); None if neither variable is set."""
+    if value := os.environ.get(name):
+        return value
+    path = os.environ.get(f"{name}_FILE", "").strip()
+    if not path:
+        return None
+    try:
+        value = Path(path).read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeDecodeError) as e:
+        why = getattr(e, "strerror", None) or type(e).__name__
+        raise ValueError(f"{name}_FILE: cannot read {path} ({why})") from None
+    if not value:
+        raise ValueError(f"{name}_FILE: {path} is empty")
+    return value
+
+
+def env_key_set(name: str) -> bool:
+    """Is the key given through the environment (``NAME`` or ``NAME_FILE``)? Does not read the file."""
+    return bool(os.environ.get(name) or os.environ.get(f"{name}_FILE", "").strip())
+
+
 def api_key(env_names: list[str] | str, provider_name: str) -> str:
-    """Environment variable first, then the OS keychain. Never the config file."""
+    """Environment variable (or its ``_FILE``) first, then the OS keychain. Never the config file."""
     names = [env_names] if isinstance(env_names, str) else env_names
     for n in names:
-        if os.environ.get(n):
-            return os.environ[n]
+        if value := env_key(n):
+            return value
     for n in names:
         if value := keychain_get(n):
             return value
-    raise ValueError(f"{provider_name}: set the API key in the environment variable {names[0]} or save it in the "
-                     f"web interface (`folivox ui`); it is used at your own cost and never stored in a file")
+    raise ValueError(f"{provider_name}: set the API key in the environment variable {names[0]} (or {names[0]}_FILE "
+                     "with the path of a file holding it) or save it in the web interface (`folivox ui`); it is "
+                     "used at your own cost and never stored in a file")
+
+
+def output_dir() -> Path:
+    """Where the studio puts finished audiobooks unless told otherwise: ``FOLIVOX_OUTPUT_DIR`` or ``~/Audiobooks``."""
+    return Path(os.environ.get("FOLIVOX_OUTPUT_DIR") or Path.home() / "Audiobooks").expanduser()
