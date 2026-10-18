@@ -99,6 +99,52 @@ def test_run_refuses_the_network_without_a_token(monkeypatch):
         ui.run(host="0.0.0.0", port=8765, open_browser=False)
 
 
+def test_refusal_names_both_ways_out():
+    msg = ui.access_needed_message("0.0.0.0")
+    assert "FOLIVOX_UI_TOKEN" in msg and "FOLIVOX_UI_AUTH" in msg and "off" in msg
+
+
+def test_container_without_access_choice_serves_only_a_notice(monkeypatch):
+    import http.server
+    import threading
+    import urllib.error
+    import urllib.request
+
+    servers = []
+    real = http.server.ThreadingHTTPServer
+
+    class Probe(real):
+        def serve_forever(self, *a, **k):
+            servers.append(self)
+            raise KeyboardInterrupt  # return control to the test instead of serving forever
+
+    monkeypatch.setattr(http.server, "ThreadingHTTPServer", lambda addr, h: Probe(("127.0.0.1", 0), h))
+    with pytest.raises(KeyboardInterrupt):
+        ui.serve_access_needed("127.0.0.1", 0, ui.access_needed_message("127.0.0.1"))
+    srv = servers[0]
+    t = threading.Thread(target=lambda: real.serve_forever(srv), daemon=True)
+    t.start()
+    try:
+        with pytest.raises(urllib.error.HTTPError) as e:
+            urllib.request.urlopen(f"http://127.0.0.1:{srv.server_address[1]}/healthz", timeout=5)
+        assert e.value.code == 503
+        assert b"FOLIVOX_UI_AUTH" in e.value.read()
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
+def test_run_in_a_container_without_access_choice_serves_the_notice(monkeypatch):
+    for k in ("FOLIVOX_UI_TOKEN", "FOLIVOX_UI_TOKEN_FILE", "FOLIVOX_UI_AUTH"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("FOLIVOX_UI_HOST", "0.0.0.0")
+    called = []
+    monkeypatch.setattr(ui, "serve_access_needed", lambda host, port, msg: called.append((host, port, msg)))
+    with pytest.raises(SystemExit):  # the stub returns, then the usual refusal follows (never reached for real)
+        ui.run(host="0.0.0.0", port=8765, open_browser=False)
+    assert called and called[0][0] == "0.0.0.0"
+
+
 def test_output_dir_env(monkeypatch, tmp_path):
     from folivox import config
 

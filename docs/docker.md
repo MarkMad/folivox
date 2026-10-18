@@ -23,6 +23,9 @@ Dockhand as a stack, or with plain `docker compose`. Nothing has to be typed in 
    `FOLIVOX_UI_AUTH` to `off` instead.
 3. Deploy. Open `http://<server>:8765/`, enter the password (if you set one), and use the studio as on a desktop.
 
+If you set neither a token nor `FOLIVOX_UI_AUTH=off`, the container keeps running but shows only a notice on the port
+("Folivox needs one setting") and reports *unhealthy*; set one of them and redeploy.
+
 With plain Docker Compose:
 
 ```bash

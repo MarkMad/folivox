@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.1.0.323",
+  "date": "2026-10-18",
+  "items": [
+   {
+    "type": "fix",
+    "text": "Docker: a container started without a password or FOLIVOX_UI_AUTH=off no longer restarts in a loop; it stays up, shows a notice saying what to set, and reports unhealthy. The message names both ways out."
+   }
+  ]
+ },
+ {
   "version": "0.1.0.317",
   "date": "2026-10-18",
   "items": [

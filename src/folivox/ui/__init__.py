@@ -205,10 +205,47 @@ def stop_running(host: str, port: int, force: bool = False) -> dict:
     return info
 
 
+def access_needed_message(host: str) -> str:
+    return (f"Listening on {host} makes the studio reachable from the network, which needs an access token "
+            "(or an explicit choice to go without one). Set FOLIVOX_UI_TOKEN to a password of at least 16 "
+            "characters (e.g. openssl rand -hex 24, or FOLIVOX_UI_TOKEN_FILE), or, on a home network where you "
+            "trust every device, set FOLIVOX_UI_AUTH to off (see docs/docker.md, 'Without a password'). "
+            "Then start again. Without either the studio stays on 127.0.0.1.")
+
+
+def serve_access_needed(host: str, port: int, message: str) -> None:
+    """Container started without a token or ``FOLIVOX_UI_AUTH=off``: serve only a page that says what to set (and fail
+    the health check) rather than exit and restart in a loop. Nothing of the studio is served."""
+    import html
+    import http.server
+
+    body = ("<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width'>"
+            "<title>Folivox</title><body style='font:16px system-ui,sans-serif;max-width:34rem;margin:12vh auto;"
+            f"padding:0 1rem'><h1>Folivox needs one setting</h1><p>{html.escape(message)}</p>").encode()
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(503)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        do_HEAD = do_GET
+
+        def log_message(self, *args):
+            pass
+
+    print(message, flush=True)
+    print("The studio is not started. This container shows only this notice until the variable is set.", flush=True)
+    http.server.ThreadingHTTPServer((host, port), Handler).serve_forever()
+
+
 def run(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True, restart: bool = False,
         force: bool = False, allowed_hosts: set[str] | None = None) -> None:
     """``host`` beyond this computer (0.0.0.0, a LAN address) is the network mode: it needs an owner-chosen token
     (:func:`configured_token`), never prints it and never opens a browser."""
+    import os
     import threading
     import webbrowser
 
@@ -229,10 +266,10 @@ def run(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True, re
         if open_access:
             pass
         elif configured_token() is None:
-            raise SystemExit(
-                f"Listening on {host} makes the studio reachable from the network, which needs an access token that "
-                "you choose. Set FOLIVOX_UI_TOKEN (at least 16 characters, e.g. openssl rand -hex 24) or "
-                "FOLIVOX_UI_TOKEN_FILE, then start again. Without a token the studio stays on 127.0.0.1.")
+            need = access_needed_message(host)
+            if os.environ.get("FOLIVOX_UI_HOST"):  # a container: stay up and say what to set instead of a restart loop
+                serve_access_needed(host, port, need)
+            raise SystemExit(need)
         open_browser = False
         probe = "127.0.0.1"  # the studio asks itself (is it running already, stop it) over the loopback
     else:
