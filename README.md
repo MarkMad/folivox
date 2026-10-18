@@ -75,6 +75,16 @@ powershell -ExecutionPolicy Bypass -File scripts\install.ps1
 
 </details>
 
+<details>
+<summary><b>With Docker</b> (home server or NAS)</summary>
+
+Optional, not needed on a normal computer. Create a stack from [docker-compose.yml](docker-compose.yml) (or
+[docker-compose.nvidia.yml](docker-compose.nvidia.yml) for an NVIDIA GPU), set `FOLIVOX_UI_TOKEN` to a password, deploy
+and open `http://<server>:8765/`. Works from Portainer, Dockhand or `docker compose up -d`. Details:
+[docs/docker.md](docs/docker.md).
+
+</details>
+
 ### 2. Start
 
 Open a new terminal window and run:
@@ -111,8 +121,6 @@ uv tool uninstall folivox       # last step: remove the program itself
 It removes only what Folivox created. Your books, audiobooks, ffmpeg and uv are never touched.
 
 Details, options, manual install and troubleshooting: [docs/install.md](docs/install.md).
-
-**Own a home server or NAS?** There is also a Docker setup for it, optional and not needed on a normal computer: [docs/docker.md](docs/docker.md).
 
 ## Choose how your book is read
 
