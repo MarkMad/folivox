@@ -118,6 +118,5 @@ docker exec -it -u 1000 folivox folivox render /audiobooks/some.epub
 
 * No Apple GPU in containers (see the note at the top).
 * Books enter through the studio's upload; there is no watched input folder yet.
-* The output-folder placeholder in the studio still says `~/Audiobooks`; leave the field empty to use `/audiobooks`.
 * The image does not contain the optional Fish Audio engines and native runtime; install them from the studio
   (they download into `/data`).

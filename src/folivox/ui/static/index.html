@@ -2752,7 +2752,7 @@ function runSummary() {
   const vo = !cloud && VOICES.find(x => x.id === voice); if (vo) v = vo.name || v;
   if (!cloud && (!v || v === "auto")) v = t("sum.auto");
   const range = (() => { if (!ch.length) return t("sum.nochap"); const r = []; let i = 0; while (i < ch.length) { let j = i; while (j + 1 < ch.length && ch[j + 1] === ch[j] + 1) j++; r.push(j > i ? ch[i] + "–" + ch[j] : "" + ch[i]); i = j + 1; } return t(ch.length > 1 || r[0].includes("–") ? "sum.chaps" : "sum.chap1", { list: r.join(", ") }) + (ch.length ? ` (${fmt(secs)})` : ""); })();
-  const dir = ($("#o-output_dir").value || "~/Audiobooks").replace(/\/$/, ""), out = $("#o-mp3").value === "1" ? t("sum.mp3dir", { dir }) : dir + "/" + (book.title || "book") + ".m4b";
+  const dir = ($("#o-output_dir").value || $("#o-output_dir").placeholder).replace(/\/$/, ""), out = $("#o-mp3").value === "1" ? t("sum.mp3dir", { dir }) : dir + "/" + (book.title || "book") + ".m4b";
   const parts = [esc(e.label), mt ? esc(mt) : "", v ? t("sum.voice", { v: esc(v) }) : "", range, t($("#o-qa").value === "1" ? "sum.qa.on" : "sum.qa.off"), t("sum.saved", { out: esc(out) })].filter(Boolean);
   const warn = [];
   if (!ch.length) warn.push(t("run.nochap"));
@@ -2766,6 +2766,7 @@ function useEngine(name) { $("#o-tts").value = name; $("#o-tts").onchange(); }
 $("#run-sum").addEventListener("click", (ev) => { const b = ev.target.closest("[data-eng]"); if (b) useEngine(b.dataset.eng); });
 ["#o-qa", "#o-mp3", "#o-output_dir", "#eng-ack", "#o-tts_voice", "#o-tts_mode"].forEach(i => { $(i).addEventListener("change", () => { renderEst(); runSummary(); }); });
 $("#o-output_dir").addEventListener("input", runSummary);
+api("/api/settings").then(s => { if (s.output_dir) { $("#o-output_dir").placeholder = s.output_dir; runSummary(); } }).catch(() => {});
 $("#o-tts").onchange = () => { engChange(); addRules(); if (av) showSample(); }; 
 ["#o-tts_model", "#o-takes", "#o-qa"].forEach(i => $(i).addEventListener("change", engEstimate));
 $("#o-tts_model").addEventListener("change", () => { const e = ENG.cur(); if (e && e.cloud) engBlurbShow(e); });
