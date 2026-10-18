@@ -315,6 +315,9 @@ Folivox stands on the work of many people who shared it openly. Thank you:
 
 - [CosyVoice](https://github.com/FunAudioLLM/CosyVoice) by the FunAudioLLM team (Alibaba Tongyi Lab): the
   voice-cloning model and inference code at the heart of Folivox.
+- [Fish Audio](https://fish.audio/) for the [S2 Pro](https://huggingface.co/fishaudio/s2-pro) and
+  [Drama 3](https://huggingface.co/fishaudio/drama-3) models (Fish Audio Community License), and
+  [audio.cpp](https://github.com/0xShug0/audio.cpp) for running them natively.
 - [Matcha-TTS](https://github.com/shivammehta25/Matcha-TTS) and [Whisper](https://github.com/openai/whisper)
   (OpenAI), parts of which are vendored; [faster-whisper](https://github.com/SYSTRAN/faster-whisper) and
   [mlx-whisper](https://github.com/ml-explore/mlx-examples) for the quality check.
