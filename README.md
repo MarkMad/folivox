@@ -112,7 +112,25 @@ It removes only what Folivox created. Your books, audiobooks, ffmpeg and uv are 
 
 Details, options, manual install and troubleshooting: [docs/install.md](docs/install.md).
 
-**On a home server or NAS?** Run the studio in Docker (Portainer, Dockhand, `docker compose`), CPU or NVIDIA: see [docs/docker.md](docs/docker.md).
+### Docker (home server or NAS)
+
+**Why.** A long book renders for hours. On a home server or NAS it can do that around the clock without tying up your
+laptop: you start a book from any computer on your network, close the tab, and the finished `.m4b` lands in a folder you
+choose, for example your Audiobookshelf library. Nothing is installed on the host except Docker, and removing it is one
+command. You can deploy it from Portainer or Dockhand without typing anything in a terminal on the server.
+
+**How.**
+
+1. Pick a password for the studio (at least 16 characters), for example `openssl rand -hex 24`.
+2. Create a stack from [docker-compose.yml](docker-compose.yml) (CPU) or
+   [docker-compose.nvidia.yml](docker-compose.nvidia.yml) (NVIDIA GPU) and set `FOLIVOX_UI_TOKEN` to that password.
+   With plain Docker: `docker compose up -d`.
+3. Open `http://<server>:8765/`, enter the password and use the studio as on a desktop. The first render downloads the
+   models (about 7.6 GB) into a volume, once.
+
+Don't expose the port to the internet without a reverse proxy with HTTPS. On a Mac, Docker cannot use the Apple GPU, so
+use the normal installer there. The CPU image has been tried on Linux arm64; the NVIDIA images and Windows are not tested
+yet. Everything else (variables, volumes, updates, API keys as Docker secrets): [docs/docker.md](docs/docker.md).
 
 ## Choose how your book is read
 
