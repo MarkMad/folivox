@@ -1,5 +1,5 @@
 # Folivox studio, NVIDIA GPU (needs the NVIDIA Container Toolkit on the host). Paste this into a Portainer / Dockhand stack, or run: docker compose up -d
-# Set FOLIVOX_UI_TOKEN (the password of the studio, 16+ characters: openssl rand -hex 24) and, if you like,
+# Set FOLIVOX_UI_TOKEN (the password of the studio, 4+ characters, longer is safer: openssl rand -hex 12) and, if you like,
 # FOLIVOX_AUDIOBOOKS (the folder for finished audiobooks, e.g. your Audiobookshelf library) and PUID/PGID.
 # Without a GPU use docker-compose.yml. RTX 50 series: set FOLIVOX_TAG=cuda128. Guide: docs/docker.md
 services:
@@ -10,7 +10,7 @@ services:
     ports:
       - "${FOLIVOX_PORT:-8765}:8765"
     environment:
-      FOLIVOX_UI_TOKEN: ${FOLIVOX_UI_TOKEN:-}   # the password (16+ characters); without it the studio refuses to start unless AUTH is off
+      FOLIVOX_UI_TOKEN: ${FOLIVOX_UI_TOKEN:-}   # the password (4+ characters); without it the studio refuses to start unless AUTH is off
       FOLIVOX_UI_AUTH: ${FOLIVOX_UI_AUTH:-}     # set to "off" instead of a password, trusted home network only (docs/docker.md)
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}

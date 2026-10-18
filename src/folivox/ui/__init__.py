@@ -17,7 +17,7 @@ def port_in_use(host: str, port: int) -> bool:
     return False
 
 
-MIN_TOKEN = 16
+MIN_TOKEN = 4
 
 
 def is_loopback(host: str) -> bool:
@@ -72,7 +72,7 @@ def configured_token() -> str | None:
             raise SystemExit(f"FOLIVOX_UI_TOKEN_FILE: cannot read {name} ({e.strerror or e}).") from None
     if value and len(value) < MIN_TOKEN:
         raise SystemExit(f"The studio token (FOLIVOX_UI_TOKEN) is too short: use at least {MIN_TOKEN} characters, "
-                         "for example the output of: openssl rand -hex 24")
+                         "longer is safer, for example the output of: openssl rand -hex 12")
     return value or None
 
 
@@ -207,8 +207,8 @@ def stop_running(host: str, port: int, force: bool = False) -> dict:
 
 def access_needed_message(host: str) -> str:
     return (f"Listening on {host} makes the studio reachable from the network, which needs an access token "
-            "(or an explicit choice to go without one). Set FOLIVOX_UI_TOKEN to a password of at least 16 "
-            "characters (e.g. openssl rand -hex 24, or FOLIVOX_UI_TOKEN_FILE), or, on a home network where you "
+            "(or an explicit choice to go without one). Set FOLIVOX_UI_TOKEN to a password of at least 4 "
+            "characters (longer is safer, e.g. openssl rand -hex 12; or FOLIVOX_UI_TOKEN_FILE), or, on a home network where you "
             "trust every device, set FOLIVOX_UI_AUTH to off (see docs/docker.md, 'Without a password'). "
             "Then start again. Without either the studio stays on 127.0.0.1.")
 

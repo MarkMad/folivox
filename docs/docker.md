@@ -15,7 +15,7 @@ Dockhand as a stack, or with plain `docker compose`. Nothing has to be typed in 
 
 ## Quick start
 
-1. Pick a password for the studio: at least 16 characters, for example the output of `openssl rand -hex 24`.
+1. Pick a password for the studio: at least 4 characters (longer is safer, for example the output of `openssl rand -hex 12`).
    You can also run without a password on a trusted home network: see [Without a password](#without-a-password-trusted-network-only).
 2. Create a stack from [docker-compose.yml](../docker-compose.yml) (CPU) or
    [docker-compose.nvidia.yml](../docker-compose.nvidia.yml) (NVIDIA GPU). In Portainer: *Stacks → Add stack → Web
@@ -29,7 +29,7 @@ If you set neither a token nor `FOLIVOX_UI_AUTH=off`, the container keeps runnin
 With plain Docker Compose:
 
 ```bash
-export FOLIVOX_UI_TOKEN=$(openssl rand -hex 24)   # keep it: this is the password
+export FOLIVOX_UI_TOKEN=$(openssl rand -hex 12)   # keep it: this is the password
 echo "$FOLIVOX_UI_TOKEN"
 docker compose up -d
 ```
@@ -55,7 +55,7 @@ To build one yourself: `docker build -f docker/Dockerfile --build-arg VARIANT=cp
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `FOLIVOX_UI_TOKEN` | required | The studio password (16+ characters). The studio refuses to start on the network without it. |
+| `FOLIVOX_UI_TOKEN` | required | The studio password (4+ characters; longer is safer). The studio refuses to start on the network without it. |
 | `FOLIVOX_UI_TOKEN_FILE` | | Path of a file holding the token (Docker/Portainer secret), instead of the variable. |
 | `PUID`, `PGID` | 1000 | The user and group that own the files the container writes (`id -u`, `id -g` on the host). |
 | `FOLIVOX_PORT` (compose) | 8765 | Port on the host. |
@@ -104,6 +104,8 @@ page:
   your browser call the studio: cross-site requests are refused, and without the cookie or token every API call
   returns 401. A wrong password costs one second per try, and ten wrong ones within a minute lock password checks for five minutes
   (a browser that is already logged in is not affected).
+  The limit keeps even a short password out of reach of quick guessing (a 4-digit one would take days of
+  continuous trying), but a short password is only fine on a network you trust; use a long one for anything wider.
 * The connection is **plain HTTP**. Use it on your home network, **do not forward the port to the internet**. To reach
   it from outside, put a reverse proxy with HTTPS and your own login in front (Caddy, Traefik, nginx Proxy Manager,
   Cloudflare Tunnel, Tailscale) and bind the port to loopback or the proxy network (`"127.0.0.1:8765:8765"`). The

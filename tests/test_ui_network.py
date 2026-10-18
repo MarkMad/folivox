@@ -79,7 +79,7 @@ def test_configured_token(monkeypatch, tmp_path):
     for k in ("FOLIVOX_UI_TOKEN", "FOLIVOX_UI_TOKEN_FILE"):
         monkeypatch.delenv(k, raising=False)
     assert ui.configured_token() is None
-    monkeypatch.setenv("FOLIVOX_UI_TOKEN", "short")
+    monkeypatch.setenv("FOLIVOX_UI_TOKEN", "abc")
     with pytest.raises(SystemExit):
         ui.configured_token()
     monkeypatch.delenv("FOLIVOX_UI_TOKEN")
