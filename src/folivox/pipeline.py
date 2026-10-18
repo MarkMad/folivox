@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import time
 import zlib
@@ -78,6 +79,8 @@ class RenderOptions:
     def resolved_work_dir(self) -> Path:
         if self.work_dir:
             return Path(self.work_dir).expanduser()
+        if os.environ.get("FOLIVOX_WORK_DIR"):  # Docker: keep journals and takes out of the audiobook library
+            return Path(os.environ["FOLIVOX_WORK_DIR"]).expanduser() / (self.output.stem + ".folivox")
         return self.output.with_name(self.output.stem + ".folivox")
 
 

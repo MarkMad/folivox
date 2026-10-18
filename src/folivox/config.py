@@ -157,3 +157,8 @@ def api_key(env_names: list[str] | str, provider_name: str) -> str:
             return value
     raise ValueError(f"{provider_name}: set the API key in the environment variable {names[0]} or save it in the "
                      f"web interface (`folivox ui`); it is used at your own cost and never stored in a file")
+
+
+def output_dir() -> Path:
+    """Where the studio puts finished audiobooks unless told otherwise: ``FOLIVOX_OUTPUT_DIR`` or ``~/Audiobooks``."""
+    return Path(os.environ.get("FOLIVOX_OUTPUT_DIR") or Path.home() / "Audiobooks").expanduser()
