@@ -5,7 +5,8 @@
 # Models (about 7.6 GB) are NOT in the image: they are downloaded into the /data volume on first use.
 ARG PYTHON_VERSION=3.11
 
-FROM python:${PYTHON_VERSION}-slim-bookworm AS build
+# trixie, not bookworm: the native audio.cpp build needs glibc 2.38+ (bookworm has 2.36)
+FROM python:${PYTHON_VERSION}-slim-trixie AS build
 ARG VARIANT=cpu
 COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /usr/local/bin/uv
 ENV UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1
@@ -28,13 +29,13 @@ RUN set -eu; \
 COPY src ./src
 RUN uv pip install --python /opt/folivox/bin/python --no-deps .
 
-FROM python:${PYTHON_VERSION}-slim-bookworm
+FROM python:${PYTHON_VERSION}-slim-trixie
 ARG VARIANT=cpu
 LABEL org.opencontainers.image.source="https://github.com/vatavale/folivox" \
       org.opencontainers.image.description="Folivox studio: e-books to chaptered audiobooks, locally (${VARIANT})" \
       org.opencontainers.image.licenses="Apache-2.0"
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ffmpeg tini libsndfile1 util-linux ca-certificates \
+ && apt-get install -y --no-install-recommends ffmpeg tini libsndfile1 libvulkan1 util-linux ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
  && groupadd -g 1000 folivox && useradd -u 1000 -g 1000 -m -d /home/folivox -s /usr/sbin/nologin folivox \
  && mkdir -p /data /audiobooks /work && chown folivox:folivox /data /audiobooks /work
@@ -53,7 +54,7 @@ ENV PATH=/opt/folivox/bin:$PATH \
     FOLIVOX_UI_HOST=0.0.0.0 \
     FOLIVOX_UI_PORT=8765 \
     NVIDIA_VISIBLE_DEVICES=all \
-    NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
 VOLUME ["/data", "/audiobooks", "/work"]
 EXPOSE 8765
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \

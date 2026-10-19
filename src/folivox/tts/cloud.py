@@ -55,6 +55,9 @@ class CloudVoice:
     duration = 0.0
     warnings: tuple = ()
 
+    def warnings_for(self, engine: str | None) -> list[str]:
+        return list(self.warnings)
+
     @property
     def id(self) -> str:
         # cache key part: anything that changes how the text sounds must be here (never the temporary voice id)

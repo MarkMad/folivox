@@ -35,3 +35,10 @@ def test_short_sample_warns_for_fish_with_its_range():
 def test_hard_maximum_unchanged():
     assert MAX_SECONDS == 30.0
     assert all(hi <= MAX_SECONDS for _, hi in (good_range(e) for e in ("fish", "cosyvoice3")))
+
+
+def test_cloud_voice_has_warnings_for():
+    from folivox.tts.cloud import CloudVoice
+
+    v = CloudVoice(provider="gemini", model="auto", speaker="Achernar")
+    assert v.warnings_for("gemini") == []
