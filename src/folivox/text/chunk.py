@@ -31,6 +31,25 @@ class Pauses:
     chapter_end: float = 2.5
 
 
+_DOUBLE_QUOTES = "«»„“”‟\"‹›「」『』"
+_QUOTE_SENTINEL = "\ue000"
+_LETTER = r"[^\W\d_]"
+
+
+def _keeping_quotes(normalize):
+    """Wrap a language's ``normalize`` so quotation marks survive as a plain ``"``. The rules strip them, but the
+    voice models read the text and take quotes as a cue for direct speech (a local A/B showed no harm: same CER,
+    no spoken quote marks). An apostrophe between letters stays in its word (the rules handle it). A closing ’
+    counts as a quote only in a paragraph that also has an opening ‘, since ’ after a letter can be a
+    possessive (dogs’ bowls)."""
+    def run(text: str) -> str:
+        marks = _DOUBLE_QUOTES + ("‘’" if "‘" in text else "")
+        protected = re.sub(f"(?<!{_LETTER})[{marks}]|[{marks}](?!{_LETTER})|‘", _QUOTE_SENTINEL, text)
+        return normalize(protected).replace(_QUOTE_SENTINEL, '"')
+
+    return run
+
+
 @dataclass
 class ChunkOptions:
     max_chars: int = 300
@@ -191,7 +210,8 @@ def _plan_segments(raw, segs, ctx, end_pause, opts, normalize, dialogue, p) -> N
     for k, (seg, text, tags, lang) in enumerate(pieces):
         language = languages.get(lang or opts.lang)  # the text rules of the language the segment is read in
         normalize, dialogue = language.normalize, language.dialogue
-        parts = pack(sentences(dialogue(normalize(text)), lang or opts.lang), opts.max_chars, opts.min_chars)
+        spoken = dialogue(_keeping_quotes(normalize)(text))
+        parts = pack(sentences(spoken, lang or opts.lang), opts.max_chars, opts.min_chars)
         nxt_speaker = pieces[k + 1][0].speaker if k + 1 < len(pieces) else None
         last_pause = end_pause if nxt_speaker is None else (p.dialogue if nxt_speaker != seg.speaker else p.sentence)
         for j, part in enumerate(parts):

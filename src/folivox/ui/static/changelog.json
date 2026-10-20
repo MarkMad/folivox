@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.1.0.334",
+  "date": "2026-10-20",
+  "items": [
+   {
+    "type": "new",
+    "text": "Quotation marks now reach the voice as plain \" marks, so every engine (local and online) can tell direct speech from narration. Fragments that contain quotes are made again on the next render; for online engines that is billed."
+   }
+  ]
+ },
+ {
   "version": "0.1.0.333",
   "date": "2026-10-20",
   "items": [

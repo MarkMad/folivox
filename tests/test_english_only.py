@@ -33,3 +33,14 @@ def test_curly_apostrophe_stays_inside_words():
     out = lang.get("en").normalize("I’m sure it’s John’s dog. He said “don’t go”, ‘really’.")
     assert out == "I'm sure it's John's dog. He said don't go, really."
     assert lang.get("fr").normalize("L’homme n’est pas là.").startswith("L'homme n'est")
+
+
+def test_online_engines_keep_quotes_as_plain_marks():
+    from folivox import lang
+    from folivox.text.chunk import _keeping_quotes
+
+    run = _keeping_quotes(lang.get("en").normalize)
+    assert run("He said “don’t go”, and ‘really’ she asked.") == 'He said "don\'t go", and "really" she asked.'
+    assert run("The dogs’ bowls.") == "The dogs bowls."  # no opening ‘: a closing ’ is not a quote
+    ru = _keeping_quotes(lang.get("ru").normalize)
+    assert ru("Он сказал «привет».") == 'Он сказал "привет".'
