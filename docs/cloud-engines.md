@@ -83,7 +83,34 @@ folivox render book.epub --tts cartesia --tts-mode clone --voice my-voice --own-
 
 Quality control still works (Whisper QA with retakes), but every retake is billed, so cloud runs default to
 2 takes (`--takes`) and never re-split a failed fragment; the estimate includes a retake allowance. Fragments
-are limited to the provider's request size and sent in a few parallel requests (Retry-After is honoured).
+are limited to the provider's request size and sent in a few parallel requests (Retry-After is honoured; see
+[Request limits](#request-limits)).
 Reading speed (`--speed`) and Russian stress marks (`--stress all`) do not apply; the narration style is
 `--tts-style` (OpenAI and Gemini get a neutral audiobook note by default). Audio from commercial APIs is
 yours to keep under the provider's terms and is never bundled with Folivox.
+
+## Request limits
+
+Every provider caps how many requests an account may send per minute (RPM) and per day (RPD); the caps depend on
+the model and on your tier (free, or paid tier 1, 2, 3 by spend). Hitting one gives an HTTP 429 even when your
+balance is fine. Google does not publish per-minute numbers for its Gemini TTS models: check your project in
+[AI Studio](https://aistudio.google.com/) (Rate limits), and see the
+[Gemini rate-limit guide](https://ai.google.dev/gemini-api/docs/rate-limits). Limits are per Google project, not per key.
+
+What Folivox does:
+
+- Gemini starts with 1 request at a time and at most 10 requests a minute. Other engines have no limit of their own.
+- On a "too many requests" reply it waits as long as the provider asks (Gemini's `retryDelay`, or `Retry-After`),
+  halves its own rate for the rest of the run, and retries. Nothing is lost: finished fragments are kept and are
+  not sent again.
+- A **per-day** limit is not retried (waiting a minute cannot help). The run stops with a message; the quota resets
+  at midnight Pacific time. Run the same command again then, pick another model, or enable billing for the project.
+
+To change the rate, put this in `config.toml` (or set `FOLIVOX_GEMINI_RPM` / `FOLIVOX_GEMINI_PARALLEL`; the section
+name is the engine, `0` removes the rate limit):
+
+```toml
+[cloud.gemini]
+requests_per_minute = 4   # lower this if you still see rate-limit errors on a free tier
+parallel = 1
+```

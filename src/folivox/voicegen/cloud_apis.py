@@ -13,7 +13,16 @@ import uuid
 from pathlib import Path
 
 from folivox.voicegen import Job
-from folivox.voicegen.cloud import CloudError, CloudGenerator, b64, file_as_wav, multipart, pcm_to_wav, to_wav
+from folivox.voicegen.cloud import (
+    CloudError,
+    CloudGenerator,
+    b64,
+    error_text,
+    file_as_wav,
+    multipart,
+    pcm_to_wav,
+    to_wav,
+)
 
 LANGS = ("en", "ru", "de", "fr", "es", "it", "zh", "ja", "ko")
 
@@ -62,6 +71,33 @@ class Gemini(CloudGenerator):
 
     def headers(self):
         return {"x-goog-api-key": self.key}
+
+    def map_error(self, resp):
+        """Gemini says RESOURCE_EXHAUSTED for every 429 and puts the details in the body, not in headers:
+        ``RetryInfo.retryDelay`` ("27s") and ``QuotaFailure`` violations whose ids name the limit (…PerMinute…,
+        …PerDay…). A per-day limit will not clear by waiting a minute, so it stops the run instead of retrying."""
+        err = super().map_error(resp)
+        if resp.status != 429 or err.kind == "quota":
+            return err
+        text = resp.body.decode("utf-8", "replace")
+        who, msg = self.label, error_text(resp)
+        if re.search(r"PerDay|per_day|PerModelPerDay", text):
+            return CloudError(
+                f"{who}: the daily request limit for {self.model} is used up. It resets at midnight Pacific time. "
+                "Progress is saved: run the same command again after the reset, choose another model, or move "
+                f"the Google project to a paid tier (see {self.docs_url}).{': ' + msg if msg else ''}", "quota")
+        retry = err.retry_after
+        if retry is None:
+            m = re.search(r'"retryDelay"\s*:\s*"([\d.]+)s"', text) or re.search(r"retry in ([\d.]+)\s*s", text, re.I)
+            if m and 0 <= float(m[1]) < 86400:
+                retry = float(m[1])
+        scope = "per-minute request limit" if re.search(r"PerMinute|per_minute", text) else "request limit"
+        wait = f" Google asks to wait about {int(retry + 0.999)} s." if retry else ""
+        return CloudError(
+            f"{who}: the {scope} for {self.model} was reached.{wait} Free and low tiers allow only a few requests "
+            "a minute; Folivox slows down and retries, you can set a lower rate with requests_per_minute in "
+            f"config.toml ([cloud.gemini]) or move the project to a paid tier.{': ' + msg if msg else ''}",
+            "rate_limit", retry)
 
     def discover_models(self):
         data = self.call("GET", f"{self.BASE}/models?pageSize=200").json()

@@ -113,6 +113,24 @@ def save_runtime(value: str) -> None:
     load.cache_clear()
 
 
+def cloud_limits(provider_name: str) -> dict:
+    """``[cloud.<provider>]``: ``requests_per_minute`` and ``parallel`` for one cloud engine (both optional);
+    ``FOLIVOX_<PROVIDER>_RPM`` / ``FOLIVOX_<PROVIDER>_PARALLEL`` win over the file. 0 for rpm = no limit."""
+    found = section(f"cloud.{provider_name}")
+    out: dict = {}
+    for key, env in (("requests_per_minute", "RPM"), ("parallel", "PARALLEL")):
+        raw = os.environ.get(f"FOLIVOX_{provider_name.upper()}_{env}", found.get(key))
+        if raw in (None, ""):
+            continue
+        try:
+            out[key] = float(raw) if key == "requests_per_minute" else int(raw)
+        except (TypeError, ValueError):
+            raise ValueError(f"{key} for the {provider_name} engine must be a number, got {raw!r}") from None
+        if out[key] < 0 or (key == "parallel" and out[key] < 1):
+            raise ValueError(f"{key} for the {provider_name} engine must be positive, got {raw!r}")
+    return out
+
+
 def native_options() -> dict:
     """``[runtime.native]``: ``backend`` (auto|metal|cuda|vulkan), ``weights`` (q8_0|f32), ``weight_type``,
     ``device`` (auto = the discrete GPU if there is one, or a device number from `folivox runtime`)."""

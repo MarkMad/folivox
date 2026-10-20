@@ -31,9 +31,46 @@ DEFAULT_STYLE = {"openai": NEUTRAL_STYLE, "gemini": NEUTRAL_STYLE}
 ACCENT_NOTE = ("Speak {language} like a native speaker, with natural {language} pronunciation and intonation, "
                "never an English accent.")
 NO_INSTRUCTIONS = ("tts-1", "tts-1-hd")  # OpenAI models that ignore the note
-PARALLEL = {"elevenlabs": 3, "openai": 3, "gemini": 2, "cartesia": 3, "fish": 3}  # simultaneous requests per provider
+PARALLEL = {"elevenlabs": 3, "openai": 3, "gemini": 1, "cartesia": 3, "fish": 3}  # simultaneous requests per provider
+# Requests per minute a run starts, per provider (absent = no limit of our own; the provider's 429 still applies).
+# Google does not publish per-minute numbers for its TTS models and they differ by tier and model, so Gemini starts
+# gently and the limiter slows down further whenever a 429 arrives.
+DEFAULT_RPM = {"gemini": 10.0}
 CHARS_PER_SECOND = 14  # narration pace used for audio-duration estimates
 SPEED_NOTE = "Reading speed is not applied by cloud engines; the provider's own pace is used."
+
+
+class RateLimiter:
+    """Spaces the starts of requests evenly (60 / rpm seconds apart), which keeps any per-minute window under
+    the limit. :meth:`slow_down` halves the rate after the provider said "too many requests"."""
+
+    def __init__(self, rpm: float | None, clock=time.monotonic, sleep=time.sleep):
+        self.rpm = rpm or None
+        self.clock, self.sleep = clock, sleep
+        self._lock = threading.Lock()
+        self._next = 0.0
+
+    def wait(self, should_stop=lambda: False) -> bool:
+        """Block until this request may start (a cancel ends the wait early); True if it had to wait."""
+        if not self.rpm:
+            return False
+        with self._lock:
+            now = self.clock()
+            start = max(now, self._next)
+            self._next = start + 60.0 / self.rpm
+        waited = False
+        while (left := start - self.clock()) > 0 and not should_stop():
+            waited = True
+            self.sleep(min(left, 1.0))
+        return waited
+
+    def slow_down(self) -> float:
+        """Halve the rate (never below one request a minute) and return the new rpm."""
+        with self._lock:
+            base = self.rpm or 60.0
+            self.rpm = max(1.0, base / 2)
+            self._next = max(self._next, self.clock()) + 60.0 / self.rpm
+            return self.rpm
 
 
 class CostCapReached(ProviderError):
@@ -71,13 +108,18 @@ class CloudTTS(TTSEngine):
     local = False
 
     def __init__(self, provider: str, model: str = "auto", generator=None, parallel: int | None = None,
-                 max_cost: float | None = None, **options):
+                 max_cost: float | None = None, rpm: float | None = None, **options):
         self.name = provider
         if generator is None:
             generator = generator_class(provider)(model=model or "auto", **{
                 k: v for k, v in options.items() if k in ("transport", "sleep", "api_key", "api_key_env")})
         self.gen = generator
-        self.parallel = parallel or PARALLEL.get(provider, 2)
+        from folivox.config import cloud_limits
+
+        limits = cloud_limits(provider)
+        self.parallel = parallel or limits.get("parallel") or PARALLEL.get(provider, 2)
+        rpm = rpm if rpm is not None else limits.get("requests_per_minute", DEFAULT_RPM.get(provider))
+        self.limiter = RateLimiter(rpm or None)
         self.max_cost = max_cost
         self.languages = tuple(type(generator).languages)
         self.sample_rate = 24000
@@ -88,6 +130,7 @@ class CloudTTS(TTSEngine):
         self.outage_seconds = 1800.0  # how long a dropped network / provider outage is waited out before failing
         self.wait_for = 30.0  # pause between probes during an outage
         self.sleep = time.sleep
+        self.limiter.sleep = lambda s: self.sleep(s)
         self.should_stop = lambda: False  # set by the pipeline: cancel during a pause
         self.on_wait = lambda message: None  # set by the pipeline: tell the user we are waiting
 
@@ -157,10 +200,16 @@ class CloudTTS(TTSEngine):
         # once, and refunded when the provider definitely refused the text (nothing was billed).
         waited = 0.0
         while True:
+            if self.limiter.wait(self.should_stop) and self.should_stop():
+                raise CloudError("Stopped while waiting for the provider's request limit.", "network")
             try:
                 wav = self.gen.synth(self.job(text, voice, seed, lang))
                 return wav, time.time() - t0
             except CloudError as e:
+                if e.kind == "rate_limit":
+                    # the provider counted too many requests: go slower for the rest of the run
+                    rpm = self.limiter.slow_down()
+                    e = CloudError(f"{e} Folivox now sends at most {rpm:g} requests a minute.", e.kind, e.retry_after)
                 if e.kind in ("auth", "quota", "bad_request"):
                     with self._lock:
                         self.chars_sent -= billed

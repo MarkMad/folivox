@@ -10,7 +10,7 @@ from folivox.pipeline import CostCapReached, Events, RenderOptions, plan, render
 from folivox.providers import ProviderError
 from folivox.readers import read_book
 from folivox.tts import ENGINES
-from folivox.tts.cloud import CloudTTS
+from folivox.tts.cloud import CloudTTS, CloudVoice
 from folivox.tts.cost import book_chars, estimate
 from folivox.voicegen.cloud import CloudError, Response
 
@@ -188,11 +188,11 @@ def saved_dir(tmp_path, monkeypatch):
     return tmp_path
 
 
-def gemini_engine(fake):
+def gemini_engine(fake, model="gemini-3.8-flash-tts", **kw):
     from folivox.voicegen.cloud_apis import Gemini
 
-    return CloudTTS("gemini", generator=Gemini(api_key="k", transport=fake, sleep=lambda s: None,
-                                                model="gemini-3.8-flash-tts"))
+    kw.setdefault("rpm", 0)  # the default limiter would really sleep between requests
+    return CloudTTS("gemini", generator=Gemini(api_key="k", transport=fake, sleep=lambda s: None, model=model), **kw)
 
 
 def test_kept_voice_is_listed_and_reused_without_creating_or_deleting(saved_dir):
@@ -264,3 +264,77 @@ def test_kept_voice_without_a_name_gets_a_readable_one_never_an_id():
     des = RenderOptions(output=Path("o.m4b"), tts="gemini", tts_mode="design", lang="en",
                         tts_description="a calm, warm woman in her forties, unhurried narrator")
     assert _default_voice_name(eng, des).startswith("a calm, warm woman")
+
+
+GEMINI_429 = {"error": {"code": 429, "status": "RESOURCE_EXHAUSTED",
+                        "message": "You exceeded your current quota, please check your plan and billing details.",
+                        "details": [{"@type": "type.googleapis.com/google.rpc.QuotaFailure", "violations": [
+                            {"quotaId": "GenerateRequestsPerMinutePerProjectPerModel"}]},
+                                    {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "27s"}]}}
+
+
+GVOICE = CloudVoice("gemini", "gemini-2.5-flash-preview-tts", "Kore")
+GEMINI_OK = ok({"candidates": [{"content": {"parts": [{"inlineData": {
+    "data": __import__("base64").b64encode(wav_bytes()).decode()}}]}}]})
+
+
+def test_gemini_retry_delay_from_the_body_is_honoured():
+    slept = []
+    from folivox.voicegen.cloud_apis import Gemini
+
+    fake = Fake(ok(GEMINI_429, status=429), GEMINI_OK)
+    gen = Gemini(api_key="k", transport=fake, sleep=slept.append, model="gemini-2.5-flash-preview-tts")
+    eng = CloudTTS("gemini", generator=gen, rpm=0)
+    eng.synthesize_audio("Hi.", GVOICE, 0, 1.0)
+    assert slept == [27.0]
+
+
+def test_gemini_daily_limit_stops_with_a_clear_message():
+    body = {"error": {"status": "RESOURCE_EXHAUSTED", "message": "quota",
+                      "details": [{"violations": [{"quotaId": "GenerateRequestsPerDayPerProjectPerModel"}]}]}}
+    fake = Fake(ok(body, status=429))
+    eng = gemini_engine(fake, "gemini-2.5-flash-preview-tts")
+    with pytest.raises(CloudError) as e:
+        eng.synthesize_audio("Hi.", GVOICE, 0, 1.0)
+    assert e.value.kind == "quota" and "daily request limit" in str(e.value) and "midnight Pacific" in str(e.value)
+    assert len(fake.calls) == 1  # not retried: waiting a minute cannot help
+
+
+def test_per_minute_limit_slows_the_run_down_and_names_the_limit():
+    waits = []
+    fake = Fake(*[ok(GEMINI_429, status=429)] * 5, GEMINI_OK)
+    eng = gemini_engine(fake, "gemini-2.5-flash-preview-tts", rpm=8)
+    eng.sleep = lambda s: None
+    eng.on_wait = waits.append
+    eng.synthesize_audio("Hi.", GVOICE, 0, 1.0)
+    assert eng.limiter.rpm == 4
+    assert "per-minute request limit" in waits[0] and "at most 4 requests a minute" in waits[0]
+
+
+def test_limiter_spaces_request_starts():
+    from folivox.tts.cloud import RateLimiter
+
+    now = [0.0]
+    sleeps = []
+
+    def sleep(s):
+        sleeps.append(s)
+        now[0] += s
+
+    lim = RateLimiter(6, clock=lambda: now[0], sleep=sleep)  # one request every 10 s
+    for _ in range(3):
+        lim.wait()
+    assert now[0] == 20.0
+    assert lim.slow_down() == 3 and RateLimiter(None).slow_down() == 30
+
+
+def test_gemini_defaults_are_gentle_and_configurable(monkeypatch):
+    eng = gemini_engine(Fake(ok(wav_bytes())), rpm=None)
+    assert eng.parallel == 1 and eng.limiter.rpm == 10
+    monkeypatch.setenv("FOLIVOX_GEMINI_RPM", "60")
+    monkeypatch.setenv("FOLIVOX_GEMINI_PARALLEL", "3")
+    eng = gemini_engine(Fake(ok(wav_bytes())), rpm=None)
+    assert eng.parallel == 3 and eng.limiter.rpm == 60
+    monkeypatch.setenv("FOLIVOX_GEMINI_RPM", "0")
+    assert gemini_engine(Fake(ok(wav_bytes())), rpm=None).limiter.rpm is None
+    assert engine("openai")[0].limiter.rpm is None
