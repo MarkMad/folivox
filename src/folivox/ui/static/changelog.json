@@ -1,5 +1,23 @@
 [
  {
+  "version": "0.1.0.332",
+  "date": "2026-10-20",
+  "items": [
+   {
+    "type": "fix",
+    "text": "Cloud voices (Gemini, OpenAI, ElevenLabs, Cartesia) failed at the start of a render; fixed."
+   },
+   {
+    "type": "new",
+    "text": "Gemini rate limits: Folivox now sends at most 10 requests a minute, one at a time, waits as long as Google asks, and slows down after each refusal. A daily limit stops the run with a clear message; progress is kept. Change the rate in config.toml ([cloud.gemini] requests_per_minute); see docs/cloud-engines.md."
+   },
+   {
+    "type": "fix",
+    "text": "Docker and native runtime: the image loads the native audio.cpp build (Debian trixie), Linux uses the portable Vulkan build that works on CPUs without AVX-512, and Vulkan/HIP compute on the discrete GPU instead of an integrated one (5x faster in a test)."
+   }
+  ]
+ },
+ {
   "version": "0.1.0.323",
   "date": "2026-10-18",
   "items": [
