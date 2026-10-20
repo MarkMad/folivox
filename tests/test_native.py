@@ -476,9 +476,14 @@ def test_bench_report_is_shareable_and_private():
     from folivox import bench
 
     rows = [{"device": "native", "actual": "native:metal", "rtf": 0.6, "chars_per_s": 20.0, "load_s": 14,
-             "warmup_s": 5}, {"device": "cuda", "error": "no kernel image"}]
+             "warmup_s": 5, "runtime": "audio.cpp (native)", "detail": "v0.9.2-macos-arm64-metal, backend metal",
+             "audio_s": 33.0, "synth_s": 19.8, "chars": 440, "ram_peak_gb": 2.5, "ram_where": "engine process",
+             "gpu_card_peak_gb": 3.2},
+            {"device": "cuda", "error": "no kernel image"}]
     text = bench.report_text(rows, "cosyvoice3", "ru")
     assert "RTF 0.60" in text and "FAILED no kernel image" in text and "audio.cpp release" in text
+    assert "native — OK, audio.cpp (native)" in text and "1.7x faster than real time" in text
+    assert "NVIDIA card +3.2 GB" in text and "RAM peak 2.5 GB (engine process)" in text
     assert "/Users/" not in text and "token" not in text.lower()
 
 
@@ -561,3 +566,33 @@ def test_a_crashing_device_listing_means_no_gpu(tmp_path, code):
     assert lister(tmp_path / "srv", "vulkan") == []
     with pytest.raises(ns.NativeError, match="no GPU"):
         ns.require_gpu(tmp_path / "srv", "vulkan", lister=lister)
+
+
+def test_bench_report_says_slower_than_real_time_and_unmeasured_memory():
+    from folivox import bench
+
+    text = bench.report_text([{"device": "cpu", "actual": "cpu", "rtf": 2.4, "chars_per_s": 5.0, "load_s": 9,
+                               "warmup_s": 3}], "cosyvoice3", "en")
+    assert "2.4x SLOWER than real time" in text and "not measured for this device" in text
+
+
+def test_gpu_watch_reports_the_peak_above_the_start():
+    from folivox import bench
+
+    seq = iter([1000, 1000, 3048, 2500, 2000, 2000, 2000, 2000])
+    w = bench.GpuWatch(every=0.01, read=lambda: next(seq, 2000))
+    w.start()
+    import time as _t
+
+    _t.sleep(0.2)
+    assert abs(w.finish() - 2.0) < 1e-6  # 3048 - 1000 MiB
+    assert bench.GpuWatch(read=lambda: None).finish() is None
+
+
+def test_bench_header_names_the_nvidia_card_without_pytorch(monkeypatch):
+    from folivox import bench, diag
+
+    monkeypatch.setattr(diag, "hardware", lambda: {"cores": 8, "ram_gb": 16.0, "gpu": None, "vram_gb": None})
+    monkeypatch.setattr(bench, "nvidia_cards", lambda: "NVIDIA GeForce RTX 3070 8.0 GB, driver 561.09")
+    text = bench.report_text([{"device": "cpu", "error": "x"}], "cosyvoice3", "en")
+    assert "GPU: NVIDIA GeForce RTX 3070 8.0 GB, driver 561.09" in text

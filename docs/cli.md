@@ -93,6 +93,12 @@ folivox bench --lang en --voice me.wav --timeout 600
 folivox bench --tts fish-s2 --runtime native --voice me.wav   # a Fish engine; prints a report to share
 ```
 
+The report at the end is meant to be pasted into an issue. For every device it says whether the run worked, which
+runtime did it (PyTorch or the native audio.cpp engine) and on which GPU, the speed (RTF below 1 is faster than real
+time, and the line says "x times faster" or "SLOWER" in words), how long the model took to load, and the peak memory:
+RAM of the process that holds the model, and for NVIDIA cards the extra GPU memory taken while it ran. The header says
+whether Folivox ran inside a container, which matters for GPU access. Quality is not part of it.
+
 Synthesises one short fragment per device, each in its own process (a crash or an out-of-memory error ends only
 that line) and prints characters per second, RTF (synthesis time / audio length; below 1 is faster than real
 time), model load and warm-up time, and the peak GPU memory. Run it with the same voice and language on

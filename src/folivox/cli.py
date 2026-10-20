@@ -1435,14 +1435,18 @@ def bench(devices: str = typer.Option("", "--devices", help="Comma-separated: cp
     for d in devs:
         with console.status(f"{d}: loading the model and synthesising…"):
             rows.append(b.run_device(d, str(wav), vtext, text, timeout, spec))
-    table = Table("device", "chars/s", "RTF", "load, s", "warm-up, s", "peak VRAM, GB", "result")
+    table = Table("device", "engine", "chars/s", "RTF", "load, s", "warm-up, s", "GPU peak, GB", "RAM peak, GB",
+                  "result")
     for r in rows:
         if "error" in r:
-            table.add_row(r["device"], "–", "–", "–", "–", "–", f"[red]{r['error']}[/]")
+            table.add_row(r["device"], "–", "–", "–", "–", "–", "–", "–", f"[red]{r['error']}[/]")
         else:
-            vram = f"{r['peak_vram_gb']:.1f}" if r["peak_vram_gb"] is not None else "–"
-            table.add_row(r["device"], f"{r['chars_per_s']:.1f}", f"{r['rtf']:.2f}", f"{r['load_s']:.0f}",
-                          f"{r['warmup_s']:.0f}", vram, "[green]ok[/]")
+            gpu = r.get("gpu_card_peak_gb") if r.get("gpu_card_peak_gb") is not None else r.get("peak_vram_gb")
+            ram = r.get("ram_peak_gb")
+            table.add_row(r["device"], r.get("runtime", "") or str(r.get("actual", "")), f"{r['chars_per_s']:.1f}",
+                          f"{r['rtf']:.2f}", f"{r['load_s']:.0f}", f"{r['warmup_s']:.0f}",
+                          f"{gpu:.1f}" if gpu is not None else "–", f"{ram:.1f}" if ram is not None else "–",
+                          "[green]ok[/]")
     console.print(table)
     console.print("[dim]chars/s: characters of text per second of synthesis (more is faster). RTF: synthesis time / "
                   "audio length (below 1 is faster than real time). Whisper's quality check is not included.[/]")
