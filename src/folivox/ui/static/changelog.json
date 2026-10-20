@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.1.0.333",
+  "date": "2026-10-20",
+  "items": [
+   {
+    "type": "fix",
+    "text": "Books with curly apostrophes (I’m, don’t, l’homme) were read as Im, dont, lhomme: the apostrophe was removed together with the quotation marks. It now stays inside words. Fragments already rendered with the old text are made again on the next render."
+   }
+  ]
+ },
+ {
   "version": "0.1.0.332",
   "date": "2026-10-20",
   "items": [

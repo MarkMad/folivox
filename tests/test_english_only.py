@@ -25,3 +25,11 @@ def test_source_has_no_hardcoded_russian_messages():
                     and re.search("[а-яА-ЯёЁ]{3}", node.value)):
                 bad.append(f"{rel}: {node.value[:40]}")
     assert not bad, bad
+
+
+def test_curly_apostrophe_stays_inside_words():
+    from folivox import lang
+
+    out = lang.get("en").normalize("I’m sure it’s John’s dog. He said “don’t go”, ‘really’.")
+    assert out == "I'm sure it's John's dog. He said don't go, really."
+    assert lang.get("fr").normalize("L’homme n’est pas là.").startswith("L'homme n'est")

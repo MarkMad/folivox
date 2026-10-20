@@ -333,6 +333,7 @@ def punctuation(text: str) -> str:
     text = re.sub(r"\s[–-]\s", " — ", text)
     text = re.sub(r"^[–-]\s", "— ", text)
     text = re.sub(r"\[\d+\]|\{\d+\}", "", text)
+    text = re.sub(r"(?<=[^\W\d_])[’‘ʼ](?=[^\W\d_])", "'", text)  # I’m, don’t: a curly apostrophe is part of the word
     text = re.sub(f"[{QUOTES}]", "", text)
     text = re.sub(r"\*{1,3}", "", text)
     text = re.sub(r"[_~^|<>]", " ", text)
