@@ -64,6 +64,7 @@ To build one yourself: `docker build -f docker/Dockerfile --build-arg VARIANT=cp
 | `FOLIVOX_UI_AUTH` | token | `off`: run without a password, for a trusted home network only (see "Without a password"). |
 | `FOLIVOX_UI_ALLOWED_NETS` | private ranges | With `FOLIVOX_UI_AUTH=off`: the client networks that may connect (CIDR, comma-separated). |
 | `FOLIVOX_PRELOAD_MODELS` | 0 | `1`: download the models when the container starts. |
+| `FOLIVOX_RUNTIME` | auto | `auto` (PyTorch for now), `pytorch` or `native`. It wins over *Inference runtime* in the studio and over `config.toml` (which lives in the `/data` volume, `/data/config/folivox/config.toml`), so this is the way to set it when the container starts. The native engine cannot use the GPU in Docker Desktop on Windows (see "NVIDIA GPU"); use `pytorch` there. |
 | `FOLIVOX_TAG` (compose) | `cpu` / `cuda` | Image tag. |
 | `TZ` | UTC | Time zone of the log. |
 

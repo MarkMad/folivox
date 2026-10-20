@@ -16,6 +16,7 @@ services:
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
       # FOLIVOX_PRELOAD_MODELS: "1"        # download the models (about 7.6 GB) at start instead of at the first render
+      # FOLIVOX_RUNTIME: "pytorch"        # inference runtime: auto (default, PyTorch for now), pytorch or native; wins over the studio setting
       # FOLIVOX_UI_ALLOWED_HOSTS: "folivox.home.lan"   # answer only to these host names (behind a reverse proxy)
       # OPENAI_API_KEY: ""        # keys for cloud engines (the container has no keychain, so they go here)
       # FISH_API_KEY: ""
