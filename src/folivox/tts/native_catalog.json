@@ -76,16 +76,16 @@
    ]
   },
   {
-   "id": "ubuntu-x64-vulkan",
+   "id": "ubuntu-x64-vulkan-portable",
    "platform": "linux-x64",
    "backend": "vulkan",
    "status": "untested",
-   "note": "any GPU with a Vulkan 1.1 driver",
+   "note": "any GPU with a Vulkan 1.1 driver; the portable build, because the plain one crashes with an illegal instruction on CPUs without AVX-512 (Ryzen 5000)",
    "assets": [
     {
-     "name": "audio-v0.9.2-bin-ubuntu-x64-vulkan.tar.gz",
-     "size": 81428599,
-     "sha256": "f74b72124c412b28e6520e0c7b5cab31e89a9f933534f2ec2ab35664c4f491e6"
+     "name": "audio-v0.9.2-bin-ubuntu-x64-vulkan-portable.tar.gz",
+     "size": 73616441,
+     "sha256": "37294a0d9d52383475a47df95dc725c83faee0dbfae00088f1509ed4d7f3619d"
     }
    ]
   }

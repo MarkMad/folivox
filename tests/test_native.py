@@ -59,7 +59,7 @@ def test_catalog_is_pinned():
     ("win32-x64", (550, 8.9), "windows-x64-cuda12.4"),
     ("win32-x64", (591, 6.1), "windows-x64-vulkan"),  # Pascal: older than the CUDA builds support
     ("win32-x64", None, "windows-x64-vulkan"),
-    ("linux-x64", None, "ubuntu-x64-vulkan"),
+    ("linux-x64", None, "ubuntu-x64-vulkan-portable"),
     ("darwin-x64", None, None),
 ])
 def test_build_choice(tag, gpu, expect):
@@ -492,10 +492,10 @@ select with: --backend <cuda|hip|vulkan|metal|cpu> --device <index>
 """
 
 
-def _fake_run(out):
+def _fake_run(out, code=0):
     def run(cmd, **kw):
         assert "--list-devices" in cmd
-        return types.SimpleNamespace(returncode=0, stdout=out, stderr="")
+        return types.SimpleNamespace(returncode=code, stdout=out, stderr="")
     return run
 
 
@@ -553,3 +553,11 @@ def test_require_gpu_explains_a_vulkan_without_gpu(tmp_path):
     ns.require_gpu(tmp_path / "srv", "vulkan", lister=lambda s, b: None)  # unknown output: do not block
     ok = lambda server, be: ns.list_devices(server, be, run=_fake_run(_VULKAN_LIST))  # noqa: E731
     ns.require_gpu(tmp_path / "srv", "vulkan", lister=ok)
+
+
+@pytest.mark.parametrize("code", [-4, 132, 0xC0000005 - 2**32])
+def test_a_crashing_device_listing_means_no_gpu(tmp_path, code):
+    lister = lambda server, be: ns.list_devices(server, be, run=_fake_run("", code))  # noqa: E731
+    assert lister(tmp_path / "srv", "vulkan") == []
+    with pytest.raises(ns.NativeError, match="no GPU"):
+        ns.require_gpu(tmp_path / "srv", "vulkan", lister=lister)

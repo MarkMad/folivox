@@ -59,7 +59,7 @@ and archives are unpacked only into `<data folder>/native/` (paths and links tha
 | Windows x64, NVIDIA (driver 580+, RTX 20 and newer) | `cuda13.3` + its `cudart` archive | 0.85 GB | **not tested** |
 | Windows x64, NVIDIA, older driver | `cuda12.4` + `cudart` | 1.07 GB | **not tested** |
 | Windows x64, any GPU with Vulkan 1.1 (AMD, Intel, NVIDIA) | `vulkan` | 63 MB | **not tested** |
-| Linux x64, Vulkan | `ubuntu-x64-vulkan` | 81 MB | **not tested** |
+| Linux x64, Vulkan | `ubuntu-x64-vulkan-portable` | 74 MB | **not tested** (the plain build was dropped: it crashes with an illegal instruction on a Ryzen 9 5900HX, no AVX-512) |
 
 Model (Hugging Face `audio-cpp/audio.cpp-gguf`, pinned revision, Apache-2.0 weights): `cosyvoice3-q8_0.gguf`
 (2.26 GB, default) or `cosyvoice3-f32.gguf` (7 GB; `--weights f32`). The engine converts the weights to

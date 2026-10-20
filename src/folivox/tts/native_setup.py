@@ -260,13 +260,16 @@ def list_devices(server: Path, backend: str, run=subprocess.run) -> list[Device]
     """The compute devices ``audiocpp_server --list-devices`` reports for ``backend``.
 
     ``None`` when the server could not say (it did not run, or an engine release prints something else), so that
-    callers never mistake "unknown" for "no GPU".
+    callers never mistake "unknown" for "no GPU". An empty list when the listing itself crashed: the Vulkan build
+    dies with an illegal instruction in a container that has no Vulkan driver, which means no usable GPU.
     """
     try:
         r = run([str(server), "--backend", backend, "--list-devices"], capture_output=True, text=True,
                 timeout=60, cwd=str(Path(server).parent))  # noqa: S603
     except (OSError, subprocess.SubprocessError):
         return None
+    if r.returncode < 0 or r.returncode >= 128:  # killed by a signal or a Windows crash code
+        return []
     if "available_devices=" not in (r.stdout or ""):
         return None
     out = []
