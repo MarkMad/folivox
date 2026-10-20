@@ -72,6 +72,21 @@ AMD HIP on Windows (community builds in a fork; not pinned by Folivox), Intel Ma
 **Your own build.** `FOLIVOX_NATIVE_SERVER=/path/to/audiocpp_server` and `FOLIVOX_NATIVE_MODEL=/path/to/cosyvoice3.gguf`
 are used instead of the installed files (a CUDA or HIP build from source, for example); `folivox runtime` shows them.
 
+## Which GPU it computes on
+
+With the Vulkan (and HIP) build the engine takes device 0, and on a laptop that is often the integrated GPU in front of
+the discrete card (about 5 times slower in our test). Folivox asks the engine for its devices (`--list-devices`) and
+passes the first discrete GPU to it; `folivox runtime` lists the GPUs and says which one is used. To choose another one:
+
+```toml
+[runtime.native]
+device = 0        # a number from `folivox runtime`; "auto" (default) = the discrete GPU if there is one
+```
+
+or `FOLIVOX_NATIVE_DEVICE=0`. If a GPU backend finds no GPU at all, the render stops with an explanation. Docker Desktop
+on Windows (WSL2) gives containers CUDA and Direct3D but no Vulkan driver, so the Vulkan build cannot use the GPU in a
+container there; use the default PyTorch engine, which does use CUDA.
+
 ## Where everything comes from, and how to build it
 
 `folivox runtime build-help [macos|linux-cuda|linux-vulkan|windows-cuda|windows-vulkan|amd-hip]` prints this from the
@@ -147,7 +162,12 @@ and there is no comparison over many fragments. The Folivox quality gate for mak
 platform: character error rate no worse than PyTorch by more than 1 percentage point on the same fragments, no runaway,
 empty or truncated takes over at least 30 fragments, and a listening comparison.
 
-**Not verified at all:** NVIDIA (CUDA 12.4/13.3 builds on Windows, anything on Linux), AMD and Intel (Vulkan), Windows
+**Measured once on Windows** (2026-10-20, Ryzen 9 5900HX laptop with a Radeon iGPU and an RTX 3050 Laptop 4 GB, driver 561,
+one 440-character `ru-hard` preview, quality check not run): CUDA 12.4 build real-time factor 0.49 (model load 23 s);
+Vulkan build on the RTX 3050 0.66 (load 15 s); Vulkan build on the Radeon iGPU 2.37. The 4 GB card held the model.
+That Radeon was device 0, so the engine alone would have used it; Folivox now picks the discrete GPU (next section).
+
+**Not verified at all:** CUDA 13.3 on Windows, anything on Linux, other AMD and Intel GPUs (Vulkan), Windows
 as a whole (paths with non-Latin user names, PowerShell installer path, antivirus and unsigned executables), the F32
 file on Metal, Intel Macs. audio.cpp's own documentation calls CUDA its optimised path and Vulkan/Metal "portability";
 its published speed tables (RTX 5090, against Python) do not include CosyVoice 3, so the speed on NVIDIA relative to

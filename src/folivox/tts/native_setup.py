@@ -15,6 +15,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -32,6 +33,7 @@ from platformdirs import user_data_dir
 CATALOG_FILE = Path(__file__).with_name("native_catalog.json")
 READY = "ready.json"
 SERVER_ENV, MODEL_ENV, DIR_ENV = "FOLIVOX_NATIVE_SERVER", "FOLIVOX_NATIVE_MODEL", "FOLIVOX_NATIVE_DIR"
+DEVICE_ENV = "FOLIVOX_NATIVE_DEVICE"
 SERVER_NAME = "audiocpp_server.exe" if os.name == "nt" else "audiocpp_server"
 SKIP_TOP = {"src", "tools", "docs", "Notebooks", "examples"}  # source and helper scripts inside release archives
 WEIGHT_CHOICES = ("q8_0", "f32")
@@ -239,6 +241,87 @@ def server_backend(backend: str = "auto") -> str:
     if found:
         return found[0].backend
     return "metal" if platform_tag() == "darwin-arm64" else "cpu"
+
+
+@dataclass(frozen=True)
+class Device:
+    backend: str  # vulkan, hip, cuda, cpu ...
+    index: int  # the number `--device` takes, counted inside the backend
+    name: str
+    kind: str  # GPU (discrete), IGPU (integrated), CPU
+
+
+_DEVICE_LINE = re.compile(r'^(?P<be>[A-Za-z]+):(?P<idx>\d+)\s+"(?P<name>.*?)"\s+\[(?P<kind>[A-Z]+)\]\s*$')
+# Backends where one computer can offer several GPUs of different strength (an iGPU next to a discrete card).
+_MULTI_DEVICE = ("vulkan", "hip", "rocm")
+
+
+def list_devices(server: Path, backend: str, run=subprocess.run) -> list[Device] | None:
+    """The compute devices ``audiocpp_server --list-devices`` reports for ``backend``.
+
+    ``None`` when the server could not say (it did not run, or an engine release prints something else), so that
+    callers never mistake "unknown" for "no GPU".
+    """
+    try:
+        r = run([str(server), "--backend", backend, "--list-devices"], capture_output=True, text=True,
+                timeout=60, cwd=str(Path(server).parent))  # noqa: S603
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if "available_devices=" not in (r.stdout or ""):
+        return None
+    out = []
+    for line in (r.stdout or "").splitlines():
+        m = _DEVICE_LINE.match(line.strip())
+        if m and m["be"].lower() == backend.lower():
+            out.append(Device(backend.lower(), int(m["idx"]), m["name"].strip(), m["kind"]))
+    return out
+
+
+def pick_device(devices: list[Device], setting: str = "auto") -> Device | None:
+    """The device to compute on: the number the user set, else the first discrete GPU, else the first integrated one.
+
+    The engine itself takes device 0, and on a laptop that is often the weak integrated GPU (a Ryzen's Radeon in
+    front of an NVIDIA card made a render five times slower in our test).
+    """
+    setting = str(setting or "auto").strip().lower()
+    if setting.isdigit():
+        return next((d for d in devices if d.index == int(setting)), None)
+    for kind in ("GPU", "IGPU"):
+        found = [d for d in devices if d.kind == kind]
+        if found:
+            return found[0]
+    return None
+
+
+def device_setting(configured: str | int | None = None) -> str:
+    return str(os.environ.get(DEVICE_ENV) or configured or "auto")
+
+
+def choose_device(server: Path, backend: str, configured: str | int | None = None, lister=list_devices) -> int | None:
+    """Device number to pass to the server, or None to leave the engine's own choice (one GPU, other backends)."""
+    if backend.lower() not in _MULTI_DEVICE:
+        return None
+    devices = lister(server, backend)
+    if not devices:
+        return None
+    picked = pick_device(devices, device_setting(configured))
+    return picked.index if picked else None
+
+
+def require_gpu(server: Path, backend: str, lister=list_devices) -> None:
+    """Stop with an explanation when a GPU backend finds no GPU (instead of the engine crashing while loading).
+
+    Seen in Docker Desktop on Windows: WSL2 hands containers CUDA and Direct3D but no Vulkan driver, and the
+    Vulkan build of the engine then died with an illegal instruction while loading the model.
+    """
+    if backend.lower() not in _MULTI_DEVICE:
+        return
+    devices = lister(server, backend)
+    if devices is not None and not any(d.kind in ("GPU", "IGPU") for d in devices):
+        raise NativeError(
+            f"The native engine found no GPU for the {backend} backend. In Docker on Windows (WSL2) the container "
+            "gets CUDA but no Vulkan driver, so this build cannot use the GPU there: use the default PyTorch engine "
+            "(--runtime pytorch) or run Folivox directly on the host.")
 
 
 def model_path(key: str = "q8_0") -> Path | None:
@@ -458,7 +541,11 @@ def install_weights(w: WeightFile, progress: Progress | None, log: Callable[[str
 
     d = weights_dir()
     d.mkdir(parents=True, exist_ok=True)
-    from huggingface_hub import snapshot_download
+    try:
+        from huggingface_hub import snapshot_download
+    except ImportError as e:  # a bare `pip install folivox` has no model-download dependencies
+        raise NativeError("Downloading the model needs the huggingface-hub package: "
+                          "pip install 'folivox[tts]' (the installers add it)") from e
 
     log(f"Downloading the CosyVoice 3 model ({w.size / 1e9:.1f} GB) from huggingface.co/{w.repo} "
         f"at revision {w.revision[:8]}…")

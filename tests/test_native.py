@@ -6,6 +6,7 @@ import json
 import shutil
 import sys
 import tarfile
+import types
 import wave
 import zipfile
 from pathlib import Path
@@ -479,3 +480,76 @@ def test_bench_report_is_shareable_and_private():
     text = bench.report_text(rows, "cosyvoice3", "ru")
     assert "RTF 0.60" in text and "FAILED no kernel image" in text and "audio.cpp release" in text
     assert "/Users/" not in text and "token" not in text.lower()
+
+
+_VULKAN_LIST = """ggml_vulkan: Found 2 Vulkan devices:
+ggml_vulkan: 0 = AMD Radeon(TM) Graphics (AMD proprietary driver) | uma: 1
+available_devices=3
+Vulkan:0 "AMD Radeon(TM) Graphics" [IGPU]
+Vulkan:1 "NVIDIA GeForce RTX 3050 Laptop GPU" [GPU]
+CPU:0 "AMD Ryzen 9 5900HX with Radeon Graphics        " [CPU]
+select with: --backend <cuda|hip|vulkan|metal|cpu> --device <index>
+"""
+
+
+def _fake_run(out):
+    def run(cmd, **kw):
+        assert "--list-devices" in cmd
+        return types.SimpleNamespace(returncode=0, stdout=out, stderr="")
+    return run
+
+
+def test_list_devices_parses_only_the_asked_backend(tmp_path):
+    devs = ns.list_devices(tmp_path / "srv", "vulkan", run=_fake_run(_VULKAN_LIST))
+    assert [(d.index, d.kind) for d in devs] == [(0, "IGPU"), (1, "GPU")]
+    assert devs[1].name == "NVIDIA GeForce RTX 3050 Laptop GPU"
+
+
+def test_pick_device_prefers_discrete_over_integrated(tmp_path):
+    devs = ns.list_devices(tmp_path / "srv", "vulkan", run=_fake_run(_VULKAN_LIST))
+    assert ns.pick_device(devs).index == 1
+    assert ns.pick_device(devs, "0").index == 0  # an explicit number wins
+    assert ns.pick_device(devs, "7") is None
+    assert ns.pick_device(devs[:1]).index == 0  # only an integrated GPU: use it
+
+
+def test_choose_device_env_and_backends(tmp_path, monkeypatch):
+    lister = lambda server, be: ns.list_devices(server, be, run=_fake_run(_VULKAN_LIST))  # noqa: E731
+    monkeypatch.delenv(ns.DEVICE_ENV, raising=False)
+    assert ns.choose_device(tmp_path / "srv", "vulkan", "auto", lister=lister) == 1
+    assert ns.choose_device(tmp_path / "srv", "cuda", "auto", lister=lister) is None
+    monkeypatch.setenv(ns.DEVICE_ENV, "0")
+    assert ns.choose_device(tmp_path / "srv", "vulkan", "auto", lister=lister) == 0
+
+
+def test_server_passes_device(tmp_path, monkeypatch):
+    seen = {}
+
+    class P:
+        def poll(self): return 1
+        returncode = 1
+
+    def popen(cmd, **kw):
+        seen["cmd"] = cmd
+        return P()
+
+    monkeypatch.setattr(native.subprocess, "Popen", popen)
+    s = native.Server(native.Spec(tmp_path / "srv", tmp_path / "m.gguf", "vulkan", device=1))
+    with pytest.raises(ns.NativeError):
+        s.start()
+    assert seen["cmd"][seen["cmd"].index("--device") + 1] == "1"
+
+
+def test_list_devices_unknown_output_is_none(tmp_path):
+    assert ns.list_devices(tmp_path / "srv", "vulkan", run=_fake_run("something new\n")) is None
+
+
+def test_require_gpu_explains_a_vulkan_without_gpu(tmp_path):
+    none_found = "available_devices=1\nCPU:0 \"Some CPU\" [CPU]\n"
+    lister = lambda server, be: ns.list_devices(server, be, run=_fake_run(none_found))  # noqa: E731
+    with pytest.raises(ns.NativeError, match="no GPU"):
+        ns.require_gpu(tmp_path / "srv", "vulkan", lister=lister)
+    ns.require_gpu(tmp_path / "srv", "cuda", lister=lister)  # other backends are not checked
+    ns.require_gpu(tmp_path / "srv", "vulkan", lister=lambda s, b: None)  # unknown output: do not block
+    ok = lambda server, be: ns.list_devices(server, be, run=_fake_run(_VULKAN_LIST))  # noqa: E731
+    ns.require_gpu(tmp_path / "srv", "vulkan", lister=ok)

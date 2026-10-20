@@ -48,6 +48,7 @@ class Spec:
     weight_type: str = "native"
     threads: int | None = None
     family: str = "cosyvoice3"  # audio.cpp model family: cosyvoice3 | fish_audio | fish_drama3
+    device: int | None = None  # GPU number inside the backend (see native_setup.choose_device); None = engine default
 
 
 def server_command(server: Path) -> list[str]:
@@ -93,6 +94,8 @@ class Server:
         cmd = [*server_command(sp.server), "--config", str(cfg_path), "--no-ui", "--log", "--log-file", str(log)]
         if sp.threads:
             cmd += ["--threads", str(sp.threads)]
+        if sp.device is not None:
+            cmd += ["--device", str(sp.device)]
         out = log.open("ab")
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         try:
@@ -314,7 +317,7 @@ class NativeCosyVoiceEngine(TTSEngine):
     parallel = 1  # the LLM runs inside the server; there is nothing to prepare ahead
 
     def __init__(self, backend: str = "auto", weights: str = "q8_0", weight_type: str = "f16",
-                 threads: int | None = None, **_unused):
+                 threads: int | None = None, device: str | int = "auto", **_unused):
         wt = WEIGHT_TYPES.get(str(weight_type).lower())
         if wt is None:
             raise NativeError(f"weight_type must be one of {', '.join(WEIGHT_TYPES)} (got {weight_type!r})")
@@ -325,7 +328,8 @@ class NativeCosyVoiceEngine(TTSEngine):
                               "Install it with `folivox runtime install` (or use `--runtime pytorch`).")
         be = native_setup.server_backend(backend)
         self.device = f"native:{be}"
-        self.spec = Spec(server, model, be, wt, threads)
+        native_setup.require_gpu(server, be)
+        self.spec = Spec(server, model, be, wt, threads, device=native_setup.choose_device(server, be, device))
         t0 = time.time()
         self._server = acquire(self.spec)
         self.load_seconds = time.time() - t0

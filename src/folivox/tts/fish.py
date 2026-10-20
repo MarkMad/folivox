@@ -178,6 +178,7 @@ class FishEngine(TTSEngine):
         """The audio.cpp server loads the GGUF and stays up for the whole render (and a few idle minutes after)."""
         if self._server is not None:
             return
+        from folivox import config
         from folivox.tts import native, native_setup
 
         family = "fish_drama3" if self.build.kind == "drama3" else "fish_audio"
@@ -190,7 +191,8 @@ class FishEngine(TTSEngine):
         gguf = builds.weights_dir(self.build) / self.build.files[0]["path"]
         t0 = time.time()
         try:
-            self._server = native.acquire(native.Spec(server, gguf, backend, family=family))
+            device = native_setup.choose_device(server, backend, config.native_options().get("device"))
+            self._server = native.acquire(native.Spec(server, gguf, backend, family=family, device=device))
         except native_setup.NativeError as e:
             raise FishError(str(e)) from e
         self.load_seconds = time.time() - t0

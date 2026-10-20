@@ -114,8 +114,10 @@ def save_runtime(value: str) -> None:
 
 
 def native_options() -> dict:
-    """``[runtime.native]``: ``backend`` (auto|metal|cuda|vulkan), ``weights`` (q8_0|f32), ``weight_type``."""
-    return {"backend": "auto", "weights": "q8_0", "weight_type": "f16", **section("runtime.native")}
+    """``[runtime.native]``: ``backend`` (auto|metal|cuda|vulkan), ``weights`` (q8_0|f32), ``weight_type``,
+    ``device`` (auto = the discrete GPU if there is one, or a device number from `folivox runtime`)."""
+    return {"backend": "auto", "weights": "q8_0", "weight_type": "f16", "device": "auto",
+            **section("runtime.native")}
 
 
 KEYCHAIN_SERVICE = "folivox"

@@ -30,12 +30,32 @@ def describe() -> list[str]:
         out.append("no prebuilt engine for this computer (own build: set FOLIVOX_NATIVE_SERVER and "
                    "FOLIVOX_NATIVE_MODEL)")
     out.append(f"engine installed: {st.server if st.server else 'no'}")
+    out += device_lines(st)
     if os.environ.get(ns.MODEL_ENV):
         out.append(f"model file: {os.environ[ns.MODEL_ENV]} (from {ns.MODEL_ENV})")
     else:
         out.append("model files: " + ", ".join(f"{k} {'yes' if v else 'no'}" for k, v in st.weights.items()))
     out.append(f"`--runtime auto` uses it: {'yes' if st.auto else 'no (PyTorch)'}")
     out += advice_lines()
+    return out
+
+
+def device_lines(st) -> list[str]:
+    """Which GPU the engine computes on when the computer has several (Vulkan: an iGPU next to a discrete card)."""
+    from folivox import config
+    from folivox.tts import native_setup as ns
+
+    if not st.server or not st.binary or st.binary.backend not in ns._MULTI_DEVICE:
+        return []
+    devs = [d for d in ns.list_devices(st.server, st.binary.backend) or [] if d.kind != "CPU"]
+    if len(devs) < 2:
+        return []
+    chosen = ns.pick_device(devs, ns.device_setting(config.native_options().get("device")))
+    out = ["GPUs the engine can use: " + "; ".join(
+        f"{d.index} {d.name} ({'integrated' if d.kind == 'IGPU' else 'discrete'})" for d in devs)]
+    if chosen:
+        out.append(f"computing on: {chosen.index} {chosen.name} (automatic: a discrete GPU first; to choose another "
+                   f"set `device = N` under [runtime.native] in config.toml or {ns.DEVICE_ENV}=N)")
     return out
 
 

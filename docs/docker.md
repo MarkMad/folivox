@@ -172,6 +172,10 @@ down but does not break it. Use `cuda128` for RTX 50 cards: the older build has 
 AMD and Intel GPUs: the optional native runtime has a Vulkan build ([native-runtime.md](native-runtime.md), experimental).
 Passing `/dev/dri` into the container might make it usable; this is **untested**, treat it as a guess.
 
+The optional native runtime does not work on the GPU in Docker Desktop on Windows: WSL 2 gives containers CUDA but no
+Vulkan driver, and the only Linux build Folivox can download is the Vulkan one. Leave *Inference runtime* on PyTorch
+there (the default); it uses the NVIDIA card through CUDA.
+
 ## Update
 
 Pull the new image and recreate the container (Portainer: *Recreate → Re-pull image*; compose:
