@@ -346,11 +346,14 @@ def require_gpu(server: Path, backend: str, lister=list_devices, seen=visible_gp
     else:
         what = f"The native engine found no {backend} driver for any GPU on this system (it saw only the CPU)."
     if Path("/dev/dxg").exists():
-        how = ("This is expected in Docker on Windows (WSL 2): containers get CUDA but no Vulkan driver. Use the "
-               "default PyTorch engine (--runtime pytorch), which works through CUDA, or run Folivox directly on "
-               "Windows.")
+        how = ("Docker on Windows (WSL 2) gives containers CUDA but has no Vulkan driver for the GPU at all, so this "
+               "is expected there. Two ways forward: (1) keep Docker and use the default PyTorch engine, which runs "
+               "on the GPU through CUDA (set FOLIVOX_RUNTIME=pytorch in the container environment, or --runtime "
+               "pytorch); (2) to use the native engine on this GPU, run Folivox without Docker, directly on Windows "
+               "(scripts/install.ps1), where it has CUDA and Vulkan builds.")
     else:
-        how = (f"Install the {backend} driver of your GPU, or use the default PyTorch engine (--runtime pytorch).")
+        how = (f"Install the {backend} driver of your GPU, or use the default PyTorch engine (--runtime pytorch, or "
+               "FOLIVOX_RUNTIME=pytorch).")
     raise NativeError(f"{what} {how}")
 
 
