@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Folivox: turn any e-book into an audiobook, free and local</title>
+<meta name="description" content="Folivox turns FB2, EPUB, DOCX, PDF and TXT books into chaptered audiobooks (m4b or mp3) on your own computer. Voice cloning with CosyVoice 3, no account, no subscription, nothing uploaded.">
+<link rel="canonical" href="https://vatavale.github.io/folivox/">
+<meta property="og:title" content="Folivox: turn any e-book into an audiobook, free and local">
+<meta property="og:description" content="Drop in a book, pick a voice, press Render. A chaptered audiobook read in any voice you like, on your own computer.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://vatavale.github.io/folivox/">
+<meta property="og:image" content="https://vatavale.github.io/folivox/img/studio-progress.png">
+<style>
+:root {
+  --bg: #fbfaf7; --surface: #ffffff; --text: #1f2321; --muted: #5d6662;
+  --line: #e4e1d9; --accent: #1f6f50; --accent-text: #ffffff; --code-bg: #14211b; --code-text: #e6f1ea;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121614; --surface: #1a201d; --text: #e8ece9; --muted: #9aa5a0;
+    --line: #2a322e; --accent: #4cc38a; --accent-text: #0c1a13; --code-bg: #0b100d; --code-text: #d8eadf;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+a { color: var(--accent); }
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+header.top { padding: 18px 0; border-bottom: 1px solid var(--line); }
+header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { font-weight: 700; font-size: 1.15rem; color: var(--text); text-decoration: none; }
+nav a { margin-left: 18px; color: var(--muted); text-decoration: none; font-size: .95rem; }
+nav a:hover { color: var(--text); }
+.hero { padding: 64px 0 40px; text-align: center; }
+.hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.15; margin: 0 0 16px; letter-spacing: -.01em; }
+.hero p.lead { font-size: 1.2rem; color: var(--muted); max-width: 680px; margin: 0 auto 10px; }
+.formats { color: var(--muted); font-size: .95rem; margin: 0 0 28px; }
+.btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn {
+  display: inline-block; padding: 12px 22px; border-radius: 10px; text-decoration: none; font-weight: 600;
+  border: 1px solid var(--line); color: var(--text); background: var(--surface);
+}
+.btn.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.shot { margin: 40px auto 0; max-width: 880px; }
+.shot img { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 12px; display: block; }
+section { padding: 48px 0; }
+section h2 { font-size: 1.7rem; margin: 0 0 8px; letter-spacing: -.01em; }
+section .sub { color: var(--muted); margin: 0 0 28px; max-width: 720px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+.card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.card p { margin: 0; color: var(--muted); font-size: .96rem; }
+.steps { counter-reset: s; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.step { position: relative; padding-left: 52px; min-width: 0; }
+.step::before {
+  counter-increment: s; content: counter(s); position: absolute; left: 0; top: 0;
+  width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: var(--accent-text);
+  display: grid; place-items: center; font-weight: 700;
+}
+.step h3 { margin: 0 0 6px; font-size: 1.1rem; }
+pre {
+  background: var(--code-bg); color: var(--code-text); padding: 14px 16px; border-radius: 10px;
+  overflow-x: auto; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 8px 0;
+}
+.os { color: var(--muted); font-size: .9rem; margin: 12px 0 0; }
+.note { color: var(--muted); font-size: .95rem; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 720px) { .two { grid-template-columns: 1fr; } nav a { margin-left: 12px; } .hero { padding-top: 40px; } }
+table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: .95rem; }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+.tablewrap { overflow-x: auto; }
+footer { border-top: 1px solid var(--line); padding: 28px 0 48px; color: var(--muted); font-size: .92rem; }
+footer .wrap { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#">Folivox</a>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#install">Install</a>
+      <a href="#engines">Engines</a>
+      <a href="https://github.com/vatavale/folivox">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
+  <div class="hero">
+    <h1>Turn any e-book into an audiobook.<br>Free, on your own computer.</h1>
+    <p class="lead">Drop in a book, pick a voice, press Render. Get a chaptered audiobook read in any voice you like. No account, no subscription, nothing uploaded.</p>
+    <p class="formats">FB2 · EPUB · DOCX · PDF · TXT &nbsp;→&nbsp; <code>.m4b</code> / <code>.mp3</code> with chapters, cover and metadata</p>
+    <div class="btns">
+      <a class="btn primary" href="#install">Install</a>
+      <a class="btn" href="https://github.com/vatavale/folivox">View on GitHub</a>
+    </div>
+    <div class="shot">
+      <img src="img/studio-progress.png" width="1200" height="900" alt="The Folivox studio rendering a book: progress, chapter lanes and the fragment being read">
+    </div>
+  </div>
+
+  <section id="features">
+    <h2>Built for whole books</h2>
+    <p class="sub">Folivox turns many hours of text into a finished audiobook and keeps going if something goes wrong.</p>
+    <div class="grid">
+      <div class="card"><h3>Clone any voice</h3><p>CosyVoice 3 clones a narrator from a 6–15 second sample: a bundled voice, your own recording, a clip cut from a video, or a voice designed for the book.</p></div>
+      <div class="card"><h3>Real audiobook files</h3><p>One <code>.m4b</code> with chapter markers, cover and metadata, or one <code>.mp3</code> per chapter. Loudness-normalised.</p></div>
+      <div class="card"><h3>Checked by a listener</h3><p>Every fragment is listened back with Whisper. If it does not match the text, it is read again and the best take is kept.</p></div>
+      <div class="card"><h3>Crash-safe</h3><p>Every finished fragment is journalled. Stop, crash or lose power, run again and it continues where it stopped.</p></div>
+      <div class="card"><h3>Text prepared for speech</h3><p>Numbers, dates, money, units and abbreviations are read in full for Russian, English, German, French, Spanish, Italian, Chinese, Japanese and Korean.</p></div>
+      <div class="card"><h3>Runs on what you have</h3><p>Apple Silicon, NVIDIA CUDA or a plain CPU. Studio in the browser (local only) or the <code>folivox</code> command line.</p></div>
+    </div>
+  </section>
+
+  <section id="install">
+    <h2>Install</h2>
+    <p class="sub">One command, no administrator rights. It sets up everything: uv, ffmpeg, the PyTorch build for your hardware, and Folivox. Models (about 6 GB for the voice and 1.6 GB for the quality check) download with a progress bar.</p>
+    <div class="steps">
+      <div class="step">
+        <h3>Install</h3>
+        <p class="os">macOS and Linux</p>
+<pre>curl -fsSL https://raw.githubusercontent.com/vatavale/folivox/main/scripts/install.sh | bash</pre>
+        <p class="os">Windows (PowerShell)</p>
+<pre>irm https://raw.githubusercontent.com/vatavale/folivox/main/scripts/install.ps1 | iex</pre>
+        <p class="note">Prefer Docker for a home server or NAS? See the <a href="https://github.com/vatavale/folivox/blob/main/docs/docker.md">Docker guide</a>.</p>
+      </div>
+      <div class="step">
+        <h3>Start the studio</h3>
+        <p>Open a new terminal window and run:</p>
+<pre>folivox ui</pre>
+        <p>Your browser opens the studio. Drop a book, choose a voice, press <b>Render audiobook</b>.</p>
+      </div>
+      <div class="step">
+        <h3>Or use the command line</h3>
+<pre>folivox render book.epub</pre>
+        <p>The audiobook appears next to the book. Update later with <code>folivox update</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="engines">
+    <h2>Choose how your book is read</h2>
+    <p class="sub">Local and free by default. Online engines are optional and use your own API key.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th></th><th>Free, on your computer</th><th>Online engine (your API key)</th></tr></thead>
+        <tbody>
+          <tr><th>Who reads</th><td>CosyVoice 3 or Fish Audio Drama 3, local and offline</td><td>ElevenLabs, OpenAI, Gemini, Cartesia or Fish Audio</td></tr>
+          <tr><th>Voice</th><td>Clones any sample; several voices in one book</td><td>The provider's voices, or a voice designed for the book</td></tr>
+          <tr><th>Cost</th><td>Free</td><td>Estimated before you start, with an optional spending cap</td></tr>
+          <tr><th>Your text</th><td>Never leaves your computer</td><td>Sent to that provider</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note" style="margin-top:16px">Details and prices: <a href="https://github.com/vatavale/folivox/blob/main/docs/cloud-engines.md">cloud engines</a> · <a href="https://github.com/vatavale/folivox/blob/main/docs/voices.md">voices</a> · <a href="https://github.com/vatavale/folivox/blob/main/docs/how-it-works.md">how it works</a>.</p>
+  </section>
+
+  <section>
+    <h2>Take a look</h2>
+    <div class="two">
+      <img src="img/studio-voices.png" width="1658" height="1120" loading="lazy" alt="The voice library in the Folivox studio" style="width:100%;height:auto;border:1px solid var(--line);border-radius:12px">
+      <img src="img/studio-markup.png" width="1200" height="900" loading="lazy" alt="The markup editor for assigning voices to speakers" style="width:100%;height:auto;border:1px solid var(--line);border-radius:12px">
+    </div>
+  </section>
+
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Folivox is open source under the <a href="https://github.com/vatavale/folivox/blob/main/LICENSE">Apache-2.0</a> licence. Early development.</span>
+    <span><a href="https://github.com/vatavale/folivox">Source</a> · <a href="https://github.com/vatavale/folivox/releases">Releases</a> · <a href="https://github.com/vatavale/folivox/issues">Issues</a></span>
+  </div>
+</footer>
+
+</body>
+</html>
