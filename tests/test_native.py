@@ -552,8 +552,10 @@ def test_list_devices_unknown_output_is_none(tmp_path):
 def test_require_gpu_explains_a_vulkan_without_gpu(tmp_path):
     none_found = "available_devices=1\nCPU:0 \"Some CPU\" [CPU]\n"
     lister = lambda server, be: ns.list_devices(server, be, run=_fake_run(none_found))  # noqa: E731
-    with pytest.raises(ns.NativeError, match="no GPU"):
-        ns.require_gpu(tmp_path / "srv", "vulkan", lister=lister)
+    with pytest.raises(ns.NativeError, match="no vulkan driver for any GPU"):
+        ns.require_gpu(tmp_path / "srv", "vulkan", lister=lister, seen=lambda: None)
+    with pytest.raises(ns.NativeError, match="RTX 3070.*no vulkan driver for it"):
+        ns.require_gpu(tmp_path / "srv", "vulkan", lister=lister, seen=lambda: "NVIDIA RTX 3070 (seen by nvidia-smi)")
     ns.require_gpu(tmp_path / "srv", "cuda", lister=lister)  # other backends are not checked
     ns.require_gpu(tmp_path / "srv", "vulkan", lister=lambda s, b: None)  # unknown output: do not block
     ok = lambda server, be: ns.list_devices(server, be, run=_fake_run(_VULKAN_LIST))  # noqa: E731
@@ -564,8 +566,8 @@ def test_require_gpu_explains_a_vulkan_without_gpu(tmp_path):
 def test_a_crashing_device_listing_means_no_gpu(tmp_path, code):
     lister = lambda server, be: ns.list_devices(server, be, run=_fake_run("", code))  # noqa: E731
     assert lister(tmp_path / "srv", "vulkan") == []
-    with pytest.raises(ns.NativeError, match="no GPU"):
-        ns.require_gpu(tmp_path / "srv", "vulkan", lister=lister)
+    with pytest.raises(ns.NativeError, match="no vulkan driver"):
+        ns.require_gpu(tmp_path / "srv", "vulkan", lister=lister, seen=lambda: None)
 
 
 def test_bench_report_says_slower_than_real_time_and_unmeasured_memory():

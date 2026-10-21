@@ -83,7 +83,7 @@ passes the first discrete GPU to it; `folivox runtime` lists the GPUs and says w
 device = 0        # a number from `folivox runtime`; "auto" (default) = the discrete GPU if there is one
 ```
 
-or `FOLIVOX_NATIVE_DEVICE=0`. If a GPU backend finds no GPU at all, the render stops with an explanation. Docker Desktop
+or `FOLIVOX_NATIVE_DEVICE=0`. If a GPU backend finds no driver for any GPU, the render stops with an explanation that names the card it can see (from `nvidia-smi` or `/dev/dxg`) and says the driver is what is missing. Docker Desktop
 on Windows (WSL2) gives containers CUDA and Direct3D but no Vulkan driver, so the Vulkan build cannot use the GPU in a
 container there; use the default PyTorch engine, which does use CUDA.
 

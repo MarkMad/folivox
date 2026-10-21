@@ -311,7 +311,24 @@ def choose_device(server: Path, backend: str, configured: str | int | None = Non
     return picked.index if picked else None
 
 
-def require_gpu(server: Path, backend: str, lister=list_devices) -> None:
+def visible_gpu() -> str | None:
+    """A GPU the system shows to this process even though the Vulkan engine cannot use it, in words, or None."""
+    names = ""
+    try:
+        r = subprocess.run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"], capture_output=True,
+                           text=True, timeout=10)  # noqa: S603, S607
+        if r.returncode == 0:
+            names = ", ".join(x.strip() for x in r.stdout.splitlines() if x.strip())
+    except (OSError, subprocess.SubprocessError):
+        pass
+    if names:
+        return f"{names} (seen by nvidia-smi)"
+    if Path("/dev/dxg").exists():  # WSL 2: the Windows GPU is passed in through this device
+        return "a GPU passed through from Windows (/dev/dxg)"
+    return None
+
+
+def require_gpu(server: Path, backend: str, lister=list_devices, seen=visible_gpu) -> None:
     """Stop with an explanation when a GPU backend finds no GPU (instead of the engine crashing while loading).
 
     Seen in Docker Desktop on Windows: WSL2 hands containers CUDA and Direct3D but no Vulkan driver, and the
@@ -320,11 +337,21 @@ def require_gpu(server: Path, backend: str, lister=list_devices) -> None:
     if backend.lower() not in _MULTI_DEVICE:
         return
     devices = lister(server, backend)
-    if devices is not None and not any(d.kind in ("GPU", "IGPU") for d in devices):
-        raise NativeError(
-            f"The native engine found no GPU for the {backend} backend. In Docker on Windows (WSL2) the container "
-            "gets CUDA but no Vulkan driver, so this build cannot use the GPU there: use the default PyTorch engine "
-            "(--runtime pytorch) or run Folivox directly on the host.")
+    if devices is None or any(d.kind in ("GPU", "IGPU") for d in devices):
+        return
+    gpu = seen()
+    if gpu:
+        what = (f"The system has {gpu}, but there is no {backend} driver for it here, so the native engine cannot "
+                "use it.")
+    else:
+        what = f"The native engine found no {backend} driver for any GPU on this system (it saw only the CPU)."
+    if Path("/dev/dxg").exists():
+        how = ("This is expected in Docker on Windows (WSL 2): containers get CUDA but no Vulkan driver. Use the "
+               "default PyTorch engine (--runtime pytorch), which works through CUDA, or run Folivox directly on "
+               "Windows.")
+    else:
+        how = (f"Install the {backend} driver of your GPU, or use the default PyTorch engine (--runtime pytorch).")
+    raise NativeError(f"{what} {how}")
 
 
 def model_path(key: str = "q8_0") -> Path | None:
